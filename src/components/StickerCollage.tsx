@@ -4,6 +4,16 @@ export function StickerCollage({ variant = 'studio' }: { variant?: 'studio' | 't
     <div className={`collage collage-${variant}`} aria-hidden="true">
       <span className="collage-note">a little weird. a lot of you.</span>
       <div className="collage-paper" />
+      {variant === 'studio' && <>
+        <span className="collage-grid" />
+        <span className="collage-lilac" />
+        <span className="collage-tape" />
+        <span className="collage-margin-note">stick good<br />things around you</span>
+        <span className="collage-aside-note">Same cats.<br />Brighter days.</span>
+        <img className="collage-star" src="/art/stickers/17-yellow-star.webp" alt="" decoding="async" />
+        <img className="collage-twinkle" src="/art/stickers/07-yellow-sparkle.webp" alt="" decoding="async" />
+        <img className="collage-mini-heart" src="/art/stickers/12-small-pink-heart.webp" alt="" decoding="async" />
+      </>}
       {variant === 'templates' && <>
         <span className="collage-tape" />
         <img className="collage-star" src="/art/stickers/07-yellow-sparkle.webp" alt="" decoding="async" />

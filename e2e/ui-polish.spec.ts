@@ -51,6 +51,10 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
       await page.evaluate(() => document.fonts.ready)
       if (name === 'editor') await expect(page.getByTestId('editor-canvas')).toBeVisible()
       else await expect(page.locator('.hero-art')).toBeVisible()
+      if (name === 'dashboard') {
+        await expect(page.locator('.collage-studio img')).toHaveCount(8)
+        await expect(page.locator('.feature-doodle')).toHaveCount(4)
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
       const brokenImages = await page.locator('img').evaluateAll(async (images) => {
         await Promise.all(images.map((image) => { image.loading = 'eager'; return image.decode().catch(() => undefined) }))

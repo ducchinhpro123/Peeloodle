@@ -146,7 +146,7 @@ function Sidebar({ mobile = false }: { mobile?: boolean }) {
           return mobile ? <SheetClose asChild key={label}>{link}</SheetClose> : <span key={label}>{link}</span>
         })}
       </div>
-      <Card className="studio-note"><img src="/art/stickers/04-winking-smiley.webp" alt="" width={64} height={64} /><b>Your tiny creative break</b><p>No account. No pressure.<br />Just you and a little sticker magic.</p><Link to="/create">Make something fun <ChevronRight size={14} /></Link></Card>
+      <Card className="studio-note"><img src="/art/stickers/04-winking-smiley.webp" alt="" width={64} height={64} /><b>Good ideas stick.</b><p>Create. Customize.<br />Share. Repeat.</p><Link to="/create">Make something fun <ChevronRight size={14} /></Link></Card>
     </aside>
   )
 }
@@ -182,14 +182,14 @@ function Dashboard() {
     <Shell>
       <Hero
         title={<>Small stickers.<br /><em>Big personality.</em></>}
-        kicker={<p className="hero-kicker"><Sparkles size={14} /> YOUR EVERYDAY, REMIXED</p>}
+        kicker={<p className="hero-kicker tape">YOUR EVERYDAY, REMIXED</p>}
         action={<div className="actions"><Link className="button primary" to="/create"><ImagePlus size={16} />Create a Sticker<ChevronRight size={16} /></Link><Walkthrough /></div>}
         points={<ul className="hero-points"><li>No account needed</li><li>Saved on your device</li><li>Made by you</li></ul>}
         art={<StickerCollage />}
       >
         Your cat. Your chaos. Your favorite face. Turn everyday photos into little things worth sending.
       </Hero>
-      <div className="feature-grid">{dashboardFeatures.map(({ icon: Icon, title, to, detail, tone }) => <Link className="feature" to={to} key={title}><b className={tone}><Icon size={18} /></b><span><strong>{title}</strong><small>{detail}</small></span></Link>)}</div>
+      <div className="feature-grid">{dashboardFeatures.map(({ icon: Icon, title, to, detail, tone }) => <Link className="feature" to={to} key={title}><b className={tone}><Icon size={18} /></b><span><strong>{title}</strong><small>{detail}</small></span><i className="feature-doodle" aria-hidden="true" /></Link>)}</div>
       <div className="split"><ProjectSection /><TemplateRail title="🔥 Trending Templates" /></div>
       <section className="bottom-banner">
         <img className="banner-sticker" src="/art/stickers/16-rainbow.webp" alt="" width={96} height={72} /><b>Less ordinary.<br />More you.</b>
