@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent, type MutableRefObject } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Download, Upload } from 'lucide-react'
+import { ArrowDown, ArrowUp, Copy, Download, Eye, EyeOff, Lock, Trash2, Unlock, Upload } from 'lucide-react'
 import { useRepository } from '../../app/repository'
 import {
   Button,
@@ -149,6 +149,7 @@ function EditorWorkspace({ projectId }: { projectId?: string }) {
 
 function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Record<string, string> }) {
   const fileRef = useRef<HTMLInputElement>(null)
+  const [inspectorTab, setInspectorTab] = useState('adjust')
   const saveStatus = useEditorStore((state) => state.saveStatus)
   const saveError = useEditorStore((state) => state.saveError)
   const dirty = useEditorStore((state) => state.dirty)
@@ -207,7 +208,14 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
               {detail}
             </NoticeDialog>
           ))}
-          <button type="button" aria-pressed={activeTool === 'rotate'} onClick={() => useEditorStore.getState().setTool('rotate')}>
+          <button
+            type="button"
+            aria-pressed={activeTool === 'rotate'}
+            onClick={() => {
+              useEditorStore.getState().setTool('rotate')
+              setInspectorTab('adjust')
+            }}
+          >
             Crop &amp; Rotate
           </button>
           {deferredTools.slice(1, 3).map(([label, detail]) => (
@@ -220,6 +228,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
             aria-pressed={activeTool === 'text'}
             onClick={() => {
               useEditorStore.getState().addTextLayer()
+              setInspectorTab('adjust')
             }}
           >
             Text
@@ -229,7 +238,14 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
               {detail}
             </NoticeDialog>
           ))}
-          <button type="button" aria-pressed={activeTool === 'select'} onClick={() => useEditorStore.getState().setTool('select')}>
+          <button
+            type="button"
+            aria-pressed={activeTool === 'select' && inspectorTab === 'layers'}
+            onClick={() => {
+              useEditorStore.getState().setTool('select')
+              setInspectorTab('layers')
+            }}
+          >
             Layers
           </button>
           <div className="tool-history">
@@ -258,9 +274,9 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
             <EditorArtboard urls={urls} />
           </div>
         </section>
-        <Inspector document={document} selected={selected} />
+        <Inspector document={document} selected={selected} tab={inspectorTab} onTabChange={setInspectorTab} />
       </div>
-      <PropertiesDialog document={document} selected={selected} />
+      <PropertiesDialog document={document} selected={selected} tab={inspectorTab} onTabChange={setInspectorTab} />
       <AssetTray urls={urls} fileRef={fileRef} onUpload={onUpload} uploadError={uploadError} document={document} />
     </>
   )
@@ -319,7 +335,17 @@ function DomArtboard({ urls }: { urls: Record<string, string> }) {
   )
 }
 
-function PropertiesDialog({ document, selected }: { document: ProjectDocument; selected: Layer | undefined }) {
+function PropertiesDialog({
+  document,
+  selected,
+  tab,
+  onTabChange,
+}: {
+  document: ProjectDocument
+  selected: Layer | undefined
+  tab?: string
+  onTabChange?: (tab: string) => void
+}) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -327,19 +353,30 @@ function PropertiesDialog({ document, selected }: { document: ProjectDocument; s
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>Sticker properties</DialogTitle>
-        <Inspector document={document} selected={selected} />
+        <Inspector document={document} selected={selected} tab={tab} onTabChange={onTabChange} />
       </DialogContent>
     </Dialog>
   )
 }
 
-function Inspector({ document, selected }: { document: ProjectDocument; selected: Layer | undefined }) {
+function Inspector({
+  document,
+  selected,
+  tab = 'adjust',
+  onTabChange,
+}: {
+  document: ProjectDocument
+  selected: Layer | undefined
+  tab?: string
+  onTabChange?: (tab: string) => void
+}) {
   return (
     <aside className="inspector">
       <h2>Sticker Properties</h2>
-      <Tabs.Root defaultValue="adjust">
+      <Tabs.Root value={tab} onValueChange={onTabChange}>
         <Tabs.List>
           <Tabs.Trigger value="adjust">Adjust</Tabs.Trigger>
+          <Tabs.Trigger value="layers">Layers</Tabs.Trigger>
           <Tabs.Trigger value="effects">Effects</Tabs.Trigger>
           <Tabs.Trigger value="position">Position</Tabs.Trigger>
         </Tabs.List>
@@ -348,6 +385,9 @@ function Inspector({ document, selected }: { document: ProjectDocument; selected
           {selected?.kind === 'text' ? <TextInspector layer={selected} /> : null}
           {selected?.kind === 'image' ? <ImageInspector /> : null}
           {selected?.kind === 'shape' ? <p className="muted">Shape style editing arrives later.</p> : null}
+        </Tabs.Content>
+        <Tabs.Content value="layers">
+          <LayersInspector document={document} selected={selected} />
         </Tabs.Content>
         <Tabs.Content value="effects">
           <p className="muted">Filters, outline, and shadow arrive in a later milestone.</p>
@@ -368,6 +408,114 @@ function Inspector({ document, selected }: { document: ProjectDocument; selected
         </Tabs.Content>
       </Tabs.Root>
     </aside>
+  )
+}
+
+function LayersInspector({ document, selected }: { document: ProjectDocument; selected: Layer | undefined }) {
+  return (
+    <div className="inspector-fields">
+      <h3>Layers ({document.layers.length})</h3>
+      <p className="muted" style={{ fontSize: 12 }}>
+        Top is front. Reorder, hide, lock, or rename layers.
+      </p>
+      {document.layers.length === 0 ? (
+        <p className="muted">No layers yet. Upload a photo or add text to start.</p>
+      ) : (
+        <div className="layer-stack">
+          {document.layers
+            .slice()
+            .reverse()
+            .map((layer, reversedIndex) => {
+              const originalIndex = document.layers.length - 1 - reversedIndex
+              const isSelected = layer.id === selected?.id
+              const isTop = originalIndex === document.layers.length - 1
+              const isBottom = originalIndex === 0
+              return (
+                <div
+                  key={layer.id}
+                  className={`layer-row ${isSelected ? 'active' : ''}`}
+                  onClick={() => useEditorStore.getState().selectLayer(layer.id)}
+                >
+                  <span className="layer-kind-tag">{layer.kind}</span>
+                  <input
+                    className="layer-row-title"
+                    value={layer.name}
+                    aria-label={`Layer name: ${layer.name}`}
+                    onClick={(e) => e.stopPropagation()}
+                    onFocus={() => useEditorStore.getState().beginGesture()}
+                    onChange={(e) => useEditorStore.getState().renameLayer(layer.id, e.target.value)}
+                    onBlur={() => useEditorStore.getState().commitGesture()}
+                  />
+                  <div className="layer-actions" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className={`layer-action-btn ${!layer.visible ? 'dimmed' : ''}`}
+                      title={layer.visible ? 'Hide layer' : 'Show layer'}
+                      aria-label={layer.visible ? `Hide ${layer.name}` : `Show ${layer.name}`}
+                      onClick={() => useEditorStore.getState().toggleLayerVisibility(layer.id)}
+                    >
+                      {layer.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </button>
+                    <button
+                      type="button"
+                      className={`layer-action-btn ${layer.locked ? 'active' : ''}`}
+                      title={layer.locked ? 'Unlock layer' : 'Lock layer'}
+                      aria-label={layer.locked ? `Unlock ${layer.name}` : `Lock ${layer.name}`}
+                      onClick={() => useEditorStore.getState().toggleLayerLock(layer.id)}
+                    >
+                      {layer.locked ? <Lock size={14} /> : <Unlock size={14} />}
+                    </button>
+                    <button
+                      type="button"
+                      className="layer-action-btn"
+                      disabled={isTop}
+                      title="Bring forward"
+                      aria-label={`Bring ${layer.name} forward`}
+                      onClick={() => useEditorStore.getState().reorderLayer(layer.id, 'up')}
+                    >
+                      <ArrowUp size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className="layer-action-btn"
+                      disabled={isBottom}
+                      title="Send backward"
+                      aria-label={`Send ${layer.name} backward`}
+                      onClick={() => useEditorStore.getState().reorderLayer(layer.id, 'down')}
+                    >
+                      <ArrowDown size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className="layer-action-btn"
+                      title="Duplicate"
+                      aria-label={`Duplicate ${layer.name}`}
+                      onClick={() => {
+                        useEditorStore.getState().selectLayer(layer.id)
+                        useEditorStore.getState().duplicateSelected()
+                      }}
+                    >
+                      <Copy size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className="layer-action-btn"
+                      title="Delete"
+                      aria-label={`Delete ${layer.name}`}
+                      onClick={() => {
+                        useEditorStore.getState().selectLayer(layer.id)
+                        useEditorStore.getState().removeSelected()
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+        </div>
+      )}
+    </div>
   )
 }
 

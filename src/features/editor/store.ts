@@ -49,6 +49,10 @@ export type EditorStore = {
   nudgeSelected: (dx: number, dy: number) => void
   rotateSelected90: () => void
   flipSelected: (axis: 'horizontal' | 'vertical') => void
+  reorderLayer: (id: string, direction: 'up' | 'down') => void
+  toggleLayerVisibility: (id: string) => void
+  toggleLayerLock: (id: string) => void
+  renameLayer: (id: string, name: string) => void
   undo: () => void
   redo: () => void
   setSaveStatus: (status: SaveStatus, error?: string | null) => void
@@ -402,6 +406,70 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       y: transform.y + dx * Math.sin(radians) + dy * Math.cos(radians),
       scaleX: axis === 'horizontal' ? -transform.scaleX : transform.scaleX,
       scaleY: axis === 'vertical' ? -transform.scaleY : transform.scaleY,
+    })
+  },
+
+  reorderLayer: (id, direction) => {
+    const state = get()
+    if (!state.document) return
+    const layers = [...state.document.layers]
+    const index = layers.findIndex((item) => item.id === id)
+    if (index === -1) return
+    const targetIndex = direction === 'up' ? index + 1 : index - 1
+    if (targetIndex < 0 || targetIndex >= layers.length) return
+    const [item] = layers.splice(index, 1)
+    layers.splice(targetIndex, 0, item!)
+    const history = withHistory(state)
+    const document = touch({ ...state.document, layers })
+    set({
+      ...history,
+      document,
+      dirty: true,
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
+    })
+  },
+
+  toggleLayerVisibility: (id) => {
+    const state = get()
+    if (!state.document) return
+    const history = withHistory(state)
+    const document = touch(replaceLayer(state.document, id, (layer) => ({ ...layer, visible: !layer.visible })))
+    set({
+      ...history,
+      document,
+      dirty: true,
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
+    })
+  },
+
+  toggleLayerLock: (id) => {
+    const state = get()
+    if (!state.document) return
+    const history = withHistory(state)
+    const document = touch(replaceLayer(state.document, id, (layer) => ({ ...layer, locked: !layer.locked })))
+    set({
+      ...history,
+      document,
+      dirty: true,
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
+    })
+  },
+
+  renameLayer: (id, name) => {
+    const state = get()
+    if (!state.document) return
+    const trimmed = name.trim() || 'Layer'
+    const apply = (doc: ProjectDocument) => replaceLayer(doc, id, (layer) => ({ ...layer, name: trimmed }))
+    if (state.gestureActive) {
+      set({ document: apply(state.document) })
+      return
+    }
+    const history = withHistory(state)
+    set({
+      ...history,
+      document: touch(apply(state.document)),
+      dirty: true,
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
     })
   },
 

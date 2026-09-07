@@ -28,7 +28,9 @@ Playwright uses Chromium at `/usr/bin/chromium` via `playwright.config.ts`. Fire
 - [x] Manual save and debounced autosave with Saving / Saved locally / Save failed
 - [x] Reopen from Dashboard and My Stickers; assets and fonts rehydrate
 - [x] Transparent PNG export at 512×512 and 1024×1024 from the document (not the on-screen viewport)
-- [ ] Masks, silhouette outlines, filters, full layer manager, template cloning, packs/favorites, ZIP export
+- [x] Template cloning into independent editable projects, preview dialogs, and template favorites
+- [x] Layer manager in editor: reorder, hide/show, lock/unlock, rename, duplicate, and delete with undo support
+- [ ] Masks, silhouette outlines, filters, packs, ZIP export
 - [ ] Cloud auth/sharing and native WhatsApp/Telegram installation
 
 Deferred actions open an explanation or stay disabled. They do not report success. Automatic background removal is unavailable.

@@ -274,3 +274,34 @@ test('editor layouts at 1024 and 1100 keep the canvas ready', async ({ page }) =
     await expect(page.getByRole('button', { name: /export and share/i })).toBeVisible()
   }
 })
+
+test('template cloning and layer manager workflow', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/templates')
+  const card = page.getByRole('button', { name: 'Good Vibes Pack' }).first()
+  await card.click()
+  const dialog = page.getByRole('dialog', { name: 'Good Vibes Pack' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: 'Use Template' }).click()
+  await page.waitForURL(/\/editor\/[0-9a-f-]+/i)
+
+  await expect(page.getByLabel('Sticker title')).toHaveValue('Good Vibes Pack Copy')
+  const canvas = page.getByTestId('editor-canvas')
+  await expect(canvas).toBeVisible()
+
+  await page.getByRole('button', { name: 'Layers' }).click()
+  const inspector = page.locator('.editor > .inspector')
+  await expect(inspector.getByRole('tab', { name: 'Layers' })).toHaveAttribute('data-state', 'active')
+
+  const bringForward = inspector.getByRole('button', { name: /Bring .* forward/ }).first()
+  if (await bringForward.isEnabled()) {
+    await bringForward.click()
+  }
+
+  await page.getByRole('button', { name: /save to my stickers/i }).click()
+  await expect(page.getByRole('status')).toContainText(/saved locally/i)
+
+  await page.goto('/my-stickers')
+  await page.getByRole('link', { name: /Good Vibes Pack Copy/i }).click()
+  await expect(page.getByLabel('Sticker title')).toHaveValue('Good Vibes Pack Copy')
+})

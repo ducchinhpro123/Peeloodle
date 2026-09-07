@@ -36,7 +36,7 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
     const tool = useEditorStore.getState().activeTool
     const node = selectedId ? nodeRefs.current[selectedId] : undefined
     const layer = current?.layers.find((item) => item.id === selectedId)
-    transformer.nodes(node && layer && !layer.locked && tool !== 'pan' ? [node] : [])
+    transformer.nodes(node && layer && layer.visible && !layer.locked && tool !== 'pan' ? [node] : [])
     transformer.getLayer()?.batchDraw()
   }
 

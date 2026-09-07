@@ -338,6 +338,88 @@ main { min-width: 0; flex: 1; padding: 0 16px 25px; overflow: hidden; }
 .layer-list { margin: 0; padding: 0; list-style: none; }
 .layer-list button { width: 100%; padding: 8px; border: 0; border-radius: 8px; background: transparent; text-align: left; }
 .layer-list button.active { background: var(--pale); }
+.layer-stack { display: grid; gap: 6px; }
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+.layer-row.active {
+  background: var(--pale);
+  border-color: #9ddaca;
+}
+.layer-kind-tag {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #f1f4f8;
+  color: #52627e;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.layer-row-title {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.layer-row-title:focus {
+  border-color: #9ddaca;
+  background: #fff;
+  outline: 0;
+}
+.layer-actions { display: flex; align-items: center; gap: 2px; }
+.layer-action-btn {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #66758f;
+  cursor: pointer;
+}
+.layer-action-btn:hover:not(:disabled) {
+  background: #eef3f7;
+  color: var(--ink);
+}
+.layer-action-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.layer-action-btn.active {
+  color: #00875e;
+}
+.layer-action-btn.dimmed {
+  color: #a0aec0;
+}
+.template-title-btn {
+  display: block;
+  width: 100%;
+  padding: 0 9px;
+  margin-top: 6px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.template-art { cursor: pointer; }
+.template-preview-body { display: grid; gap: 8px; margin-top: 12px; }
 .asset-thumb { width: 80px; height: 70px; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
 .asset-thumb img { width: 100%; height: 100%; object-fit: contain; }
 .export-sizes { display: grid; gap: 8px; margin: 12px 0; }

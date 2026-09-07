@@ -1,7 +1,7 @@
 import { StrictMode, Suspense, lazy, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Link, Route, Routes, useLocation, useSearchParams } from 'react-router-dom'
-import { RepositoryProvider } from './app/repository'
+import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { RepositoryProvider, useRepository } from './app/repository'
 import { LocalProjectList } from './features/editor/LocalProjectList'
 import type { StickerLabRepository } from './lib/persistence/repository'
 import {
@@ -41,6 +41,13 @@ import {
   SheetTrigger,
 } from './components/ui'
 import type { Template } from './types/domain'
+import {
+  cloneTemplateDocument,
+  getFavoriteTemplateIds,
+  TEMPLATE_CATEGORIES,
+  templateData,
+  toggleFavoriteTemplateId,
+} from './features/templates/templates'
 import './styles.css'
 
 const CreateEditor = lazy(() => import('./features/editor/EditorPage').then((module) => ({ default: module.CreateEditor })))
@@ -56,8 +63,6 @@ const topNavigation = [
   { to: '/my-stickers', label: 'My Stickers', active: (pathname: string, search: string) => pathname === '/my-stickers' && getView(search) !== 'favorites' },
   { to: '/templates?view=explore', label: 'Explore', active: (pathname: string, search: string) => pathname === '/templates' && getView(search) === 'explore' },
 ]
-
-const samples = ['🐶', '🐱', '💖', '👑', '😎', '✨', '🌈', '☕']
 
 function Unavailable({ children, label = 'Not available yet', className, 'aria-label': ariaLabel }: { children: ReactNode; label?: string; className?: string; 'aria-label'?: string }) {
   return (
@@ -215,19 +220,120 @@ function ProjectSection() {
   return <section><div className="section-title"><h2><Clock size={16} aria-hidden="true" /> Recent Projects</h2><Link to="/my-stickers">View all</Link></div><LocalProjectList limit={6} /></section>
 }
 
-const templateNames = ['Good Vibes Pack', 'Cat Expressions', 'Meme Essentials', 'Daily Vibes', 'Cool Pets', 'Selfie Stickers', 'Birthday Fun', 'Love Notes', 'Work Wins', 'Seasonal Smiles', 'Text Stickers', 'Big Reactions']
-const categories = ['All Templates', 'Trending', 'Cute Animals', 'Meme Reactions', 'Birthday', 'Love', 'Work', 'Text Stickers', 'Emotions', 'Seasonal']
-const templateData: Template[] = templateNames.map((title, index) => ({
-  id: `sample-${index}`,
-  title,
-  category: categories[(index % (categories.length - 1)) + 1],
-  tags: ['free', index % 2 ? 'cute' : 'fun'],
-  preview: samples[index % samples.length],
-  document: { schemaVersion: 1, id: `seed-${index}`, title, artboard: { width: 1024, height: 1024, background: 'transparent' }, layers: [], assetIds: [], createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', revision: 0 },
-}))
+function TemplateCard({
+  template,
+  isFavorite,
+  onToggleFavorite,
+  onUse,
+}: {
+  template: Template
+  isFavorite: boolean
+  onToggleFavorite: (id: string) => void
+  onUse: (template: Template) => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <article className="template-card" key={template.id}>
+      <div
+        className="template-art"
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') setOpen(true)
+        }}
+      >
+        {template.preview}
+        <button
+          type="button"
+          className="favorite-button"
+          aria-label={isFavorite ? `Remove ${template.title} from favorites` : `Add ${template.title} to favorites`}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleFavorite(template.id)
+          }}
+        >
+          {isFavorite ? '❤️' : '♡'}
+        </button>
+      </div>
+      <button
+        type="button"
+        className="template-title-btn"
+        onClick={() => setOpen(true)}
+      >
+        <b>{template.title}</b>
+      </button>
+      <small>{template.category} · {template.document.layers.length} layers</small>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogTitle>{template.title}</DialogTitle>
+          <div className="template-preview-body">
+            <div className="detail-cover" style={{ fontSize: 64 }}>
+              {template.preview}
+            </div>
+            <p><strong>Category:</strong> {template.category}</p>
+            <p>
+              <strong>Layers:</strong>{' '}
+              {template.document.layers.map((l) => l.name).join(', ') || 'Starter artwork'}
+            </p>
+            <div className="button-row" style={{ marginTop: 16 }}>
+              <Button
+                className="primary"
+                onClick={() => {
+                  setOpen(false)
+                  onUse(template)
+                }}
+              >
+                Use Template
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </article>
+  )
+}
 
-function TemplateRail({ title, items = templateData.slice(0, 4) }: { title: string; items?: Template[] }) {
-  return <section><div className="section-title"><h2>{title}</h2><Link to="/templates">View all</Link></div><div className="rail">{items.map((template) => <article className="template-card" key={template.id}><div className="template-art">{template.preview}<Unavailable className="favorite-button" label="Favorites require local persistence">♡</Unavailable></div><b>{template.title}</b><small>{template.category} · Sample template</small></article>)}</div></section>
+function TemplateRail({
+  title,
+  items = templateData.slice(0, 4),
+}: {
+  title: string
+  items?: Template[]
+}) {
+  const navigate = useNavigate()
+  const repo = useRepository()
+  const [favorites, setFavorites] = useState<string[]>(() => getFavoriteTemplateIds())
+
+  const handleToggleFavorite = (id: string) => {
+    setFavorites(toggleFavoriteTemplateId(id))
+  }
+
+  const handleUse = async (template: Template) => {
+    const cloned = cloneTemplateDocument(template)
+    await repo.saveProject(cloned)
+    navigate(`/editor/${cloned.id}`)
+  }
+
+  return (
+    <section>
+      <div className="section-title">
+        <h2>{title}</h2>
+        <Link to="/templates">View all</Link>
+      </div>
+      <div className="rail">
+        {items.map((template) => (
+          <TemplateCard
+            key={template.id}
+            template={template}
+            isFavorite={favorites.includes(template.id)}
+            onToggleFavorite={handleToggleFavorite}
+            onUse={handleUse}
+          />
+        ))}
+      </div>
+    </section>
+  )
 }
 
 function TemplatesPage() {
@@ -238,8 +344,8 @@ function TemplatesPage() {
 
   return (
     <Shell>
-      <Hero title={<>Discover Amazing <em>Sticker Templates</em></>}>A small, clearly labelled sample catalog for the foundation. Templates will become independent editable projects in a later milestone.</Hero>
-      <div className="pills" aria-label="Template category filters">{categories.map((item) => <button aria-pressed={category === item} onClick={() => setCategory(item)} key={item}>{item}</button>)}</div>
+      <Hero title={<>Discover Amazing <em>Sticker Templates</em></>}>Choose a ready-made template and customize it in the editor. Templates clone into independent editable projects.</Hero>
+      <div className="pills" aria-label="Template category filters">{TEMPLATE_CATEGORIES.map((item) => <button aria-pressed={category === item} onClick={() => setCategory(item)} key={item}>{item}</button>)}</div>
       <div className="filters"><label>Sort by <select disabled aria-describedby="template-filter-help"><option>Featured</option></select></label><label>Style <select disabled aria-describedby="template-filter-help"><option>All styles</option></select></label><span id="template-filter-help" className="muted">Category and title search work; sort and style arrive later.</span><label className="filter-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search sample templates" placeholder="Search samples" /></label></div>
       {result.length ? <><TemplateRail title="🔥 Trending Templates" items={result} /><TemplateRail title="✦ Explore by Category" items={result.slice().reverse()} /><TemplateRail title="✨ More Templates You'll Love" items={result.slice(2)} /></> : <Card className="empty"><h2>No sample templates found</h2><Button onClick={resetFilters}>Reset filters</Button></Card>}
     </Shell>
@@ -258,9 +364,46 @@ function Packs() {
     else if (next === 'Shared with Me') setParams({ view: 'shared' })
     else setParams({})
   }
+  const favoriteIds = getFavoriteTemplateIds()
+  const favoriteTemplates = templateData.filter((t) => favoriteIds.includes(t.id))
   const emptyHeading = view === 'Favorites' ? 'No favorite local packs yet' : view === 'Shared with Me' ? 'Sharing is not available yet' : 'No local packs yet'
   const emptyDetail = view === 'Shared with Me' ? 'Cloud sharing is not set up. Local stickers stay on this device.' : 'Packs will group stickers without deleting them. Sharing is unavailable.'
-  return <Shell><Hero title="My Sticker Packs" action={<div className="actions"><Unavailable><Plus />New Pack</Unavailable><Unavailable><ImagePlus />Import Photos</Unavailable></div>}>Organize saved stickers locally. Pack collections, favorites, and sharing arrive in a later milestone.</Hero><div className="packs-controls"><div className="pills">{['All Packs', 'My Packs', 'Favorites', 'Shared with Me', 'Export History'].map((item) => <button aria-pressed={view === item} disabled={!['All Packs', 'Favorites', 'Shared with Me'].includes(item)} onClick={() => selectView(item)} key={item}>{item}</button>)}</div><span className="muted">Packs are not implemented yet. Saved stickers are listed below.</span></div><section><div className="section-title"><h2>Local stickers</h2><Link to="/create">Create</Link></div><LocalProjectList emptyTitle="No local stickers yet" emptyDetail="Save a sticker from the editor to reopen it here." /></section><div className="packs-layout"><section className="empty packs-empty"><Layers3 size={36} /><h2>{emptyHeading}</h2><p>{emptyDetail}</p><Unavailable label="Packs are not implemented"><Plus />New Pack</Unavailable></section><aside className="pack-detail"><h2>Pack details</h2><div className="detail-cover">✦</div><p>Select a local pack to inspect its stickers and settings once packs exist.</p><Button disabled><Share2 />Share Pack</Button></aside></div></Shell>
+  return (
+    <Shell>
+      <Hero title="My Sticker Packs" action={<div className="actions"><Unavailable><Plus />New Pack</Unavailable><Unavailable><ImagePlus />Import Photos</Unavailable></div>}>
+        Organize saved stickers locally. Pack collections, favorites, and sharing arrive in a later milestone.
+      </Hero>
+      <div className="packs-controls">
+        <div className="pills">
+          {['All Packs', 'My Packs', 'Favorites', 'Shared with Me', 'Export History'].map((item) => (
+            <button aria-pressed={view === item} disabled={!['All Packs', 'Favorites', 'Shared with Me'].includes(item)} onClick={() => selectView(item)} key={item}>{item}</button>
+          ))}
+        </div>
+        <span className="muted">Packs are not implemented yet. Saved stickers are listed below.</span>
+      </div>
+      {view === 'Favorites' && favoriteTemplates.length > 0 ? (
+        <TemplateRail title="Favorite Templates" items={favoriteTemplates} />
+      ) : null}
+      <section>
+        <div className="section-title"><h2>Local stickers</h2><Link to="/create">Create</Link></div>
+        <LocalProjectList emptyTitle="No local stickers yet" emptyDetail="Save a sticker from the editor to reopen it here." />
+      </section>
+      <div className="packs-layout">
+        <section className="empty packs-empty">
+          <Layers3 size={36} />
+          <h2>{emptyHeading}</h2>
+          <p>{emptyDetail}</p>
+          <Unavailable label="Packs are not implemented"><Plus />New Pack</Unavailable>
+        </section>
+        <aside className="pack-detail">
+          <h2>Pack details</h2>
+          <div className="detail-cover">✦</div>
+          <p>Select a local pack to inspect its stickers and settings once packs exist.</p>
+          <Button disabled><Share2 />Share Pack</Button>
+        </aside>
+      </div>
+    </Shell>
+  )
 }
 
 export function App({ repository }: { repository?: StickerLabRepository } = {}) {

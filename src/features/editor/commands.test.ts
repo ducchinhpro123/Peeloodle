@@ -212,6 +212,47 @@ describe('editor commands', () => {
     expect((await repo.listAssets()).map((asset) => asset.id)).toContain('other-project-asset')
   })
 
+  it('reorders layers, toggles visibility/lock, and renames layers with undo support', () => {
+    const store = useEditorStore.getState()
+    store.createDraft('p1')
+    store.addTextLayer()
+    store.addImageLayer(pngRecord('asset-1'))
+    const doc = useEditorStore.getState().document!
+    expect(doc.layers).toHaveLength(2)
+    const textId = doc.layers[0]!.id
+    const imageId = doc.layers[1]!.id
+
+    // Reorder
+    store.reorderLayer(textId, 'up')
+    expect(useEditorStore.getState().document!.layers.map((l) => l.id)).toEqual([imageId, textId])
+    store.undo()
+    expect(useEditorStore.getState().document!.layers.map((l) => l.id)).toEqual([textId, imageId])
+
+    // Visibility
+    expect(useEditorStore.getState().document!.layers[0]!.visible).toBe(true)
+    store.toggleLayerVisibility(textId)
+    expect(useEditorStore.getState().document!.layers[0]!.visible).toBe(false)
+    store.undo()
+    expect(useEditorStore.getState().document!.layers[0]!.visible).toBe(true)
+
+    // Lock
+    expect(useEditorStore.getState().document!.layers[0]!.locked).toBe(false)
+    store.toggleLayerLock(textId)
+    expect(useEditorStore.getState().document!.layers[0]!.locked).toBe(true)
+    store.selectLayer(textId)
+    store.nudgeSelected(10, 10)
+    // Nudge is blocked for locked layer
+    expect(useEditorStore.getState().document!.layers[0]!.transform.x).toBe(320)
+    store.undo()
+    expect(useEditorStore.getState().document!.layers[0]!.locked).toBe(false)
+
+    // Rename
+    store.renameLayer(textId, 'Custom Title')
+    expect(useEditorStore.getState().document!.layers[0]!.name).toBe('Custom Title')
+    store.undo()
+    expect(useEditorStore.getState().document!.layers[0]!.name).toBe('Text')
+  })
+
   it('does not record a no-op gesture or mutate a locked layer', () => {
     useEditorStore.getState().createDraft('p1')
     useEditorStore.getState().addTextLayer()

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it } from 'vitest'
 import { App } from './main'
 import { createMemoryRepository } from './lib/persistence/repository'
-import { resetEditorStore } from './features/editor/store'
+import { resetEditorStore, useEditorStore } from './features/editor/store'
 
 class ResizeObserver { observe() {} unobserve() {} disconnect() {} }
 globalThis.ResizeObserver = ResizeObserver
@@ -108,6 +108,41 @@ describe('foundation interactions', () => {
     renderRoute('/create')
     fireEvent.click(await screen.findByRole('button', { name: 'Text' }))
     expect(await screen.findByRole('slider', { name: 'Font size' })).toBeInTheDocument()
+  })
+
+  it('opens a template preview dialog and clones it into an independent editable project', async () => {
+    const repo = createMemoryRepository()
+    render(
+      <MemoryRouter initialEntries={['/templates']}>
+        <App repository={repo} />
+      </MemoryRouter>,
+    )
+    const cardTitle = screen.getAllByRole('button', { name: 'Good Vibes Pack' })[0]!
+    fireEvent.click(cardTitle)
+    const dialog = await screen.findByRole('dialog', { name: 'Good Vibes Pack' })
+    expect(dialog).toBeInTheDocument()
+    expect(within(dialog).getByText(/Circle Accent, Text: GOOD VIBES/i)).toBeInTheDocument()
+
+    const useBtn = within(dialog).getByRole('button', { name: 'Use Template' })
+    fireEvent.click(useBtn)
+
+    await waitFor(() => {
+      const doc = useEditorStore.getState().document
+      expect(doc).not.toBeNull()
+      expect(doc?.title).toBe('Good Vibes Pack Copy')
+      expect(doc?.layers.length).toBeGreaterThan(0)
+    })
+    const saved = await repo.listProjects()
+    expect(saved).toHaveLength(1)
+    expect(saved[0]?.title).toBe('Good Vibes Pack Copy')
+  })
+
+  it('toggles template favorites and stores them', () => {
+    renderRoute('/templates')
+    const favBtn = screen.getAllByRole('button', { name: 'Add Good Vibes Pack to favorites' })[0]!
+    expect(favBtn).toHaveTextContent('♡')
+    fireEvent.click(favBtn)
+    expect(screen.getAllByRole('button', { name: 'Remove Good Vibes Pack from favorites' })[0]).toHaveTextContent('❤️')
   })
 
   it('opens export options without claiming messenger success', async () => {
