@@ -171,7 +171,18 @@ function parseImageLayer(value: Record<string, unknown>, base: LayerBase): Image
   const layer: ImageLayer = { ...base, kind: 'image', assetId: requiredString(value.assetId, `layer ${base.id} assetId`) }
   if (value.crop !== undefined) layer.crop = parseCrop(value.crop, base.id)
   if (value.maskKey !== undefined) layer.maskKey = requiredString(value.maskKey, `layer ${base.id} maskKey`)
+  if (value.filters !== undefined) layer.filters = parseFilters(value.filters, base.id)
   return layer
+}
+
+function parseFilters(value: unknown, layerId: string): import('../../types/domain').ImageFilters {
+  if (!isRecord(value)) throw invalidDocument(`layer ${layerId} filters must be an object`)
+  return {
+    brightness: requiredFiniteNumber(value.brightness, `layer ${layerId} filters.brightness`),
+    contrast: requiredFiniteNumber(value.contrast, `layer ${layerId} filters.contrast`),
+    saturation: requiredFiniteNumber(value.saturation, `layer ${layerId} filters.saturation`),
+    grayscale: requiredFiniteNumber(value.grayscale, `layer ${layerId} filters.grayscale`),
+  }
 }
 
 function parseCrop(value: unknown, layerId: string): CropRect {

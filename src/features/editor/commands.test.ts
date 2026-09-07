@@ -253,6 +253,34 @@ describe('editor commands', () => {
     expect(useEditorStore.getState().document!.layers[0]!.name).toBe('Text')
   })
 
+  it('updates image filters and resets them with undo support', () => {
+    const store = useEditorStore.getState()
+    store.createDraft('p1')
+    store.addImageLayer(pngRecord('asset-1'))
+    const imageId = useEditorStore.getState().document!.layers[0]!.id
+
+    store.updateFilters(imageId, { brightness: 25, contrast: -10 })
+    const layer = useEditorStore.getState().document!.layers[0]!
+    expect(layer.kind === 'image' && layer.filters).toEqual({
+      brightness: 25,
+      contrast: -10,
+      saturation: 0,
+      grayscale: 0,
+    })
+
+    store.undo()
+    const undone = useEditorStore.getState().document!.layers[0]!
+    expect(undone.kind === 'image' && undone.filters).toBeUndefined()
+
+    store.redo()
+    const redone = useEditorStore.getState().document!.layers[0]!
+    expect(redone.kind === 'image' && redone.filters?.brightness).toBe(25)
+
+    store.resetFilters(imageId)
+    const reset = useEditorStore.getState().document!.layers[0]!
+    expect(reset.kind === 'image' && reset.filters).toBeUndefined()
+  })
+
   it('does not record a no-op gesture or mutate a locked layer', () => {
     useEditorStore.getState().createDraft('p1')
     useEditorStore.getState().addTextLayer()

@@ -233,11 +233,21 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
           >
             Text
           </button>
-          {deferredTools.slice(3).map(([label, detail]) => (
+          {deferredTools.slice(3, 4).map(([label, detail]) => (
             <NoticeDialog key={label} title={`${label} is not available`} trigger={<button type="button">{label}</button>}>
               {detail}
             </NoticeDialog>
           ))}
+          <button
+            type="button"
+            aria-pressed={activeTool === 'select' && inspectorTab === 'effects'}
+            onClick={() => {
+              useEditorStore.getState().setTool('select')
+              setInspectorTab('effects')
+            }}
+          >
+            Filters &amp; Effects
+          </button>
           <button
             type="button"
             aria-pressed={activeTool === 'select' && inspectorTab === 'layers'}
@@ -390,7 +400,11 @@ function Inspector({
           <LayersInspector document={document} selected={selected} />
         </Tabs.Content>
         <Tabs.Content value="effects">
-          <p className="muted">Filters, outline, and shadow arrive in a later milestone.</p>
+          {selected?.kind === 'image' ? (
+            <EffectsInspector layer={selected} />
+          ) : (
+            <p className="muted">Select an image layer to adjust brightness, contrast, saturation, and grayscale filters.</p>
+          )}
         </Tabs.Content>
         <Tabs.Content value="position">
           {selected ? <PositionInspector layer={selected} /> : <p className="muted">Select a layer to change position.</p>}
@@ -595,6 +609,74 @@ function ImageInspector() {
         <span>Thickness <small>Later</small></span>
         <Slider aria-label="Outline thickness placeholder" defaultValue={[24]} max={40} disabled />
       </label>
+    </div>
+  )
+}
+
+function EffectsInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> }) {
+  const filters = layer.filters ?? { brightness: 0, contrast: 0, saturation: 0, grayscale: 0 }
+  const store = useEditorStore.getState
+  return (
+    <div className="inspector-fields">
+      <h3>Filters &amp; Effects</h3>
+      <p className="muted" style={{ fontSize: 12 }}>
+        Adjust photo tone. Applied to canvas preview and PNG exports.
+      </p>
+      <label>
+        <span>Brightness <small>{filters.brightness}%</small></span>
+        <Slider
+          aria-label="Filter brightness"
+          min={-100}
+          max={100}
+          value={[filters.brightness]}
+          onPointerDown={(e) => { if (e.button === 0) store().beginGesture() }}
+          onPointerUp={() => store().commitGesture()}
+          onPointerCancel={() => store().commitGesture()}
+          onValueChange={(val) => store().updateFilters(layer.id, { brightness: val[0] ?? 0 })}
+        />
+      </label>
+      <label>
+        <span>Contrast <small>{filters.contrast}%</small></span>
+        <Slider
+          aria-label="Filter contrast"
+          min={-100}
+          max={100}
+          value={[filters.contrast]}
+          onPointerDown={(e) => { if (e.button === 0) store().beginGesture() }}
+          onPointerUp={() => store().commitGesture()}
+          onPointerCancel={() => store().commitGesture()}
+          onValueChange={(val) => store().updateFilters(layer.id, { contrast: val[0] ?? 0 })}
+        />
+      </label>
+      <label>
+        <span>Saturation <small>{filters.saturation}%</small></span>
+        <Slider
+          aria-label="Filter saturation"
+          min={-100}
+          max={100}
+          value={[filters.saturation]}
+          onPointerDown={(e) => { if (e.button === 0) store().beginGesture() }}
+          onPointerUp={() => store().commitGesture()}
+          onPointerCancel={() => store().commitGesture()}
+          onValueChange={(val) => store().updateFilters(layer.id, { saturation: val[0] ?? 0 })}
+        />
+      </label>
+      <label>
+        <span>Grayscale <small>{filters.grayscale}%</small></span>
+        <Slider
+          aria-label="Filter grayscale"
+          min={0}
+          max={100}
+          value={[filters.grayscale]}
+          onPointerDown={(e) => { if (e.button === 0) store().beginGesture() }}
+          onPointerUp={() => store().commitGesture()}
+          onPointerCancel={() => store().commitGesture()}
+          onValueChange={(val) => store().updateFilters(layer.id, { grayscale: val[0] ?? 0 })}
+        />
+      </label>
+      <div className="button-row" style={{ marginTop: 12 }}>
+        <Button onClick={() => store().resetFilters(layer.id)}>Reset Filters</Button>
+      </div>
     </div>
   )
 }

@@ -32,7 +32,8 @@ Playwright uses Chromium at `/usr/bin/chromium` via `playwright.config.ts`. Fire
 - [x] Layer manager in editor: reorder, hide/show, lock/unlock, rename, duplicate, and delete with undo support
 - [x] Local sticker pack management (create, duplicate, delete without deleting stickers, add/remove stickers, reorder)
 - [x] Full pack ZIP export with numbered transparent PNGs and manifest.json
-- [ ] Masks, silhouette outlines, filters
+- [x] Image filters (brightness, contrast, saturation, grayscale) with reset, shared between canvas preview and PNG exports
+- [ ] Masks and silhouette outlines
 - [ ] Cloud auth/sharing and native WhatsApp/Telegram installation
 
 Deferred actions open an explanation or stay disabled. They do not report success. Automatic background removal is unavailable.

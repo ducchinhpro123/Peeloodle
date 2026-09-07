@@ -1,4 +1,4 @@
-import type Konva from 'konva'
+import Konva from 'konva'
 import { useEffect, useRef, useState } from 'react'
 import { Group, Image as KonvaImage, Layer, Rect, Stage, Text as KonvaText, Transformer } from 'react-konva'
 import { ARTBOARD_SIZE, type Asset, type ImageLayer, type Layer as DocLayer, type TextLayer } from '../../types/domain'
@@ -236,11 +236,59 @@ function HydratedImage({
   handlers: Record<string, unknown>
 }) {
   const image = useHtmlImage(url)
+  const imageNodeRef = useRef<Konva.Image | null>(null)
+
+  useEffect(() => {
+    const node = imageNodeRef.current
+    if (!node) return
+    const filters = layer.filters
+    const hasFilter =
+      filters &&
+      (filters.brightness !== 0 || filters.contrast !== 0 || filters.saturation !== 0 || filters.grayscale !== 0)
+    if (hasFilter) {
+      const activeFilters: Array<(imageData: ImageData) => void> = []
+      if (filters.brightness !== 0) {
+        activeFilters.push(Konva.Filters.Brighten)
+        node.brightness(filters.brightness / 100)
+      }
+      if (filters.contrast !== 0) {
+        activeFilters.push(Konva.Filters.Contrast)
+        node.contrast(filters.contrast)
+      }
+      if (filters.saturation !== 0) {
+        activeFilters.push(Konva.Filters.HSL)
+        node.saturation(filters.saturation / 100)
+      }
+      if (filters.grayscale !== 0) {
+        activeFilters.push(Konva.Filters.Grayscale)
+      }
+      node.filters(activeFilters)
+      try {
+        node.cache()
+      } catch {
+        // caching may fail if image is not cross-origin ready
+      }
+    } else {
+      node.filters([])
+      try {
+        node.clearCache()
+      } catch {
+        // clearCache ignore
+      }
+    }
+  }, [layer.filters, image])
+
   if (!image || !asset) return null
   const crop = layer.crop
+
+  const combinedRef = (node: Konva.Image | null) => {
+    imageNodeRef.current = node
+    nodeRef(node)
+  }
+
   return (
     <KonvaImage
-      ref={nodeRef}
+      ref={combinedRef}
       {...handlers}
       image={image}
       width={crop?.width ?? asset.width}

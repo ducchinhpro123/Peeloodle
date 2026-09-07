@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { createProjectDocument, serializeProjectDocument } from '../../lib/persistence/repository'
 import type { AssetRecord } from '../../lib/persistence/repository'
-import type { Layer, ProjectDocument, TextLayer, Transform } from '../../types/domain'
+import type { ImageFilters, Layer, ProjectDocument, TextLayer, Transform } from '../../types/domain'
 import { fitImageToArtboard } from '../assets/assetLoader'
 
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved-locally' | 'save-failed'
@@ -53,6 +53,8 @@ export type EditorStore = {
   toggleLayerVisibility: (id: string) => void
   toggleLayerLock: (id: string) => void
   renameLayer: (id: string, name: string) => void
+  updateFilters: (id: string, filters: Partial<ImageFilters>) => void
+  resetFilters: (id: string) => void
   undo: () => void
   redo: () => void
   setSaveStatus: (status: SaveStatus, error?: string | null) => void
@@ -465,6 +467,43 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       return
     }
     const history = withHistory(state)
+    set({
+      ...history,
+      document: touch(apply(state.document)),
+      dirty: true,
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
+    })
+  },
+
+  updateFilters: (id, patch) => {
+    const state = get()
+    if (!state.document) return
+    const defaultFilters: ImageFilters = { brightness: 0, contrast: 0, saturation: 0, grayscale: 0 }
+    const apply = (doc: ProjectDocument) =>
+      replaceLayer(doc, id, (l) => {
+        if (l.kind !== 'image') return l
+        const current = l.filters ?? defaultFilters
+        return { ...l, filters: { ...current, ...patch } }
+      })
+    if (state.gestureActive) {
+      set({ document: apply(state.document) })
+      return
+    }
+    const history = withHistory(state)
+    set({
+      ...history,
+      document: touch(apply(state.document)),
+      dirty: true,
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
+    })
+  },
+
+  resetFilters: (id) => {
+    const state = get()
+    if (!state.document) return
+    const history = withHistory(state)
+    const apply = (doc: ProjectDocument) =>
+      replaceLayer(doc, id, (l) => (l.kind === 'image' ? { ...l, filters: undefined } : l))
     set({
       ...history,
       document: touch(apply(state.document)),

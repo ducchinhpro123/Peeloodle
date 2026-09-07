@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createProjectDocument } from '../../lib/persistence/repository'
 import type { AssetRecord } from '../../lib/persistence/repository'
 import type { ImageLayer, TextLayer } from '../../types/domain'
-import { ExportError, readPngSize, renderDocument, type CanvasLike } from './renderDocument'
+import { ExportError, formatCssFilter, readPngSize, renderDocument, type CanvasLike } from './renderDocument'
 
 const identity = { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 }
 
@@ -245,5 +245,13 @@ describe('renderDocument', () => {
       globalThis.createImageBitmap = previous
     }
     expect(closed).toBe(1)
+  })
+
+  it('formats CSS filter strings correctly', () => {
+    expect(formatCssFilter()).toBe('none')
+    expect(formatCssFilter({ brightness: 0, contrast: 0, saturation: 0, grayscale: 0 })).toBe('none')
+    expect(formatCssFilter({ brightness: 20, contrast: -10, saturation: 15, grayscale: 30 })).toBe(
+      'brightness(120%) contrast(90%) saturate(115%) grayscale(30%)',
+    )
   })
 })

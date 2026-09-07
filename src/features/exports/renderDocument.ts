@@ -110,6 +110,16 @@ function closeImageSource(image: CanvasImageSource): void {
   if (typeof (image as ImageBitmap).close === 'function') (image as ImageBitmap).close()
 }
 
+export function formatCssFilter(filters?: import('../../types/domain').ImageFilters): string {
+  if (!filters) return 'none'
+  const parts: string[] = []
+  if (filters.brightness !== 0) parts.push(`brightness(${100 + filters.brightness}%)`)
+  if (filters.contrast !== 0) parts.push(`contrast(${100 + filters.contrast}%)`)
+  if (filters.saturation !== 0) parts.push(`saturate(${100 + filters.saturation}%)`)
+  if (filters.grayscale > 0) parts.push(`grayscale(${filters.grayscale}%)`)
+  return parts.length > 0 ? parts.join(' ') : 'none'
+}
+
 async function drawLayer(
   ctx: CanvasRenderingContext2D,
   layer: Layer,
@@ -126,11 +136,15 @@ async function drawLayer(
     } catch {
       throw new ExportError(`Could not decode asset ${layer.assetId}`)
     }
+    const filter = formatCssFilter(layer.filters)
+    const prevFilter = ctx.filter
+    if (filter !== 'none') ctx.filter = filter
     try {
       const crop = layer.crop
       if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height)
       else ctx.drawImage(image, 0, 0, record.asset.width, record.asset.height)
     } finally {
+      if (filter !== 'none') ctx.filter = prevFilter
       if (closeDecoded) closeImageSource(image)
     }
     return
