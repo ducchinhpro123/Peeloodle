@@ -342,6 +342,12 @@ function TemplateRail({
   )
 }
 
+const templatesHeroArt = (
+  <div className="collage" aria-hidden="true">
+    <img className="hero-art" src="/art/templates-collage.webp" alt="" width={1400} height={788} decoding="async" />
+  </div>
+)
+
 function TemplatesPage() {
   const [category, setCategory] = useState('All Templates')
   const [query, setQuery] = useState('')
@@ -350,7 +356,9 @@ function TemplatesPage() {
 
   return (
     <Shell>
-      <Hero title={<>Discover Amazing <em>Sticker Templates</em></>}>Choose a ready-made template and customize it in the editor. Templates clone into independent editable projects.</Hero>
+      <Hero title={<>Discover Amazing <em>Sticker Templates</em></>} art={templatesHeroArt}>
+        Choose a ready-made template and customize it in the editor. Templates clone into independent editable projects.
+      </Hero>
       <div className="pills" aria-label="Template category filters">{TEMPLATE_CATEGORIES.map((item) => <button aria-pressed={category === item} onClick={() => setCategory(item)} key={item}>{item}</button>)}</div>
       <div className="filters"><label>Sort by <select disabled aria-describedby="template-filter-help"><option>Featured</option></select></label><label>Style <select disabled aria-describedby="template-filter-help"><option>All styles</option></select></label><span id="template-filter-help" className="muted">Category and title search work; sort and style arrive later.</span><label className="filter-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search sample templates" placeholder="Search samples" /></label></div>
       {result.length ? <><TemplateRail title="🔥 Trending Templates" items={result} /><TemplateRail title="✦ Explore by Category" items={result.slice().reverse()} /><TemplateRail title="✨ More Templates You'll Love" items={result.slice(2)} /></> : <Card className="empty"><h2>No sample templates found</h2><Button onClick={resetFilters}>Reset filters</Button></Card>}

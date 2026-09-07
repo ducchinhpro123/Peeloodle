@@ -62,7 +62,7 @@ export async function renderDocument(
     ctx.translate(layer.transform.x, layer.transform.y)
     ctx.rotate((layer.transform.rotation * Math.PI) / 180)
     ctx.scale(layer.transform.scaleX, layer.transform.scaleY)
-    await drawLayer(ctx, layer, assetMap, decode, closeDecoded)
+    await drawLayer(ctx, layer, assetMap, decode, closeDecoded, options.createCanvas)
     ctx.restore()
   }
 
@@ -120,12 +120,63 @@ export function formatCssFilter(filters?: import('../../types/domain').ImageFilt
   return parts.length > 0 ? parts.join(' ') : 'none'
 }
 
+export function drawOutlinedImage(
+  ctx: CanvasRenderingContext2D,
+  image: CanvasImageSource,
+  crop: import('../../types/domain').CropRect | undefined,
+  width: number,
+  height: number,
+  outline: import('../../types/domain').LayerOutline,
+  createCanvas?: (w: number, h: number) => CanvasLike,
+): void {
+  const makeCanvas = createCanvas ?? defaultCreateCanvas
+  let silhouetteCanvas: CanvasLike
+  try {
+    silhouetteCanvas = makeCanvas(width, height)
+  } catch {
+    if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+    else ctx.drawImage(image, 0, 0, width, height)
+    return
+  }
+  const sCtx = silhouetteCanvas.getContext('2d')
+  if (!sCtx) {
+    if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+    else ctx.drawImage(image, 0, 0, width, height)
+    return
+  }
+
+  if (crop) sCtx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+  else sCtx.drawImage(image, 0, 0, width, height)
+
+  sCtx.globalCompositeOperation = 'source-in'
+  sCtx.fillStyle = outline.color
+  sCtx.fillRect(0, 0, width, height)
+
+  const radius = outline.width
+  const steps = Math.max(16, Math.ceil(radius * 2 * Math.PI / 2))
+  for (let angle = 0; angle < Math.PI * 2; angle += (Math.PI * 2) / steps) {
+    const dx = Math.cos(angle) * radius
+    const dy = Math.sin(angle) * radius
+    ctx.drawImage(silhouetteCanvas as unknown as CanvasImageSource, dx, dy)
+  }
+  if (radius > 6) {
+    const half = radius / 2
+    for (let angle = 0; angle < Math.PI * 2; angle += (Math.PI * 2) / (steps / 2)) {
+      ctx.drawImage(silhouetteCanvas as unknown as CanvasImageSource, Math.cos(angle) * half, Math.sin(angle) * half)
+    }
+  }
+
+  if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+  else ctx.drawImage(image, 0, 0, width, height)
+}
+
 async function drawLayer(
   ctx: CanvasRenderingContext2D,
   layer: Layer,
   assets: Map<string, AssetRecord>,
   decode: (blob: Blob) => Promise<CanvasImageSource>,
   closeDecoded: boolean,
+  createCanvas?: (w: number, h: number) => CanvasLike,
 ): Promise<void> {
   if (layer.kind === 'image') {
     const record = assets.get(layer.assetId)
@@ -141,8 +192,14 @@ async function drawLayer(
     if (filter !== 'none') ctx.filter = filter
     try {
       const crop = layer.crop
-      if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height)
-      else ctx.drawImage(image, 0, 0, record.asset.width, record.asset.height)
+      const srcW = crop?.width ?? record.asset.width
+      const srcH = crop?.height ?? record.asset.height
+      if (layer.outline?.enabled && layer.outline.width > 0) {
+        drawOutlinedImage(ctx, image, crop, srcW, srcH, layer.outline, createCanvas)
+      } else {
+        if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height)
+        else ctx.drawImage(image, 0, 0, record.asset.width, record.asset.height)
+      }
     } finally {
       if (filter !== 'none') ctx.filter = prevFilter
       if (closeDecoded) closeImageSource(image)

@@ -1,7 +1,8 @@
 import Konva from 'konva'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Group, Image as KonvaImage, Layer, Rect, Stage, Text as KonvaText, Transformer } from 'react-konva'
 import { ARTBOARD_SIZE, type Asset, type ImageLayer, type Layer as DocLayer, type TextLayer } from '../../types/domain'
+import { drawOutlinedImage } from '../exports/renderDocument'
 import { useEditorStore } from './store'
 
 export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) {
@@ -278,8 +279,24 @@ function HydratedImage({
     }
   }, [layer.filters, image])
 
-  if (!image || !asset) return null
   const crop = layer.crop
+  const outline = layer.outline
+
+  const outlinedImage = useMemo(() => {
+    if (!image || !asset || !outline?.enabled || outline.width <= 0) return null
+    if (typeof window === 'undefined' || typeof window.document === 'undefined') return null
+    const w = crop?.width ?? asset.width
+    const h = crop?.height ?? asset.height
+    const canvas = window.document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    drawOutlinedImage(ctx, image, crop, w, h, outline)
+    return canvas
+  }, [image, crop, asset, outline])
+
+  if (!image || !asset) return null
 
   const combinedRef = (node: Konva.Image | null) => {
     imageNodeRef.current = node
@@ -290,7 +307,7 @@ function HydratedImage({
     <KonvaImage
       ref={combinedRef}
       {...handlers}
-      image={image}
+      image={outlinedImage ?? image}
       width={crop?.width ?? asset.width}
       height={crop?.height ?? asset.height}
       crop={crop}

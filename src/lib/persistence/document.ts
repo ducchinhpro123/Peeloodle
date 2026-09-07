@@ -172,7 +172,17 @@ function parseImageLayer(value: Record<string, unknown>, base: LayerBase): Image
   if (value.crop !== undefined) layer.crop = parseCrop(value.crop, base.id)
   if (value.maskKey !== undefined) layer.maskKey = requiredString(value.maskKey, `layer ${base.id} maskKey`)
   if (value.filters !== undefined) layer.filters = parseFilters(value.filters, base.id)
+  if (value.outline !== undefined) layer.outline = parseOutline(value.outline, base.id)
   return layer
+}
+
+function parseOutline(value: unknown, layerId: string): import('../../types/domain').LayerOutline {
+  if (!isRecord(value)) throw invalidDocument(`layer ${layerId} outline must be an object`)
+  return {
+    enabled: typeof value.enabled === 'boolean' ? value.enabled : false,
+    color: requiredString(value.color, `layer ${layerId} outline.color`),
+    width: requiredPositiveNumber(value.width, `layer ${layerId} outline.width`),
+  }
 }
 
 function parseFilters(value: unknown, layerId: string): import('../../types/domain').ImageFilters {

@@ -281,6 +281,29 @@ describe('editor commands', () => {
     expect(reset.kind === 'image' && reset.filters).toBeUndefined()
   })
 
+  it('updates image silhouette outline settings with undo support', () => {
+    const store = useEditorStore.getState()
+    store.createDraft('p1')
+    store.addImageLayer(pngRecord('asset-1'))
+    const imageId = useEditorStore.getState().document!.layers[0]!.id
+
+    store.updateOutline(imageId, { enabled: true, color: '#08b879', width: 16 })
+    const layer = useEditorStore.getState().document!.layers[0]!
+    expect(layer.kind === 'image' && layer.outline).toEqual({
+      enabled: true,
+      color: '#08b879',
+      width: 16,
+    })
+
+    store.undo()
+    const undone = useEditorStore.getState().document!.layers[0]!
+    expect(undone.kind === 'image' && undone.outline).toBeUndefined()
+
+    store.redo()
+    const redone = useEditorStore.getState().document!.layers[0]!
+    expect(redone.kind === 'image' && redone.outline?.width).toBe(16)
+  })
+
   it('does not record a no-op gesture or mutate a locked layer', () => {
     useEditorStore.getState().createDraft('p1')
     useEditorStore.getState().addTextLayer()

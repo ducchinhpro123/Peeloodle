@@ -218,11 +218,21 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
           >
             Crop &amp; Rotate
           </button>
-          {deferredTools.slice(1, 3).map(([label, detail]) => (
+          {deferredTools.slice(1, 2).map(([label, detail]) => (
             <NoticeDialog key={label} title={`${label} is not available`} trigger={<button type="button">{label}</button>}>
               {detail}
             </NoticeDialog>
           ))}
+          <button
+            type="button"
+            aria-pressed={activeTool === 'select' && inspectorTab === 'adjust'}
+            onClick={() => {
+              useEditorStore.getState().setTool('select')
+              setInspectorTab('adjust')
+            }}
+          >
+            Outline &amp; Border
+          </button>
           <button
             type="button"
             aria-pressed={activeTool === 'text'}
@@ -393,7 +403,7 @@ function Inspector({
         <Tabs.Content value="adjust">
           {!selected ? <p className="muted">Select a layer to edit its properties.</p> : null}
           {selected?.kind === 'text' ? <TextInspector layer={selected} /> : null}
-          {selected?.kind === 'image' ? <ImageInspector /> : null}
+          {selected?.kind === 'image' ? <ImageInspector layer={selected} /> : null}
           {selected?.kind === 'shape' ? <p className="muted">Shape style editing arrives later.</p> : null}
         </Tabs.Content>
         <Tabs.Content value="layers">
@@ -592,23 +602,55 @@ function TextInspector({ layer }: { layer: Extract<Layer, { kind: 'text' }> }) {
   )
 }
 
-function ImageInspector() {
+function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> }) {
+  const outline = layer.outline ?? { enabled: false, color: '#ffffff', width: 12 }
+  const store = useEditorStore.getState
   return (
     <div className="inspector-fields">
       <h3>Image layer</h3>
-      <p className="muted">Move, resize, and rotate on the canvas. Crop and masks arrive later.</p>
+      <p className="muted">Move, resize, and rotate on the canvas.</p>
       <div className="button-row">
-        <Button onClick={() => useEditorStore.getState().flipSelected('horizontal')}>Flip H</Button>
-        <Button onClick={() => useEditorStore.getState().flipSelected('vertical')}>Flip V</Button>
-        <Button onClick={() => useEditorStore.getState().rotateSelected90()}>Rotate 90°</Button>
+        <Button onClick={() => store().flipSelected('horizontal')}>Flip H</Button>
+        <Button onClick={() => store().flipSelected('vertical')}>Flip V</Button>
+        <Button onClick={() => store().rotateSelected90()}>Rotate 90°</Button>
       </div>
       <label>
-        Outline <input type="checkbox" disabled aria-label="Outline (unavailable)" />
+        Outline
+        <input
+          type="checkbox"
+          aria-label="Toggle silhouette outline"
+          checked={outline.enabled}
+          onChange={(e) => store().updateOutline(layer.id, { enabled: e.target.checked })}
+        />
       </label>
-      <label>
-        <span>Thickness <small>Later</small></span>
-        <Slider aria-label="Outline thickness placeholder" defaultValue={[24]} max={40} disabled />
-      </label>
+      {outline.enabled ? (
+        <>
+          <label>
+            Outline color
+            <input
+              type="color"
+              aria-label="Outline color"
+              value={outline.color}
+              onChange={(e) => store().updateOutline(layer.id, { color: e.target.value })}
+            />
+          </label>
+          <label>
+            <span>Thickness <small>{outline.width}px</small></span>
+            <Slider
+              aria-label="Outline thickness"
+              min={2}
+              max={40}
+              value={[outline.width]}
+              onPointerDown={(e) => {
+                if (e.button === 0) store().beginGesture()
+              }}
+              onPointerUp={() => store().commitGesture()}
+              onPointerCancel={() => store().commitGesture()}
+              onValueChange={(val) => store().updateOutline(layer.id, { width: val[0] ?? 12 })}
+            />
+          </label>
+        </>
+      ) : null}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { createProjectDocument, serializeProjectDocument } from '../../lib/persistence/repository'
 import type { AssetRecord } from '../../lib/persistence/repository'
-import type { ImageFilters, Layer, ProjectDocument, TextLayer, Transform } from '../../types/domain'
+import type { ImageFilters, Layer, LayerOutline, ProjectDocument, TextLayer, Transform } from '../../types/domain'
 import { fitImageToArtboard } from '../assets/assetLoader'
 
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved-locally' | 'save-failed'
@@ -55,6 +55,7 @@ export type EditorStore = {
   renameLayer: (id: string, name: string) => void
   updateFilters: (id: string, filters: Partial<ImageFilters>) => void
   resetFilters: (id: string) => void
+  updateOutline: (id: string, outline: Partial<LayerOutline>) => void
   undo: () => void
   redo: () => void
   setSaveStatus: (status: SaveStatus, error?: string | null) => void
@@ -504,6 +505,29 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const history = withHistory(state)
     const apply = (doc: ProjectDocument) =>
       replaceLayer(doc, id, (l) => (l.kind === 'image' ? { ...l, filters: undefined } : l))
+    set({
+      ...history,
+      document: touch(apply(state.document)),
+      dirty: true,
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
+    })
+  },
+
+  updateOutline: (id, patch) => {
+    const state = get()
+    if (!state.document) return
+    const defaultOutline: LayerOutline = { enabled: true, color: '#ffffff', width: 12 }
+    const apply = (doc: ProjectDocument) =>
+      replaceLayer(doc, id, (l) => {
+        if (l.kind !== 'image') return l
+        const current = l.outline ?? defaultOutline
+        return { ...l, outline: { ...current, ...patch } }
+      })
+    if (state.gestureActive) {
+      set({ document: apply(state.document) })
+      return
+    }
+    const history = withHistory(state)
     set({
       ...history,
       document: touch(apply(state.document)),

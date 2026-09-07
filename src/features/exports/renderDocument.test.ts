@@ -254,4 +254,35 @@ describe('renderDocument', () => {
       'brightness(120%) contrast(90%) saturate(115%) grayscale(30%)',
     )
   })
+
+  it('renders image layers with silhouette outline enabled', async () => {
+    const document = createProjectDocument({ id: 'p1' })
+    const record: AssetRecord = {
+      asset: { id: 'a1', mimeType: 'image/png', width: 8, height: 8, blobKey: 'a1', provenance: 'test' },
+      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+    }
+    document.layers = [
+      {
+        id: 'img',
+        name: 'Image',
+        kind: 'image',
+        assetId: 'a1',
+        transform: identity,
+        opacity: 1,
+        visible: true,
+        locked: false,
+        outline: { enabled: true, color: '#ffffff', width: 10 },
+      },
+    ]
+    document.assetIds = ['a1']
+    const canvas = fakeCanvas(512, 512)
+    await renderDocument(document, { a1: record }, {
+      size: 512,
+      createCanvas: () => canvas,
+      decodeImage: async () => ({ width: 8, height: 8, close() {} }) as ImageBitmap,
+      waitForFonts: async () => {},
+    })
+    expect(canvas.pixels[3]).toBe(0)
+    expect(canvas.pixels[(256 * 512 + 256) * 4 + 3]).toBe(255)
+  })
 })
