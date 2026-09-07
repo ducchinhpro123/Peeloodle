@@ -6,6 +6,7 @@ import { createImageSurface, decodeMaskImage, formatCssFilter } from '../exports
 import { getStageMetrics } from './maskUtils'
 import { useMaskBrush, type MaskPreviewCallbacks } from './useMaskBrush'
 import { useEditorStore } from './store'
+import { loadFont } from '../../lib/fonts'
 
 export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -143,9 +144,28 @@ function DocNode({ layer, url, mask, asset, previews, panMode, isBrushTool, node
     },
   }
   if (layer.kind === 'image') return <HydratedImage layer={layer} url={url} mask={mask} asset={asset} previews={previews} nodeRef={nodeRef} handlers={handlers} />
-  if (layer.kind === 'text') return <KonvaText ref={nodeRef} {...handlers} text={layer.content} fontFamily={layer.fontFamily} fontSize={layer.fontSize} fill={layer.color} lineHeight={1} align="left" verticalAlign="top" />
+  if (layer.kind === 'text') return <HydratedText key={layer.fontFamily} layer={layer} handlers={handlers} nodeRef={nodeRef} />
   if (layer.shape === 'circle') return <Ellipse ref={nodeRef} {...handlers} radiusX={60} radiusY={60} offsetX={-60} offsetY={-60} fill={layer.fill} />
   return <Rect ref={nodeRef} {...handlers} width={120} height={120} fill={layer.fill} />
+}
+
+function HydratedText({ layer, handlers, nodeRef }: {
+  layer: Extract<DocLayer, { kind: 'text' }>
+  handlers: Record<string, unknown>
+  nodeRef: (node: Konva.Node | null) => void
+}) {
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    void loadFont(layer.fontFamily).then(() => {
+      if (!cancelled) setReady(true)
+    }).catch((error: unknown) => {
+      if (!cancelled) useEditorStore.getState().setUploadError(error instanceof Error ? error.message : 'Could not load font')
+    })
+    return () => { cancelled = true }
+  }, [layer.fontFamily])
+  // Mount only after loading: Konva caches text measurements at construction time.
+  return ready ? <KonvaText ref={nodeRef} {...handlers} text={layer.content} fontFamily={layer.fontFamily} fontSize={layer.fontSize} fill={layer.color} lineHeight={1} align="left" verticalAlign="top" /> : null
 }
 
 function HydratedImage({ layer, url, mask, asset, previews, nodeRef, handlers }: {

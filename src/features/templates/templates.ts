@@ -1,218 +1,84 @@
-import type { ProjectDocument, Template } from '../../types/domain'
+import type { Layer, ProjectDocument, Template, Transform } from '../../types/domain'
+import { ingestBundledImage } from '../assets/assetLoader'
 
-const samples = ['🐶', '🐱', '💖', '👑', '😎', '✨', '🌈', '☕', '🎉', '🔥', '🌸', '🍕']
-const categories = [
-  'All Templates',
-  'Trending',
-  'Cute Animals',
-  'Meme Reactions',
-  'Birthday',
-  'Love',
-  'Work',
-  'Text Stickers',
-  'Emotions',
-  'Seasonal',
-] as const
+export const TEMPLATE_CATEGORIES = ['All Templates', 'Trending', 'Cute Animals', 'Meme Reactions', 'Birthday', 'Love', 'Work', 'Text Stickers', 'Emotions', 'Seasonal'] as const
 
-export const TEMPLATE_CATEGORIES = categories
-
-type SeedLayerSpec =
-  | { kind: 'text'; text: string; font?: string; size?: number; color?: string; x?: number; y?: number }
-  | { kind: 'shape'; shape: 'circle' | 'rectangle'; fill: string; x?: number; y?: number }
-
-const templateSpecs: Array<{ title: string; category: string; tags: string[]; preview: string; layers: SeedLayerSpec[] }> = [
-  {
-    title: 'Good Vibes Pack',
-    category: 'Trending',
-    tags: ['free', 'cute'],
-    preview: '✨',
-    layers: [
-      { kind: 'shape', shape: 'circle', fill: '#ffddea', x: 260, y: 260 },
-      { kind: 'text', text: 'GOOD VIBES\nONLY', font: 'Plus Jakarta Sans', size: 68, color: '#08b879', x: 290, y: 440 },
-    ],
-  },
-  {
-    title: 'Cat Expressions',
-    category: 'Cute Animals',
-    tags: ['free', 'cute'],
-    preview: '🐱',
-    layers: [
-      { kind: 'shape', shape: 'circle', fill: '#ddf7ed', x: 300, y: 280 },
-      { kind: 'text', text: 'PURR-FECT!', font: 'Plus Jakarta Sans', size: 64, color: '#ff4d9a', x: 310, y: 450 },
-    ],
-  },
-  {
-    title: 'Meme Essentials',
-    category: 'Meme Reactions',
-    tags: ['free', 'fun'],
-    preview: '😎',
-    layers: [
-      { kind: 'shape', shape: 'rectangle', fill: '#fff5d8', x: 260, y: 320 },
-      { kind: 'text', text: 'WAIT\nWHAT?!', font: 'Plus Jakarta Sans', size: 72, color: '#08152f', x: 340, y: 420 },
-    ],
-  },
-  {
-    title: 'Daily Vibes',
-    category: 'Trending',
-    tags: ['free', 'fun'],
-    preview: '☕',
-    layers: [
-      { kind: 'shape', shape: 'circle', fill: '#e8f4ff', x: 280, y: 280 },
-      { kind: 'text', text: 'COFFEE FIRST', font: 'Plus Jakarta Sans', size: 60, color: '#3b82f6', x: 280, y: 460 },
-    ],
-  },
-  {
-    title: 'Cool Pets',
-    category: 'Cute Animals',
-    tags: ['free', 'cute'],
-    preview: '🐶',
-    layers: [
-      { kind: 'shape', shape: 'rectangle', fill: '#ddf7ed', x: 270, y: 300 },
-      { kind: 'text', text: 'PAWSOME!', font: 'Plus Jakarta Sans', size: 64, color: '#08b879', x: 310, y: 450 },
-    ],
-  },
-  {
-    title: 'Selfie Stickers',
-    category: 'Emotions',
-    tags: ['free', 'cute'],
-    preview: '💖',
-    layers: [
-      { kind: 'shape', shape: 'circle', fill: '#fceaf3', x: 290, y: 270 },
-      { kind: 'text', text: 'FEELING CUTE', font: 'Georgia', size: 56, color: '#ff4d9a', x: 280, y: 460 },
-    ],
-  },
-  {
-    title: 'Birthday Fun',
-    category: 'Birthday',
-    tags: ['free', 'fun'],
-    preview: '🎉',
-    layers: [
-      { kind: 'shape', shape: 'rectangle', fill: '#f0eafe', x: 250, y: 290 },
-      { kind: 'text', text: 'PARTY TIME!', font: 'Plus Jakarta Sans', size: 64, color: '#8b5cf6', x: 290, y: 450 },
-    ],
-  },
-  {
-    title: 'Love Notes',
-    category: 'Love',
-    tags: ['free', 'cute'],
-    preview: '👑',
-    layers: [
-      { kind: 'shape', shape: 'circle', fill: '#fceaf3', x: 300, y: 280 },
-      { kind: 'text', text: 'YOU & ME', font: 'Georgia', size: 64, color: '#ff4d9a', x: 330, y: 460 },
-    ],
-  },
-  {
-    title: 'Work Wins',
-    category: 'Work',
-    tags: ['free', 'fun'],
-    preview: '🔥',
-    layers: [
-      { kind: 'shape', shape: 'rectangle', fill: '#ddf7ed', x: 260, y: 310 },
-      { kind: 'text', text: 'NAILED IT!', font: 'Plus Jakarta Sans', size: 64, color: '#08b879', x: 320, y: 450 },
-    ],
-  },
-  {
-    title: 'Seasonal Smiles',
-    category: 'Seasonal',
-    tags: ['free', 'cute'],
-    preview: '🌸',
-    layers: [
-      { kind: 'shape', shape: 'circle', fill: '#fff5d8', x: 290, y: 290 },
-      { kind: 'text', text: 'SUNNY DAYS', font: 'Plus Jakarta Sans', size: 60, color: '#f59e0b', x: 300, y: 460 },
-    ],
-  },
-  {
-    title: 'Text Stickers',
-    category: 'Text Stickers',
-    tags: ['free', 'fun'],
-    preview: '🌈',
-    layers: [
-      { kind: 'shape', shape: 'rectangle', fill: '#e8f4ff', x: 260, y: 310 },
-      { kind: 'text', text: 'BIG MOOD', font: 'Plus Jakarta Sans', size: 70, color: '#3b82f6', x: 320, y: 440 },
-    ],
-  },
-  {
-    title: 'Big Reactions',
-    category: 'Meme Reactions',
-    tags: ['free', 'fun'],
-    preview: '🍕',
-    layers: [
-      { kind: 'shape', shape: 'circle', fill: '#ffddea', x: 280, y: 280 },
-      { kind: 'text', text: 'MIND BLOWN!', font: 'Plus Jakarta Sans', size: 62, color: '#ec4899', x: 290, y: 450 },
-    ],
-  },
+const specs = [
+  { title: 'Good Vibes', category: 'Trending', text: 'Good Vibes!', font: 'Pacifico', color: '#df1688', decoration: '14-large-pink-heart', accent: '07-yellow-sparkle', tilt: -6 },
+  { title: 'Cat Expressions', category: 'Cute Animals', text: 'Meow!', font: 'Chewy', color: '#172449', decoration: '25-purple-heart', accent: '23-twinkles', tilt: 5 },
+  { title: 'Stay Cool', category: 'Meme Reactions', text: 'STAY COOL', font: 'Bangers', color: '#087ca7', decoration: '17-yellow-star', accent: '07-yellow-sparkle', tilt: -5, glasses: true },
+  { title: 'Daily Vibes', category: 'Trending', text: 'Just chillin’', font: 'Fredoka', color: '#00875e', decoration: '22-green-sprout', accent: '23-twinkles', tilt: 4 },
+  { title: 'Best Buddy', category: 'Cute Animals', text: 'Best buddy', font: 'Chewy', color: '#172449', decoration: '14-large-pink-heart', accent: '17-yellow-star', tilt: -4, glasses: true },
+  { title: 'Selfie Stickers', category: 'Emotions', text: 'Feeling cute', font: 'Fredoka', color: '#df1688', decoration: '25-purple-heart', accent: '07-yellow-sparkle', tilt: 5 },
+  { title: 'Birthday Fun', category: 'Birthday', text: 'PARTY TIME!', font: 'Luckiest Guy', color: '#7c3aed', decoration: '16-rainbow', accent: '23-twinkles', tilt: -3 },
+  { title: 'Love Notes', category: 'Love', text: 'You & me', font: 'Pacifico', color: '#df1688', decoration: '14-large-pink-heart', accent: '25-purple-heart', tilt: 3 },
+  { title: 'Work Wins', category: 'Work', text: 'NAILED IT!', font: 'Bangers', color: '#00875e', decoration: '17-yellow-star', accent: '23-twinkles', tilt: -5 },
+  { title: 'Seasonal Smiles', category: 'Seasonal', text: 'Sunny days', font: 'Chewy', color: '#b85a08', decoration: '16-rainbow', accent: '07-yellow-sparkle', tilt: 4 },
+  { title: 'Text Stickers', category: 'Text Stickers', text: 'BIG MOOD', font: 'Luckiest Guy', color: '#087ca7', decoration: '25-purple-heart', accent: '17-yellow-star', tilt: -4 },
+  { title: 'Big Reactions', category: 'Meme Reactions', text: 'WAIT, WHAT?!', font: 'Bangers', color: '#df1688', decoration: '17-yellow-star', accent: '07-yellow-sparkle', tilt: 5 },
 ]
 
-export const templateData: Template[] = templateSpecs.map((spec, index) => {
-  const templateId = `sample-${index}`
-  const docId = `seed-${index}`
-  const layers = spec.layers.map((l, lIdx) => {
-    const id = `layer-${index}-${lIdx}`
-    if (l.kind === 'text') {
-      return {
-        id,
-        name: `Text: ${l.text.split('\n')[0]}`,
-        kind: 'text' as const,
-        content: l.text,
-        fontFamily: l.font ?? 'Plus Jakarta Sans',
-        fontSize: l.size ?? 64,
-        color: l.color ?? '#08152f',
-        transform: { x: l.x ?? 320, y: l.y ?? 430, rotation: 0, scaleX: 1, scaleY: 1 },
-        opacity: 1,
-        visible: true,
-        locked: false,
-      }
-    }
-    return {
-      id,
-      name: `${l.shape === 'circle' ? 'Circle' : 'Rectangle'} Accent`,
-      kind: 'shape' as const,
-      shape: l.shape,
-      fill: l.fill,
-      transform: { x: l.x ?? 300, y: l.y ?? 300, rotation: 0, scaleX: 1, scaleY: 1 },
-      opacity: 1,
-      visible: true,
-      locked: false,
-    }
+/** Compositions, not individual sticker assets. Preview PNGs are generated from these documents. */
+export const templateData: Template[] = specs.map((spec, index) => {
+  const id = `sample-${index}` // Keep existing favorite IDs stable.
+  const assetSources: Record<string, string> = {}
+  function image(assetId: string, name: string, src: string, transform: Transform): Extract<Layer, { kind: 'image' }> {
+    assetSources[assetId] = src
+    return { id: `${id}-${assetId}`, kind: 'image', name, assetId, transform, opacity: 1, visible: true, locked: false }
+  }
+  const transform = (x: number, y: number, scale = 1, rotation = 0): Transform => ({ x, y, scaleX: scale, scaleY: scale, rotation })
+  const photo = image('photo', 'Your photo', '/samples/cat-in-console.png', transform(185, 270, 1.9, -7))
+  photo.crop = { x: 0, y: 70, width: 344, height: 220 }
+  photo.outline = { enabled: true, color: '#ffffff', width: 9 }
+  const layers: Layer[] = [
+    photo,
+    image('decoration', 'Heart / badge', `/art/stickers/${spec.decoration}.webp`, transform(720, 185, 0.85, 12)),
+    image('accent', 'Sparkles / accent', `/art/stickers/${spec.accent}.webp`, transform(140, 150, 1.1, -12)),
+  ]
+  if (spec.glasses) layers.push(image('glasses', 'Sunglasses', '/art/stickers/06-sunglasses.webp', transform(365, 350, 1.7, -7)))
+  layers.push(image('caption-paper', 'Caption backing', '/art/templates/caption-paper.png', transform(190, 650, 0.9, spec.tilt)))
+  const radians = spec.tilt * Math.PI / 180
+  layers.push({
+    id: `${id}-caption`, kind: 'text', name: 'Your caption', content: spec.text,
+    fontFamily: spec.font, fontSize: 88, color: spec.color,
+    transform: transform(190 + 45 * Math.cos(radians) - 35 * Math.sin(radians), 650 + 45 * Math.sin(radians) + 35 * Math.cos(radians), 1, spec.tilt),
+    opacity: 1, visible: true, locked: false,
   })
-
   return {
-    id: templateId,
-    title: spec.title,
-    category: spec.category,
-    tags: spec.tags,
-    preview: spec.preview || samples[index % samples.length] || '✨',
+    id, title: spec.title, category: spec.category, tags: ['photo', 'editable'], preview: '',
+    previewImage: `/art/templates/${id}.png`, assetSources,
     document: {
-      schemaVersion: 1,
-      id: docId,
-      title: spec.title,
-      artboard: { width: 1024, height: 1024, background: 'transparent' },
-      layers,
-      assetIds: [],
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-      revision: 0,
+      schemaVersion: 1, id: `seed-${index}`, title: spec.title,
+      artboard: { width: 1024, height: 1024, background: 'transparent' }, layers,
+      assetIds: Object.keys(assetSources),
+      createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', revision: 0,
     },
   }
 })
 
+/** Load validated artwork before saving; every copy owns independent asset IDs. */
+export async function instantiateTemplate(template: Template) {
+  const document = cloneTemplateDocument(template)
+  const assets = await Promise.all(document.assetIds.map(async (id) => {
+    const src = template.assetSources?.[id]
+    if (!src) throw new Error(`Missing template artwork: ${id}`)
+    return ingestBundledImage(src)
+  }))
+  const ids = new Map(document.assetIds.map((id, index) => [id, assets[index]!.asset.id]))
+  document.assetIds = assets.map(({ asset }) => asset.id)
+  document.layers = document.layers.map((layer) => layer.kind === 'image'
+    ? { ...layer, assetId: ids.get(layer.assetId)! }
+    : layer)
+  return { document, assets }
+}
+
 export function cloneTemplateDocument(template: Template): ProjectDocument {
   const now = new Date().toISOString()
-  const id = crypto.randomUUID()
-  const layers = structuredClone(template.document.layers).map((layer) => ({
-    ...layer,
-    id: crypto.randomUUID(),
-    transform: { ...layer.transform },
-  }))
   return {
-    ...template.document,
-    id,
-    title: `${template.title} Copy`,
-    layers,
-    assetIds: [...template.document.assetIds],
-    createdAt: now,
-    updatedAt: now,
-    revision: 0,
+    ...structuredClone(template.document),
+    id: crypto.randomUUID(), title: `${template.title} Copy`,
+    layers: structuredClone(template.document.layers).map((layer) => ({ ...layer, id: crypto.randomUUID() })),
+    createdAt: now, updatedAt: now, revision: 0,
   }
 }
 
@@ -236,9 +102,7 @@ export function toggleFavoriteTemplateId(id: string): string[] {
   const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
   try {
     const storage = typeof window !== 'undefined' ? window.localStorage : undefined
-    if (storage) {
-      storage.setItem(FAV_TEMPLATES_KEY, JSON.stringify(next))
-    }
+    if (storage) storage.setItem(FAV_TEMPLATES_KEY, JSON.stringify(next))
   } catch {
     // storage disabled
   }

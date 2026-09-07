@@ -10,15 +10,51 @@ Decorative sample images are stored locally under `public/samples/`. They are no
 | `design/ChatGPT Image Sep 7, 2026, 10_47_20 AM.png` | User-supplied generated cat sticker collage (ChatGPT image, 7 Sep 2026) | User-supplied generated asset; original kept in `design/` | 1672×941 PNG with alpha. Templates hero decoration; not user project data. |
 | `public/art/hero-collage.webp` | Derivative of the user-supplied collage above | Same provenance as the original | Legacy banner asset, no longer used by the UI. Trimmed, resized to 1400×632, WebP q82, alpha preserved. |
 | `public/art/templates-collage.webp` | Derivative of the user-supplied cat collage above | Same provenance as the original | Legacy banner asset, no longer used by the UI. Resized to 1400×788, WebP q82, alpha preserved. |
-| `public/art/stickers/*.webp` (9 files) | User-supplied `design/separated-stickers-transparent/`: items 01, 02, 03, 04, 05, 14, 16, 18, 19 | User-supplied artwork; third-party rights and license have not been independently verified | Trimmed with ImageMagick, fitted within 560×560 without upscaling, WebP q84, alpha preserved. About 264 KB total on disk. Used as individual decorative layers in original CSS collages, the sidebar, empty editor, and footer; not template previews, saved user projects, or simulated background-removal results. |
+| `public/art/stickers/*.webp` (25 files) | User-supplied `design/separated-stickers-transparent/`: items 01–25 | User-supplied artwork; third-party rights and license have not been independently verified | Trimmed with ImageMagick, alpha preserved. Original nine derivatives (01, 02, 03, 04, 05, 14, 16, 18, 19) retain their q84/560px limit; the other sixteen use q90 at original trimmed size, without upscaling. About 484 KB total on disk. Decorative collage use plus explicit insertion from the editor catalog; inserted copies become independent image layers with blobs saved in IndexedDB and `bundled-asset:` provenance. Never used as simulated background-removal results. |
 | `public/fonts/plus-jakarta-sans-latin-wght-normal.woff2` | [Plus Jakarta Sans](https://github.com/tokotype/PlusJakartaSans) via Fontsource variable 5.3.0 | SIL Open Font License 1.1 (`public/fonts/PLUS-JAKARTA-SANS-LICENSE.txt`) | Latin variable wght 200–800. UI approximation of the mockup sans; not a claim of exact font identity. Editor canvas text still uses `TEXT_FONTS`. |
 
-These files are low resolution and are only for UI decoration / optional sample insertion. Do not treat them as production 512/1024 source art.
-
-`e2e/fixtures/red.png` and `e2e/fixtures/center-blue.png` are generated test fixtures (solid/test pixels), not third-party artwork.
+The raster samples are modest-resolution source art (roughly 100–600px). Insertion preserves native dimensions and never enlarges them automatically; large manual upscales can look softer. Lettering baked into a cutout is image content, not editable text. Use the Text styles tray for editable labels.
 
 ## Scrapbook hero
 
 `public/art/scrapbook-paper.svg` is original code-drawn decorative artwork inspired by the user-supplied scrapbook panel: paper polygons, procedural grain, print-like lines, and gingham. It contains no embedded screenshot, external images, or fonts. The Templates hero reuses the existing supplied cat/star cutouts under their existing rights limitations; its headline and description remain HTML.
 
-Chewy is bundled from Google Fonts under the SIL Open Font License 1.1 (`public/fonts/chewy-LICENSE.txt`). The yellow sparkle (`public/art/stickers/07-yellow-sparkle.webp`) is a derivative of user-supplied cutout 07, with the same unverified artwork rights as the other cutouts.
+## Illustration assets
+
+Eight user-supplied generated PNGs (1254×1254, real alpha) are preserved unchanged in `design/`. Served derivatives under `public/art/illustrations/` are 1024×1024 WebP q90, produced with ImageMagick without trimming or background removal. Original margins, white outlines, and small edge artifacts remain. Third-party rights have not been independently verified; owner review is still needed before public distribution.
+
+| Served file (`.webp`) | Source in `design/` |
+| --- | --- |
+| `happy-astronaut` | `ChatGPT Image Sep 7, 2026, 03_34_38 PM (1).png` |
+| `sunshine` | `ChatGPT Image Sep 7, 2026, 03_34_38 PM (2).png` |
+| `little-rocket` | `ChatGPT Image Sep 7, 2026, 03_34_43 PM (6).png` |
+| `cool-corgi` | `ChatGPT Image Sep 7, 2026, 03_34_44 PM (7).png` |
+| `happy-kitten` | `ChatGPT Image Sep 7, 2026, 03_34_45 PM (8).png` |
+| `playful-corgi` | `ChatGPT Image Sep 7, 2026, 03_34_46 PM (9).png` |
+| `cloud-rainbow` | `ChatGPT Image Sep 7, 2026, 03_35_57 PM.png` |
+| `happy-planet` | `ChatGPT Image Sep 7, 2026, 03_36_06 PM.png` |
+
+These eight graphics are available only as sticker-tray assets, not templates. Raster illustration details are not independently editable objects.
+
+## Layered photo templates
+
+The 12 compositions in `src/features/templates/templates.ts` combine the CC0 cat sample above, separately positioned supplied decorations, editable locally bundled font captions, and an original white rounded caption backing (`public/art/templates/caption-paper.png`, generated with ImageMagick). Each photo has a non-destructive crop and silhouette outline. The same sample cat is reused; these are layout variations, not twelve distinct photo subjects.
+
+`public/art/templates/sample-*.png` are 512px previews generated by `scripts/generate-template-previews.mjs` using the actual export renderer. Each template clones with independent asset IDs and an atomic document/blob save. Replacement photos retain composition center, rotation, flips, and effects; old crop/mask data is reset, with undo support. Automatic background removal is not implied.
+
+## Editor fonts
+
+Unmodified TTFs from the official Google Fonts repository are bundled locally with their license texts. File bytes were verified against upstream Git blob hashes. Full upstream glyph coverage is retained rather than subsetting; coverage varies by family. The six files total about 1.38 MB and load on demand, without runtime requests to Google or a third-party CDN.
+
+| Local file | Upstream source | License |
+| --- | --- | --- |
+| `public/fonts/fredoka.ttf` | [Fredoka](https://github.com/google/fonts/tree/main/ofl/fredoka) | SIL OFL 1.1, `fredoka-LICENSE.txt` |
+| `public/fonts/baloo2.ttf` | [Baloo 2](https://github.com/google/fonts/tree/main/ofl/baloo2) | SIL OFL 1.1, `baloo2-LICENSE.txt` |
+| `public/fonts/luckiestguy.ttf` | [Luckiest Guy](https://github.com/google/fonts/tree/main/apache/luckiestguy) | Apache 2.0, `luckiestguy-LICENSE.txt` |
+| `public/fonts/chewy.ttf` | [Chewy](https://github.com/google/fonts/tree/main/apache/chewy) | Apache 2.0, `chewy-LICENSE.txt` |
+| `public/fonts/pacifico.ttf` | [Pacifico](https://github.com/google/fonts/tree/main/ofl/pacifico) | SIL OFL 1.1, `pacifico-LICENSE.txt` |
+| `public/fonts/bangers.ttf` | [Bangers](https://github.com/google/fonts/tree/main/ofl/bangers) | SIL OFL 1.1, `bangers-LICENSE.txt` |
+
+All license files above live beside their fonts under `public/fonts/`. Family names are serialized as document data; CSS font faces and `src/lib/fonts.ts` provide shared canvas/export loading. Fonts are not stored in each document or copied into image assets.
+
+`e2e/fixtures/red.png` and `e2e/fixtures/center-blue.png` are generated test fixtures (solid/test pixels), not third-party artwork.

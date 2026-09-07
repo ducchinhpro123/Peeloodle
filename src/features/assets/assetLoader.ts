@@ -16,6 +16,15 @@ export async function ingestImageFile(file: File, options: ValidateUploadOptions
   return { asset, blob: validated.blob }
 }
 
+export async function ingestBundledImage(src: string): Promise<AssetRecord> {
+  const response = await fetch(src)
+  if (!response.ok) throw new Error('Bundled artwork is unavailable')
+  const blob = await response.blob()
+  const record = await ingestImageFile(new File([blob], src.split('/').at(-1) ?? 'artwork', { type: blob.type || 'image/png' }))
+  record.asset.provenance = `bundled-asset:${src}`
+  return record
+}
+
 /** Top-left origin; switch if the editor uses center offsets. */
 export function fitImageToArtboard(width: number, height: number, artboard = ARTBOARD_SIZE): Transform {
   if (width <= 0 || height <= 0) throw new Error('Image dimensions must be positive')

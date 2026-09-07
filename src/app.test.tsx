@@ -1,13 +1,21 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as assetLoader from './features/assets/assetLoader'
 import { App } from './main'
 import { createMemoryRepository, createProjectDocument } from './lib/persistence/repository'
 import { resetEditorStore, useEditorStore } from './features/editor/store'
 
 class ResizeObserver { observe() {} unobserve() {} disconnect() {} }
 globalThis.ResizeObserver = ResizeObserver
+
+beforeEach(() => {
+  vi.spyOn(assetLoader, 'ingestBundledImage').mockImplementation(async (src) => {
+    const id = crypto.randomUUID()
+    return { asset: { id, blobKey: id, mimeType: 'image/png', width: 344, height: 344, provenance: `bundled-asset:${src}` }, blob: new Blob(['artwork'], { type: 'image/png' }) }
+  })
+})
 
 afterEach(() => {
   cleanup()
@@ -97,7 +105,7 @@ describe('foundation interactions', () => {
     renderRoute('/templates')
     fireEvent.click(screen.getByRole('button', { name: 'Cute Animals' }))
     expect(screen.getAllByText('Cat Expressions').length).toBeGreaterThan(0)
-    expect(screen.queryByText('Good Vibes Pack')).not.toBeInTheDocument()
+    expect(screen.queryByText('Good Vibes')).not.toBeInTheDocument()
     fireEvent.change(screen.getByRole('textbox', { name: 'Search sample templates' }), { target: { value: 'no-match' } })
     expect(screen.getByRole('heading', { name: 'No sample templates found' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
@@ -118,11 +126,11 @@ describe('foundation interactions', () => {
         <App repository={repo} />
       </MemoryRouter>,
     )
-    const cardTitle = screen.getAllByRole('button', { name: 'Good Vibes Pack' })[0]!
+    const cardTitle = screen.getAllByRole('button', { name: 'Good Vibes' })[0]!
     fireEvent.click(cardTitle)
-    const dialog = await screen.findByRole('dialog', { name: 'Good Vibes Pack' })
+    const dialog = await screen.findByRole('dialog', { name: 'Good Vibes' })
     expect(dialog).toBeInTheDocument()
-    expect(within(dialog).getByText(/Circle Accent, Text: GOOD VIBES/i)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Your photo, Heart \/ badge, Sparkles \/ accent, Caption backing, Your caption/i)).toBeInTheDocument()
 
     const useBtn = within(dialog).getByRole('button', { name: 'Use Template' })
     fireEvent.click(useBtn)
@@ -130,22 +138,22 @@ describe('foundation interactions', () => {
     await waitFor(() => {
       const doc = useEditorStore.getState().document
       expect(doc).not.toBeNull()
-      expect(doc?.title).toBe('Good Vibes Pack Copy')
+      expect(doc?.title).toBe('Good Vibes Copy')
       expect(doc?.layers.length).toBeGreaterThan(0)
     })
     const saved = await repo.listProjects()
     expect(saved).toHaveLength(1)
-    expect(saved[0]?.title).toBe('Good Vibes Pack Copy')
+    expect(saved[0]?.title).toBe('Good Vibes Copy')
   })
 
   it('keeps a template preview open on save failure and restores focus on dismissal', async () => {
     const repo = createMemoryRepository()
     repo.injectWriteFailure()
     render(<MemoryRouter initialEntries={['/templates']}><App repository={repo} /></MemoryRouter>)
-    const opener = screen.getAllByRole('button', { name: 'Good Vibes Pack' })[0]!
+    const opener = screen.getAllByRole('button', { name: 'Good Vibes' })[0]!
     opener.focus()
     fireEvent.click(opener)
-    const dialog = screen.getByRole('dialog', { name: 'Good Vibes Pack' })
+    const dialog = screen.getByRole('dialog', { name: 'Good Vibes' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Use Template' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not save')
     expect(await repo.listProjects()).toHaveLength(0)
@@ -155,11 +163,11 @@ describe('foundation interactions', () => {
 
   it('toggles template favorites and stores them', () => {
     renderRoute('/templates')
-    const favBtn = screen.getAllByRole('button', { name: 'Add Good Vibes Pack to favorites' })[0]!
+    const favBtn = screen.getAllByRole('button', { name: 'Add Good Vibes to favorites' })[0]!
     expect(favBtn).toHaveTextContent('♡')
     fireEvent.click(favBtn)
-    expect(screen.getAllByRole('button', { name: 'Remove Good Vibes Pack from favorites' })[0]).toHaveTextContent('❤️')
-    expect(screen.queryAllByRole('button', { name: 'Add Good Vibes Pack to favorites' })).toHaveLength(0)
+    expect(screen.getAllByRole('button', { name: 'Remove Good Vibes from favorites' })[0]).toHaveTextContent('❤️')
+    expect(screen.queryAllByRole('button', { name: 'Add Good Vibes to favorites' })).toHaveLength(0)
   })
 
   it('shows pack write failures without closing the form or losing its title', async () => {

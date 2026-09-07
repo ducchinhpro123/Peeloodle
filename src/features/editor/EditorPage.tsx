@@ -15,11 +15,13 @@ import {
   Tabs,
 } from '../../components/ui'
 import { isPersistenceError, serializeProjectDocument, type AssetRecord, type MaskRecord, type StickerLabRepository } from '../../lib/persistence/repository'
-import { ingestImageFile, AssetObjectUrlCache } from '../assets/assetLoader'
+import { ingestImageFile, ingestBundledImage, AssetObjectUrlCache } from '../assets/assetLoader'
 import { UploadValidationError } from '../assets/validateUpload'
 import { downloadBlob, renderDocument, type ExportSize } from '../exports/renderDocument'
 import type { ImageLayer, Layer, ProjectDocument } from '../../types/domain'
-import { saveStatusLabel, TEXT_FONTS, useEditorStore } from './store'
+import { saveStatusLabel, useEditorStore, type TextStyle } from './store'
+import { cssFontFamily, TEXT_FONTS } from '../../lib/fonts'
+import { STICKER_CATALOG, TEXT_PRESETS } from './catalog'
 
 const KonvaCanvas = lazy(() => import('./KonvaCanvas'))
 
@@ -148,7 +150,15 @@ function EditorWorkspace({ projectId }: { projectId?: string }) {
 
 function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Record<string, string> }) {
   const fileRef = useRef<HTMLInputElement>(null)
-  const [inspectorTab, setInspectorTab] = useState('adjust')
+  const [inspectorTab, updateInspectorTab] = useState('adjust')
+  const setInspectorTab = (tab: string) => {
+    // Radix can unmount a focused field before its blur handler runs.
+    const state = useEditorStore.getState()
+    if (!state.finishMaskStroke) state.commitGesture()
+    updateInspectorTab(tab)
+  }
+  const [assetTab, setAssetTab] = useState('uploads')
+  const trayRef = useRef<HTMLElement>(null)
   const saveStatus = useEditorStore((state) => state.saveStatus)
   const saveError = useEditorStore((state) => state.saveError)
   const dirty = useEditorStore((state) => state.dirty)
@@ -253,12 +263,11 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
           >
             <Type size={18} />Text
           </button>
-          <NoticeDialog
-            title="Emoji & Stickers is not available"
-            trigger={<button type="button"><Smile size={18} />Emoji &amp; Stickers</button>}
-          >
-            Curated emoji and sticker decorations arrive in a later milestone.
-          </NoticeDialog>
+          <button type="button" onClick={() => {
+            setAssetTab('stickers')
+            trayRef.current?.scrollIntoView({ block: 'nearest' })
+            trayRef.current?.focus({ preventScroll: true })
+          }}><Smile size={18} />Stickers &amp; decorations</button>
           <button
             type="button"
             aria-pressed={activeTool === 'select' && inspectorTab === 'effects'}
@@ -317,7 +326,9 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
         <Inspector document={document} selected={selected} tab={inspectorTab} onTabChange={setInspectorTab} />
       </div>
       <PropertiesDialog document={document} selected={selected} tab={inspectorTab} onTabChange={setInspectorTab} />
-      <AssetTray urls={urls} fileRef={fileRef} onUpload={onUpload} uploadError={uploadError} document={document} />
+      <AssetTray urls={urls} fileRef={fileRef} onUpload={onUpload} uploadError={uploadError} document={document}
+        tab={assetTab} onTabChange={setAssetTab} trayRef={trayRef}
+        onAddText={(style) => { useEditorStore.getState().addTextLayer(style); setInspectorTab('adjust') }} />
     </>
   )
 }
@@ -482,7 +493,7 @@ function LayersInspector({ document, selected }: { document: ProjectDocument; se
                   className={`layer-row ${isSelected ? 'active' : ''}`}
                   onClick={() => useEditorStore.getState().selectLayer(layer.id)}
                 >
-                  <span className="layer-kind-tag">{layer.kind}</span>
+                  <button type="button" className="layer-kind-tag" aria-label={`Select ${layer.name}`} aria-pressed={isSelected} onClick={(event) => { event.stopPropagation(); useEditorStore.getState().selectLayer(layer.id) }}>{layer.kind}</button>
                   <input
                     className="layer-row-title"
                     value={layer.name}
@@ -584,7 +595,10 @@ function TextInspector({ layer }: { layer: Extract<Layer, { kind: 'text' }> }) {
         <select
           aria-label="Font family"
           value={layer.fontFamily}
-          onChange={(event) => useEditorStore.getState().updateText(layer.id, { fontFamily: event.target.value })}
+          onChange={(event) => {
+            useEditorStore.getState().setUploadError(null)
+            useEditorStore.getState().updateText(layer.id, { fontFamily: event.target.value })
+          }}
         >
           {TEXT_FONTS.map((font) => (
             <option key={font} value={font}>
@@ -593,6 +607,7 @@ function TextInspector({ layer }: { layer: Extract<Layer, { kind: 'text' }> }) {
           ))}
         </select>
       </label>
+      <div className="font-preview" aria-hidden="true" style={{ fontFamily: cssFontFamily(layer.fontFamily) }}>{layer.content || 'Aa'}</div>
       <label>
         <span>Size <small>{layer.fontSize}px</small></span>
         <Slider
@@ -625,6 +640,8 @@ function TextInspector({ layer }: { layer: Extract<Layer, { kind: 'text' }> }) {
 }
 
 function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> }) {
+  const replacementInput = useRef<HTMLInputElement>(null)
+  const [replacing, setReplacing] = useState(false)
   const outline = layer.outline ?? { enabled: false, color: '#ffffff', width: 12 }
   const brushSize = useEditorStore((state) => state.brushSize)
   const activeTool = useEditorStore((state) => state.activeTool)
@@ -632,7 +649,15 @@ function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> })
   return (
     <div className="inspector-fields">
       <h3>Image layer</h3>
-      <p className="muted">Move, resize, rotate, or use the brush to erase and restore.</p>
+      <Button title="Keeps position, rotation, and effects; resets crop and erasure. Backgrounds are not removed automatically." disabled={layer.locked || replacing} onClick={() => replacementInput.current?.click()}>{replacing ? 'Replacing…' : 'Replace photo'}</Button>
+      <input ref={replacementInput} type="file" accept="image/png,image/jpeg,image/webp" aria-label="Replacement photo" hidden onChange={(event) => {
+        const file = event.target.files?.[0]
+        event.target.value = ''
+        if (!file) return
+        setReplacing(true)
+        void ingestIntoCurrentProject(() => ingestImageFile(file), undefined, layer.id).finally(() => setReplacing(false))
+      }} />
+      <p className="muted">Replacement resets crop and erasure. Use a transparent photo or erase its background.</p>
       <div className="button-row">
         <Button
           className={activeTool === 'erase' ? 'primary' : undefined}
@@ -806,17 +831,24 @@ function AssetTray({
   onUpload,
   uploadError,
   document,
+  tab,
+  onTabChange,
+  trayRef,
+  onAddText,
 }: {
+  tab: string
+  onTabChange: (tab: string) => void
+  trayRef: MutableRefObject<HTMLElement | null>
+  onAddText: (style: TextStyle) => void
   urls: Record<string, string>
   fileRef: MutableRefObject<HTMLInputElement | null>
   onUpload: (event: ChangeEvent<HTMLInputElement>) => void
   uploadError: string | null
   document: ProjectDocument
 }) {
-  const [tab, setTab] = useState('uploads')
   const imageLayers = document.layers.filter((layer) => layer.kind === 'image')
   return (
-    <section className="asset-tray">
+    <section className="asset-tray" ref={trayRef} tabIndex={-1} aria-label="Sticker assets">
       <input
         ref={fileRef}
         className="sr-only"
@@ -826,16 +858,14 @@ function AssetTray({
         data-testid="photo-file-input"
         onChange={onUpload}
       />
-      <Tabs.Root value={tab} onValueChange={setTab}>
-        <Tabs.List>
-          {['uploads', 'stickers', 'emojis', 'shapes', 'text'].map((item) => (
-            <Tabs.Trigger key={item} value={item}>
-              {item === 'uploads' ? 'Recent Uploads' : item}
-            </Tabs.Trigger>
-          ))}
+      {uploadError ? <p role="alert" className="asset-error">{uploadError}</p> : null}
+      <Tabs.Root value={tab} onValueChange={onTabChange}>
+        <Tabs.List aria-label="Asset types">
+          <Tabs.Trigger value="uploads">Recent Uploads</Tabs.Trigger>
+          <Tabs.Trigger value="stickers">Stickers &amp; decorations</Tabs.Trigger>
+          <Tabs.Trigger value="text">Text styles</Tabs.Trigger>
         </Tabs.List>
         <Tabs.Content value="uploads">
-          {uploadError ? <p role="alert">{uploadError}</p> : null}
           <div className="asset-items">
             <button type="button" className="asset-upload" onClick={() => fileRef.current?.click()}>
               <Upload />Upload Photo
@@ -849,33 +879,44 @@ function AssetTray({
             <SampleButton name="Cuban solenodon" src="/samples/solenodon.png" />
           </div>
         </Tabs.Content>
-        {['stickers', 'emojis', 'shapes', 'text'].map((item) => (
-          <Tabs.Content value={item} key={item}>
-            <p className="muted asset-note">{item} assets are not available yet. Upload a photo or use the sample decorations in Recent Uploads.</p>
-          </Tabs.Content>
-        ))}
+        <Tabs.Content value="stickers">
+          <p className="muted asset-note">Pick a cutout, then move, resize, rotate, or add an outline. Lettering here is part of the image; use Text styles for editable words.</p>
+          <div className="asset-items">
+            {STICKER_CATALOG.map((asset) => <SampleButton key={asset.src} {...asset} />)}
+          </div>
+        </Tabs.Content>
+        <Tabs.Content value="text">
+          <p className="muted asset-note">Start with a style. Change the words, font, size, and color in Sticker Properties.</p>
+          <div className="asset-items text-presets">
+            {TEXT_PRESETS.map((preset) => (
+              <Button className="text-preset" key={preset.fontFamily} onClick={() => onAddText(preset)} aria-label={`Add ${preset.fontFamily} text`}>
+                <span className="text-preset-sample" style={{ fontFamily: cssFontFamily(preset.fontFamily), color: preset.color }}>{preset.content}</span>
+                <strong>{preset.fontFamily}</strong><small>{preset.description}</small>
+              </Button>
+            ))}
+          </div>
+        </Tabs.Content>
       </Tabs.Root>
     </section>
   )
 }
 
 function SampleButton({ name, src }: { name: string; src: string }) {
+  const [adding, setAdding] = useState(false)
   return (
-    <button
-      type="button"
-      className="asset-thumb"
+    <Button
+      className="asset-thumb catalog-asset"
+      aria-label={`Add ${name}`}
+      title={name}
+      disabled={adding}
       onClick={() => {
-        void ingestIntoCurrentProject(async () => {
-          const response = await fetch(src)
-          if (!response.ok) throw new Error('Sample is unavailable')
-          const blob = await response.blob()
-          const file = new File([blob], `${name}.png`, { type: blob.type || 'image/png' })
-          return ingestImageFile(file)
-        })
+        setAdding(true)
+        void ingestIntoCurrentProject(() => ingestBundledImage(src), name).finally(() => setAdding(false))
       }}
     >
-      <img alt={`${name} sample`} src={src} />
-    </button>
+      <img alt="" src={src} loading="lazy" />
+      <span>{adding ? 'Adding…' : name}</span>
+    </Button>
   )
 }
 
@@ -1066,12 +1107,18 @@ async function persistCaptured(
   }
 }
 
-async function ingestIntoCurrentProject(load: () => Promise<AssetRecord>) {
+async function ingestIntoCurrentProject(load: () => Promise<AssetRecord>, name?: string, replaceLayerId?: string) {
   const originId = useEditorStore.getState().document?.id
   try {
     const record = await load()
     if (useEditorStore.getState().document?.id !== originId) return
-    useEditorStore.getState().addImageLayer(record)
+    if (replaceLayerId) {
+      await useEditorStore.getState().finishMaskStroke?.()
+      const state = useEditorStore.getState()
+      if (state.document?.id !== originId) return
+      if (state.gestureActive) { state.setUploadError('Finish the current edit, then try replacing the photo again.'); return }
+      state.replaceImageLayer(replaceLayerId, record)
+    } else useEditorStore.getState().addImageLayer(record, name)
   } catch (error) {
     if (useEditorStore.getState().document?.id !== originId) return
     const message = error instanceof UploadValidationError ? error.message : 'The image could not be added'

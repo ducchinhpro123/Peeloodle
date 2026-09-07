@@ -256,7 +256,7 @@ describe('editor integration', () => {
     expect(useEditorStore.getState().uploadError).toBe(null)
 
     useEditorStore.getState().createDraft(firstId)
-    await screen.findByRole('button', { name: 'Cat in console sample' })
+    await screen.findByRole('button', { name: 'Add Cat in console' })
     let releaseSample = () => {}
     const blockedSample = new Promise<void>((resolve) => {
       releaseSample = resolve
@@ -267,7 +267,7 @@ describe('editor integration', () => {
       return new Response(pngBytes, { status: 200, headers: { 'Content-Type': 'image/png' } })
     }) as typeof fetch
     try {
-      fireEvent.click(screen.getByRole('button', { name: 'Cat in console sample' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Add Cat in console' }))
       useEditorStore.getState().createDraft()
       const thirdId = useEditorStore.getState().document!.id
       expect(thirdId).not.toBe(firstId)

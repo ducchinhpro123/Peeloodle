@@ -53,7 +53,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
       else await expect(page.locator('.hero-art')).toBeVisible()
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
       const brokenImages = await page.locator('img').evaluateAll(async (images) => {
-        await Promise.all(images.map((image) => image.decode().catch(() => undefined)))
+        await Promise.all(images.map((image) => { image.loading = 'eager'; return image.decode().catch(() => undefined) }))
         return images.filter((image) => image.naturalWidth === 0).map((image) => image.src)
       })
       expect(brokenImages).toEqual([])
@@ -77,10 +77,12 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
     await expect(exportOpener).toBeFocused()
 
     await page.goto('/templates')
-    const previewOpener = page.getByRole('button', { name: 'Good Vibes Pack', exact: true }).first()
+    const previewOpener = page.getByRole('button', { name: 'Good Vibes', exact: true }).first()
     await previewOpener.click()
-    const preview = page.getByRole('dialog', { name: 'Good Vibes Pack', exact: true })
+    const preview = page.getByRole('dialog', { name: 'Good Vibes', exact: true })
     await expectDialogFits(page, preview)
+    await preview.getByRole('img', { name: 'Good Vibes', exact: true }).evaluate((image: HTMLImageElement) => image.decode())
+    await expect(preview).toContainText('move each decoration independently')
     await page.screenshot({ path: `${screenshots}/template-dialog-${viewport.width}.png`, animations: 'disabled' })
     await preview.getByRole('button', { name: 'Keep browsing' }).click()
     await expect(previewOpener).toBeFocused()

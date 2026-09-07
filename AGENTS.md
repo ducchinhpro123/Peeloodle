@@ -4,7 +4,7 @@
 
 Build StickerLab: a responsive website for creating editable photo stickers, customizing templates, organizing sticker packs, and exporting images.
 
-Deliver working user flows that match the supplied UI references. The primary flow is:
+Deliver working user flows with a cohesive, original visual identity inspired by the supplied UI references. The primary flow is:
 
 **Dashboard → create sticker → upload → edit → save → reopen → export.**
 
@@ -16,7 +16,7 @@ Before changing code:
 
 1. Inspect the repository, package manifest, lockfile, existing implementation, and applicable instructions.
 2. Read `StickerLab-Agent-Brief.md` if present for detailed requirements and acceptance criteria.
-3. Inspect the supplied UI images. Recommended location: `docs/design/`.
+3. For UI work, inspect the supplied images in `design/` (linked in `README.md`) and read `docs/ui-audit.md` for the current visual direction and known limitations.
 4. Identify the smallest complete implementation milestone and its verification needs.
 
 | Reference | Page |
@@ -26,7 +26,7 @@ Before changing code:
 | `image-gen-3.png` | Templates |
 | `image-gen-4.png` | My Sticker Packs |
 
-The images define visual appearance; the brief defines functional requirements. Preserve existing working code and user changes. If references are unavailable, continue independent work and report that visual fidelity is unverified. Do not invent details from unseen images.
+The images guide composition and visual character; the brief defines functional requirements. The current design direction below takes precedence over pixel-matching language in the brief. Preserve existing working code and user changes. If references are unavailable, continue independent work and report that visual fidelity is unverified. Do not invent details from unseen images.
 
 ## Technical conventions
 
@@ -70,7 +70,7 @@ Adapt these boundaries to an existing repository rather than moving files solely
 
 Preserve the StickerLab identity: mint/emerald primary actions, near-white surfaces, dark navy text, rounded cards, pastel accents, and playful outlined sticker artwork.
 
-- Match page composition, spacing, typography hierarchy, and artwork proportions from the references.
+- Aim for **lively, vivid, and engaging**: original sticker collages, expressive accents, and clear typography. Use the references for inspiration rather than reproducing another app exactly. Keep the editor and forms calmer than promotional areas; decoration must not obscure content or controls.
 - Build real components; never render a full-page screenshot as the application.
 - Keep design tokens centralized. Avoid scattered copies of colors and spacing values.
 - Desktop editor: left tools, central canvas, right inspector, bottom asset tray.
@@ -80,6 +80,19 @@ Preserve the StickerLab identity: mint/emerald primary actions, near-white surfa
 - Use supplied or appropriately licensed assets and record their provenance. Avoid arbitrary remote image hotlinks.
 
 Names, dates, statistics, and subscription labels in screenshots are illustrative. Display real state or clearly identified sample content. Do not imply that sample projects belong to the signed-in user.
+
+### Component reuse and cross-page consistency
+
+Before adding or changing UI, inspect `src/components/ui.tsx`, `src/styles.css`, and existing usages of the same pattern.
+
+- **Reuse first.** Use existing shared buttons, cards, dialogs, sheets, tabs, and sliders instead of creating page-local lookalikes. Compose existing primitives for new patterns. Extract repeated UI when a second real use appears; keep genuinely one-off layouts local.
+- **Fix the shared source.** When a visual or interaction defect affects a shared component, correct it there and inspect its callers. Add a small, explicit variant only for a real semantic difference—not to give each page its own padding or button style.
+- **Use design tokens.** Spacing, colors, radii, and shadows come from `src/styles.css`. Extend the shared tokens when necessary. Keep one-off geometry for artwork/canvas positioning separate from interface spacing.
+- **Keep CSS maintainable.** Edit the owning rule rather than appending competing overrides. Use scoped component classes or existing `data-slot` attributes; reserve inline styles for runtime values, not repeated static layout. Keep selectors specific to the intended element (for example, active tab triggers, not every active Radix node).
+- **One dialog system.** Use the shared `DialogContent`, `DialogTitle`, `DialogDescription`, and `DialogFooter` for modals, including destructive confirmations. Preserve action order, readable fields, viewport-bounded scrolling, and reachable close controls. Initially focus the safe action for destructive dialogs; restore focus to the opener or a surviving control after deletion. Keep canvas shortcuts inactive inside dialogs.
+- **Preserve actions across breakpoints.** Reflow controls or place them in accessible drawers/dialogs rather than hiding essential actions. Keep touch targets usable, long names wrapping, and intentional horizontal scrolling confined to rails/trays.
+- **Reuse artwork responsibly.** Prefer existing local assets and `src/components/StickerCollage.tsx` for decorative collages. Preserve source art, optimize served derivatives, and record provenance. Mark decoration as decorative; never substitute it for real project or template previews. Original styling is not proof of artwork rights.
+- **Verify every affected use.** For shared UI changes, inspect each affected route and dialog at the viewports in Verification, including empty/populated states, long content, keyboard focus, and reduced motion where relevant. Extend `e2e/ui-polish.spec.ts` for new regressions; report any unverified cases.
 
 ## Editor invariants
 

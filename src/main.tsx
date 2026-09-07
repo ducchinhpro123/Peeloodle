@@ -50,7 +50,7 @@ import type { PackRecord, ProjectDocument, Template } from './types/domain'
 import { downloadBlob } from './features/exports/renderDocument'
 import { exportPackZip } from './features/exports/zipExport'
 import {
-  cloneTemplateDocument,
+  instantiateTemplate,
   getFavoriteTemplateIds,
   TEMPLATE_CATEGORIES,
   templateData,
@@ -249,7 +249,7 @@ function TemplateCard({
           aria-label={`Preview ${template.title}`}
           onClick={(event) => { opener.current = event.currentTarget; setOpen(true) }}
         >
-          {template.preview}
+          {template.previewImage ? <img className="template-preview-image" src={template.previewImage} alt="" loading="lazy" /> : template.preview}
         </button>
         <button
           type="button"
@@ -267,15 +267,16 @@ function TemplateCard({
       >
         <b>{template.title}</b>
       </button>
-      <small>{template.category} · {template.document.layers.length} layers</small>
+      <small>{template.category} · {template.document.layers.length} {template.document.layers.length === 1 ? 'layer' : 'layers'}</small>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); opener.current?.focus() }}>
           <DialogTitle>{template.title}</DialogTitle>
           <DialogDescription>Clone this template into an independent editable sticker.</DialogDescription>
           <div className="template-preview-body">
             <div className="detail-cover template-preview-art">
-              {template.preview}
+              {template.previewImage ? <img className="template-preview-image" src={template.previewImage} alt={template.title} /> : template.preview}
             </div>
+            {template.previewImage ? <p className="muted">Replace the sample cat with your own photo, edit the caption, and move each decoration independently. In the editor, open Layers → Your photo → Adjust → Replace photo. Photo backgrounds are not removed automatically.</p> : null}
             <p><strong>Category:</strong> {template.category}</p>
             <p>
               <strong>Layers:</strong>{' '}
@@ -335,9 +336,9 @@ function TemplateRail({
   }
 
   const handleUse = async (template: Template) => {
-    const cloned = cloneTemplateDocument(template)
-    await repo.saveProject(cloned)
-    navigate(`/editor/${cloned.id}`)
+    const { document, assets } = await instantiateTemplate(template)
+    await repo.saveProjectWithAssets(document, assets)
+    navigate(`/editor/${document.id}`)
   }
 
   return (

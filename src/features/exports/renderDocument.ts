@@ -1,5 +1,6 @@
 import { ARTBOARD_SIZE, type ImageLayer, type Layer, type ProjectDocument } from '../../types/domain'
 import type { AssetRecord } from '../../lib/persistence/repository'
+import { cssFont, waitForFonts } from '../../lib/fonts'
 
 export type ExportSize = 512 | 1024
 export const EXPORT_SIZES: ExportSize[] = [512, 1024]
@@ -51,8 +52,8 @@ export async function renderDocument(
     }
   }
 
-  const families = [...new Set(document.layers.filter((layer) => layer.kind === 'text').map((layer) => layer.fontFamily))]
-  await (options.waitForFonts ?? defaultWaitForFonts)(families)
+  const families = [...new Set(document.layers.flatMap((layer) => layer.kind === 'text' && layer.visible && layer.opacity > 0 ? [layer.fontFamily] : []))]
+  await (options.waitForFonts ?? waitForFonts)(families)
 
   const size = options.size
   const canvas = (options.createCanvas ?? defaultCreateCanvas)(size, size)
@@ -100,11 +101,6 @@ export function readPngSize(bytes: Uint8Array): { width: number; height: number;
   }
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   return { width: view.getUint32(16), height: view.getUint32(20), colorType: bytes[25]! }
-}
-
-export function cssFont(size: number, family: string): string {
-  const quoted = /[^\w-]/.test(family) ? `"${family.replace(/"/g, '\\"')}"` : family
-  return `${size}px ${quoted}`
 }
 
 export function paintText(ctx: CanvasRenderingContext2D, layer: Extract<Layer, { kind: 'text' }>): void {
@@ -367,13 +363,6 @@ function decodeHtmlImage(blob: Blob): Promise<HTMLImageElement> {
     }
     image.src = url
   })
-}
-
-async function defaultWaitForFonts(families: string[]): Promise<void> {
-  const fonts = typeof document === 'undefined' ? undefined : document.fonts
-  if (!fonts) return
-  await Promise.all(families.map((family) => fonts.load(cssFont(16, family)).catch(() => undefined)))
-  await fonts.ready.catch(() => undefined)
 }
 
 function canvasToPng(canvas: CanvasLike): Promise<Blob> {

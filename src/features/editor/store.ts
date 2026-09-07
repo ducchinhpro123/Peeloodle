@@ -9,7 +9,7 @@ export type EditorTool = 'select' | 'pan' | 'text' | 'rotate' | 'erase' | 'resto
 export type Viewport = { zoom: number; panX: number; panY: number }
 
 export const HISTORY_LIMIT = 50
-export const TEXT_FONTS = ['Plus Jakarta Sans', 'Georgia', 'cursive', 'ui-sans-serif'] as const
+export type TextStyle = Pick<TextLayer, 'content' | 'fontFamily' | 'fontSize' | 'color'>
 
 const defaultViewport: Viewport = { zoom: 1, panX: 0, panY: 0 }
 
@@ -43,8 +43,9 @@ export type EditorStore = {
   setUploadError: (message: string | null) => void
   beginGesture: () => void
   commitGesture: () => void
-  addImageLayer: (record: AssetRecord) => void
-  addTextLayer: () => void
+  addImageLayer: (record: AssetRecord, name?: string) => void
+  replaceImageLayer: (id: string, record: AssetRecord) => void
+  addTextLayer: (style?: Partial<TextStyle>) => void
   updateText: (id: string, patch: Partial<Pick<TextLayer, 'content' | 'fontFamily' | 'fontSize' | 'color'>>) => void
   updateTitle: (title: string) => void
   applyTransform: (id: string, transform: Transform) => void
@@ -212,7 +213,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   setLoading: (loading) => set({ loading }),
 
-  selectLayer: (id) => set({ selectedLayerId: id }),
+  selectLayer: (id) => {
+    const state = get()
+    if (id !== state.selectedLayerId && !state.finishMaskStroke) state.commitGesture()
+    set({ selectedLayerId: id })
+  },
 
   setViewport: (viewport) => set({ viewport: { ...get().viewport, ...viewport } }),
 
@@ -254,7 +259,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     })
   },
 
-  addImageLayer: (record) => {
+  addImageLayer: (record, name = 'Image') => {
     const state = get()
     if (!state.document) return
     const history = withHistory(state)
@@ -263,7 +268,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       ...state.document.layers,
       {
         id: layerId,
-        name: 'Image',
+        name,
         kind: 'image',
         assetId: record.asset.id,
         transform: fitImageToArtboard(record.asset.width, record.asset.height),
@@ -290,19 +295,44 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     })
   },
 
-  addTextLayer: () => {
+  replaceImageLayer: (id, record) => {
+    const state = get()
+    const layer = state.document?.layers.find((item) => item.id === id)
+    if (!state.document || layer?.kind !== 'image' || layer.locked || state.gestureActive) return
+    const original = state.assets[layer.assetId]?.asset
+    if (!original) return
+    const t = layer.transform
+    const width = layer.crop?.width ?? original.width
+    const height = layer.crop?.height ?? original.height
+    const scale = Math.min(Math.abs(width * t.scaleX) / record.asset.width, Math.abs(height * t.scaleY) / record.asset.height)
+    const scaleX = Math.sign(t.scaleX) * scale
+    const scaleY = Math.sign(t.scaleY) * scale
+    const dx = (width * t.scaleX - record.asset.width * scaleX) / 2
+    const dy = (height * t.scaleY - record.asset.height * scaleY) / 2
+    const radians = t.rotation * Math.PI / 180
+    const transform = { ...t, scaleX, scaleY, x: t.x + dx * Math.cos(radians) - dy * Math.sin(radians), y: t.y + dx * Math.sin(radians) + dy * Math.cos(radians) }
+    // Fit without stretching; old crop/mask coordinates cannot apply to a different photo.
+    const layers = state.document.layers.map((item) => item.id === id
+      ? { ...layer, assetId: record.asset.id, crop: undefined, maskKey: undefined, transform }
+      : item)
+    const document = touch({ ...state.document, layers, assetIds: uniqueAssetIds(layers) })
+    const history = withHistory(state)
+    set({ ...history, document, assets: assetsFor({ ...state.assets, [record.asset.id]: record }, [document, ...history.past, ...history.future]), masks: masksFor(state.masks, [document, ...history.past, ...history.future]), dirty: true, uploadError: null, saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved' })
+  },
+
+  addTextLayer: (style = {}) => {
     const state = get()
     if (!state.document) return
     const history = withHistory(state)
     const layerId = crypto.randomUUID()
     const layer: TextLayer = {
       id: layerId,
-      name: 'Text',
+      name: style.content ?? 'Text',
       kind: 'text',
-      content: 'Text',
-      fontFamily: 'Plus Jakarta Sans',
-      fontSize: 64,
-      color: '#08152f',
+      content: style.content ?? 'Text',
+      fontFamily: style.fontFamily ?? 'Plus Jakarta Sans',
+      fontSize: style.fontSize ?? 64,
+      color: style.color ?? '#08152f',
       transform: { x: 320, y: 430, rotation: 0, scaleX: 1, scaleY: 1 },
       opacity: 1,
       visible: true,
@@ -425,7 +455,19 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const state = get()
     const layer = selected(state)
     if (!state.document || !layer || layer.locked) return
-    get().applyTransform(layer.id, { ...layer.transform, rotation: layer.transform.rotation + 90 })
+    const transform = layer.transform
+    const asset = layer.kind === 'image' ? state.assets[layer.assetId]?.asset : undefined
+    if (layer.kind === 'image' && asset) {
+      const radians = transform.rotation * Math.PI / 180
+      const halfWidth = (layer.crop?.width ?? asset.width) * transform.scaleX / 2
+      const halfHeight = (layer.crop?.height ?? asset.height) * transform.scaleY / 2
+      const dx = halfWidth * Math.cos(radians) - halfHeight * Math.sin(radians)
+      const dy = halfWidth * Math.sin(radians) + halfHeight * Math.cos(radians)
+      // A quarter turn keeps the visible image center fixed, including crops and flips.
+      get().applyTransform(layer.id, { ...transform, x: transform.x + dx + dy, y: transform.y + dy - dx, rotation: transform.rotation + 90 })
+    } else {
+      get().applyTransform(layer.id, { ...transform, rotation: transform.rotation + 90 })
+    }
   },
 
   flipSelected: (axis) => {

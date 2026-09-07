@@ -3,6 +3,7 @@ import { createMemoryRepository, createProjectDocument } from '../../lib/persist
 import type { AssetRecord } from '../../lib/persistence/repository'
 import type { Transform } from '../../types/domain'
 import { HISTORY_LIMIT, resetEditorStore, useEditorStore } from './store'
+import { TEXT_PRESETS } from './catalog'
 
 function pngRecord(id = 'asset-1'): AssetRecord {
   return {
@@ -32,6 +33,82 @@ describe('editor commands', () => {
     expect(useEditorStore.getState().document?.layers).toHaveLength(0)
     useEditorStore.getState().redo()
     expect(useEditorStore.getState().document?.layers[0]?.kind).toBe('image')
+  })
+
+  it('rotates cropped and flipped images around their center with one undo entry per turn', () => {
+    const record = pngRecord()
+    const transform = { x: 300, y: 400, scaleX: -1.5, scaleY: 0.5, rotation: 30 }
+    const document = createProjectDocument({ id: 'rotation' })
+    document.assetIds = [record.asset.id]
+    document.layers = [{ id: 'cat', kind: 'image', name: 'Cat', assetId: record.asset.id, visible: true, locked: false, opacity: 1, transform, crop: { x: 5, y: 10, width: 60, height: 40 } }]
+    const center = (t: Transform) => {
+      const radians = t.rotation * Math.PI / 180
+      return [t.x + 30 * t.scaleX * Math.cos(radians) - 20 * t.scaleY * Math.sin(radians), t.y + 30 * t.scaleX * Math.sin(radians) + 20 * t.scaleY * Math.cos(radians)]
+    }
+    const store = useEditorStore.getState()
+    store.hydrate(document, [record])
+    for (let turn = 1; turn <= 4; turn++) {
+      store.rotateSelected90()
+      const next = useEditorStore.getState().document!.layers[0]!.transform
+      expect(next.rotation).toBe(30 + 90 * turn)
+      expect(center(next)[0]).toBeCloseTo(center(transform)[0]!)
+      expect(center(next)[1]).toBeCloseTo(center(transform)[1]!)
+      expect(useEditorStore.getState().past).toHaveLength(turn)
+    }
+    store.undo()
+    expect(useEditorStore.getState().document!.layers[0]!.transform.rotation).toBe(300)
+  })
+
+  it('replaces a cropped, flipped photo without moving its center or changing other layers, and undoes it', () => {
+    const original = pngRecord()
+    const replacement = { ...original, asset: { ...original.asset, id: 'replacement', blobKey: 'replacement', width: 400, height: 200 } }
+    const document = createProjectDocument({ id: 'replace' })
+    const transform = { x: 300, y: 400, scaleX: -1.5, scaleY: 0.5, rotation: 30 }
+    document.assetIds = [original.asset.id]
+    document.layers = [{ id: 'photo', kind: 'image', name: 'Your photo', assetId: original.asset.id, visible: true, locked: false, opacity: 1, transform, crop: { x: 5, y: 10, width: 60, height: 40 }, maskKey: 'mask', outline: { enabled: true, color: '#ffffff', width: 9 } }]
+    const store = useEditorStore.getState()
+    store.hydrate(document, [original], [{ key: 'mask', blob: original.blob }])
+    store.addTextLayer({ content: 'Keep my caption' })
+    const before = structuredClone(useEditorStore.getState().document!)
+    store.replaceImageLayer('photo', replacement)
+    const state = useEditorStore.getState()
+    const photo = state.document!.layers[0]!
+    if (photo.kind !== 'image') throw new Error('Missing photo')
+    expect(photo).toMatchObject({ assetId: 'replacement', name: 'Your photo', outline: { width: 9 }, transform: { rotation: 30, scaleX: -0.1, scaleY: 0.1 } })
+    expect(photo.crop).toBeUndefined()
+    expect(photo.maskKey).toBeUndefined()
+    const center = (t: Transform, w: number, h: number) => {
+      const r = t.rotation * Math.PI / 180
+      return [t.x + w * t.scaleX / 2 * Math.cos(r) - h * t.scaleY / 2 * Math.sin(r), t.y + w * t.scaleX / 2 * Math.sin(r) + h * t.scaleY / 2 * Math.cos(r)]
+    }
+    center(photo.transform, 400, 200).forEach((value, index) => expect(value).toBeCloseTo(center(transform, 60, 40)[index]!))
+    expect(state.document!.layers[1]).toEqual(before.layers[1])
+    expect(state.past).toHaveLength(2)
+    store.undo()
+    expect(useEditorStore.getState().document!.layers).toEqual(before.layers)
+    expect(useEditorStore.getState().assets[original.asset.id]).toBeDefined()
+    expect(useEditorStore.getState().masks.mask).toBeDefined()
+    store.redo()
+    expect(useEditorStore.getState().document!.layers[0]).toMatchObject({ assetId: 'replacement' })
+    store.toggleLayerLock('photo')
+    const locked = useEditorStore.getState().document
+    store.replaceImageLayer('photo', original)
+    expect(useEditorStore.getState().document).toBe(locked)
+  })
+
+  it('inserts each text preset as one complete undoable edit', () => {
+    for (const preset of TEXT_PRESETS) {
+      const store = useEditorStore.getState()
+      store.createDraft()
+      store.addTextLayer(preset)
+      const layer = useEditorStore.getState().document!.layers[0]!
+      expect(layer).toMatchObject({ kind: 'text', content: preset.content, fontFamily: preset.fontFamily, fontSize: preset.fontSize, color: preset.color })
+      expect(useEditorStore.getState().past).toHaveLength(1)
+      store.undo()
+      expect(useEditorStore.getState().document!.layers).toHaveLength(0)
+      store.redo()
+      expect(useEditorStore.getState().document!.layers[0]).toEqual(layer)
+    }
   })
 
   it('commits a multi-frame drag as one history entry', () => {

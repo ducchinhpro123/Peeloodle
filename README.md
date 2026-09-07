@@ -44,6 +44,15 @@ npm run build
 
 Playwright uses Chromium at `/usr/bin/chromium` via `playwright.config.ts`. Firefox/WebKit are attempted only when those browsers are already available; this project does not download extra browser builds.
 
+## Editor tools
+
+- **Fonts:** Fredoka, Baloo 2, Luckiest Guy, Chewy, Pacifico, and Bangers, alongside the existing fonts. Choose a family in Sticker Properties or insert one of six editable presets from **Text styles**.
+- **Photo templates:** 12 layered compositions including Good Vibes, Best Buddy, and Stay Cool. Each has a replaceable sample photo, editable caption, and separate decorations. Select Layers → Your photo → Adjust → Replace photo; the replacement fits without stretching and retains the layout/effects. Undo restores the original crop and erasure. The eight illustrations are sticker assets, not templates.
+- **Cute cutouts:** 33 cats, hearts, stars, space illustrations, and other decorations in **Stickers & decorations**. Add them as independent image layers; resize, rotate, flip, erase/restore, and apply outlines or filters. Image quarter-turns preserve the visible image center, including crops and flips.
+- **Save and export:** font choices, text styles, and inserted image blobs survive reopening. The canvas measures text after fonts load; PNG/ZIP exports await the required fonts and report failures instead of silently substituting a bundled font.
+
+Fonts and cutouts are served locally, with no extra credentials or dependencies. Font licenses and source-art limitations are listed in [asset provenance](docs/assets-provenance.md). Cutout lettering is part of the image; use a text preset when you want editable words. Large upscales can soften the modest-resolution sample artwork.
+
 ## Milestone status
 
 - [x] React, strict TypeScript, Vite, React Router, Tailwind, and shadcn/ui-adapted Radix components (provenance in `docs/shadcn-provenance.md`)
@@ -84,6 +93,10 @@ Dialogs share typography, fields, footers, 44px close controls, and scroll conta
 
 Brush movement updates only the active raster and DOM cursor, with no React commits, document revisions, or PNG encoding during pointer movement. Preview rasters are capped at 1024px (high zoom may look softer); mask data and exports remain full-resolution. On this Linux x86_64 machine, headless Chromium 151 at 1440×900, one photo plus 29 shape layers, and 30 synthetic pen moves: the 2048px photo's median frame interval fell from about 32ms to 16.7ms after bounding preview raster work. The final suite measured 16.6ms median / 17.3ms p95 frame intervals and 0.9ms p95 pointer-handler time for that case. These are local observations, not a universal 60 FPS guarantee; maximum-size 25MP photos and physical pen hardware were not profiled. Rerun `npx playwright test e2e/mask-regressions.spec.ts -g '30 layers' --workers=1` for measurements and JSON attachments.
 
-Verified: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, and `npm run test:browser`: 87 Vitest tests and 42 Chromium browser tests pass. Lint has no errors and the existing `react-refresh/only-export-components` warning in `src/app/repository.tsx`. Firefox/WebKit were not rerun in this pass.
+Verification commands: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, and `npm run test:browser -- --workers=2`. Lint retains the existing repository-provider Fast Refresh warning. Firefox/WebKit and physical devices are unverified.
+
+`e2e/illustrated-templates.spec.ts` verifies all 12 previews against rendered document pixels, photo replacement, editable captions, undo/redo, independent copies, save/reopen, transparent PNGs, and failure recovery at desktop/tablet/mobile sizes. Regenerate previews after changing template definitions: start Vite on port 4173, then run `node scripts/generate-template-previews.mjs`.
+
+`e2e/fonts-stickers.spec.ts` verifies all six font faces, real canvas/export text-pixel parity, save/reopen, delayed and failed font loads, and cutout + text preset → rotate/outline → save/reopen → transparent PNG at desktop/tablet/mobile widths. Font and editor screenshots are in `/tmp/stickerlab-editor-fonts/`.
 
 `e2e/ui-polish.spec.ts` checks all four routes and representative dialogs at 1440×900, 1024×768, and 390×844, plus a short 390×480 viewport. It covers image loading, overflow, keyboard focus trapping/restoration, mobile pack controls, and isolation of editor shortcuts from dialogs. Refresh screenshots are generated outside the repository at `/tmp/stickerlab-ui-audit/`; foundation screenshots remain at `/tmp/stickerlab-browser-verification/`.
