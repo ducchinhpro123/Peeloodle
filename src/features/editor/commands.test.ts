@@ -353,6 +353,41 @@ describe('editor commands', () => {
     expect(layer0Restored.kind === 'image' ? layer0Restored.maskKey : undefined).toBe('mask-key-1')
   })
 
+  it('ignores invalid and unchanged mask commands without losing redo or dirtying the document', () => {
+    const store = useEditorStore.getState()
+    store.createDraft('p1')
+    store.addImageLayer(pngRecord('asset-1'))
+    const id = useEditorStore.getState().selectedLayerId!
+    store.applyMask(id, 'mask', new Blob(['mask'], { type: 'image/png' }))
+    store.undo()
+    const before = useEditorStore.getState()
+    store.clearMask(id)
+    store.clearMask('absent')
+    store.applyMask('absent', 'bad', new Blob(['bad']))
+    store.applyMask(id, 'empty', new Blob())
+    expect(useEditorStore.getState().document).toBe(before.document)
+    expect(useEditorStore.getState().future).toBe(before.future)
+    expect(useEditorStore.getState().masks).toBe(before.masks)
+    store.redo()
+    store.toggleLayerLock(id)
+    const locked = useEditorStore.getState().document
+    store.clearMask(id)
+    store.applyMask(id, 'replacement', new Blob(['replacement']))
+    expect(useEditorStore.getState().document).toBe(locked)
+  })
+
+  it('prunes masks when ordinary edits evict their last undo references', () => {
+    const store = useEditorStore.getState()
+    store.createDraft('p1')
+    store.addImageLayer(pngRecord('asset-1'))
+    const id = useEditorStore.getState().selectedLayerId!
+    store.applyMask(id, 'mask', new Blob(['mask']))
+    store.clearMask(id)
+    for (let i = 0; i < 60; i++) store.updateTitle(`Project ${i}`)
+    expect(useEditorStore.getState().masks).toEqual({})
+    expect(useEditorStore.getState().past.length).toBeLessThanOrEqual(50)
+  })
+
   it('does not record a no-op gesture or mutate a locked layer', () => {
     useEditorStore.getState().createDraft('p1')
     useEditorStore.getState().addTextLayer()

@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { CropRect, ImageLayer } from '../../types/domain'
 import {
-  applyBrushToMask,
-  getBrushRadiusInImage,
+  getBrushRadiiInImage,
   getStageMetrics,
   imageLocalToScreen,
-  interpolatePoints,
   screenToImageLocal,
 } from './maskUtils'
 
@@ -85,7 +83,7 @@ describe('maskUtils coordinate mapping', () => {
     expect(m.stageY).toBeDefined()
   })
 
-  it('scales brush radius inversely to layer scale and viewScale', () => {
+  it('maps a document-space brush to independent inverse-scaled radii', () => {
     const layer: ImageLayer = {
       id: 'img1',
       name: 'Image',
@@ -96,41 +94,11 @@ describe('maskUtils coordinate mapping', () => {
       visible: true,
       locked: false,
     }
-    const r = getBrushRadiusInImage(40, layer, 2)
-    // brushSize 40 / 2 = radius 20; scale 2 * viewScale 2 = 4; r = 20 / 4 = 5
-    expect(r).toBe(5)
+    expect(getBrushRadiiInImage(40, layer)).toEqual({ x: 10, y: 10 })
+    layer.transform.scaleY = -0.5
+    expect(getBrushRadiiInImage(40, layer)).toEqual({ x: 10, y: 40 })
+    layer.transform.scaleX = 0
+    expect(screenToImageLocal({ x: 1, y: 1 }, layer, asset, metrics).inBounds).toBe(false)
   })
 
-  it('interpolates points without leaving gaps', () => {
-    const steps: Array<{ u: number; v: number }> = []
-    interpolatePoints({ u: 0, v: 0 }, { u: 100, v: 0 }, 10, (u, v) => {
-      steps.push({ u, v })
-    })
-    expect(steps.length).toBeGreaterThan(10)
-    expect(steps[steps.length - 1]?.u).toBe(100)
-    expect(steps[steps.length - 1]?.v).toBe(0)
-  })
-})
-
-describe('mask canvas operations', () => {
-  it('applies brush to context in erase and restore modes', () => {
-    const calls: string[] = []
-    const mockCtx = {
-      save() { calls.push('save') },
-      restore() { calls.push('restore') },
-      beginPath() { calls.push('beginPath') },
-      arc(u: number, v: number, r: number) { calls.push(`arc:${u},${v},${r}`) },
-      fill() { calls.push('fill') },
-      globalCompositeOperation: '',
-      fillStyle: '',
-    } as unknown as CanvasRenderingContext2D
-
-    applyBrushToMask(mockCtx, 25, 30, 10, 'erase')
-    expect(mockCtx.globalCompositeOperation).toBe('destination-out')
-    expect(calls).toContain('arc:25,30,10')
-
-    applyBrushToMask(mockCtx, 50, 60, 5, 'restore')
-    expect(mockCtx.globalCompositeOperation).toBe('source-over')
-    expect(calls).toContain('arc:50,60,5')
-  })
 })

@@ -18,6 +18,7 @@ export type EditorStore = {
   assets: Record<string, AssetRecord>
   masks: Record<string, Blob>
   brushSize: number
+  finishMaskStroke: (() => Promise<void>) | null
   selectedLayerId: string | null
   viewport: Viewport
   past: ProjectDocument[]
@@ -135,6 +136,7 @@ function resetState(): Pick<
   | 'assets'
   | 'masks'
   | 'brushSize'
+  | 'finishMaskStroke'
   | 'selectedLayerId'
   | 'viewport'
   | 'past'
@@ -154,6 +156,7 @@ function resetState(): Pick<
     assets: {},
     masks: {},
     brushSize: 30,
+    finishMaskStroke: null,
     selectedLayerId: null,
     viewport: { ...defaultViewport },
     past: [],
@@ -170,11 +173,11 @@ function resetState(): Pick<
   }
 }
 
-function withHistory(state: EditorStore): Pick<EditorStore, 'past' | 'future'> {
-  if (!state.document || state.gestureActive) return { past: state.past, future: state.future }
+function withHistory(state: EditorStore): Pick<EditorStore, 'past' | 'future' | 'masks'> {
+  if (!state.document || state.gestureActive) return { past: state.past, future: state.future, masks: state.masks }
   const past = [...state.past, cloneDocument(state.document)]
   if (past.length > HISTORY_LIMIT) past.shift()
-  return { past, future: [] }
+  return { past, future: [], masks: masksFor(state.masks, [state.document, ...past]) }
 }
 
 function selected(state: EditorStore): Layer | undefined {
@@ -215,7 +218,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   setTool: (tool) => set({ activeTool: tool }),
 
-  setBrushSize: (size) => set({ brushSize: Math.max(2, Math.min(150, Math.round(size))) }),
+  setBrushSize: (size) => { if (Number.isFinite(size)) set({ brushSize: Math.max(4, Math.min(120, Math.round(size))) }) },
 
   setUploadError: (message) => set({ uploadError: message }),
 
@@ -570,7 +573,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   applyMask: (layerId, maskKey, maskBlob) => {
     const state = get()
-    if (!state.document) return
+    const layer = state.document?.layers.find((item) => item.id === layerId)
+    if (!state.document || layer?.kind !== 'image' || layer.locked || layer.maskKey === maskKey || !maskKey || maskBlob.size === 0) return
     const history = withHistory(state)
     const document = touch(
       replaceLayer(state.document, layerId, (layer) =>
@@ -589,7 +593,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   clearMask: (layerId) => {
     const state = get()
-    if (!state.document) return
+    const layer = state.document?.layers.find((item) => item.id === layerId)
+    if (!state.document || layer?.kind !== 'image' || layer.locked || !layer.maskKey) return
     const history = withHistory(state)
     const document = touch(
       replaceLayer(state.document, layerId, (layer) =>
@@ -600,6 +605,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       ...history,
       document,
       masks: masksFor(state.masks, [document, ...history.past, ...history.future]),
+      uploadError: null,
       dirty: true,
       saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
     })
@@ -607,7 +613,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   undo: () => {
     const state = get()
-    if (state.gestureActive || !state.document || state.past.length === 0) return
+    if (state.finishMaskStroke || state.gestureActive || !state.document || state.past.length === 0) return
     const previous = state.past[state.past.length - 1]!
     const document = touch({ ...previous, revision: state.document.revision })
     const past = state.past.slice(0, -1)
@@ -626,7 +632,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   redo: () => {
     const state = get()
-    if (state.gestureActive || !state.document || state.future.length === 0) return
+    if (state.finishMaskStroke || state.gestureActive || !state.document || state.future.length === 0) return
     const next = state.future[state.future.length - 1]!
     const document = touch({ ...next, revision: state.document.revision })
     const future = state.future.slice(0, -1)

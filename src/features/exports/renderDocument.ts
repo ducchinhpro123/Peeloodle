@@ -157,12 +157,12 @@ function drawOutlinedImage(
   for (let angle = 0; angle < Math.PI * 2; angle += (Math.PI * 2) / steps) {
     const dx = Math.cos(angle) * radius
     const dy = Math.sin(angle) * radius
-    ctx.drawImage(silhouetteCanvas as unknown as CanvasImageSource, dx, dy)
+    ctx.drawImage(silhouetteCanvas as unknown as CanvasImageSource, dx, dy, width, height)
   }
   if (radius > 6) {
     const half = radius / 2
     for (let angle = 0; angle < Math.PI * 2; angle += (Math.PI * 2) / (steps / 2)) {
-      ctx.drawImage(silhouetteCanvas as unknown as CanvasImageSource, Math.cos(angle) * half, Math.sin(angle) * half)
+      ctx.drawImage(silhouetteCanvas as unknown as CanvasImageSource, Math.cos(angle) * half, Math.sin(angle) * half, width, height)
     }
   }
 
@@ -189,19 +189,18 @@ function paintImage(
       const makeCanvas = createCanvas ?? defaultCreateCanvas
       maskedCanvas = makeCanvas(width, height)
       const mCtx = maskedCanvas.getContext('2d')
-      if (mCtx) {
-        if (layer.crop) {
-          const crop = layer.crop
-          mCtx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
-          mCtx.globalCompositeOperation = 'destination-in'
-          mCtx.drawImage(maskImage, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
-        } else {
-          mCtx.drawImage(image, 0, 0, width, height)
-          mCtx.globalCompositeOperation = 'destination-in'
-          mCtx.drawImage(maskImage, 0, 0, width, height)
-        }
-        source = maskedCanvas as unknown as CanvasImageSource
+      if (!mCtx) throw new ExportError('A 2D canvas is required to apply the mask')
+      if (layer.crop) {
+        const crop = layer.crop
+        mCtx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+        mCtx.globalCompositeOperation = 'destination-in'
+        mCtx.drawImage(maskImage, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+      } else {
+        mCtx.drawImage(image, 0, 0, width, height)
+        mCtx.globalCompositeOperation = 'destination-in'
+        mCtx.drawImage(maskImage, 0, 0, width, height)
       }
+      source = maskedCanvas as unknown as CanvasImageSource
     }
 
     if (layer.outline?.enabled && layer.outline.width > 0) {
@@ -235,13 +234,19 @@ export function createImageSurface(
   height: number,
   createCanvas = defaultCreateCanvas,
   maskImage?: CanvasImageSource | null,
+  pixelRatio = 1,
 ): { canvas: CanvasLike; padding: number } {
   const padding = layer.outline?.enabled ? Math.ceil(layer.outline.width) : 0
-  const canvas = createCanvas(width + padding * 2, height + padding * 2)
+  const makeCanvas = pixelRatio === 1 ? createCanvas : (w: number, h: number) => {
+    const surface = createCanvas(Math.max(1, Math.ceil(w * pixelRatio)), Math.max(1, Math.ceil(h * pixelRatio)))
+    surface.getContext('2d')?.scale(surface.width / w, surface.height / h)
+    return surface
+  }
+  const canvas = makeCanvas(width + padding * 2, height + padding * 2)
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new ExportError('A 2D canvas is required for image compositing')
   ctx.translate(padding, padding)
-  paintImage(ctx, image, layer, width, height, createCanvas, maskImage)
+  paintImage(ctx, image, layer, width, height, makeCanvas, maskImage)
   return { canvas, padding }
 }
 
@@ -265,17 +270,17 @@ async function drawLayer(
     }
 
     let maskImage: CanvasImageSource | null = null
-    if (layer.maskKey) {
-      const maskBlob = masks.get(layer.maskKey)
-      if (!maskBlob) throw new ExportError(`Missing mask ${layer.maskKey} for layer ${layer.id}`)
-      try {
-        maskImage = await decode(maskBlob)
-      } catch {
-        throw new ExportError(`Could not decode mask ${layer.maskKey}`)
-      }
-    }
-
     try {
+      if (layer.maskKey) {
+        const maskBlob = masks.get(layer.maskKey)
+        if (!maskBlob) throw new ExportError(`Missing mask ${layer.maskKey} for layer ${layer.id}`)
+        try {
+          maskImage = await decode(maskBlob)
+        } catch {
+          throw new ExportError(`Could not decode mask ${layer.maskKey}`)
+        }
+        assertMaskDimensions(maskImage, record.asset.width, record.asset.height)
+      }
       const width = layer.crop?.width ?? record.asset.width
       const height = layer.crop?.height ?? record.asset.height
       if (layer.outline?.enabled && layer.outline.width > 0) {
@@ -313,6 +318,25 @@ function defaultCreateCanvas(width: number, height: number): CanvasLike {
   canvas.width = width
   canvas.height = height
   return canvas
+}
+
+function assertMaskDimensions(image: CanvasImageSource, width: number, height: number): void {
+  const dimensions = image as { width: number; height: number }
+  if (dimensions.width !== width || dimensions.height !== height) {
+    throw new ExportError(`Mask dimensions must match the original image (${width}×${height})`)
+  }
+}
+
+export async function decodeMaskImage(blob: Blob, width: number, height: number): Promise<CanvasImageSource> {
+  let image: CanvasImageSource
+  try { image = await defaultDecodeImage(blob) } catch { throw new ExportError('Could not decode image mask') }
+  try {
+    assertMaskDimensions(image, width, height)
+    return image
+  } catch (error) {
+    closeImageSource(image)
+    throw error
+  }
 }
 
 async function defaultDecodeImage(blob: Blob): Promise<CanvasImageSource> {

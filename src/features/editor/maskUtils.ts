@@ -28,6 +28,10 @@ export function screenToImageLocal(
   asset: Pick<Asset, 'width' | 'height'>,
   metrics: { viewScale: number; stageX: number; stageY: number },
 ): ImageLocalPoint {
+  if (!Number.isFinite(layer.transform.scaleX) || !Number.isFinite(layer.transform.scaleY) ||
+      layer.transform.scaleX === 0 || layer.transform.scaleY === 0 || metrics.viewScale <= 0) {
+    return { u: NaN, v: NaN, inBounds: false }
+  }
   // 1. Host relative -> Artboard coordinates (0..1024)
   const artX = (screenPoint.x - metrics.stageX) / metrics.viewScale
   const artY = (screenPoint.y - metrics.stageY) / metrics.viewScale
@@ -84,63 +88,10 @@ export function imageLocalToScreen(
   }
 }
 
-/**
- * Calculates the brush radius in image-local coordinates so that the
- * visual brush circle matches brushSize (in screen/artboard pixels).
- */
-export function getBrushRadiusInImage(
-  brushSize: number,
-  layer: ImageLayer,
-  viewScale: number,
-): number {
-  const avgScale = (Math.abs(layer.transform.scaleX) + Math.abs(layer.transform.scaleY)) / 2 || 1
-  return Math.max(1, (brushSize / 2) / (avgScale * viewScale))
-}
-
-/**
- * Interpolates between two points so fast movements do not leave gaps.
- */
-export function interpolatePoints(
-  from: { u: number; v: number },
-  to: { u: number; v: number },
-  radius: number,
-  onStep: (u: number, v: number) => void,
-): void {
-  const dx = to.u - from.u
-  const dy = to.v - from.v
-  const dist = Math.hypot(dx, dy)
-  const stepSize = Math.max(1, radius / 3)
-  const steps = Math.ceil(dist / stepSize)
-  for (let i = 1; i <= steps; i += 1) {
-    const t = i / steps
-    onStep(from.u + dx * t, from.v + dy * t)
-  }
-}
-
-/**
- * Paints a brush stamp onto the mask canvas context.
- * In erase mode: punches transparent hole using destination-out.
- * In restore mode: paints opaque white (alpha 255) using source-over.
- */
-export function applyBrushToMask(
-  ctx: CanvasRenderingContext2D,
-  u: number,
-  v: number,
-  radius: number,
-  mode: 'erase' | 'restore',
-): void {
-  ctx.save()
-  if (mode === 'erase') {
-    ctx.globalCompositeOperation = 'destination-out'
-    ctx.fillStyle = 'rgba(0,0,0,1)'
-  } else {
-    ctx.globalCompositeOperation = 'source-over'
-    ctx.fillStyle = 'rgba(255,255,255,1)'
-  }
-  ctx.beginPath()
-  ctx.arc(u, v, radius, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
+/** Inverse-scaled radii for a circular document-space brush. */
+export function getBrushRadiiInImage(brushSize: number, layer: ImageLayer): { x: number; y: number } {
+  // Size is a document-pixel diameter. Viewport zoom only scales the cursor.
+  return { x: brushSize / (2 * Math.abs(layer.transform.scaleX)), y: brushSize / (2 * Math.abs(layer.transform.scaleY)) }
 }
 
 /**
@@ -150,53 +101,15 @@ export function createDefaultMaskCanvas(width: number, height: number): HTMLCanv
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(width))
   canvas.height = Math.max(1, Math.round(height))
-  const ctx = canvas.getContext('2d')
-  if (ctx) {
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-  }
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) throw new Error('A 2D canvas is required for mask editing')
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
   return canvas
 }
 
 /**
- * Inverts a mask canvas in-place (alpha = 255 - alpha).
- */
-export function invertMaskCanvas(canvas: HTMLCanvasElement): void {
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  const data = imgData.data
-  for (let i = 0; i < data.length; i += 4) {
-    const a = data[i + 3] ?? 255
-    data[i] = 255
-    data[i + 1] = 255
-    data[i + 2] = 255
-    data[i + 3] = 255 - a
-  }
-  ctx.putImageData(imgData, 0, 0)
-}
-
-/**
- * Resets a mask canvas so all pixels are restored/opaque.
- */
-export function clearMaskCanvas(canvas: HTMLCanvasElement): void {
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-}
-
-/**
- * Erases a mask canvas entirely.
- */
-export function eraseAllMaskCanvas(canvas: HTMLCanvasElement): void {
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-}
-
-/**
- * Converts canvas to PNG Blob with fallback.
+ * Encodes once per completed stroke, rejecting failed encodes.
  */
 export function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   if (canvas.toBlob) {

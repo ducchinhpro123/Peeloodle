@@ -37,11 +37,11 @@ export function CreateEditor() {
     void (async () => {
       const current = useEditorStore.getState()
       const existing = current.document
-      if (existing && current.dirty) {
-        await persistDocument(repo, 'manual')
+      if (existing && (current.dirty || current.gestureActive || current.finishMaskStroke)) {
+        await persistDocument(repo, 'manual').catch(() => undefined)
         if (cancelled) return
         const after = useEditorStore.getState()
-        if (after.document?.id === existing.id && after.dirty) {
+        if (after.document?.id === existing.id && (after.dirty || after.finishMaskStroke || after.saveStatus === 'save-failed')) {
           navigate(`/editor/${existing.id}`, { replace: true })
           return
         }
@@ -75,7 +75,7 @@ function EditorWorkspace({ projectId }: { projectId?: string }) {
     let cancelled = false
     const flush = () => {
       const snap = useEditorStore.getState()
-      if (snap.document?.id === projectId && (snap.dirty || snap.gestureActive)) {
+      if (snap.document?.id === projectId && (snap.dirty || snap.gestureActive || snap.finishMaskStroke)) {
         void persistDocument(repo, 'manual').catch(() => undefined)
       }
     }
@@ -86,11 +86,11 @@ function EditorWorkspace({ projectId }: { projectId?: string }) {
     }
     void (async () => {
       const previous = useEditorStore.getState()
-      if (previous.document && previous.dirty) {
-        await persistDocument(repo, 'manual')
+      if (previous.document && (previous.dirty || previous.gestureActive || previous.finishMaskStroke)) {
+        await persistDocument(repo, 'manual').catch(() => undefined)
         if (cancelled) return
         const after = useEditorStore.getState()
-        if (after.document?.id === previous.document.id && after.dirty) {
+        if (after.document?.id === previous.document.id && (after.dirty || after.finishMaskStroke || after.saveStatus === 'save-failed')) {
           after.setSaveStatus('save-failed', after.saveError ?? 'Save failed')
           navigate(`/editor/${previous.document.id}`, { replace: true })
           return
@@ -151,6 +151,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
   const saveStatus = useEditorStore((state) => state.saveStatus)
   const saveError = useEditorStore((state) => state.saveError)
   const dirty = useEditorStore((state) => state.dirty)
+  const maskBusy = useEditorStore((state) => !!state.finishMaskStroke)
   const uploadError = useEditorStore((state) => state.uploadError)
   const selectedLayerId = useEditorStore((state) => state.selectedLayerId)
   const activeTool = useEditorStore((state) => state.activeTool)
@@ -186,7 +187,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
             />
           </h1>
           <small className="save-status" data-state={saveStatus} role="status">
-            {saveStatusLabel(saveStatus, dirty)}
+            {maskBusy && saveStatus !== 'save-failed' ? 'Mask edit pending' : saveStatusLabel(saveStatus, dirty)}
             {saveStatus === 'save-failed' && saveError ? ` — ${saveError}` : ''}
           </small>
         </div>
@@ -278,10 +279,10 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
             Layers
           </button>
           <div className="tool-history">
-            <button type="button" disabled={past.length === 0} onClick={() => useEditorStore.getState().undo()}>
+            <button type="button" disabled={past.length === 0 || maskBusy} onClick={() => useEditorStore.getState().undo()}>
               Undo
             </button>
-            <button type="button" disabled={future.length === 0} onClick={() => useEditorStore.getState().redo()}>
+            <button type="button" disabled={future.length === 0 || maskBusy} onClick={() => useEditorStore.getState().redo()}>
               Redo
             </button>
           </div>
@@ -871,14 +872,14 @@ function ExportDialog({ document }: { document: ProjectDocument }) {
   const [size, setSize] = useState<ExportSize>(512)
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const assets = useEditorStore((state) => state.assets)
-  const masks = useEditorStore((state) => state.masks)
-
   const exportPng = async () => {
     setBusy(true)
     setMessage('Exporting…')
     try {
-      const blob = await renderDocument(document, assets, { size, masks })
+      await useEditorStore.getState().finishMaskStroke?.()
+      const state = useEditorStore.getState()
+      if (state.document?.id !== document.id) throw new Error('The open project changed. Reopen export to continue.')
+      const blob = await renderDocument(state.document, state.assets, { size, masks: state.masks })
       const safeTitle = document.title.replace(/[^\w.-]+/g, '-').replace(/^-|-$/g, '') || 'sticker'
       downloadBlob(blob, `${safeTitle}-${size}.png`)
       setMessage('Download started. Check your browser downloads to confirm the file was saved.')
@@ -951,7 +952,7 @@ function useAssetUrls(assets: Record<string, AssetRecord>) {
 
 function useAutosave(repo: StickerLabRepository) {
   const dirty = useEditorStore((state) => state.dirty)
-  const gestureActive = useEditorStore((state) => state.gestureActive)
+  const gestureActive = useEditorStore((state) => state.gestureActive || !!state.finishMaskStroke)
   const revision = useEditorStore((state) => state.document?.revision)
   const documentId = useEditorStore((state) => state.document?.id)
 
@@ -969,8 +970,19 @@ function useAutosave(repo: StickerLabRepository) {
     const onHide = () => {
       void persistDocument(repo, 'manual')
     }
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      const state = useEditorStore.getState()
+      if (state.dirty || state.gestureActive || state.finishMaskStroke) {
+        event.preventDefault()
+        event.returnValue = ''
+      }
+    }
     window.addEventListener('pagehide', onHide)
-    return () => window.removeEventListener('pagehide', onHide)
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => {
+      window.removeEventListener('pagehide', onHide)
+      window.removeEventListener('beforeunload', onBeforeUnload)
+    }
   }, [repo])
 }
 
@@ -1012,7 +1024,12 @@ function captureSave(reason: 'auto' | 'manual') {
   }
 }
 
-function persistDocument(repo: StickerLabRepository, reason: 'auto' | 'manual') {
+async function persistDocument(repo: StickerLabRepository, reason: 'auto' | 'manual') {
+  const initial = useEditorStore.getState()
+  if (initial.finishMaskStroke) {
+    try { await initial.finishMaskStroke() } catch { return persistTail } // Stroke retains its recoverable error/work.
+  }
+  if (useEditorStore.getState().document?.id !== initial.document?.id) return persistTail
   const payload = captureSave(reason)
   if (!payload) return persistTail
   persistTail = persistTail.then(

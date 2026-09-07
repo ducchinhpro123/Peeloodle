@@ -286,7 +286,7 @@ describe('renderDocument', () => {
     expect(canvas.pixels[(256 * 512 + 256) * 4 + 3]).toBe(255)
   })
 
-  it('rejects missing or corrupt mask data with a descriptive ExportError', async () => {
+  it('rejects missing masks before attempting image decoding', async () => {
     const document = createProjectDocument({ id: 'p1' })
     const record: AssetRecord = {
       asset: { id: 'a1', mimeType: 'image/png', width: 8, height: 8, blobKey: 'a1', provenance: 'test' },
@@ -306,12 +306,15 @@ describe('renderDocument', () => {
       },
     ]
     document.assetIds = ['a1']
+    let decoded = 0
     await expect(
       renderDocument(document, { a1: record }, {
         size: 512,
         masks: {},
+        decodeImage: async () => { decoded++; return { width: 8, height: 8 } as ImageBitmap },
       }),
     ).rejects.toThrow(/Missing mask missing-mask-key/)
+    expect(decoded).toBe(0)
   })
 
   it('renders masked image layers using composite mask data', async () => {
@@ -335,6 +338,24 @@ describe('renderDocument', () => {
       },
     ]
     document.assetIds = ['a1']
+    let closed = 0
+    const previous = globalThis.createImageBitmap
+    try {
+      globalThis.createImageBitmap = async (source) => ({ width: source === maskBlob ? 4 : 8, height: 8, close() { closed++ } }) as ImageBitmap
+      await expect(renderDocument(document, { a1: record }, {
+        size: 512, masks: { 'mask-1': maskBlob }, createCanvas: (w, h) => fakeCanvas(w, h),
+      })).rejects.toThrow(/Mask dimensions must match/)
+      expect(closed).toBe(2)
+      closed = 0
+      globalThis.createImageBitmap = async (source) => {
+        if (source === maskBlob) throw new Error('Corrupt PNG')
+        return { width: 8, height: 8, close() { closed++ } } as ImageBitmap
+      }
+      await expect(renderDocument(document, { a1: record }, {
+        size: 512, masks: { 'mask-1': maskBlob }, createCanvas: (w, h) => fakeCanvas(w, h),
+      })).rejects.toThrow(/Could not decode mask/)
+      expect(closed).toBe(1)
+    } finally { globalThis.createImageBitmap = previous }
     const canvas = fakeCanvas(512, 512)
     await renderDocument(document, { a1: record }, {
       size: 512,
