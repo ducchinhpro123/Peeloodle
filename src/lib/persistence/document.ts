@@ -179,19 +179,19 @@ function parseImageLayer(value: Record<string, unknown>, base: LayerBase): Image
 function parseOutline(value: unknown, layerId: string): import('../../types/domain').LayerOutline {
   if (!isRecord(value)) throw invalidDocument(`layer ${layerId} outline must be an object`)
   return {
-    enabled: typeof value.enabled === 'boolean' ? value.enabled : false,
+    enabled: requiredBoolean(value.enabled, `layer ${layerId} outline.enabled`),
     color: requiredString(value.color, `layer ${layerId} outline.color`),
-    width: requiredPositiveNumber(value.width, `layer ${layerId} outline.width`),
+    width: requiredRange(value.width, `layer ${layerId} outline.width`, 0, 40),
   }
 }
 
 function parseFilters(value: unknown, layerId: string): import('../../types/domain').ImageFilters {
   if (!isRecord(value)) throw invalidDocument(`layer ${layerId} filters must be an object`)
   return {
-    brightness: requiredFiniteNumber(value.brightness, `layer ${layerId} filters.brightness`),
-    contrast: requiredFiniteNumber(value.contrast, `layer ${layerId} filters.contrast`),
-    saturation: requiredFiniteNumber(value.saturation, `layer ${layerId} filters.saturation`),
-    grayscale: requiredFiniteNumber(value.grayscale, `layer ${layerId} filters.grayscale`),
+    brightness: requiredRange(value.brightness, `layer ${layerId} filters.brightness`, -100, 100),
+    contrast: requiredRange(value.contrast, `layer ${layerId} filters.contrast`, -100, 100),
+    saturation: requiredRange(value.saturation, `layer ${layerId} filters.saturation`, -100, 100),
+    grayscale: requiredRange(value.grayscale, `layer ${layerId} filters.grayscale`, 0, 100),
   }
 }
 
@@ -252,6 +252,12 @@ function requiredBoolean(value: unknown, label: string): boolean {
 function requiredFiniteNumber(value: unknown, label: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) throw invalidDocument(`${label} must be a finite number`)
   return value
+}
+
+function requiredRange(value: unknown, label: string, min: number, max: number): number {
+  const number = requiredFiniteNumber(value, label)
+  if (number < min || number > max) throw invalidDocument(`${label} must be between ${min} and ${max}`)
+  return number
 }
 
 function requiredPositiveNumber(value: unknown, label: string): number {

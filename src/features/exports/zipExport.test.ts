@@ -4,6 +4,40 @@ import type { PackRecord } from '../../types/domain'
 import { createZipArchive, exportPackZip, readBlobBytes } from './zipExport'
 
 describe('zipExport', () => {
+  it('fails the whole export instead of silently dropping an unavailable sticker', async () => {
+    const repo = createMemoryRepository()
+    const pack: PackRecord = { id: 'pack', title: 'Pack', description: '', visibility: 'local', projectIds: ['missing'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    await expect(exportPackZip(pack, repo)).rejects.toThrow(/missing/)
+    await repo.saveProject(createProjectDocument({ id: 'missing' }))
+    await expect(exportPackZip(pack, repo, { renderSticker: async () => { throw new Error('decode failed') } })).rejects.toThrow(/decode failed/)
+  })
+
+  it('preserves membership order in ZIP entries and the manifest', async () => {
+    const repo = createMemoryRepository()
+    for (const id of ['first', 'second']) await repo.saveProject(createProjectDocument({ id, title: id }))
+    const pack: PackRecord = { id: 'pack', title: 'Pack', description: '', visibility: 'local', projectIds: ['second', 'first'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    const bytes = await readBlobBytes(await exportPackZip(pack, repo, {
+      renderSticker: async (project) => new Blob([project.id], { type: 'image/png' }),
+    }))
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    const entries: Array<{ name: string; body: string }> = []
+    let offset = 0
+    while (view.getUint32(offset, true) === 0x04034b50) {
+      expect(view.getUint16(offset + 6, true) & 0x0800).toBe(0x0800)
+      const size = view.getUint32(offset + 18, true)
+      const nameSize = view.getUint16(offset + 26, true)
+      const bodyStart = offset + 30 + nameSize + view.getUint16(offset + 28, true)
+      entries.push({ name: new TextDecoder().decode(bytes.slice(offset + 30, offset + 30 + nameSize)), body: new TextDecoder().decode(bytes.slice(bodyStart, bodyStart + size)) })
+      offset = bodyStart + size
+    }
+    expect(entries.map((entry) => entry.name)).toEqual(['manifest.json', '01_second.png', '02_first.png'])
+    expect(JSON.parse(entries[0]!.body).stickers).toEqual([
+      { index: 1, filename: '01_second.png', title: 'second' },
+      { index: 2, filename: '02_first.png', title: 'first' },
+    ])
+    expect(entries.slice(1).map((entry) => entry.body)).toEqual(['second', 'first'])
+  })
+
   it('creates a valid ZIP binary with manifest and files', async () => {
     const encoder = new TextEncoder()
     const zipBlob = createZipArchive([

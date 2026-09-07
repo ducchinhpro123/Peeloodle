@@ -1,4 +1,4 @@
-import { ARTBOARD_SIZE, type Layer, type ProjectDocument } from '../../types/domain'
+import { ARTBOARD_SIZE, type ImageLayer, type Layer, type ProjectDocument } from '../../types/domain'
 import type { AssetRecord } from '../../lib/persistence/repository'
 
 export type ExportSize = 512 | 1024
@@ -120,7 +120,7 @@ export function formatCssFilter(filters?: import('../../types/domain').ImageFilt
   return parts.length > 0 ? parts.join(' ') : 'none'
 }
 
-export function drawOutlinedImage(
+function drawOutlinedImage(
   ctx: CanvasRenderingContext2D,
   image: CanvasImageSource,
   crop: import('../../types/domain').CropRect | undefined,
@@ -130,20 +130,9 @@ export function drawOutlinedImage(
   createCanvas?: (w: number, h: number) => CanvasLike,
 ): void {
   const makeCanvas = createCanvas ?? defaultCreateCanvas
-  let silhouetteCanvas: CanvasLike
-  try {
-    silhouetteCanvas = makeCanvas(width, height)
-  } catch {
-    if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
-    else ctx.drawImage(image, 0, 0, width, height)
-    return
-  }
+  const silhouetteCanvas = makeCanvas(width, height)
   const sCtx = silhouetteCanvas.getContext('2d')
-  if (!sCtx) {
-    if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
-    else ctx.drawImage(image, 0, 0, width, height)
-    return
-  }
+  if (!sCtx) throw new ExportError('A 2D canvas is required to render the outline')
 
   if (crop) sCtx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
   else sCtx.drawImage(image, 0, 0, width, height)
@@ -170,6 +159,56 @@ export function drawOutlinedImage(
   else ctx.drawImage(image, 0, 0, width, height)
 }
 
+/** Shared image compositing for the cached preview and document export. */
+function paintImage(
+  ctx: CanvasRenderingContext2D,
+  image: CanvasImageSource,
+  layer: Pick<ImageLayer, 'crop' | 'filters' | 'outline'>,
+  width: number,
+  height: number,
+  createCanvas?: (width: number, height: number) => CanvasLike,
+): void {
+  ctx.save()
+  ctx.filter = formatCssFilter(layer.filters)
+  try {
+    if (layer.outline?.enabled && layer.outline.width > 0) {
+      if (ctx.filter !== 'none') {
+        const filtered = (createCanvas ?? defaultCreateCanvas)(width, height)
+        const filteredContext = filtered.getContext('2d')
+        if (!filteredContext) throw new ExportError('A 2D canvas is required for image filters')
+        paintImage(filteredContext, image, { crop: layer.crop, filters: layer.filters }, width, height, createCanvas)
+        ctx.filter = 'none'
+        drawOutlinedImage(ctx, filtered as CanvasImageSource, undefined, width, height, layer.outline, createCanvas)
+      } else {
+        drawOutlinedImage(ctx, image, layer.crop, width, height, layer.outline, createCanvas)
+      }
+    } else if (layer.crop) {
+      const crop = layer.crop
+      ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+    } else {
+      ctx.drawImage(image, 0, 0, width, height)
+    }
+  } finally {
+    ctx.restore()
+  }
+}
+
+export function createImageSurface(
+  image: CanvasImageSource,
+  layer: Pick<ImageLayer, 'crop' | 'filters' | 'outline'>,
+  width: number,
+  height: number,
+  createCanvas = defaultCreateCanvas,
+): { canvas: CanvasLike; padding: number } {
+  const padding = layer.outline?.enabled ? Math.ceil(layer.outline.width) : 0
+  const canvas = createCanvas(width + padding * 2, height + padding * 2)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new ExportError('A 2D canvas is required for image compositing')
+  ctx.translate(padding, padding)
+  paintImage(ctx, image, layer, width, height, createCanvas)
+  return { canvas, padding }
+}
+
 async function drawLayer(
   ctx: CanvasRenderingContext2D,
   layer: Layer,
@@ -187,21 +226,17 @@ async function drawLayer(
     } catch {
       throw new ExportError(`Could not decode asset ${layer.assetId}`)
     }
-    const filter = formatCssFilter(layer.filters)
-    const prevFilter = ctx.filter
-    if (filter !== 'none') ctx.filter = filter
     try {
-      const crop = layer.crop
-      const srcW = crop?.width ?? record.asset.width
-      const srcH = crop?.height ?? record.asset.height
+      const width = layer.crop?.width ?? record.asset.width
+      const height = layer.crop?.height ?? record.asset.height
       if (layer.outline?.enabled && layer.outline.width > 0) {
-        drawOutlinedImage(ctx, image, crop, srcW, srcH, layer.outline, createCanvas)
+        // Composite once before layer opacity, rather than accumulating opacity per outline stamp.
+        const { canvas, padding } = createImageSurface(image, layer, width, height, createCanvas)
+        ctx.drawImage(canvas as CanvasImageSource, -padding, -padding)
       } else {
-        if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height)
-        else ctx.drawImage(image, 0, 0, record.asset.width, record.asset.height)
+        paintImage(ctx, image, layer, width, height, createCanvas)
       }
     } finally {
-      if (filter !== 'none') ctx.filter = prevFilter
       if (closeDecoded) closeImageSource(image)
     }
     return

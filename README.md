@@ -35,7 +35,7 @@ Playwright uses Chromium at `/usr/bin/chromium` via `playwright.config.ts`. Fire
 - [x] Image filters (brightness, contrast, saturation, grayscale) with reset, shared between canvas preview and PNG exports
 - [x] Silhouette outlines & borders with customizable color and thickness on canvas and export
 - [x] User-supplied cat stickers banner collage on Templates page
-- [ ] Manual alpha mask erase / restore
+- [ ] Manual alpha mask erase / restore in image-local coordinates (required to finish Milestone 3)
 - [ ] Cloud auth/sharing and native WhatsApp/Telegram installation
 
 Deferred actions open an explanation or stay disabled. They do not report success. Automatic background removal is unavailable.
@@ -47,5 +47,9 @@ The four supplied images map to the four routes above. Estimated tokens live in 
 ## Verification
 
 `src/features/editor/commands.test.ts` covers undo/gesture history, rotated flips, and runtime asset retention. `src/features/exports/renderDocument.test.ts` covers PNG size/transparency, multiline text, and ImageBitmap cleanup. `src/features/editor/editor.test.tsx` covers upload → text → save → reopen, leave-before-debounce flush, snapshot saves, stale upload discard, and slider/typing-safe shortcuts. `src/features/assets/validateUpload.test.ts` rejects APNG and mislabeled BMP. `src/features/exports/zipExport.test.ts` covers ZIP binary generation and pack manifest bundling. `npm run test:browser` starts from the Dashboard CTA, edits the canvas, reloads multiline text, inspects downloaded 512 and 1024 PNG dimensions, alpha, and composition, clones templates, and creates/exports sticker pack ZIPs.
+
+`e2e/render-parity.spec.ts` compares real preview/export pixels for circles, partial filters, padded/cropped outlines, outline opacity, and outline color under filters. Image-local compositing is cached independently of transforms. ZIP exports fail explicitly if any member cannot load or render, rather than silently downloading incomplete packs. Pack/template write failures remain visible and recoverable; pack deletion requires confirmation and preserves stickers. Favorite template cards stay synchronized across rails.
+
+Verified in the direct review pass: typecheck, production build, 75 Vitest tests and 22 Chromium browser tests pass. Lint has no errors and the existing `react-refresh/only-export-components` warning in `src/app/repository.tsx`. Firefox/WebKit were not rerun in this pass. Manual erase/restore remains required before Milestone 3 is complete.
 
 Browser screenshots from the foundation layout checks are stored outside the repository at `/tmp/stickerlab-browser-verification/`.

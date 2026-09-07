@@ -35,7 +35,7 @@ export function createZipArchive(files: ZipFileEntry[]): Blob {
     const lv = new DataView(local.buffer, local.byteOffset, local.byteLength)
     lv.setUint32(0, 0x04034b50, true) // Local header signature
     lv.setUint16(4, 20, true)         // Version needed: 2.0
-    lv.setUint16(6, 0, true)          // General purpose bit flag
+    lv.setUint16(6, 0x0800, true)          // General purpose bit flag
     lv.setUint16(8, 0, true)          // Compression method: STORE
     lv.setUint16(10, 0, true)         // File mod time
     lv.setUint16(12, 0, true)         // File mod date
@@ -54,7 +54,7 @@ export function createZipArchive(files: ZipFileEntry[]): Blob {
     cv.setUint32(0, 0x02014b50, true) // Central directory signature
     cv.setUint16(4, 20, true)         // Version made by: 2.0
     cv.setUint16(6, 20, true)         // Version needed: 2.0
-    cv.setUint16(8, 0, true)          // Flags
+    cv.setUint16(8, 0x0800, true)          // Flags
     cv.setUint16(10, 0, true)         // Method: STORE
     cv.setUint16(12, 0, true)         // Time
     cv.setUint16(14, 0, true)         // Date
@@ -132,8 +132,8 @@ export async function exportPackZip(
       files.push({ name: filename, data: bytes })
       manifestItems.push({ index, filename, title: project.title })
       index += 1
-    } catch {
-      // If a project cannot be loaded/rendered, skip it so one missing sticker does not break the pack
+    } catch (error) {
+      throw new Error(`Could not export sticker ${projectId}: ${error instanceof Error ? error.message : 'unknown error'}`)
     }
   }
 

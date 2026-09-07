@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from './main'
 import { createMemoryRepository, createProjectDocument } from './lib/persistence/repository'
 import { resetEditorStore, useEditorStore } from './features/editor/store'
@@ -12,6 +12,7 @@ globalThis.ResizeObserver = ResizeObserver
 afterEach(() => {
   cleanup()
   resetEditorStore()
+  vi.restoreAllMocks()
 })
 
 function renderRoute(path = '/') {
@@ -137,15 +138,48 @@ describe('foundation interactions', () => {
     expect(saved[0]?.title).toBe('Good Vibes Pack Copy')
   })
 
+  it('keeps a template preview open on save failure and restores focus on dismissal', async () => {
+    const repo = createMemoryRepository()
+    repo.injectWriteFailure()
+    render(<MemoryRouter initialEntries={['/templates']}><App repository={repo} /></MemoryRouter>)
+    const opener = screen.getAllByRole('button', { name: 'Good Vibes Pack' })[0]!
+    opener.focus()
+    fireEvent.click(opener)
+    const dialog = screen.getByRole('dialog', { name: 'Good Vibes Pack' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Use Template' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not save')
+    expect(await repo.listProjects()).toHaveLength(0)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(opener).toHaveFocus())
+  })
+
   it('toggles template favorites and stores them', () => {
     renderRoute('/templates')
     const favBtn = screen.getAllByRole('button', { name: 'Add Good Vibes Pack to favorites' })[0]!
     expect(favBtn).toHaveTextContent('♡')
     fireEvent.click(favBtn)
     expect(screen.getAllByRole('button', { name: 'Remove Good Vibes Pack from favorites' })[0]).toHaveTextContent('❤️')
+    expect(screen.queryAllByRole('button', { name: 'Add Good Vibes Pack to favorites' })).toHaveLength(0)
+  })
+
+  it('shows pack write failures without closing the form or losing its title', async () => {
+    const repo = createMemoryRepository()
+    repo.injectWriteFailure()
+    render(<MemoryRouter initialEntries={['/my-stickers']}><App repository={repo} /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'New Pack' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Pack' })
+    fireEvent.change(within(dialog).getByLabelText('Pack Name'), { target: { value: 'Keep my title' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create Pack' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Save failed')
+    expect(within(dialog).getByLabelText('Pack Name')).toHaveValue('Keep my title')
+    expect(await repo.listPacks()).toHaveLength(0)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create Pack' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await repo.listPacks()).toHaveLength(1)
   })
 
   it('creates, inspects, adds stickers to, duplicates, and deletes a pack', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const repo = createMemoryRepository()
     const p1 = createProjectDocument({ id: 'proj-1', title: 'Happy Cat' })
     await repo.saveProject(p1)
@@ -182,6 +216,7 @@ describe('foundation interactions', () => {
       expect(packs[0]?.projectIds).toContain('proj-1')
     })
 
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Duplicate' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }))
     await waitFor(async () => {
       const packs = await repo.listPacks()
@@ -189,6 +224,12 @@ describe('foundation interactions', () => {
       expect(packs.some((p) => p.title === 'My Cats Copy')).toBe(true)
     })
 
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(confirm).toHaveBeenCalled()
+    expect(await repo.listPacks()).toHaveLength(2)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled())
+    confirm.mockReturnValue(true)
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     await waitFor(async () => {
       const packs = await repo.listPacks()

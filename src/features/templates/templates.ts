@@ -199,7 +199,7 @@ export const templateData: Template[] = templateSpecs.map((spec, index) => {
 export function cloneTemplateDocument(template: Template): ProjectDocument {
   const now = new Date().toISOString()
   const id = crypto.randomUUID()
-  const layers = template.document.layers.map((layer) => ({
+  const layers = structuredClone(template.document.layers).map((layer) => ({
     ...layer,
     id: crypto.randomUUID(),
     transform: { ...layer.transform },
@@ -224,7 +224,8 @@ export function getFavoriteTemplateIds(): string[] {
     const storage = typeof window !== 'undefined' ? window.localStorage : undefined
     if (!storage) return Array.from(memoryFavorites)
     const raw = storage.getItem(FAV_TEMPLATES_KEY)
-    return raw ? (JSON.parse(raw) as string[]) : []
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? [...new Set(parsed.filter((id): id is string => typeof id === 'string'))] : []
   } catch {
     return Array.from(memoryFavorites)
   }
@@ -243,5 +244,6 @@ export function toggleFavoriteTemplateId(id: string): string[] {
   }
   memoryFavorites.clear()
   for (const item of next) memoryFavorites.add(item)
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('stickerlab:favorites'))
   return next
 }

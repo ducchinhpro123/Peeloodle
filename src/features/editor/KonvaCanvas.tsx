@@ -1,8 +1,8 @@
 import Konva from 'konva'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Group, Image as KonvaImage, Layer, Rect, Stage, Text as KonvaText, Transformer } from 'react-konva'
+import { Ellipse, Group, Image as KonvaImage, Layer, Rect, Stage, Text as KonvaText, Transformer } from 'react-konva'
 import { ARTBOARD_SIZE, type Asset, type ImageLayer, type Layer as DocLayer, type TextLayer } from '../../types/domain'
-import { drawOutlinedImage } from '../exports/renderDocument'
+import { createImageSurface, formatCssFilter } from '../exports/renderDocument'
 import { useEditorStore } from './store'
 
 export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) {
@@ -188,6 +188,9 @@ function DocNode({
   if (layer.kind === 'text') {
     return <TextNode layer={layer} nodeRef={nodeRef} handlers={handlers} />
   }
+  if (layer.shape === 'circle') {
+    return <Ellipse ref={nodeRef} {...handlers} radiusX={60} radiusY={60} offsetX={-60} offsetY={-60} fill={layer.fill} />
+  }
   return (
     <Rect
       ref={nodeRef}
@@ -237,80 +240,28 @@ function HydratedImage({
   handlers: Record<string, unknown>
 }) {
   const image = useHtmlImage(url)
-  const imageNodeRef = useRef<Konva.Image | null>(null)
-
-  useEffect(() => {
-    const node = imageNodeRef.current
-    if (!node) return
-    const filters = layer.filters
-    const hasFilter =
-      filters &&
-      (filters.brightness !== 0 || filters.contrast !== 0 || filters.saturation !== 0 || filters.grayscale !== 0)
-    if (hasFilter) {
-      const activeFilters: Array<(imageData: ImageData) => void> = []
-      if (filters.brightness !== 0) {
-        activeFilters.push(Konva.Filters.Brighten)
-        node.brightness(filters.brightness / 100)
-      }
-      if (filters.contrast !== 0) {
-        activeFilters.push(Konva.Filters.Contrast)
-        node.contrast(filters.contrast)
-      }
-      if (filters.saturation !== 0) {
-        activeFilters.push(Konva.Filters.HSL)
-        node.saturation(filters.saturation / 100)
-      }
-      if (filters.grayscale !== 0) {
-        activeFilters.push(Konva.Filters.Grayscale)
-      }
-      node.filters(activeFilters)
-      try {
-        node.cache()
-      } catch {
-        // caching may fail if image is not cross-origin ready
-      }
-    } else {
-      node.filters([])
-      try {
-        node.clearCache()
-      } catch {
-        // clearCache ignore
-      }
-    }
-  }, [layer.filters, image])
-
-  const crop = layer.crop
-  const outline = layer.outline
-
-  const outlinedImage = useMemo(() => {
-    if (!image || !asset || !outline?.enabled || outline.width <= 0) return null
-    if (typeof window === 'undefined' || typeof window.document === 'undefined') return null
+  const { crop, outline, filters } = layer
+  const padding = outline?.enabled ? Math.ceil(outline.width) : 0
+  // Cache only image-local compositing; dragging/zooming must not rebuild it.
+  const processedImage = useMemo(() => {
+    if (!image || !asset) return null
+    if (!crop && !outline?.enabled && formatCssFilter(filters) === 'none') return image
     const w = crop?.width ?? asset.width
     const h = crop?.height ?? asset.height
-    const canvas = window.document.createElement('canvas')
-    canvas.width = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return null
-    drawOutlinedImage(ctx, image, crop, w, h, outline)
-    return canvas
-  }, [image, crop, asset, outline])
+    return createImageSurface(image, { crop, outline, filters }, w, h).canvas as HTMLCanvasElement
+  }, [image, crop, asset, outline, filters])
 
   if (!image || !asset) return null
 
-  const combinedRef = (node: Konva.Image | null) => {
-    imageNodeRef.current = node
-    nodeRef(node)
-  }
-
   return (
     <KonvaImage
-      ref={combinedRef}
+      ref={nodeRef}
       {...handlers}
-      image={outlinedImage ?? image}
-      width={crop?.width ?? asset.width}
-      height={crop?.height ?? asset.height}
-      crop={crop}
+      image={processedImage ?? image}
+      width={(crop?.width ?? asset.width) + padding * 2}
+      height={(crop?.height ?? asset.height) + padding * 2}
+      offsetX={padding}
+      offsetY={padding}
     />
   )
 }

@@ -1,4 +1,4 @@
-import { StrictMode, Suspense, lazy, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { StrictMode, Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { RepositoryProvider, useRepository } from './app/repository'
@@ -235,18 +235,26 @@ function TemplateCard({
   template: Template
   isFavorite: boolean
   onToggleFavorite: (id: string) => void
-  onUse: (template: Template) => void
+  onUse: (template: Template) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const opener = useRef<HTMLElement | null>(null)
   return (
     <article className="template-card" key={template.id}>
       <div
         className="template-art"
         role="button"
         tabIndex={0}
-        onClick={() => setOpen(true)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') setOpen(true)
+        onClick={(event) => { opener.current = event.currentTarget; setOpen(true) }}
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            opener.current = event.currentTarget
+            setOpen(true)
+          }
         }}
       >
         {template.preview}
@@ -265,14 +273,15 @@ function TemplateCard({
       <button
         type="button"
         className="template-title-btn"
-        onClick={() => setOpen(true)}
+        onClick={(event) => { opener.current = event.currentTarget; setOpen(true) }}
       >
         <b>{template.title}</b>
       </button>
       <small>{template.category} · {template.document.layers.length} layers</small>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); opener.current?.focus() }}>
           <DialogTitle>{template.title}</DialogTitle>
+          <DialogDescription>Clone this template into an independent editable sticker.</DialogDescription>
           <div className="template-preview-body">
             <div className="detail-cover" style={{ fontSize: 64 }}>
               {template.preview}
@@ -282,12 +291,22 @@ function TemplateCard({
               <strong>Layers:</strong>{' '}
               {template.document.layers.map((l) => l.name).join(', ') || 'Starter artwork'}
             </p>
+            {error ? <p role="alert">{error}</p> : null}
             <div className="button-row" style={{ marginTop: 16 }}>
               <Button
                 className="primary"
-                onClick={() => {
-                  setOpen(false)
-                  onUse(template)
+                disabled={creating}
+                onClick={async () => {
+                  setCreating(true)
+                  setError(null)
+                  try {
+                    await onUse(template)
+                    setOpen(false)
+                  } catch {
+                    setError('Could not save the template. Please retry; the original is unchanged.')
+                  } finally {
+                    setCreating(false)
+                  }
                 }}
               >
                 Use Template
@@ -310,6 +329,15 @@ function TemplateRail({
   const navigate = useNavigate()
   const repo = useRepository()
   const [favorites, setFavorites] = useState<string[]>(() => getFavoriteTemplateIds())
+  useEffect(() => {
+    const refresh = () => setFavorites(getFavoriteTemplateIds())
+    window.addEventListener('stickerlab:favorites', refresh)
+    window.addEventListener('storage', refresh)
+    return () => {
+      window.removeEventListener('stickerlab:favorites', refresh)
+      window.removeEventListener('storage', refresh)
+    }
+  }, [])
 
   const handleToggleFavorite = (id: string) => {
     setFavorites(toggleFavoriteTemplateId(id))
@@ -381,22 +409,44 @@ function Packs() {
   const [newDesc, setNewDesc] = useState('')
   const [addStickerOpen, setAddStickerOpen] = useState(false)
   const [exportingZip, setExportingZip] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const operationActive = useRef(false)
+  const createOpener = useRef<HTMLButtonElement | null>(null)
+  const addOpener = useRef<HTMLButtonElement | null>(null)
 
-  const reload = useCallback(() => {
-    void repo.listPacks().then((list) => {
-      setPacks(list)
-      setSelectedPackId((prev) => (prev && list.some((p) => p.id === prev) ? prev : list[0]?.id ?? null))
-    })
-    void repo.listProjects().then(setProjects)
+  const reload = useCallback(async () => {
+    const [list, savedProjects] = await Promise.all([repo.listPacks(), repo.listProjects()])
+    setPacks(list)
+    setProjects(savedProjects)
+    setSelectedPackId((prev) => (prev && list.some((p) => p.id === prev) ? prev : list[0]?.id ?? null))
   }, [repo])
 
   useEffect(() => {
-    reload()
+    void reload().catch(() => setError('Could not load local packs. Please retry.'))
   }, [reload])
+
+  const runPackAction = async (action: () => Promise<void>) => {
+    if (operationActive.current) return
+    operationActive.current = true
+    setBusy(true)
+    setError(null)
+    try {
+      await action()
+      await reload()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Pack operation failed. Please retry.')
+    } finally {
+      operationActive.current = false
+      setBusy(false)
+    }
+  }
 
   const viewParam = params.get('view')
   const view =
-    viewParam === 'favorites'
+    viewParam === 'mine'
+      ? 'My Packs'
+      : viewParam === 'favorites'
       ? 'Favorites'
       : viewParam === 'shared'
       ? 'Shared with Me'
@@ -404,7 +454,8 @@ function Packs() {
       ? 'Export History'
       : 'All Packs'
   const selectView = (next: string) => {
-    if (next === 'Favorites') setParams({ view: 'favorites' })
+    if (next === 'My Packs') setParams({ view: 'mine' })
+    else if (next === 'Favorites') setParams({ view: 'favorites' })
     else if (next === 'Shared with Me') setParams({ view: 'shared' })
     else if (next === 'Export History') setParams({ view: 'export-history' })
     else setParams({})
@@ -412,8 +463,7 @@ function Packs() {
 
   const selectedPack = packs.find((p) => p.id === selectedPackId) || packs[0] || null
 
-  const handleCreatePack = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleCreatePack = async () => {
     const trimmed = newTitle.trim()
     if (!trimmed) return
     const newPack: PackRecord = {
@@ -430,7 +480,6 @@ function Packs() {
     setNewDesc('')
     setCreateOpen(false)
     setSelectedPackId(newPack.id)
-    reload()
   }
 
   const handleDuplicatePack = async (pack: PackRecord) => {
@@ -443,13 +492,12 @@ function Packs() {
     }
     await repo.savePack(dup)
     setSelectedPackId(dup.id)
-    reload()
   }
 
   const handleDeletePack = async (packId: string) => {
+    if (!window.confirm('Delete this pack? Its stickers will be kept.')) return
     await repo.deletePack(packId)
     setSelectedPackId(null)
-    reload()
   }
 
   const handleToggleStickerInPack = async (projectId: string) => {
@@ -463,7 +511,6 @@ function Packs() {
       updatedAt: new Date().toISOString(),
     }
     await repo.savePack(updated)
-    reload()
   }
 
   const handleReorderStickerInPack = async (index: number, direction: 'up' | 'down') => {
@@ -479,7 +526,6 @@ function Packs() {
       updatedAt: new Date().toISOString(),
     }
     await repo.savePack(updated)
-    reload()
   }
 
   const handleExportZip = async (pack: PackRecord) => {
@@ -488,8 +534,6 @@ function Packs() {
       const zipBlob = await exportPackZip(pack, repo)
       const safe = pack.title.replace(/[^\w.-]+/g, '_').toLowerCase() || 'pack'
       downloadBlob(zipBlob, `${safe}.zip`)
-    } catch {
-      // Export handled gracefully
     } finally {
       setExportingZip(false)
     }
@@ -506,7 +550,7 @@ function Packs() {
         title="My Sticker Packs"
         action={
           <div className="actions">
-            <Button className="primary" onClick={() => setCreateOpen(true)}>
+            <Button className="primary" onClick={(event) => { createOpener.current = event.currentTarget; setCreateOpen(true) }}>
               <Plus size={16} />New Pack
             </Button>
             <Link className="button" to="/create">
@@ -517,6 +561,7 @@ function Packs() {
       >
         Organize saved stickers locally. Group them into packs and export transparent PNG ZIP bundles.
       </Hero>
+      {error ? <p role="alert">{error}</p> : null}
       <div className="packs-controls">
         <div className="pills">
           {['All Packs', 'My Packs', 'Favorites', 'Shared with Me', 'Export History'].map((item) => (
@@ -542,14 +587,14 @@ function Packs() {
         <section className="empty packs-empty">
           <Download size={36} />
           <h2>Export History</h2>
-          <p>Pack ZIP files and individual PNG stickers download directly to your browser downloads folder.</p>
+          <p>Export history is not recorded yet. PNG and ZIP exports start a browser download; your browser controls where files are saved.</p>
         </section>
       ) : packs.length === 0 ? (
         <section className="empty packs-empty">
           <Layers3 size={36} />
           <h2>{emptyHeading}</h2>
           <p>{emptyDetail}</p>
-          <Button className="primary" onClick={() => setCreateOpen(true)}>
+          <Button className="primary" onClick={(event) => { createOpener.current = event.currentTarget; setCreateOpen(true) }}>
             <Plus size={16} />Create a Pack
           </Button>
         </section>
@@ -579,20 +624,20 @@ function Packs() {
               <div className="button-row" style={{ marginTop: 12 }}>
                 <Button
                   className="primary"
-                  disabled={exportingZip || selectedPack.projectIds.length === 0}
-                  onClick={() => handleExportZip(selectedPack)}
+                  disabled={busy || exportingZip || selectedPack.projectIds.length === 0}
+                  onClick={() => void runPackAction(() => handleExportZip(selectedPack))}
                 >
                   <Download size={16} />{exportingZip ? 'Exporting…' : 'Download ZIP'}
                 </Button>
-                <Button onClick={() => setAddStickerOpen(true)}>
+                <Button onClick={(event) => { addOpener.current = event.currentTarget; setAddStickerOpen(true) }}>
                   <Plus size={16} />Add Stickers
                 </Button>
               </div>
               <div className="button-row" style={{ marginTop: 8 }}>
-                <Button onClick={() => handleDuplicatePack(selectedPack)} title="Duplicate pack">
+                <Button disabled={busy} onClick={() => void runPackAction(() => handleDuplicatePack(selectedPack))} title="Duplicate pack">
                   <Copy size={16} />Duplicate
                 </Button>
-                <Button onClick={() => handleDeletePack(selectedPack.id)} title="Delete pack">
+                <Button disabled={busy} onClick={() => void runPackAction(() => handleDeletePack(selectedPack.id))} title="Delete pack">
                   <Trash2 size={16} />Delete
                 </Button>
                 <NoticeDialog title="Messenger packs are unavailable" trigger={<Button>WhatsApp / Telegram</Button>}>
@@ -615,18 +660,18 @@ function Packs() {
                           <button
                             type="button"
                             className="layer-action-btn"
-                            disabled={idx === 0}
+                            disabled={busy || idx === 0}
                             aria-label={`Move ${title} up`}
-                            onClick={() => handleReorderStickerInPack(idx, 'up')}
+                            onClick={() => void runPackAction(() => handleReorderStickerInPack(idx, 'up'))}
                           >
                             ↑
                           </button>
                           <button
                             type="button"
                             className="layer-action-btn"
-                            disabled={idx === selectedPack.projectIds.length - 1}
+                            disabled={busy || idx === selectedPack.projectIds.length - 1}
                             aria-label={`Move ${title} down`}
-                            onClick={() => handleReorderStickerInPack(idx, 'down')}
+                            onClick={() => void runPackAction(() => handleReorderStickerInPack(idx, 'down'))}
                           >
                             ↓
                           </button>
@@ -634,7 +679,8 @@ function Packs() {
                             type="button"
                             className="layer-action-btn"
                             aria-label={`Remove ${title} from pack`}
-                            onClick={() => handleToggleStickerInPack(pId)}
+                            disabled={busy}
+                            onClick={() => void runPackAction(() => handleToggleStickerInPack(pId))}
                           >
                             <X size={14} />
                           </button>
@@ -662,10 +708,10 @@ function Packs() {
 
       {/* Dialogs */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
+        <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); createOpener.current?.focus() }}>
           <DialogTitle>Create New Pack</DialogTitle>
           <DialogDescription>Group your stickers into a named pack.</DialogDescription>
-          <form onSubmit={handleCreatePack}>
+          <form onSubmit={(event) => { event.preventDefault(); void runPackAction(handleCreatePack) }}>
             <div className="dialog-field">
               <label htmlFor="pack-title">Pack Name</label>
               <input
@@ -686,7 +732,8 @@ function Packs() {
               />
             </div>
             <div className="button-row" style={{ marginTop: 16 }}>
-              <Button className="primary" type="submit">Create Pack</Button>
+              {error ? <p role="alert">{error}</p> : null}
+              <Button className="primary" type="submit" disabled={busy}>Create Pack</Button>
               <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
             </div>
           </form>
@@ -694,9 +741,10 @@ function Packs() {
       </Dialog>
 
       <Dialog open={addStickerOpen} onOpenChange={setAddStickerOpen}>
-        <DialogContent>
+        <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); addOpener.current?.focus() }}>
           <DialogTitle>Add stickers to {selectedPack?.title}</DialogTitle>
           <DialogDescription>Check saved local stickers to include them in this pack.</DialogDescription>
+          {error ? <p role="alert">{error}</p> : null}
           {projects.length === 0 ? (
             <p className="muted">No saved stickers yet. Create and save stickers in the editor first.</p>
           ) : (
@@ -710,7 +758,8 @@ function Packs() {
                       type="checkbox"
                       aria-label={`Include ${proj.title}`}
                       checked={inPack}
-                      onChange={() => handleToggleStickerInPack(proj.id)}
+                      disabled={busy}
+                      onChange={() => void runPackAction(() => handleToggleStickerInPack(proj.id))}
                     />
                   </div>
                 )

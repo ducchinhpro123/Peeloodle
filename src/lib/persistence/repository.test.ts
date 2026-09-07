@@ -73,6 +73,18 @@ function readBlobBytes(blob: Blob): Promise<Uint8Array> {
 }
 
 describe('parseProjectDocument', () => {
+  it('bounds persisted filter and outline work before rendering', () => {
+    const layer = imageLayer('asset')
+    layer.filters = { brightness: 0, contrast: 0, saturation: 0, grayscale: 101 }
+    const doc = projectWith({ layers: [layer], assetIds: ['asset'] })
+    expect(() => parseProjectDocument(doc)).toThrow(/grayscale/)
+    layer.filters.grayscale = 25
+    layer.outline = { enabled: true, color: '#ffffff', width: 1e9 }
+    expect(() => parseProjectDocument(doc)).toThrow(/outline.width/)
+    layer.outline.width = 0
+    expect(parseProjectDocument(doc).layers[0]).toMatchObject({ outline: { width: 0 } })
+  })
+
   it('accepts current template-shaped documents', () => {
     const document = parseProjectDocument({
       schemaVersion: 1,
