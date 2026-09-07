@@ -41,6 +41,7 @@ type PixelReport = {
   width: number
   height: number
   corner: number[]
+  center: number[]
   maxAlpha: number
   opaqueCount: number
   redCount: number
@@ -72,6 +73,8 @@ async function inspectPng(page: Page, downloadPath: string, expectedSize: number
     ctx.drawImage(bitmap, 0, 0)
     const corner = ctx.getImageData(0, 0, 1, 1).data
     const data = ctx.getImageData(0, 0, bitmap.width, bitmap.height).data
+    const midIdx = (Math.floor(bitmap.height / 2) * bitmap.width + Math.floor(bitmap.width / 2)) * 4
+    const center = [data[midIdx] ?? 0, data[midIdx + 1] ?? 0, data[midIdx + 2] ?? 0, data[midIdx + 3] ?? 0]
     let maxAlpha = 0
     let opaqueCount = 0
     let redCount = 0
@@ -110,6 +113,7 @@ async function inspectPng(page: Page, downloadPath: string, expectedSize: number
       width: bitmap.width,
       height: bitmap.height,
       corner: [corner[0], corner[1], corner[2], corner[3]],
+      center,
       maxAlpha,
       opaqueCount,
       redCount,
@@ -349,4 +353,63 @@ test('pack creation, adding sticker, and ZIP export', async ({ page }) => {
   expect(zipBytes[2]).toBe(0x03)
   expect(zipBytes[3]).toBe(0x04)
   expect(zipBytes.length).toBeGreaterThan(200)
+})
+
+test('manual erase and restore mask workflow with undo, export parity, and persistence', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openEditorFromDashboard(page)
+  await page.getByTestId('photo-file-input').setInputFiles({ name: 'red.png', mimeType: 'image/png', buffer: redPng })
+  await waitForImageLayer(page)
+
+  // 1. Activate Erase tool
+  await page.getByRole('button', { name: 'Erase' }).first().click()
+
+  // 2. Hover over canvas to verify cursor preview
+  const canvas = page.getByTestId('editor-canvas')
+  const canvasBox = await canvas.boundingBox()
+  expect(canvasBox).not.toBeNull()
+  const centerX = canvasBox!.x + canvasBox!.width / 2
+  const centerY = canvasBox!.y + canvasBox!.height / 2
+
+  await page.mouse.move(centerX, centerY)
+  const cursor = page.getByTestId('brush-cursor')
+  await expect(cursor).toBeVisible()
+
+  // 3. Draw erase stroke through the center
+  await page.mouse.down()
+  await page.mouse.move(centerX + 30, centerY)
+  await page.mouse.move(centerX + 60, centerY)
+  await page.mouse.up()
+
+  // 4. Verify Reset Mask button appears in Inspector
+  const resetBtn = page.getByRole('button', { name: 'Reset Mask' })
+  await expect(resetBtn).toBeVisible()
+
+  // 5. Test Undo: resets mask, Reset Mask button disappears
+  await page.getByRole('button', { name: 'Undo' }).click()
+  await expect(resetBtn).toBeHidden()
+
+  // 6. Test Redo: restores erased mask
+  await page.getByRole('button', { name: 'Redo' }).click()
+  await expect(resetBtn).toBeVisible()
+
+  // 7. Save sticker with mask
+  await page.getByLabel('Sticker title').fill('Masked Sticker')
+  await page.getByRole('button', { name: /save to my stickers/i }).click()
+  await expect(page.getByRole('status')).toContainText(/saved locally/i)
+
+  // 8. Reload page: mask rehydrates from persistence
+  await page.reload()
+  await expect(page.getByTestId('editor-canvas')).toBeVisible()
+  await expect(page.getByLabel('Sticker title')).toHaveValue('Masked Sticker')
+  await expect(resetBtn).toBeVisible()
+
+  // 9. Export transparent PNG and verify exported pixels
+  await page.getByRole('button', { name: /export and share/i }).click()
+  const pixels = await downloadExport(page, 512)
+  expect(pixels.corner[3]).toBe(0) // Transparent corner
+  expect(pixels.maxAlpha).toBeGreaterThan(200) // Red pixels still present
+  expect(pixels.redCount).toBeGreaterThan(100)
+  // Erased stroke hit center area, center pixel is transparent
+  expect(pixels.center[3]).toBe(0)
 })

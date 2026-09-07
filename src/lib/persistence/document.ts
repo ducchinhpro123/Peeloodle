@@ -19,6 +19,7 @@ export type PersistenceErrorCode =
   | 'unsupported_schema'
   | 'malformed_data'
   | 'missing_asset'
+  | 'missing_mask'
   | 'invalid_asset'
   | 'transaction_failed'
 

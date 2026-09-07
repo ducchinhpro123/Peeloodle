@@ -1,11 +1,11 @@
 import { create } from 'zustand'
 import { createProjectDocument, serializeProjectDocument } from '../../lib/persistence/repository'
-import type { AssetRecord } from '../../lib/persistence/repository'
+import type { AssetRecord, MaskRecord } from '../../lib/persistence/repository'
 import type { ImageFilters, Layer, LayerOutline, ProjectDocument, TextLayer, Transform } from '../../types/domain'
 import { fitImageToArtboard } from '../assets/assetLoader'
 
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved-locally' | 'save-failed'
-export type EditorTool = 'select' | 'pan' | 'text' | 'rotate'
+export type EditorTool = 'select' | 'pan' | 'text' | 'rotate' | 'erase' | 'restore'
 export type Viewport = { zoom: number; panX: number; panY: number }
 
 export const HISTORY_LIMIT = 50
@@ -16,6 +16,8 @@ const defaultViewport: Viewport = { zoom: 1, panX: 0, panY: 0 }
 export type EditorStore = {
   document: ProjectDocument | null
   assets: Record<string, AssetRecord>
+  masks: Record<string, Blob>
+  brushSize: number
   selectedLayerId: string | null
   viewport: Viewport
   past: ProjectDocument[]
@@ -30,12 +32,13 @@ export type EditorStore = {
   activeTool: EditorTool
   uploadError: string | null
   createDraft: (id?: string) => string
-  hydrate: (document: ProjectDocument, records: AssetRecord[]) => void
+  hydrate: (document: ProjectDocument, records: AssetRecord[], masks?: MaskRecord[]) => void
   setLoadError: (message: string) => void
   setLoading: (loading: boolean) => void
   selectLayer: (id: string | null) => void
   setViewport: (viewport: Partial<Viewport>) => void
   setTool: (tool: EditorTool) => void
+  setBrushSize: (size: number) => void
   setUploadError: (message: string | null) => void
   beginGesture: () => void
   commitGesture: () => void
@@ -56,6 +59,8 @@ export type EditorStore = {
   updateFilters: (id: string, filters: Partial<ImageFilters>) => void
   resetFilters: (id: string) => void
   updateOutline: (id: string, outline: Partial<LayerOutline>) => void
+  applyMask: (layerId: string, maskKey: string, maskBlob: Blob) => void
+  clearMask: (layerId: string) => void
   undo: () => void
   redo: () => void
   setSaveStatus: (status: SaveStatus, error?: string | null) => void
@@ -107,10 +112,29 @@ function assetsFor(assets: Record<string, AssetRecord>, docs: Array<ProjectDocum
   return dropped ? next : assets
 }
 
+function masksFor(masks: Record<string, Blob>, docs: Array<ProjectDocument | null | undefined>): Record<string, Blob> {
+  const keys = new Set<string>()
+  for (const doc of docs) {
+    if (!doc) continue
+    for (const layer of doc.layers) {
+      if (layer.kind === 'image' && layer.maskKey) keys.add(layer.maskKey)
+    }
+  }
+  let dropped = false
+  const next: Record<string, Blob> = {}
+  for (const [key, blob] of Object.entries(masks)) {
+    if (keys.has(key)) next[key] = blob
+    else dropped = true
+  }
+  return dropped ? next : masks
+}
+
 function resetState(): Pick<
   EditorStore,
   | 'document'
   | 'assets'
+  | 'masks'
+  | 'brushSize'
   | 'selectedLayerId'
   | 'viewport'
   | 'past'
@@ -128,6 +152,8 @@ function resetState(): Pick<
   return {
     document: null,
     assets: {},
+    masks: {},
+    brushSize: 30,
     selectedLayerId: null,
     viewport: { ...defaultViewport },
     past: [],
@@ -164,13 +190,16 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     return document.id
   },
 
-  hydrate: (document, records) => {
+  hydrate: (document, records, maskRecords = []) => {
     const assets: Record<string, AssetRecord> = {}
     for (const record of records) assets[record.asset.id] = record
+    const masks: Record<string, Blob> = {}
+    for (const record of maskRecords) masks[record.key] = record.blob
     set({
       ...resetState(),
       document: cloneDocument(document),
       assets,
+      masks,
       selectedLayerId: document.layers.at(-1)?.id ?? null,
       saveStatus: 'saved-locally',
     })
@@ -185,6 +214,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setViewport: (viewport) => set({ viewport: { ...get().viewport, ...viewport } }),
 
   setTool: (tool) => set({ activeTool: tool }),
+
+  setBrushSize: (size) => set({ brushSize: Math.max(2, Math.min(150, Math.round(size))) }),
 
   setUploadError: (message) => set({ uploadError: message }),
 
@@ -214,6 +245,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       future: [],
       document,
       assets: assetsFor(state.assets, [document, ...past]),
+      masks: masksFor(state.masks, [document, ...past]),
       dirty: true,
       saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
     })
@@ -536,6 +568,43 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     })
   },
 
+  applyMask: (layerId, maskKey, maskBlob) => {
+    const state = get()
+    if (!state.document) return
+    const history = withHistory(state)
+    const document = touch(
+      replaceLayer(state.document, layerId, (layer) =>
+        layer.kind === 'image' ? { ...layer, maskKey } : layer,
+      ),
+    )
+    const nextMasks = { ...state.masks, [maskKey]: maskBlob }
+    set({
+      ...history,
+      document,
+      masks: masksFor(nextMasks, [document, ...history.past, ...history.future]),
+      dirty: true,
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
+    })
+  },
+
+  clearMask: (layerId) => {
+    const state = get()
+    if (!state.document) return
+    const history = withHistory(state)
+    const document = touch(
+      replaceLayer(state.document, layerId, (layer) =>
+        layer.kind === 'image' ? { ...layer, maskKey: undefined } : layer,
+      ),
+    )
+    set({
+      ...history,
+      document,
+      masks: masksFor(state.masks, [document, ...history.past, ...history.future]),
+      dirty: true,
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
+    })
+  },
+
   undo: () => {
     const state = get()
     if (state.gestureActive || !state.document || state.past.length === 0) return
@@ -548,6 +617,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       past,
       future,
       assets: assetsFor(state.assets, [document, ...past, ...future]),
+      masks: masksFor(state.masks, [document, ...past, ...future]),
       selectedLayerId: previous.layers.some((layer) => layer.id === state.selectedLayerId) ? state.selectedLayerId : null,
       dirty: true,
       saveStatus: 'unsaved',
@@ -566,6 +636,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       future,
       past,
       assets: assetsFor(state.assets, [document, ...past, ...future]),
+      masks: masksFor(state.masks, [document, ...past, ...future]),
       selectedLayerId: next.layers.some((layer) => layer.id === state.selectedLayerId) ? state.selectedLayerId : null,
       dirty: true,
       saveStatus: 'unsaved',

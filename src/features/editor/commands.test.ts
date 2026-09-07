@@ -304,6 +304,55 @@ describe('editor commands', () => {
     expect(redone.kind === 'image' && redone.outline?.width).toBe(16)
   })
 
+  it('applies and clears masks with undo support and maintains duplicate-layer mask independence', () => {
+    const store = useEditorStore.getState()
+    store.createDraft('p1')
+    store.addImageLayer(pngRecord('asset-1'))
+    const imageId = useEditorStore.getState().document!.layers[0]!.id
+
+    const maskBlob1 = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' })
+    store.applyMask(imageId, 'mask-key-1', maskBlob1)
+    let layer = useEditorStore.getState().document!.layers[0]!
+    expect(layer.kind === 'image' && layer.maskKey).toBe('mask-key-1')
+    expect(useEditorStore.getState().masks['mask-key-1']).toBe(maskBlob1)
+
+    // Undo restores unmasked layer
+    store.undo()
+    layer = useEditorStore.getState().document!.layers[0]!
+    expect(layer.kind === 'image' && layer.maskKey).toBeUndefined()
+
+    // Redo restores mask
+    store.redo()
+    layer = useEditorStore.getState().document!.layers[0]!
+    expect(layer.kind === 'image' && layer.maskKey).toBe('mask-key-1')
+
+    // Duplicate layer maintains mask independence
+    store.duplicateSelected()
+    const doc = useEditorStore.getState().document!
+    expect(doc.layers).toHaveLength(2)
+    const copyId = doc.layers[1]!.id
+    expect(doc.layers[1]?.kind === 'image' && doc.layers[1].maskKey).toBe('mask-key-1')
+
+    // Edit copy mask with a new key
+    const maskBlob2 = new Blob([new Uint8Array([4, 5, 6])], { type: 'image/png' })
+    store.applyMask(copyId, 'mask-key-2', maskBlob2)
+
+    // Original layer still has mask-key-1!
+    const layer0 = useEditorStore.getState().document!.layers[0]!
+    expect(layer0.kind === 'image' ? layer0.maskKey : undefined).toBe('mask-key-1')
+    // Copy has mask-key-2
+    const layer1 = useEditorStore.getState().document!.layers[1]!
+    expect(layer1.kind === 'image' ? layer1.maskKey : undefined).toBe('mask-key-2')
+
+    // Clear mask
+    store.clearMask(imageId)
+    const layer0Cleared = useEditorStore.getState().document!.layers[0]!
+    expect(layer0Cleared.kind === 'image' ? layer0Cleared.maskKey : undefined).toBeUndefined()
+    store.undo()
+    const layer0Restored = useEditorStore.getState().document!.layers[0]!
+    expect(layer0Restored.kind === 'image' ? layer0Restored.maskKey : undefined).toBe('mask-key-1')
+  })
+
   it('does not record a no-op gesture or mutate a locked layer', () => {
     useEditorStore.getState().createDraft('p1')
     useEditorStore.getState().addTextLayer()

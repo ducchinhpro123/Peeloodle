@@ -13,22 +13,14 @@ import {
   Slider,
   Tabs,
 } from '../../components/ui'
-import { isPersistenceError, serializeProjectDocument, type AssetRecord, type StickerLabRepository } from '../../lib/persistence/repository'
+import { isPersistenceError, serializeProjectDocument, type AssetRecord, type MaskRecord, type StickerLabRepository } from '../../lib/persistence/repository'
 import { ingestImageFile, AssetObjectUrlCache } from '../assets/assetLoader'
 import { UploadValidationError } from '../assets/validateUpload'
 import { downloadBlob, renderDocument, type ExportSize } from '../exports/renderDocument'
-import type { Layer, ProjectDocument } from '../../types/domain'
+import type { ImageLayer, Layer, ProjectDocument } from '../../types/domain'
 import { saveStatusLabel, TEXT_FONTS, useEditorStore } from './store'
 
 const KonvaCanvas = lazy(() => import('./KonvaCanvas'))
-
-const deferredTools = [
-  ['Background Eraser', 'Automatic background removal is not available. Manual erase arrives in a later milestone.'],
-  ['Brush / Restore', 'Mask erase and restore arrives in a later milestone.'],
-  ['Outline & Border', 'Silhouette outlines arrive in a later milestone.'],
-  ['Emoji & Stickers', 'Curated emoji and sticker decorations arrive in a later milestone.'],
-  ['Filters & Effects', 'Image filters arrive in a later milestone.'],
-] as const
 
 function takeCreateDraftId(): string {
   const current = useEditorStore.getState().document
@@ -109,8 +101,14 @@ function EditorWorkspace({ projectId }: { projectId?: string }) {
       try {
         const loaded = await repo.getProject(projectId)
         const records = await Promise.all(loaded.assetIds.map((id) => repo.getAsset(id)))
+        const maskKeys = loaded.layers
+          .filter((l): l is ImageLayer => l.kind === 'image' && !!l.maskKey)
+          .map((l) => l.maskKey!)
+        const masks = await Promise.all(
+          maskKeys.map(async (key) => ({ key, blob: await repo.getMask(key) })),
+        )
         if (cancelled) return
-        useEditorStore.getState().hydrate(loaded, records)
+        useEditorStore.getState().hydrate(loaded, records, masks)
       } catch (error) {
         if (cancelled) return
         const message = isPersistenceError(error)
@@ -203,11 +201,26 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
         <aside className="tool-rail">
           <b>Tools</b>
           <span className="tool-note">Upload a photo, then move, resize, rotate, and add text. Other tools are listed with honest availability.</span>
-          {deferredTools.slice(0, 1).map(([label, detail]) => (
-            <NoticeDialog key={label} title={`${label} is not available`} trigger={<button type="button">{label}</button>}>
-              {detail}
-            </NoticeDialog>
-          ))}
+          <button
+            type="button"
+            aria-pressed={activeTool === 'erase'}
+            onClick={() => {
+              useEditorStore.getState().setTool('erase')
+              setInspectorTab('adjust')
+            }}
+          >
+            Erase
+          </button>
+          <button
+            type="button"
+            aria-pressed={activeTool === 'restore'}
+            onClick={() => {
+              useEditorStore.getState().setTool('restore')
+              setInspectorTab('adjust')
+            }}
+          >
+            Brush / Restore
+          </button>
           <button
             type="button"
             aria-pressed={activeTool === 'rotate'}
@@ -218,11 +231,6 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
           >
             Crop &amp; Rotate
           </button>
-          {deferredTools.slice(1, 2).map(([label, detail]) => (
-            <NoticeDialog key={label} title={`${label} is not available`} trigger={<button type="button">{label}</button>}>
-              {detail}
-            </NoticeDialog>
-          ))}
           <button
             type="button"
             aria-pressed={activeTool === 'select' && inspectorTab === 'adjust'}
@@ -243,11 +251,12 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
           >
             Text
           </button>
-          {deferredTools.slice(3, 4).map(([label, detail]) => (
-            <NoticeDialog key={label} title={`${label} is not available`} trigger={<button type="button">{label}</button>}>
-              {detail}
-            </NoticeDialog>
-          ))}
+          <NoticeDialog
+            title="Emoji & Stickers is not available"
+            trigger={<button type="button">Emoji &amp; Stickers</button>}
+          >
+            Curated emoji and sticker decorations arrive in a later milestone.
+          </NoticeDialog>
           <button
             type="button"
             aria-pressed={activeTool === 'select' && inspectorTab === 'effects'}
@@ -333,6 +342,7 @@ function DomArtboard({ urls }: { urls: Record<string, string> }) {
               key={layer.id}
               className="dom-layer"
               data-selected={selected || undefined}
+              data-mask-key={layer.maskKey || undefined}
               onClick={() => useEditorStore.getState().selectLayer(layer.id)}
             >
               <img alt={layer.name} src={urls[layer.assetId]} />
@@ -604,11 +614,46 @@ function TextInspector({ layer }: { layer: Extract<Layer, { kind: 'text' }> }) {
 
 function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> }) {
   const outline = layer.outline ?? { enabled: false, color: '#ffffff', width: 12 }
+  const brushSize = useEditorStore((state) => state.brushSize)
+  const activeTool = useEditorStore((state) => state.activeTool)
   const store = useEditorStore.getState
   return (
     <div className="inspector-fields">
       <h3>Image layer</h3>
-      <p className="muted">Move, resize, and rotate on the canvas.</p>
+      <p className="muted">Move, resize, rotate, or use the brush to erase and restore.</p>
+      <div className="button-row">
+        <Button
+          className={activeTool === 'erase' ? 'primary' : undefined}
+          onClick={() => store().setTool(activeTool === 'erase' ? 'select' : 'erase')}
+        >
+          Erase
+        </Button>
+        <Button
+          className={activeTool === 'restore' ? 'primary' : undefined}
+          onClick={() => store().setTool(activeTool === 'restore' ? 'select' : 'restore')}
+        >
+          Restore
+        </Button>
+        {layer.maskKey && (
+          <Button onClick={() => store().clearMask(layer.id)} title="Reset mask to show full image">
+            Reset Mask
+          </Button>
+        )}
+      </div>
+
+      {(activeTool === 'erase' || activeTool === 'restore') && (
+        <label>
+          <span>Brush size <small>{brushSize}px</small></span>
+          <Slider
+            aria-label="Brush size"
+            min={4}
+            max={120}
+            value={[brushSize]}
+            onValueChange={(val) => store().setBrushSize(val[0] ?? 30)}
+          />
+        </label>
+      )}
+
       <div className="button-row">
         <Button onClick={() => store().flipSelected('horizontal')}>Flip H</Button>
         <Button onClick={() => store().flipSelected('vertical')}>Flip V</Button>
@@ -827,12 +872,13 @@ function ExportDialog({ document }: { document: ProjectDocument }) {
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const assets = useEditorStore((state) => state.assets)
+  const masks = useEditorStore((state) => state.masks)
 
   const exportPng = async () => {
     setBusy(true)
     setMessage('Exporting…')
     try {
-      const blob = await renderDocument(document, assets, { size })
+      const blob = await renderDocument(document, assets, { size, masks })
       const safeTitle = document.title.replace(/[^\w.-]+/g, '-').replace(/^-|-$/g, '') || 'sticker'
       downloadBlob(blob, `${safeTitle}-${size}.png`)
       setMessage('Download started. Check your browser downloads to confirm the file was saved.')
@@ -943,6 +989,16 @@ function referencedRecords(document: ProjectDocument, assets: Record<string, Ass
   return records
 }
 
+function referencedMasks(document: ProjectDocument, masks: Record<string, Blob>): MaskRecord[] {
+  const records: MaskRecord[] = []
+  for (const layer of document.layers) {
+    if (layer.kind === 'image' && layer.maskKey && masks[layer.maskKey]) {
+      records.push({ key: layer.maskKey, blob: masks[layer.maskKey] })
+    }
+  }
+  return records
+}
+
 function captureSave(reason: 'auto' | 'manual') {
   const store = useEditorStore.getState()
   if (store.gestureActive) store.commitGesture()
@@ -952,6 +1008,7 @@ function captureSave(reason: 'auto' | 'manual') {
   return {
     document: serializeProjectDocument(state.document),
     records: referencedRecords(state.document, state.assets),
+    masks: referencedMasks(state.document, state.masks),
   }
 }
 
@@ -967,12 +1024,12 @@ function persistDocument(repo: StickerLabRepository, reason: 'auto' | 'manual') 
 
 async function persistCaptured(
   repo: StickerLabRepository,
-  payload: { document: ProjectDocument; records: AssetRecord[] },
+  payload: { document: ProjectDocument; records: AssetRecord[]; masks: MaskRecord[] },
 ) {
   const matches = () => useEditorStore.getState().document?.id === payload.document.id
   if (matches()) useEditorStore.getState().setSaveStatus('saving')
   try {
-    await repo.saveProjectWithAssets(payload.document, payload.records)
+    await repo.saveProjectWithAssets(payload.document, payload.records, payload.masks)
     if (matches()) useEditorStore.getState().markSaved(payload.document.revision)
   } catch (error) {
     if (!matches()) return

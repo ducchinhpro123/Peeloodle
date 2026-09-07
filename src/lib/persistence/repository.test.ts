@@ -268,4 +268,31 @@ describe('IdbRepository', () => {
       await expectCode(repo.getPack('pack-1'), 'not_found')
     }
   })
+
+  it('saves, retrieves, and rejects missing masks in Memory and IndexedDB', async () => {
+    for (const repo of [createMemoryRepository(), createIdbRepository(`stickerlab-masks-${crypto.randomUUID()}`)]) {
+      const maskBlob = new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3])], { type: 'image/png' })
+      await repo.saveMask('mask-1', maskBlob)
+      const loaded = await repo.getMask('mask-1')
+      expect(loaded.size).toBe(maskBlob.size)
+
+      const img = imageLayer('asset-1')
+      img.maskKey = 'mask-1'
+      const doc = projectWith({ layers: [img], assetIds: ['asset-1'] })
+      await repo.saveProjectWithAssets(doc, [pngRecord('asset-1')])
+      expect((await repo.getProject('project-1')).layers[0]?.kind === 'image').toBe(true)
+
+      // Missing mask rejection
+      const ghostImg = imageLayer('asset-1')
+      ghostImg.maskKey = 'ghost-mask'
+      const ghostDoc = projectWith({ id: 'ghost-proj', layers: [ghostImg], assetIds: ['asset-1'] })
+      await expectCode(
+        repo.saveProjectWithAssets(ghostDoc, [pngRecord('asset-1')]),
+        'missing_mask',
+      )
+
+      await repo.deleteMask('mask-1')
+      await expectCode(repo.getMask('mask-1'), 'not_found')
+    }
+  })
 })

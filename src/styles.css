@@ -420,6 +420,16 @@ main { min-width: 0; flex: 1; padding: 0 16px 25px; overflow: hidden; }
 }
 .template-art { cursor: pointer; }
 .template-preview-body { display: grid; gap: 8px; margin-top: 12px; }
+.brush-cursor {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+.brush-active {
+  touch-action: none;
+}
 .asset-thumb { width: 80px; height: 70px; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
 .asset-thumb img { width: 100%; height: 100%; object-fit: contain; }
 .export-sizes { display: grid; gap: 8px; margin: 12px 0; }

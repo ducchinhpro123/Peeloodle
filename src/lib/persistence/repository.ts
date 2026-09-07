@@ -7,12 +7,18 @@ export type { PersistenceErrorCode } from './document'
 const PROJECTS_STORE = 'projects'
 const ASSETS_STORE = 'assets'
 const PACKS_STORE = 'packs'
-const DB_VERSION = 2
+const MASKS_STORE = 'masks'
+const DB_VERSION = 3
 const DEFAULT_DB_NAME = 'stickerlab-local'
 
 /** Metadata plus the immutable original blob. Never part of ProjectDocument. */
 export type AssetRecord = {
   asset: Asset
+  blob: Blob
+}
+
+export type MaskRecord = {
+  key: string
   blob: Blob
 }
 
@@ -26,17 +32,21 @@ export interface StickerLabRepository {
   listAssets(): Promise<Asset[]>
   saveAsset(record: AssetRecord): Promise<void>
   deleteAsset(id: string): Promise<void>
-  saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[]): Promise<void>
+  saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[], masks?: MaskRecord[]): Promise<void>
   getPack(id: string): Promise<PackRecord>
   listPacks(): Promise<PackRecord[]>
   savePack(record: PackRecord): Promise<void>
   deletePack(id: string): Promise<void>
+  getMask(key: string): Promise<Blob>
+  saveMask(key: string, blob: Blob): Promise<void>
+  deleteMask(key: string): Promise<void>
 }
 
 export class MemoryRepository implements StickerLabRepository {
   private projects = new Map<string, unknown>()
   private assets = new Map<string, AssetRecord>()
   private packs = new Map<string, PackRecord>()
+  private masks = new Map<string, Blob>()
   private failNextWrite = false
 
   injectWriteFailure(): void {
@@ -96,16 +106,42 @@ export class MemoryRepository implements StickerLabRepository {
     this.assets.delete(id)
   }
 
-  async saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[]): Promise<void> {
+  async saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[], masks: MaskRecord[] = []): Promise<void> {
     this.guardWrite()
     const clean = serializeProjectDocument(document)
     const nextAssets = new Map(this.assets)
     for (const record of assets) nextAssets.set(record.asset.id, cloneAssetRecord(record))
     assertAssetsResolvable(clean, (id) => nextAssets.has(id))
+    const nextMasks = new Map(this.masks)
+    for (const record of masks) nextMasks.set(record.key, record.blob)
+    for (const layer of clean.layers) {
+      if (layer.kind === 'image' && layer.maskKey) {
+        if (!nextMasks.has(layer.maskKey)) {
+          throw new PersistenceError('missing_mask', `Project ${clean.id} references missing mask ${layer.maskKey}`)
+        }
+      }
+    }
     const nextProjects = new Map(this.projects)
     nextProjects.set(clean.id, clean)
     this.assets = nextAssets
+    this.masks = nextMasks
     this.projects = nextProjects
+  }
+
+  async getMask(key: string): Promise<Blob> {
+    const blob = this.masks.get(key)
+    if (!blob) throw new PersistenceError('not_found', `Mask ${key} was not found`)
+    return blob
+  }
+
+  async saveMask(key: string, blob: Blob): Promise<void> {
+    this.guardWrite()
+    this.masks.set(key, blob)
+  }
+
+  async deleteMask(key: string): Promise<void> {
+    this.guardWrite()
+    this.masks.delete(key)
   }
 
   async getPack(id: string): Promise<PackRecord> {
@@ -223,16 +259,44 @@ export class IdbRepository implements StickerLabRepository {
     await this.transact([PACKS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(PACKS_STORE).delete(id)))
   }
 
-  async saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[]): Promise<void> {
+  async getMask(key: string): Promise<Blob> {
+    const row = await this.transact([MASKS_STORE], 'readonly', (tx) =>
+      idbRequest<{ key: string; blob: ArrayBuffer } | undefined>(tx.objectStore(MASKS_STORE).get(key)),
+    )
+    if (row === undefined) throw new PersistenceError('not_found', `Mask ${key} was not found`)
+    return parseStoredMask(row)
+  }
+
+  async saveMask(key: string, blob: Blob): Promise<void> {
+    const stored = { key, blob: await blobToArrayBuffer(blob) }
+    await this.transact([MASKS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(MASKS_STORE).put(stored)))
+  }
+
+  async deleteMask(key: string): Promise<void> {
+    await this.transact([MASKS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(MASKS_STORE).delete(key)))
+  }
+
+  async saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[], masks: MaskRecord[] = []): Promise<void> {
     const clean = serializeProjectDocument(document)
     const storedAssets = await Promise.all(assets.map(toStoredAsset))
-    await this.transact([PROJECTS_STORE, ASSETS_STORE], 'readwrite', async (tx) => {
+    const storedMasks = await Promise.all(
+      masks.map(async (m) => ({ key: m.key, blob: await blobToArrayBuffer(m.blob) })),
+    )
+    await this.transact([PROJECTS_STORE, ASSETS_STORE, MASKS_STORE], 'readwrite', async (tx) => {
       const assetStore = tx.objectStore(ASSETS_STORE)
+      const maskStore = tx.objectStore(MASKS_STORE)
       for (const stored of storedAssets) await idbRequest(assetStore.put(stored))
+      for (const stored of storedMasks) await idbRequest(maskStore.put(stored))
       for (const assetId of clean.assetIds) {
         const row = await idbRequest<unknown>(assetStore.get(assetId))
         if (row === undefined) throw new PersistenceError('missing_asset', `Project ${clean.id} references missing asset ${assetId}`)
         parseStoredAsset(row)
+      }
+      for (const layer of clean.layers) {
+        if (layer.kind === 'image' && layer.maskKey) {
+          const row = await idbRequest<unknown>(maskStore.get(layer.maskKey))
+          if (row === undefined) throw new PersistenceError('missing_mask', `Project ${clean.id} references missing mask ${layer.maskKey}`)
+        }
       }
       await idbRequest(tx.objectStore(PROJECTS_STORE).put(clean))
     })
@@ -327,6 +391,12 @@ function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
   })
 }
 
+function parseStoredMask(value: unknown): Blob {
+  if (typeof value !== 'object' || value === null) throw new PersistenceError('invalid_asset', 'Stored mask must be an object')
+  const { blob } = value as { blob?: unknown }
+  return restoreBlob(blob, 'image/png')
+}
+
 function parseStoredAsset(value: unknown): AssetRecord {
   if (typeof value !== 'object' || value === null) throw new PersistenceError('invalid_asset', 'Stored asset must be an object')
   const { blob, ...rest } = value as { blob?: unknown }
@@ -370,6 +440,7 @@ function openDatabase(name: string): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(PROJECTS_STORE)) db.createObjectStore(PROJECTS_STORE, { keyPath: 'id' })
       if (!db.objectStoreNames.contains(ASSETS_STORE)) db.createObjectStore(ASSETS_STORE, { keyPath: 'id' })
       if (!db.objectStoreNames.contains(PACKS_STORE)) db.createObjectStore(PACKS_STORE, { keyPath: 'id' })
+      if (!db.objectStoreNames.contains(MASKS_STORE)) db.createObjectStore(MASKS_STORE, { keyPath: 'key' })
     }
     request.onsuccess = () => {
       const db = request.result

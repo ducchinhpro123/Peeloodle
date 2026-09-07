@@ -22,6 +22,7 @@ export type CanvasLike = {
 
 export type RenderDocumentOptions = {
   size: ExportSize
+  masks?: ReadonlyMap<string, Blob> | Record<string, Blob>
   createCanvas?: (width: number, height: number) => CanvasLike
   decodeImage?: (blob: Blob) => Promise<CanvasImageSource>
   waitForFonts?: (families: string[]) => Promise<void>
@@ -33,10 +34,20 @@ export async function renderDocument(
   options: RenderDocumentOptions,
 ): Promise<Blob> {
   const assetMap = assets instanceof Map ? assets : new Map(Object.entries(assets))
+  const maskMap =
+    options.masks instanceof Map
+      ? options.masks
+      : options.masks
+      ? new Map(Object.entries(options.masks))
+      : new Map<string, Blob>()
+
   for (const layer of document.layers) {
     if (layer.kind !== 'image' || !layer.visible) continue
     if (!assetMap.has(layer.assetId)) {
       throw new ExportError(`Missing asset ${layer.assetId} for layer ${layer.id}`)
+    }
+    if (layer.maskKey && !maskMap.has(layer.maskKey)) {
+      throw new ExportError(`Missing mask ${layer.maskKey} for layer ${layer.id}`)
     }
   }
 
@@ -62,7 +73,7 @@ export async function renderDocument(
     ctx.translate(layer.transform.x, layer.transform.y)
     ctx.rotate((layer.transform.rotation * Math.PI) / 180)
     ctx.scale(layer.transform.scaleX, layer.transform.scaleY)
-    await drawLayer(ctx, layer, assetMap, decode, closeDecoded, options.createCanvas)
+    await drawLayer(ctx, layer, assetMap, maskMap, decode, closeDecoded, options.createCanvas)
     ctx.restore()
   }
 
@@ -167,21 +178,45 @@ function paintImage(
   width: number,
   height: number,
   createCanvas?: (width: number, height: number) => CanvasLike,
+  maskImage?: CanvasImageSource | null,
 ): void {
   ctx.save()
   ctx.filter = formatCssFilter(layer.filters)
   try {
+    let source = image
+    let maskedCanvas: CanvasLike | null = null
+    if (maskImage) {
+      const makeCanvas = createCanvas ?? defaultCreateCanvas
+      maskedCanvas = makeCanvas(width, height)
+      const mCtx = maskedCanvas.getContext('2d')
+      if (mCtx) {
+        if (layer.crop) {
+          const crop = layer.crop
+          mCtx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+          mCtx.globalCompositeOperation = 'destination-in'
+          mCtx.drawImage(maskImage, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+        } else {
+          mCtx.drawImage(image, 0, 0, width, height)
+          mCtx.globalCompositeOperation = 'destination-in'
+          mCtx.drawImage(maskImage, 0, 0, width, height)
+        }
+        source = maskedCanvas as unknown as CanvasImageSource
+      }
+    }
+
     if (layer.outline?.enabled && layer.outline.width > 0) {
       if (ctx.filter !== 'none') {
         const filtered = (createCanvas ?? defaultCreateCanvas)(width, height)
         const filteredContext = filtered.getContext('2d')
         if (!filteredContext) throw new ExportError('A 2D canvas is required for image filters')
-        paintImage(filteredContext, image, { crop: layer.crop, filters: layer.filters }, width, height, createCanvas)
+        paintImage(filteredContext, source, { crop: maskImage ? undefined : layer.crop, filters: layer.filters }, width, height, createCanvas)
         ctx.filter = 'none'
         drawOutlinedImage(ctx, filtered as CanvasImageSource, undefined, width, height, layer.outline, createCanvas)
       } else {
-        drawOutlinedImage(ctx, image, layer.crop, width, height, layer.outline, createCanvas)
+        drawOutlinedImage(ctx, source, maskImage ? undefined : layer.crop, width, height, layer.outline, createCanvas)
       }
+    } else if (maskImage) {
+      ctx.drawImage(source, 0, 0, width, height)
     } else if (layer.crop) {
       const crop = layer.crop
       ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
@@ -199,13 +234,14 @@ export function createImageSurface(
   width: number,
   height: number,
   createCanvas = defaultCreateCanvas,
+  maskImage?: CanvasImageSource | null,
 ): { canvas: CanvasLike; padding: number } {
   const padding = layer.outline?.enabled ? Math.ceil(layer.outline.width) : 0
   const canvas = createCanvas(width + padding * 2, height + padding * 2)
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new ExportError('A 2D canvas is required for image compositing')
   ctx.translate(padding, padding)
-  paintImage(ctx, image, layer, width, height, createCanvas)
+  paintImage(ctx, image, layer, width, height, createCanvas, maskImage)
   return { canvas, padding }
 }
 
@@ -213,6 +249,7 @@ async function drawLayer(
   ctx: CanvasRenderingContext2D,
   layer: Layer,
   assets: Map<string, AssetRecord>,
+  masks: Map<string, Blob>,
   decode: (blob: Blob) => Promise<CanvasImageSource>,
   closeDecoded: boolean,
   createCanvas?: (w: number, h: number) => CanvasLike,
@@ -226,18 +263,33 @@ async function drawLayer(
     } catch {
       throw new ExportError(`Could not decode asset ${layer.assetId}`)
     }
+
+    let maskImage: CanvasImageSource | null = null
+    if (layer.maskKey) {
+      const maskBlob = masks.get(layer.maskKey)
+      if (!maskBlob) throw new ExportError(`Missing mask ${layer.maskKey} for layer ${layer.id}`)
+      try {
+        maskImage = await decode(maskBlob)
+      } catch {
+        throw new ExportError(`Could not decode mask ${layer.maskKey}`)
+      }
+    }
+
     try {
       const width = layer.crop?.width ?? record.asset.width
       const height = layer.crop?.height ?? record.asset.height
       if (layer.outline?.enabled && layer.outline.width > 0) {
         // Composite once before layer opacity, rather than accumulating opacity per outline stamp.
-        const { canvas, padding } = createImageSurface(image, layer, width, height, createCanvas)
+        const { canvas, padding } = createImageSurface(image, layer, width, height, createCanvas, maskImage)
         ctx.drawImage(canvas as CanvasImageSource, -padding, -padding)
       } else {
-        paintImage(ctx, image, layer, width, height, createCanvas)
+        paintImage(ctx, image, layer, width, height, createCanvas, maskImage)
       }
     } finally {
-      if (closeDecoded) closeImageSource(image)
+      if (closeDecoded) {
+        closeImageSource(image)
+        if (maskImage) closeImageSource(maskImage)
+      }
     }
     return
   }

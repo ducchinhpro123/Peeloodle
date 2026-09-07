@@ -290,4 +290,50 @@ describe('editor integration', () => {
     expect(useEditorStore.getState().document!.layers[0]!.transform.x).toBe(x)
     expect(useEditorStore.getState().gestureActive).toBe(false)
   })
+
+  it('saves, rehydrates, and retains mask work across reload and save failures', async () => {
+    const repo = renderApp()
+    uploadPhoto()
+    await waitFor(() => expect(screen.getAllByAltText('Image').length).toBeGreaterThan(0))
+
+    const imgId = useEditorStore.getState().document!.layers[0]!.id
+    const maskBlob = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' })
+    useEditorStore.getState().applyMask(imgId, 'mask-abc', maskBlob)
+
+    // Save locally
+    fireEvent.click(screen.getByRole('button', { name: /save to my stickers/i }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/saved locally/i))
+
+    const projectId = useEditorStore.getState().document!.id
+    const savedMask = await repo.getMask('mask-abc')
+    expect(savedMask.size).toBe(maskBlob.size)
+
+    // Reopen in fresh render
+    resetEditorStore()
+    cleanup()
+    render(
+      <MemoryRouter initialEntries={[`/editor/${projectId}`]}>
+        <App repository={repo} />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => {
+      const doc = useEditorStore.getState().document
+      const layer = doc?.layers.find((l) => l.id === imgId)
+      expect(layer?.kind === 'image' && layer.maskKey).toBe('mask-abc')
+      expect(useEditorStore.getState().masks['mask-abc']).toBeDefined()
+    })
+
+    // Save failure retains mask edits
+    const newMaskBlob = new Blob([new Uint8Array([7, 8, 9])], { type: 'image/png' })
+    useEditorStore.getState().applyMask(imgId, 'mask-def', newMaskBlob)
+    repo.injectWriteFailure()
+    fireEvent.click(screen.getByRole('button', { name: /save to my stickers/i }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/save failed/i))
+
+    // In-memory mask work is preserved!
+    const savedLayer = useEditorStore.getState().document?.layers[0]
+    expect(savedLayer?.kind === 'image' ? savedLayer.maskKey : undefined).toBe('mask-def')
+    expect(useEditorStore.getState().masks['mask-def']).toBe(newMaskBlob)
+  })
 })

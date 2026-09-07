@@ -105,7 +105,11 @@ export function readBlobBytes(blob: Blob): Promise<Uint8Array> {
 }
 
 export type ExportPackZipOptions = {
-  renderSticker?: (project: ProjectDocument, records: Record<string, AssetRecord>) => Promise<Blob>
+  renderSticker?: (
+    project: ProjectDocument,
+    records: Record<string, AssetRecord>,
+    masks?: Record<string, Blob>,
+  ) => Promise<Blob>
 }
 
 export async function exportPackZip(
@@ -116,7 +120,9 @@ export async function exportPackZip(
   const encoder = new TextEncoder()
   const files: ZipFileEntry[] = []
   const manifestItems: Array<{ index: number; filename: string; title: string }> = []
-  const render = options.renderSticker ?? ((project, records) => renderDocument(project, records, { size: 512 }))
+  const render =
+    options.renderSticker ??
+    ((project, records, masks) => renderDocument(project, records, { size: 512, masks }))
 
   let index = 1
   for (const projectId of pack.projectIds) {
@@ -125,7 +131,17 @@ export async function exportPackZip(
       const records = await Promise.all(project.assetIds.map((id) => repo.getAsset(id)))
       const assetMap: Record<string, AssetRecord> = {}
       for (const r of records) assetMap[r.asset.id] = r
-      const pngBlob = await render(project, assetMap)
+
+      const maskKeys = project.layers
+        .filter((l): l is import('../../types/domain').ImageLayer => l.kind === 'image' && !!l.maskKey)
+        .map((l) => l.maskKey!)
+      const maskBlobs = await Promise.all(maskKeys.map((k) => repo.getMask(k)))
+      const maskMap: Record<string, Blob> = {}
+      maskKeys.forEach((k, i) => {
+        if (maskBlobs[i]) maskMap[k] = maskBlobs[i]!
+      })
+
+      const pngBlob = await render(project, assetMap, maskMap)
       const bytes = await readBlobBytes(pngBlob)
       const safeTitle = project.title.replace(/[^\w.-]+/g, '_').toLowerCase() || 'sticker'
       const filename = `${String(index).padStart(2, '0')}_${safeTitle}.png`

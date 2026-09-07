@@ -285,4 +285,65 @@ describe('renderDocument', () => {
     expect(canvas.pixels[3]).toBe(0)
     expect(canvas.pixels[(256 * 512 + 256) * 4 + 3]).toBe(255)
   })
+
+  it('rejects missing or corrupt mask data with a descriptive ExportError', async () => {
+    const document = createProjectDocument({ id: 'p1' })
+    const record: AssetRecord = {
+      asset: { id: 'a1', mimeType: 'image/png', width: 8, height: 8, blobKey: 'a1', provenance: 'test' },
+      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+    }
+    document.layers = [
+      {
+        id: 'img',
+        name: 'Image',
+        kind: 'image',
+        assetId: 'a1',
+        maskKey: 'missing-mask-key',
+        transform: identity,
+        opacity: 1,
+        visible: true,
+        locked: false,
+      },
+    ]
+    document.assetIds = ['a1']
+    await expect(
+      renderDocument(document, { a1: record }, {
+        size: 512,
+        masks: {},
+      }),
+    ).rejects.toThrow(/Missing mask missing-mask-key/)
+  })
+
+  it('renders masked image layers using composite mask data', async () => {
+    const document = createProjectDocument({ id: 'p1' })
+    const record: AssetRecord = {
+      asset: { id: 'a1', mimeType: 'image/png', width: 8, height: 8, blobKey: 'a1', provenance: 'test' },
+      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+    }
+    const maskBlob = new Blob([new Uint8Array([2])], { type: 'image/png' })
+    document.layers = [
+      {
+        id: 'img',
+        name: 'Image',
+        kind: 'image',
+        assetId: 'a1',
+        maskKey: 'mask-1',
+        transform: identity,
+        opacity: 1,
+        visible: true,
+        locked: false,
+      },
+    ]
+    document.assetIds = ['a1']
+    const canvas = fakeCanvas(512, 512)
+    await renderDocument(document, { a1: record }, {
+      size: 512,
+      masks: { 'mask-1': maskBlob },
+      createCanvas: () => canvas,
+      decodeImage: async () => ({ width: 8, height: 8, close() {} }) as ImageBitmap,
+      waitForFonts: async () => {},
+    })
+    expect(canvas.pixels[3]).toBe(0)
+    expect(canvas.pixels[(256 * 512 + 256) * 4 + 3]).toBe(255)
+  })
 })
