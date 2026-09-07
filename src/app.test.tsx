@@ -25,10 +25,10 @@ function renderRoute(path = '/') {
 
 describe('foundation routes', () => {
   it.each([
-    ['/', 'Create Custom'],
+    ['/', 'Small stickers'],
     ['/create', 'Untitled Sticker'],
-    ['/templates', 'Discover Amazing'],
-    ['/my-stickers', 'My Sticker Packs'],
+    ['/templates', 'Find your vibe'],
+    ['/my-stickers', 'Your little world'],
   ])('renders %s', async (path, heading) => {
     renderRoute(path)
     expect(await screen.findByRole('heading', { name: new RegExp(heading) })).toBeInTheDocument()
@@ -179,7 +179,6 @@ describe('foundation interactions', () => {
   })
 
   it('creates, inspects, adds stickers to, duplicates, and deletes a pack', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const repo = createMemoryRepository()
     const p1 = createProjectDocument({ id: 'proj-1', title: 'Happy Cat' })
     await repo.saveProject(p1)
@@ -226,15 +225,18 @@ describe('foundation interactions', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    expect(confirm).toHaveBeenCalled()
+    const deleteDialog = screen.getByRole('dialog', { name: 'Delete this pack?' })
+    expect(within(deleteDialog).getByRole('button', { name: 'Keep Pack' })).toHaveFocus()
     expect(await repo.listPacks()).toHaveLength(2)
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled())
-    confirm.mockReturnValue(true)
+    fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Keep Pack' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' })).toHaveFocus())
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete this pack?' })).getByRole('button', { name: 'Delete Pack' }))
     await waitFor(async () => {
       const packs = await repo.listPacks()
       expect(packs).toHaveLength(1)
     })
+    expect(await repo.listProjects()).toHaveLength(1)
   })
 
   it('opens export options without claiming messenger success', async () => {

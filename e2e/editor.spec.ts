@@ -320,7 +320,7 @@ test('pack creation, adding sticker, and ZIP export', async ({ page }) => {
   await expect(page.getByRole('status')).toContainText(/saved locally/i)
 
   await page.goto('/my-stickers')
-  await expect(page.getByRole('heading', { name: 'My Sticker Packs' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Your little world/ })).toBeVisible()
 
   await page.getByRole('button', { name: 'New Pack' }).first().click()
   const createDialog = page.getByRole('dialog', { name: 'Create New Pack' })

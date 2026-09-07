@@ -70,7 +70,9 @@ Deferred actions open an explanation or stay disabled. They do not report succes
 
 ## Design mapping
 
-The four supplied images map to the four routes above. Estimated tokens live in `src/styles.css`: navy `#08152f`, emerald `#08b879`, near-white `#fcfdfd`, mint `#ddf7ed`. UI type is locally bundled Plus Jakarta Sans (OFL) as an approximation of the mockup; headings are explicit weight 800 because Tailwind preflight inherits heading weight. Licensed decorative samples, the user-supplied hero collage, and font sources are recorded in `docs/assets-provenance.md`.
+The four supplied images are inspiration, not a pixel-for-pixel target. The current UI uses original layered cat-sticker collages, playful copy, pastel cards, and a calmer editor workspace. Shared tokens in `src/styles.css` define the spacing rhythm, navy `#08152f`, primary emerald `#00875e`, near-white `#fafbf8`, and mint `#ddf7ed`. Plus Jakarta Sans is bundled locally (OFL).
+
+Dialogs share typography, fields, footers, 44px close controls, and scroll containment; pack deletion uses the same confirmation style. Pack details remain available on tablet/mobile. See [UI audit](docs/ui-audit.md) for findings and [asset provenance](docs/assets-provenance.md) for supplied artwork and licensing limitations.
 
 ## Verification
 
@@ -82,6 +84,6 @@ The four supplied images map to the four routes above. Estimated tokens live in 
 
 Brush movement updates only the active raster and DOM cursor, with no React commits, document revisions, or PNG encoding during pointer movement. Preview rasters are capped at 1024px (high zoom may look softer); mask data and exports remain full-resolution. On this Linux x86_64 machine, headless Chromium 151 at 1440×900, one photo plus 29 shape layers, and 30 synthetic pen moves: the 2048px photo's median frame interval fell from about 32ms to 16.7ms after bounding preview raster work. The final suite measured 16.6ms median / 17.3ms p95 frame intervals and 0.9ms p95 pointer-handler time for that case. These are local observations, not a universal 60 FPS guarantee; maximum-size 25MP photos and physical pen hardware were not profiled. Rerun `npx playwright test e2e/mask-regressions.spec.ts -g '30 layers' --workers=1` for measurements and JSON attachments.
 
-Verified: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, and `npm run test:browser`: 87 Vitest tests and 37 Chromium browser tests pass. Lint has no errors and the existing `react-refresh/only-export-components` warning in `src/app/repository.tsx`. Firefox/WebKit were not rerun in this pass.
+Verified: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, and `npm run test:browser`: 87 Vitest tests and 42 Chromium browser tests pass. Lint has no errors and the existing `react-refresh/only-export-components` warning in `src/app/repository.tsx`. Firefox/WebKit were not rerun in this pass.
 
-Browser screenshots from the foundation layout checks are stored outside the repository at `/tmp/stickerlab-browser-verification/`.
+`e2e/ui-polish.spec.ts` checks all four routes and representative dialogs at 1440×900, 1024×768, and 390×844, plus a short 390×480 viewport. It covers image loading, overflow, keyboard focus trapping/restoration, mobile pack controls, and isolation of editor shortcuts from dialogs. Refresh screenshots are generated outside the repository at `/tmp/stickerlab-ui-audit/`; foundation screenshots remain at `/tmp/stickerlab-browser-verification/`.

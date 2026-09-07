@@ -46,13 +46,17 @@ function DialogContent({ children, className, ...props }: React.ComponentProps<t
     <DialogPrimitive.Portal data-slot="dialog-portal">
       <DialogPrimitive.Overlay data-slot="dialog-overlay" className="overlay" />
       <DialogPrimitive.Content data-slot="dialog-content" className={cn('dialog', className)} {...props}>
-        {children}
+        <div className="dialog-scroll">{children}</div>
         <DialogPrimitive.Close asChild>
           <Button data-slot="dialog-close" className="icon close" aria-label="Close dialog"><X /></Button>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   )
+}
+
+function DialogFooter({ children }: { children: React.ReactNode }) {
+  return <div className="dialog-footer">{children}</div>
 }
 
 function NoticeDialog({ trigger, title, children }: { trigger: React.ReactElement; title: string; children: React.ReactNode }) {
@@ -64,6 +68,7 @@ function NoticeDialog({ trigger, title, children }: { trigger: React.ReactElemen
         <DialogDescription asChild>
           <div className="muted">{children}</div>
         </DialogDescription>
+        <DialogFooter><DialogClose asChild><Button className="primary">Got it</Button></DialogClose></DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -138,6 +143,7 @@ export {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogTitle,
   DialogTrigger,
   NoticeDialog,

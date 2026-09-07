@@ -75,7 +75,7 @@ describe('editor integration', () => {
     expect(saved[0]?.layers).toHaveLength(2)
 
     fireEvent.click(screen.getByRole('link', { name: 'Home' }))
-    await screen.findByRole('heading', { name: /create custom/i })
+    await screen.findByRole('heading', { name: /small stickers/i })
     fireEvent.click(screen.getByRole('link', { name: /untitled sticker/i }))
     await waitFor(() => expect(screen.getAllByText('Hello sticker').length).toBeGreaterThan(0))
     expect(screen.getAllByAltText('Image').length).toBeGreaterThan(0)
@@ -182,7 +182,7 @@ describe('editor integration', () => {
     renderApp('/editor/stale-load', repo)
     expect(await screen.findByText(/opening sticker/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('link', { name: 'Home' }))
-    await screen.findByRole('heading', { name: /create custom/i })
+    await screen.findByRole('heading', { name: /small stickers/i })
     release()
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(useEditorStore.getState().document?.id).not.toBe('stale-load')

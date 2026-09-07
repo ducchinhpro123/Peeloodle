@@ -24,9 +24,8 @@ test('Dashboard composition at 1440x900', async ({ page }) => {
   await page.goto('/')
   await page.evaluate(() => document.fonts.ready)
   await expectContained(page)
-  const heading = page.getByRole('heading', { level: 1, name: /Create Custom/ })
-  await expect(heading.locator('br')).toHaveCount(2)
-  await expect(heading.locator('em')).toHaveText('Stickers from')
+  const heading = page.getByRole('heading', { level: 1, name: /Small stickers/ })
+  await expect(heading.locator('em')).toHaveText('Big personality.')
   const styles = await heading.evaluate((el) => {
     const computed = getComputedStyle(el)
     return { weight: computed.fontWeight, family: computed.fontFamily, size: computed.fontSize }

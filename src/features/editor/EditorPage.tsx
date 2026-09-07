@@ -1,12 +1,13 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent, type MutableRefObject } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, Copy, Download, Eye, EyeOff, Lock, Trash2, Unlock, Upload } from 'lucide-react'
+import { ArrowDown, ArrowUp, Copy, Download, Eye, EyeOff, Lock, Trash2, Unlock, Upload, Eraser, Paintbrush, Crop, Circle, Type, Smile, Sparkles, Layers, Undo2, Redo2 } from 'lucide-react'
 import { useRepository } from '../../app/repository'
 import {
   Button,
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogTitle,
   DialogTrigger,
   NoticeDialog,
@@ -201,7 +202,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
       <div className="editor">
         <aside className="tool-rail">
           <b>Tools</b>
-          <span className="tool-note">Upload a photo, then move, resize, rotate, and add text. Other tools are listed with honest availability.</span>
+          <span className="tool-note">A little crop, a little color, a whole lot of personality.</span>
           <button
             type="button"
             aria-pressed={activeTool === 'erase'}
@@ -210,7 +211,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
               setInspectorTab('adjust')
             }}
           >
-            Erase
+            <Eraser size={18} />Erase
           </button>
           <button
             type="button"
@@ -220,7 +221,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
               setInspectorTab('adjust')
             }}
           >
-            Brush / Restore
+            <Paintbrush size={18} />Brush / Restore
           </button>
           <button
             type="button"
@@ -230,7 +231,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
               setInspectorTab('adjust')
             }}
           >
-            Crop &amp; Rotate
+            <Crop size={18} />Crop &amp; Rotate
           </button>
           <button
             type="button"
@@ -240,7 +241,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
               setInspectorTab('adjust')
             }}
           >
-            Outline &amp; Border
+            <Circle size={18} />Outline &amp; Border
           </button>
           <button
             type="button"
@@ -250,11 +251,11 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
               setInspectorTab('adjust')
             }}
           >
-            Text
+            <Type size={18} />Text
           </button>
           <NoticeDialog
             title="Emoji & Stickers is not available"
-            trigger={<button type="button">Emoji &amp; Stickers</button>}
+            trigger={<button type="button"><Smile size={18} />Emoji &amp; Stickers</button>}
           >
             Curated emoji and sticker decorations arrive in a later milestone.
           </NoticeDialog>
@@ -266,7 +267,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
               setInspectorTab('effects')
             }}
           >
-            Filters &amp; Effects
+            <Sparkles size={18} />Filters &amp; Effects
           </button>
           <button
             type="button"
@@ -276,14 +277,14 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
               setInspectorTab('layers')
             }}
           >
-            Layers
+            <Layers size={18} />Layers
           </button>
           <div className="tool-history">
             <button type="button" disabled={past.length === 0 || maskBusy} onClick={() => useEditorStore.getState().undo()}>
-              Undo
+              <Undo2 size={16} />Undo
             </button>
             <button type="button" disabled={future.length === 0 || maskBusy} onClick={() => useEditorStore.getState().redo()}>
-              Redo
+              <Redo2 size={16} />Redo
             </button>
           </div>
         </aside>
@@ -302,6 +303,15 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
           </div>
           <div className="checkerboard">
             <EditorArtboard urls={urls} />
+            {document.layers.length === 0 ? (
+              <div className="editor-welcome">
+                <img src="/art/stickers/04-winking-smiley.webp" alt="" width={72} height={72} />
+                <h2>A blank canvas. Endless you.</h2>
+                <p>Drop in a little personality. Start with a photo, then make it your own.</p>
+                <Button className="primary" onClick={() => fileRef.current?.click()}><Upload size={16} />Upload a photo</Button>
+                <small>PNG, JPEG or WebP · up to 15 MB</small>
+              </div>
+            ) : null}
           </div>
         </section>
         <Inspector document={document} selected={selected} tab={inspectorTab} onTabChange={setInspectorTab} />
@@ -384,6 +394,7 @@ function PropertiesDialog({
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>Sticker properties</DialogTitle>
+        <DialogDescription>Fine-tune your selected layer.</DialogDescription>
         <Inspector document={document} selected={selected} tab={tab} onTabChange={onTabChange} />
       </DialogContent>
     </Dialog>
@@ -912,14 +923,14 @@ function ExportDialog({ document }: { document: ProjectDocument }) {
             1024 × 1024
           </label>
         </div>
-        <div className="button-row">
-          <Button className="primary" disabled={busy} onClick={() => void exportPng()}>
-            Download PNG
-          </Button>
+        <DialogFooter>
           <NoticeDialog title="Messenger packs are not available" trigger={<Button>WhatsApp / Telegram</Button>}>
             Native WhatsApp and Telegram installation is not implemented. Download a PNG and add it in those apps manually if they accept image stickers.
           </NoticeDialog>
-        </div>
+          <Button className="primary" disabled={busy} onClick={() => void exportPng()}>
+            <Download size={16} />Download PNG
+          </Button>
+        </DialogFooter>
         {message ? <p role="status">{message}</p> : null}
       </DialogContent>
     </Dialog>
@@ -1075,7 +1086,7 @@ function useEditorShortcuts() {
       const target = event.target
       if (
         target instanceof HTMLElement &&
-        target.closest('input, textarea, select, [contenteditable="true"], [role="slider"], [data-slot="slider"]')
+        target.closest('input, textarea, select, [contenteditable="true"], [role="slider"], [data-slot="slider"], [role="dialog"]')
       ) {
         return
       }

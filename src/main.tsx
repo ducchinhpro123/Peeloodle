@@ -32,8 +32,10 @@ import {
   Button,
   Card,
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogTitle,
   DialogTrigger,
   NoticeDialog,
@@ -54,6 +56,7 @@ import {
   templateData,
   toggleFavoriteTemplateId,
 } from './features/templates/templates'
+import { StickerCollage } from './components/StickerCollage'
 import './styles.css'
 
 const CreateEditor = lazy(() => import('./features/editor/EditorPage').then((module) => ({ default: module.CreateEditor })))
@@ -73,7 +76,7 @@ const topNavigation = [
 function Unavailable({ children, label = 'Not available yet', className, 'aria-label': ariaLabel }: { children: ReactNode; label?: string; className?: string; 'aria-label'?: string }) {
   return (
     <NoticeDialog title={label} trigger={<Button className={className} aria-label={ariaLabel}>{children}</Button>}>
-      This control is not available yet. Local editing, saving, and PNG export work in the editor; packs, cloud sharing, and messenger installs come later.
+      This control is not available yet. Local editing, saving, packs, and PNG/ZIP export work on this device. Cloud sharing and native messenger installs are not available.
     </NoticeDialog>
   )
 }
@@ -143,27 +146,21 @@ function Sidebar({ mobile = false }: { mobile?: boolean }) {
           return mobile ? <SheetClose asChild key={label}>{link}</SheetClose> : <span key={label}>{link}</span>
         })}
       </div>
-      <Card className="pro"><b>👑 Go Pro</b><p>Premium templates and HD exports are planned for a future release.</p><Button disabled>Coming later</Button></Card>
+      <Card className="studio-note"><img src="/art/stickers/04-winking-smiley.webp" alt="" width={64} height={64} /><b>Your tiny creative break</b><p>No account. No pressure.<br />Just you and a little sticker magic.</p><Link to="/create">Make something fun <ChevronRight size={14} /></Link></Card>
     </aside>
   )
 }
 
-function Shell({ children }: { children: ReactNode }) {
-  return <><Header /><div className="layout"><Sidebar /><main>{children}</main></div></>
+function Shell({ children, editor = false }: { children: ReactNode; editor?: boolean }) {
+  return <><Header /><div className={`layout${editor ? ' editor-layout' : ''}`}><Sidebar /><main>{children}</main></div></>
 }
 
 const dashboardFeatures = [
-  { icon: Scissors, title: 'Background Eraser', to: '/create', detail: 'Manual erase arrives later. Auto-removal is not available.', tone: 'pink' },
-  { icon: Type, title: 'Text & Emoji', to: '/create', detail: 'Add and edit text in the editor. Emoji decorations arrive later.', tone: 'blue' },
-  { icon: LayoutGrid, title: 'Templates', to: '/templates', detail: 'Start with a ready-made sample idea.', tone: 'purple' },
-  { icon: Upload, title: 'Share & Export', to: '/create', detail: 'Export a transparent PNG. Messenger packs arrive later.', tone: 'green' },
+  { icon: Scissors, title: 'Background Eraser', to: '/create', detail: 'Brush away the background. Keep the good bits.', tone: 'pink' },
+  { icon: Type, title: 'Text & Emoji', to: '/create', detail: 'Say it your way with editable text.', tone: 'blue' },
+  { icon: LayoutGrid, title: 'Templates', to: '/templates', detail: 'A little inspiration. A lot of possibilities.', tone: 'purple' },
+  { icon: Upload, title: 'Share & Export', to: '/create', detail: 'Made it? Take it with you as a transparent PNG.', tone: 'green' },
 ] as const
-
-const dashboardHeroArt = (
-  <div className="collage" aria-hidden="true">
-    <img className="hero-art" src="/art/hero-collage.webp" alt="" width={1400} height={632} decoding="async" />
-  </div>
-)
 
 function Hero({ title, children, action, art, kicker, points }: { title: ReactNode; children: ReactNode; action?: ReactNode; art?: ReactNode; kicker?: ReactNode; points?: ReactNode }) {
   return (
@@ -184,18 +181,18 @@ function Dashboard() {
   return (
     <Shell>
       <Hero
-        title={<>Create Custom<br /><em>Stickers from</em><br />Your Photos</>}
-        kicker={<p className="hero-kicker">Stickers make chats happier!</p>}
+        title={<>Small stickers.<br /><em>Big personality.</em></>}
+        kicker={<p className="hero-kicker"><Sparkles size={14} /> YOUR EVERYDAY, REMIXED</p>}
         action={<div className="actions"><Link className="button primary" to="/create"><ImagePlus size={16} />Create a Sticker<ChevronRight size={16} /></Link><Walkthrough /></div>}
-        points={<ul className="hero-points"><li>No design skills needed</li><li>Works on any device</li><li>Share everywhere</li></ul>}
-        art={dashboardHeroArt}
+        points={<ul className="hero-points"><li>No account needed</li><li>Saved on your device</li><li>Made by you</li></ul>}
+        art={<StickerCollage />}
       >
-        Turn your selfies, pets, memes and everyday moments into amazing stickers. Easy, fun and ready to share anywhere!
+        Your cat. Your chaos. Your favorite face. Turn everyday photos into little things worth sending.
       </Hero>
       <div className="feature-grid">{dashboardFeatures.map(({ icon: Icon, title, to, detail, tone }) => <Link className="feature" to={to} key={title}><b className={tone}><Icon size={18} /></b><span><strong>{title}</strong><small>{detail}</small></span></Link>)}</div>
       <div className="split"><ProjectSection /><TemplateRail title="🔥 Trending Templates" /></div>
       <section className="bottom-banner">
-        <b>Better conversations with your own stickers</b>
+        <img className="banner-sticker" src="/art/stickers/16-rainbow.webp" alt="" width={96} height={72} /><b>Less ordinary.<br />More you.</b>
         <div className="banner-copy"><strong>Stick together</strong><small>Connect, create and share with friends.</small></div>
         <Link to="/create" className="button primary">Start Creating<ChevronRight size={16} /></Link>
       </section>
@@ -211,12 +208,14 @@ function Walkthrough() {
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>How StickerLab works</DialogTitle>
+        <DialogDescription>From camera roll to conversation starter.</DialogDescription>
         <ol className="walkthrough">
           <li>Create a sticker from the dashboard or Create page.</li>
           <li>Upload a PNG, JPEG, or static WebP photo.</li>
           <li>Move, resize, and rotate it, then add text.</li>
           <li>Save locally, reopen from Dashboard or My Stickers, and export a transparent PNG.</li>
         </ol>
+        <DialogFooter><DialogClose asChild><Button className="primary">Let’s make something</Button></DialogClose></DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -243,29 +242,20 @@ function TemplateCard({
   const opener = useRef<HTMLElement | null>(null)
   return (
     <article className="template-card" key={template.id}>
-      <div
-        className="template-art"
-        role="button"
-        tabIndex={0}
-        onClick={(event) => { opener.current = event.currentTarget; setOpen(true) }}
-        onKeyDown={(event) => {
-          if (event.target !== event.currentTarget) return
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            opener.current = event.currentTarget
-            setOpen(true)
-          }
-        }}
-      >
-        {template.preview}
+      <div className="template-art">
+        <button
+          type="button"
+          className="template-preview-trigger"
+          aria-label={`Preview ${template.title}`}
+          onClick={(event) => { opener.current = event.currentTarget; setOpen(true) }}
+        >
+          {template.preview}
+        </button>
         <button
           type="button"
           className="favorite-button"
           aria-label={isFavorite ? `Remove ${template.title} from favorites` : `Add ${template.title} to favorites`}
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleFavorite(template.id)
-          }}
+          onClick={() => onToggleFavorite(template.id)}
         >
           {isFavorite ? '❤️' : '♡'}
         </button>
@@ -283,7 +273,7 @@ function TemplateCard({
           <DialogTitle>{template.title}</DialogTitle>
           <DialogDescription>Clone this template into an independent editable sticker.</DialogDescription>
           <div className="template-preview-body">
-            <div className="detail-cover" style={{ fontSize: 64 }}>
+            <div className="detail-cover template-preview-art">
               {template.preview}
             </div>
             <p><strong>Category:</strong> {template.category}</p>
@@ -292,7 +282,8 @@ function TemplateCard({
               {template.document.layers.map((l) => l.name).join(', ') || 'Starter artwork'}
             </p>
             {error ? <p role="alert">{error}</p> : null}
-            <div className="button-row" style={{ marginTop: 16 }}>
+            <DialogFooter>
+              <DialogClose asChild><Button>Keep browsing</Button></DialogClose>
               <Button
                 className="primary"
                 disabled={creating}
@@ -311,7 +302,7 @@ function TemplateCard({
               >
                 Use Template
               </Button>
-            </div>
+            </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>
@@ -370,12 +361,6 @@ function TemplateRail({
   )
 }
 
-const templatesHeroArt = (
-  <div className="collage" aria-hidden="true">
-    <img className="hero-art" src="/art/templates-collage.webp" alt="" width={1400} height={788} decoding="async" />
-  </div>
-)
-
 function TemplatesPage() {
   const [category, setCategory] = useState('All Templates')
   const [query, setQuery] = useState('')
@@ -384,18 +369,18 @@ function TemplatesPage() {
 
   return (
     <Shell>
-      <Hero title={<>Discover Amazing <em>Sticker Templates</em></>} art={templatesHeroArt}>
-        Choose a ready-made template and customize it in the editor. Templates clone into independent editable projects.
+      <Hero title={<>Find your vibe.<br /><em>Make it yours.</em></>} kicker={<p className="hero-kicker"><Sparkles size={14} /> THE INSPIRATION STATION</p>} art={<StickerCollage variant="templates" />}>
+        Start with a spark, add your own twist. Every template becomes your very own editable sticker.
       </Hero>
       <div className="pills" aria-label="Template category filters">{TEMPLATE_CATEGORIES.map((item) => <button aria-pressed={category === item} onClick={() => setCategory(item)} key={item}>{item}</button>)}</div>
-      <div className="filters"><label>Sort by <select disabled aria-describedby="template-filter-help"><option>Featured</option></select></label><label>Style <select disabled aria-describedby="template-filter-help"><option>All styles</option></select></label><span id="template-filter-help" className="muted">Category and title search work; sort and style arrive later.</span><label className="filter-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search sample templates" placeholder="Search samples" /></label></div>
+      <div className="filters"><span className="muted">{result.length} editable templates · free to make your own</span><label className="filter-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search sample templates" placeholder="Find your next idea…" /></label></div>
       {result.length ? <><TemplateRail title="🔥 Trending Templates" items={result} /><TemplateRail title="✦ Explore by Category" items={result.slice().reverse()} /><TemplateRail title="✨ More Templates You'll Love" items={result.slice(2)} /></> : <Card className="empty"><h2>No sample templates found</h2><Button onClick={resetFilters}>Reset filters</Button></Card>}
     </Shell>
   )
 }
 
 function EditorLayout({ children }: { children: ReactNode }) {
-  return <Shell><Suspense fallback={editorFallback}>{children}</Suspense></Shell>
+  return <Shell editor><Suspense fallback={editorFallback}>{children}</Suspense></Shell>
 }
 
 function Packs() {
@@ -405,6 +390,8 @@ function Packs() {
   const [projects, setProjects] = useState<ProjectDocument[]>([])
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [deletePack, setDeletePack] = useState<PackRecord | null>(null)
+  const deleteOpener = useRef<HTMLButtonElement | null>(null)
   const [newTitle, setNewTitle] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [addStickerOpen, setAddStickerOpen] = useState(false)
@@ -413,6 +400,7 @@ function Packs() {
   const [error, setError] = useState<string | null>(null)
   const operationActive = useRef(false)
   const createOpener = useRef<HTMLButtonElement | null>(null)
+  const newPackButton = useRef<HTMLButtonElement | null>(null)
   const addOpener = useRef<HTMLButtonElement | null>(null)
 
   const reload = useCallback(async () => {
@@ -495,8 +483,9 @@ function Packs() {
   }
 
   const handleDeletePack = async (packId: string) => {
-    if (!window.confirm('Delete this pack? Its stickers will be kept.')) return
     await repo.deletePack(packId)
+    deleteOpener.current = null
+    setDeletePack(null)
     setSelectedPackId(null)
   }
 
@@ -547,10 +536,12 @@ function Packs() {
   return (
     <Shell>
       <Hero
-        title="My Sticker Packs"
+        title={<>Your little world.<br /><em>In sticker packs.</em></>}
+        kicker={<p className="hero-kicker"><Layers3 size={14} /> COLLECT THE GOOD STUFF</p>}
+        art={<StickerCollage variant="packs" />}
         action={
           <div className="actions">
-            <Button className="primary" onClick={(event) => { createOpener.current = event.currentTarget; setCreateOpen(true) }}>
+            <Button ref={newPackButton} className="primary" onClick={(event) => { createOpener.current = event.currentTarget; setCreateOpen(true) }}>
               <Plus size={16} />New Pack
             </Button>
             <Link className="button" to="/create">
@@ -621,7 +612,7 @@ function Packs() {
               <p className="muted">{selectedPack.description || 'No description'}</p>
               <span className="pack-badge">{selectedPack.projectIds.length} stickers · Local</span>
 
-              <div className="button-row" style={{ marginTop: 12 }}>
+              <div className="button-row">
                 <Button
                   className="primary"
                   disabled={busy || exportingZip || selectedPack.projectIds.length === 0}
@@ -633,11 +624,11 @@ function Packs() {
                   <Plus size={16} />Add Stickers
                 </Button>
               </div>
-              <div className="button-row" style={{ marginTop: 8 }}>
+              <div className="button-row">
                 <Button disabled={busy} onClick={() => void runPackAction(() => handleDuplicatePack(selectedPack))} title="Duplicate pack">
                   <Copy size={16} />Duplicate
                 </Button>
-                <Button disabled={busy} onClick={() => void runPackAction(() => handleDeletePack(selectedPack.id))} title="Delete pack">
+                <Button disabled={busy} onClick={(event) => { deleteOpener.current = event.currentTarget; setError(null); setDeletePack(selectedPack) }} title="Delete pack">
                   <Trash2 size={16} />Delete
                 </Button>
                 <NoticeDialog title="Messenger packs are unavailable" trigger={<Button>WhatsApp / Telegram</Button>}>
@@ -645,9 +636,9 @@ function Packs() {
                 </NoticeDialog>
               </div>
 
-              <h3 style={{ marginTop: 16 }}>Stickers in Pack ({selectedPack.projectIds.length})</h3>
+              <h3>Stickers in Pack ({selectedPack.projectIds.length})</h3>
               {selectedPack.projectIds.length === 0 ? (
-                <p className="muted" style={{ fontSize: 13 }}>No stickers in this pack. Click Add Stickers to include saved stickers.</p>
+                <p className="muted">No stickers in this pack. Click Add Stickers to include saved stickers.</p>
               ) : (
                 <div className="pack-stickers-list">
                   {selectedPack.projectIds.map((pId, idx) => {
@@ -701,14 +692,26 @@ function Packs() {
         </div>
       )}
 
-      <section style={{ marginTop: 24 }}>
+      <section className="local-stickers-section">
         <div className="section-title"><h2>All Local Stickers</h2><Link to="/create">Create</Link></div>
         <LocalProjectList emptyTitle="No local stickers yet" emptyDetail="Save a sticker from the editor to reopen it here." />
       </section>
 
+      <Dialog open={deletePack !== null} onOpenChange={(open) => { if (!open) setDeletePack(null) }}>
+        <DialogContent onOpenAutoFocus={(event) => { event.preventDefault(); document.getElementById('cancel-delete-pack')?.focus() }} onCloseAutoFocus={(event) => { event.preventDefault(); (deleteOpener.current?.isConnected ? deleteOpener.current : newPackButton.current)?.focus() }}>
+          <DialogTitle>Delete this pack?</DialogTitle>
+          <DialogDescription>“{deletePack?.title}” will be removed. Your stickers will be kept, so you can use them in another pack.</DialogDescription>
+          {error ? <p role="alert">{error}</p> : null}
+          <DialogFooter>
+            <Button id="cancel-delete-pack" onClick={() => setDeletePack(null)}>Keep Pack</Button>
+            <Button className="danger" disabled={busy} onClick={() => { if (deletePack) void runPackAction(() => handleDeletePack(deletePack.id)) }}>Delete Pack</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialogs */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); createOpener.current?.focus() }}>
+        <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); (createOpener.current?.isConnected ? createOpener.current : newPackButton.current)?.focus() }}>
           <DialogTitle>Create New Pack</DialogTitle>
           <DialogDescription>Group your stickers into a named pack.</DialogDescription>
           <form onSubmit={(event) => { event.preventDefault(); void runPackAction(handleCreatePack) }}>
@@ -731,11 +734,11 @@ function Packs() {
                 onChange={(e) => setNewDesc(e.target.value)}
               />
             </div>
-            <div className="button-row" style={{ marginTop: 16 }}>
-              {error ? <p role="alert">{error}</p> : null}
-              <Button className="primary" type="submit" disabled={busy}>Create Pack</Button>
+            {error ? <p role="alert">{error}</p> : null}
+            <DialogFooter>
               <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
-            </div>
+              <Button className="primary" type="submit" disabled={busy}>Create Pack</Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -748,7 +751,7 @@ function Packs() {
           {projects.length === 0 ? (
             <p className="muted">No saved stickers yet. Create and save stickers in the editor first.</p>
           ) : (
-            <div className="pack-stickers-list" style={{ maxHeight: 300 }}>
+            <div className="pack-stickers-list">
               {projects.map((proj) => {
                 const inPack = selectedPack?.projectIds.includes(proj.id) ?? false
                 return (
@@ -766,6 +769,7 @@ function Packs() {
               })}
             </div>
           )}
+          <DialogFooter><DialogClose asChild><Button className="primary">Done</Button></DialogClose></DialogFooter>
         </DialogContent>
       </Dialog>
     </Shell>

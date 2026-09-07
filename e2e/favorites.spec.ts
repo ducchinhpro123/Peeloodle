@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 test('malformed favorites recover and duplicate template cards stay synchronized', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('stickerlab_fav_templates', '{"bad":true}'))
   await page.goto('/templates')
-  await expect(page.getByRole('heading', { name: /Discover Amazing/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Find your vibe/ })).toBeVisible()
   const add = page.getByRole('button', { name: 'Add Good Vibes Pack to favorites', exact: true })
   expect(await add.count()).toBeGreaterThan(1)
   await add.first().click()
