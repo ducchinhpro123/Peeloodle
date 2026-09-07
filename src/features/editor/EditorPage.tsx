@@ -13,7 +13,7 @@ import {
   Slider,
   Tabs,
 } from '../../components/ui'
-import { isPersistenceError, type AssetRecord, type StickerLabRepository } from '../../lib/persistence/repository'
+import { isPersistenceError, serializeProjectDocument, type AssetRecord, type StickerLabRepository } from '../../lib/persistence/repository'
 import { ingestImageFile, AssetObjectUrlCache } from '../assets/assetLoader'
 import { UploadValidationError } from '../assets/validateUpload'
 import { downloadBlob, renderDocument, type ExportSize } from '../exports/renderDocument'
@@ -39,9 +39,28 @@ function takeCreateDraftId(): string {
 
 export function CreateEditor() {
   const navigate = useNavigate()
+  const repo = useRepository()
   useEffect(() => {
-    navigate(`/editor/${takeCreateDraftId()}`, { replace: true })
-  }, [navigate])
+    let cancelled = false
+    void (async () => {
+      const current = useEditorStore.getState()
+      const existing = current.document
+      if (existing && current.dirty) {
+        await persistDocument(repo, 'manual')
+        if (cancelled) return
+        const after = useEditorStore.getState()
+        if (after.document?.id === existing.id && after.dirty) {
+          navigate(`/editor/${existing.id}`, { replace: true })
+          return
+        }
+      }
+      if (cancelled) return
+      navigate(`/editor/${takeCreateDraftId()}`, { replace: true })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [navigate, repo])
   return <p className="muted" style={{ padding: 24 }}>Opening sticker…</p>
 }
 
@@ -52,6 +71,7 @@ export function ProjectEditor() {
 
 function EditorWorkspace({ projectId }: { projectId?: string }) {
   const repo = useRepository()
+  const navigate = useNavigate()
   const document = useEditorStore((state) => state.document)
   const assets = useEditorStore((state) => state.assets)
   const loadError = useEditorStore((state) => state.loadError)
@@ -60,14 +80,32 @@ function EditorWorkspace({ projectId }: { projectId?: string }) {
 
   useEffect(() => {
     if (!projectId) return
+    let cancelled = false
+    const flush = () => {
+      const snap = useEditorStore.getState()
+      if (snap.document?.id === projectId && (snap.dirty || snap.gestureActive)) {
+        void persistDocument(repo, 'manual').catch(() => undefined)
+      }
+    }
     const current = useEditorStore.getState()
     if (current.document?.id === projectId) {
       if (current.loading) useEditorStore.getState().setLoading(false)
-      return
+      return flush
     }
-    let cancelled = false
-    useEditorStore.getState().setLoading(true)
     void (async () => {
+      const previous = useEditorStore.getState()
+      if (previous.document && previous.dirty) {
+        await persistDocument(repo, 'manual')
+        if (cancelled) return
+        const after = useEditorStore.getState()
+        if (after.document?.id === previous.document.id && after.dirty) {
+          after.setSaveStatus('save-failed', after.saveError ?? 'Save failed')
+          navigate(`/editor/${previous.document.id}`, { replace: true })
+          return
+        }
+      }
+      if (cancelled) return
+      useEditorStore.getState().setLoading(true)
       try {
         const loaded = await repo.getProject(projectId)
         const records = await Promise.all(loaded.assetIds.map((id) => repo.getAsset(id)))
@@ -85,12 +123,9 @@ function EditorWorkspace({ projectId }: { projectId?: string }) {
     })()
     return () => {
       cancelled = true
-      const snap = useEditorStore.getState()
-      if (snap.document?.id === projectId && snap.dirty) {
-        void persistDocument(repo, 'manual').catch(() => undefined)
-      }
+      flush()
     }
-  }, [projectId, repo])
+  }, [projectId, repo, navigate])
 
   useAutosave(repo)
   useEditorShortcuts()
@@ -126,17 +161,11 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
   const repo = useRepository()
   const selected = document.layers.find((layer) => layer.id === selectedLayerId)
 
-  const onUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+  const onUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    try {
-      const record = await ingestImageFile(file)
-      useEditorStore.getState().addImageLayer(record)
-    } catch (error) {
-      const message = error instanceof UploadValidationError ? error.message : 'The image could not be added'
-      useEditorStore.getState().setUploadError(message)
-    }
+    void ingestIntoCurrentProject(() => ingestImageFile(file))
   }
 
   const saveNow = () => {
@@ -377,11 +406,15 @@ function TextInspector({ layer }: { layer: Extract<Layer, { kind: 'text' }> }) {
           min={12}
           max={160}
           value={[layer.fontSize]}
+          onPointerDown={(event) => {
+            if (event.button === 0) useEditorStore.getState().beginGesture()
+          }}
+          onPointerUp={() => useEditorStore.getState().commitGesture()}
+          onPointerCancel={() => useEditorStore.getState().commitGesture()}
+          onLostPointerCapture={() => useEditorStore.getState().commitGesture()}
           onValueChange={(value) => {
-            if (!useEditorStore.getState().gestureActive) useEditorStore.getState().beginGesture()
             useEditorStore.getState().updateText(layer.id, { fontSize: value[0] ?? layer.fontSize })
           }}
-          onValueCommit={() => useEditorStore.getState().commitGesture()}
         />
       </label>
       <label>
@@ -503,19 +536,13 @@ function SampleButton({ name, src }: { name: string; src: string }) {
       type="button"
       className="asset-thumb"
       onClick={() => {
-        void (async () => {
-          try {
-            const response = await fetch(src)
-            if (!response.ok) throw new Error('Sample is unavailable')
-            const blob = await response.blob()
-            const file = new File([blob], `${name}.png`, { type: blob.type || 'image/png' })
-            const record = await ingestImageFile(file)
-            useEditorStore.getState().addImageLayer(record)
-          } catch (error) {
-            const message = error instanceof UploadValidationError ? error.message : 'The sample image could not be added'
-            useEditorStore.getState().setUploadError(message)
-          }
-        })()
+        void ingestIntoCurrentProject(async () => {
+          const response = await fetch(src)
+          if (!response.ok) throw new Error('Sample is unavailable')
+          const blob = await response.blob()
+          const file = new File([blob], `${name}.png`, { type: blob.type || 'image/png' })
+          return ingestImageFile(file)
+        })
       }}
     >
       <img alt={`${name} sample`} src={src} />
@@ -619,41 +646,93 @@ function useAutosave(repo: StickerLabRepository) {
     }, 800)
     return () => window.clearTimeout(timer)
   }, [dirty, gestureActive, revision, documentId, save])
+
+  useEffect(() => {
+    const onHide = () => {
+      void persistDocument(repo, 'manual')
+    }
+    window.addEventListener('pagehide', onHide)
+    return () => window.removeEventListener('pagehide', onHide)
+  }, [repo])
 }
 
 let persistTail: Promise<void> = Promise.resolve()
 
+function referencedRecords(document: ProjectDocument, assets: Record<string, AssetRecord>): AssetRecord[] {
+  const ids = new Set(document.assetIds)
+  for (const layer of document.layers) {
+    if (layer.kind === 'image') ids.add(layer.assetId)
+  }
+  const records: AssetRecord[] = []
+  for (const id of ids) {
+    const record = assets[id]
+    if (record) records.push(record)
+  }
+  return records
+}
+
+function captureSave(reason: 'auto' | 'manual') {
+  const store = useEditorStore.getState()
+  if (store.gestureActive) store.commitGesture()
+  const state = useEditorStore.getState()
+  if (!state.document) return null
+  if (reason === 'auto' && !state.dirty) return null
+  return {
+    document: serializeProjectDocument(state.document),
+    records: referencedRecords(state.document, state.assets),
+  }
+}
+
 function persistDocument(repo: StickerLabRepository, reason: 'auto' | 'manual') {
+  const payload = captureSave(reason)
+  if (!payload) return persistTail
   persistTail = persistTail.then(
-    () => persistDocumentOnce(repo, reason),
-    () => persistDocumentOnce(repo, reason),
+    () => persistCaptured(repo, payload),
+    () => persistCaptured(repo, payload),
   )
   return persistTail
 }
 
-async function persistDocumentOnce(repo: StickerLabRepository, reason: 'auto' | 'manual') {
-  const state = useEditorStore.getState()
-  if (!state.document || state.gestureActive) return
-  if (reason === 'auto' && !state.dirty) return
-  const snapshot = state.document
-  const records = Object.values(state.assets)
-  useEditorStore.getState().setSaveStatus('saving')
+async function persistCaptured(
+  repo: StickerLabRepository,
+  payload: { document: ProjectDocument; records: AssetRecord[] },
+) {
+  const matches = () => useEditorStore.getState().document?.id === payload.document.id
+  if (matches()) useEditorStore.getState().setSaveStatus('saving')
   try {
-    await repo.saveProjectWithAssets(snapshot, records)
-    if (useEditorStore.getState().document?.id !== snapshot.id) return
-    useEditorStore.getState().markSaved(snapshot.revision)
+    await repo.saveProjectWithAssets(payload.document, payload.records)
+    if (matches()) useEditorStore.getState().markSaved(payload.document.revision)
   } catch (error) {
-    if (useEditorStore.getState().document?.id !== snapshot.id) return
+    if (!matches()) return
     const message = error instanceof Error ? error.message : 'Save failed'
     useEditorStore.getState().setSaveStatus('save-failed', message)
+  }
+}
+
+async function ingestIntoCurrentProject(load: () => Promise<AssetRecord>) {
+  const originId = useEditorStore.getState().document?.id
+  try {
+    const record = await load()
+    if (useEditorStore.getState().document?.id !== originId) return
+    useEditorStore.getState().addImageLayer(record)
+  } catch (error) {
+    if (useEditorStore.getState().document?.id !== originId) return
+    const message = error instanceof UploadValidationError ? error.message : 'The image could not be added'
+    useEditorStore.getState().setUploadError(message)
   }
 }
 
 function useEditorShortcuts() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return
       const target = event.target
-      if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]')) return
+      if (
+        target instanceof HTMLElement &&
+        target.closest('input, textarea, select, [contenteditable="true"], [role="slider"], [data-slot="slider"]')
+      ) {
+        return
+      }
       const meta = event.metaKey || event.ctrlKey
       const store = useEditorStore.getState()
       if (meta && event.key.toLowerCase() === 'z') {

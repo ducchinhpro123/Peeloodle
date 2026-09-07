@@ -11,6 +11,42 @@ function fileFrom(bytes: ArrayLike<number>, name: string, type: string): File {
   return new File([new Uint8Array(bytes)], name, { type })
 }
 
+function pngChunk(type: string, data: Uint8Array): Uint8Array {
+  const bytes = new Uint8Array(12 + data.length)
+  const view = new DataView(bytes.buffer)
+  view.setUint32(0, data.length)
+  for (let i = 0; i < 4; i += 1) bytes[4 + i] = type.charCodeAt(i)
+  bytes.set(data, 8)
+  return bytes
+}
+
+function apngBytes(): Uint8Array {
+  const ihdr = new Uint8Array(13)
+  const ihdrView = new DataView(ihdr.buffer)
+  ihdrView.setUint32(0, 8)
+  ihdrView.setUint32(4, 8)
+  ihdr[8] = 8
+  ihdr[9] = 6
+  const actl = new Uint8Array(8)
+  const actlView = new DataView(actl.buffer)
+  actlView.setUint32(0, 2)
+  const chunks = [new Uint8Array(PNG_MAGIC), pngChunk('IHDR', ihdr), pngChunk('acTL', actl)]
+  const bytes = new Uint8Array(chunks.reduce((sum, chunk) => sum + chunk.length, 0))
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.length
+  }
+  return bytes
+}
+
+function bmpBytes(): Uint8Array {
+  const bytes = new Uint8Array(14)
+  bytes[0] = 0x42
+  bytes[1] = 0x4d
+  return bytes
+}
+
 function webpFile(flags: number, name = 'sticker.webp'): File {
   const bytes = new Uint8Array(30)
   const view = new DataView(bytes.buffer)
@@ -56,6 +92,20 @@ describe('validateUpload', () => {
 
     const decode = vi.fn(decode16)
     await expectUploadCode(validateUpload(webpFile(0x02), { decodeImageSize: decode }), 'animated_image')
+    expect(decode).not.toHaveBeenCalled()
+  })
+
+  it('rejects APNG and mislabeled BMP even when the browser could decode them', async () => {
+    const decode = vi.fn(decode16)
+    await expectUploadCode(validateUpload(fileFrom(apngBytes(), 'anim.png', 'image/png'), { decodeImageSize: decode }), 'animated_image')
+    await expectUploadCode(
+      validateUpload(fileFrom(bmpBytes(), 'photo.png', 'image/png'), { decodeImageSize: decode }),
+      'unsupported_type',
+    )
+    await expectUploadCode(
+      validateUpload(fileFrom(bmpBytes(), 'photo.bmp', 'image/bmp'), { decodeImageSize: decode }),
+      'unsupported_type',
+    )
     expect(decode).not.toHaveBeenCalled()
   })
 

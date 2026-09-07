@@ -46,8 +46,9 @@ function encodePng(width: number, height: number, pixels: Uint8ClampedArray) {
   return new Blob([png], { type: 'image/png' })
 }
 
-function fakeCanvas(width: number, height: number): CanvasLike & { pixels: Uint8ClampedArray } {
+function fakeCanvas(width: number, height: number): CanvasLike & { pixels: Uint8ClampedArray; texts: Array<{ text: string; x: number; y: number; baseline: string; font: string }> } {
   const pixels = new Uint8ClampedArray(width * height * 4)
+  const texts: Array<{ text: string; x: number; y: number; baseline: string; font: string }> = []
   const paintCenter = () => {
     const x = Math.floor(width / 2)
     const y = Math.floor(height / 2)
@@ -61,6 +62,7 @@ function fakeCanvas(width: number, height: number): CanvasLike & { pixels: Uint8
     globalAlpha: 1,
     font: '',
     fillStyle: '',
+    textAlign: 'left',
     textBaseline: 'top',
     save() {},
     restore() {},
@@ -74,7 +76,8 @@ function fakeCanvas(width: number, height: number): CanvasLike & { pixels: Uint8
     drawImage() {
       paintCenter()
     },
-    fillText() {
+    fillText(text: string, x: number, y: number) {
+      texts.push({ text, x, y, baseline: String(ctx.textBaseline), font: String(ctx.font) })
       paintCenter()
     },
     beginPath() {},
@@ -90,6 +93,7 @@ function fakeCanvas(width: number, height: number): CanvasLike & { pixels: Uint8
     width,
     height,
     pixels,
+    texts,
     getContext: (type: '2d') => (type === '2d' ? (ctx as unknown as CanvasRenderingContext2D) : null),
     toBlob: (callback) => callback(encodePng(width, height, pixels)),
   }
@@ -171,5 +175,75 @@ describe('renderDocument', () => {
     expect(readPngSize(bytes)).toMatchObject({ width: 512, height: 512, colorType: 6 })
     expect(canvas.pixels[3]).toBe(0)
     expect(canvas.pixels[(256 * 512 + 256) * 4 + 3]).toBe(255)
+  })
+
+  it('draws multiline text with the same top baseline and line height as the editor', async () => {
+    const document = createProjectDocument({ id: 'p1' })
+    const text: TextLayer = {
+      id: 'text',
+      name: 'Text',
+      kind: 'text',
+      content: 'Hello\nWorld',
+      fontFamily: 'Plus Jakarta Sans',
+      fontSize: 32,
+      color: '#08152f',
+      transform: { x: 40, y: 40, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+    }
+    document.layers = [text]
+    const canvas = fakeCanvas(512, 512)
+    await renderDocument(document, {}, {
+      size: 512,
+      createCanvas: () => canvas,
+      waitForFonts: async () => {},
+    })
+    expect(canvas.texts).toEqual([
+      { text: 'Hello', x: 0, y: 0, baseline: 'top', font: '32px "Plus Jakarta Sans"' },
+      { text: 'World', x: 0, y: 32, baseline: 'top', font: '32px "Plus Jakarta Sans"' },
+    ])
+  })
+
+  it('closes owned export ImageBitmaps', async () => {
+    const document = createProjectDocument({ id: 'p1' })
+    const record: AssetRecord = {
+      asset: { id: 'a1', mimeType: 'image/png', width: 8, height: 8, blobKey: 'a1', provenance: 'test' },
+      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+    }
+    document.layers = [
+      {
+        id: 'img',
+        name: 'Image',
+        kind: 'image',
+        assetId: 'a1',
+        transform: identity,
+        opacity: 1,
+        visible: true,
+        locked: false,
+      },
+    ]
+    document.assetIds = ['a1']
+    let closed = 0
+    await renderDocument(document, { a1: record }, {
+      size: 512,
+      createCanvas: (width, height) => fakeCanvas(width, height),
+      decodeImage: async () => ({ width: 8, height: 8, close() { closed += 1 } }) as ImageBitmap,
+      waitForFonts: async () => {},
+    })
+    expect(closed).toBe(0)
+    closed = 0
+    const previous = globalThis.createImageBitmap
+    globalThis.createImageBitmap = async () => ({ width: 8, height: 8, close() { closed += 1 } }) as ImageBitmap
+    try {
+      await renderDocument(document, { a1: record }, {
+        size: 512,
+        createCanvas: (width, height) => fakeCanvas(width, height),
+        waitForFonts: async () => {},
+      })
+    } finally {
+      globalThis.createImageBitmap = previous
+    }
+    expect(closed).toBe(1)
   })
 })

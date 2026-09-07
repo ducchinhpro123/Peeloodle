@@ -3,6 +3,7 @@ import type { AssetRecord } from '../../lib/persistence/repository'
 
 export type ExportSize = 512 | 1024
 export const EXPORT_SIZES: ExportSize[] = [512, 1024]
+export const TEXT_LINE_HEIGHT = 1
 
 export class ExportError extends Error {
   constructor(message: string) {
@@ -52,6 +53,7 @@ export async function renderDocument(
   const scale = size / ARTBOARD_SIZE
   ctx.scale(scale, scale)
 
+  const closeDecoded = !options.decodeImage
   const decode = options.decodeImage ?? defaultDecodeImage
   for (const layer of document.layers) {
     if (!layer.visible || layer.opacity <= 0) continue
@@ -60,7 +62,7 @@ export async function renderDocument(
     ctx.translate(layer.transform.x, layer.transform.y)
     ctx.rotate((layer.transform.rotation * Math.PI) / 180)
     ctx.scale(layer.transform.scaleX, layer.transform.scaleY)
-    await drawLayer(ctx, layer, assetMap, decode)
+    await drawLayer(ctx, layer, assetMap, decode, closeDecoded)
     ctx.restore()
   }
 
@@ -89,11 +91,31 @@ export function readPngSize(bytes: Uint8Array): { width: number; height: number;
   return { width: view.getUint32(16), height: view.getUint32(20), colorType: bytes[25]! }
 }
 
+export function cssFont(size: number, family: string): string {
+  const quoted = /[^\w-]/.test(family) ? `"${family.replace(/"/g, '\\"')}"` : family
+  return `${size}px ${quoted}`
+}
+
+export function paintText(ctx: CanvasRenderingContext2D, layer: Extract<Layer, { kind: 'text' }>): void {
+  ctx.font = cssFont(layer.fontSize, layer.fontFamily)
+  ctx.fillStyle = layer.color
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+  const lines = layer.content.split('\n')
+  const step = layer.fontSize * TEXT_LINE_HEIGHT
+  for (let i = 0; i < lines.length; i += 1) ctx.fillText(lines[i]!, 0, i * step)
+}
+
+function closeImageSource(image: CanvasImageSource): void {
+  if (typeof (image as ImageBitmap).close === 'function') (image as ImageBitmap).close()
+}
+
 async function drawLayer(
   ctx: CanvasRenderingContext2D,
   layer: Layer,
   assets: Map<string, AssetRecord>,
   decode: (blob: Blob) => Promise<CanvasImageSource>,
+  closeDecoded: boolean,
 ): Promise<void> {
   if (layer.kind === 'image') {
     const record = assets.get(layer.assetId)
@@ -104,16 +126,17 @@ async function drawLayer(
     } catch {
       throw new ExportError(`Could not decode asset ${layer.assetId}`)
     }
-    const crop = layer.crop
-    if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height)
-    else ctx.drawImage(image, 0, 0, record.asset.width, record.asset.height)
+    try {
+      const crop = layer.crop
+      if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height)
+      else ctx.drawImage(image, 0, 0, record.asset.width, record.asset.height)
+    } finally {
+      if (closeDecoded) closeImageSource(image)
+    }
     return
   }
   if (layer.kind === 'text') {
-    ctx.font = `${layer.fontSize}px ${layer.fontFamily}`
-    ctx.fillStyle = layer.color
-    ctx.textBaseline = 'top'
-    ctx.fillText(layer.content, 0, 0)
+    paintText(ctx, layer)
     return
   }
   ctx.fillStyle = layer.fill
@@ -167,7 +190,7 @@ function decodeHtmlImage(blob: Blob): Promise<HTMLImageElement> {
 async function defaultWaitForFonts(families: string[]): Promise<void> {
   const fonts = typeof document === 'undefined' ? undefined : document.fonts
   if (!fonts) return
-  await Promise.all(families.map((family) => fonts.load(`16px ${family}`).catch(() => undefined)))
+  await Promise.all(families.map((family) => fonts.load(cssFont(16, family)).catch(() => undefined)))
   await fonts.ready.catch(() => undefined)
 }
 

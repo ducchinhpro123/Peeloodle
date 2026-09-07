@@ -27,13 +27,21 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
     return () => observer.disconnect()
   }, [])
 
-  useEffect(() => {
+  const attachTransformer = useRef(() => {})
+  attachTransformer.current = () => {
     const transformer = transformerRef.current
     if (!transformer) return
-    const node = selectedLayerId ? nodeRefs.current[selectedLayerId] : undefined
-    const layer = document?.layers.find((item) => item.id === selectedLayerId)
-    transformer.nodes(node && layer && !layer.locked && activeTool !== 'pan' ? [node] : [])
+    const selectedId = useEditorStore.getState().selectedLayerId
+    const current = useEditorStore.getState().document
+    const tool = useEditorStore.getState().activeTool
+    const node = selectedId ? nodeRefs.current[selectedId] : undefined
+    const layer = current?.layers.find((item) => item.id === selectedId)
+    transformer.nodes(node && layer && !layer.locked && tool !== 'pan' ? [node] : [])
     transformer.getLayer()?.batchDraw()
+  }
+
+  useEffect(() => {
+    attachTransformer.current()
   }, [selectedLayerId, document, activeTool, size, viewport])
 
   if (!document) return null
@@ -46,6 +54,7 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
   const bindNode = (id: string) => (node: Konva.Node | null) => {
     if (node) nodeRefs.current[id] = node
     else delete nodeRefs.current[id]
+    if (id === useEditorStore.getState().selectedLayerId) attachTransformer.current()
   }
 
   const isEmptyTarget = (target: Konva.Node | StageLike) => target.name() === 'artboard' || target === target.getStage()
@@ -206,6 +215,9 @@ function TextNode({
       fontFamily={layer.fontFamily}
       fontSize={layer.fontSize}
       fill={layer.color}
+      lineHeight={1}
+      align="left"
+      verticalAlign="top"
     />
   )
 }

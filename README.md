@@ -39,6 +39,6 @@ The four supplied images map to the four routes above. Estimated tokens live in 
 
 ## Verification
 
-`src/features/editor/commands.test.ts` covers undo/gesture history. `src/features/exports/renderDocument.test.ts` covers PNG size/transparency and missing-asset failure. `src/features/editor/editor.test.tsx` covers upload → text → save → reopen, save-failure preservation, in-flight save queuing, and typing-safe shortcuts. `src/lib/persistence/repository.test.ts` covers MemoryRepository and IndexedDB roundtrips. `npm run test:browser` runs create/save/reload/reopen/export, checks real IndexedDB, and inspects downloaded 512 and 1024 PNG dimensions, alpha, and red content.
+`src/features/editor/commands.test.ts` covers undo/gesture history, rotated flips, and runtime asset retention. `src/features/exports/renderDocument.test.ts` covers PNG size/transparency, multiline text, and ImageBitmap cleanup. `src/features/editor/editor.test.tsx` covers upload → text → save → reopen, leave-before-debounce flush, snapshot saves, stale upload discard, and slider/typing-safe shortcuts. `src/features/assets/validateUpload.test.ts` rejects APNG and mislabeled BMP. `npm run test:browser` starts from the Dashboard CTA, edits the canvas, reloads multiline text, and inspects downloaded 512 and 1024 PNG dimensions, alpha, and composition.
 
 Browser screenshots from the foundation layout checks are stored outside the repository at `/tmp/stickerlab-browser-verification/`.

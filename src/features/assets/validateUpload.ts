@@ -49,6 +49,9 @@ export async function validateUpload(file: File, options: ValidateUploadOptions 
 
   const mimeType = resolveMimeType(file, prefix)
   if (!mimeType) throw new UploadValidationError('unsupported_type', 'Use a PNG, JPEG, or static WebP image')
+  if (mimeType === 'image/png' && isAnimatedPng(prefix)) {
+    throw new UploadValidationError('animated_image', 'Animated PNG uploads are not supported')
+  }
   if (mimeType === 'image/webp' && isAnimatedWebp(prefix)) {
     throw new UploadValidationError('animated_image', 'Animated WebP uploads are not supported')
   }
@@ -119,11 +122,10 @@ function decodeWithImageElement(blob: Blob): Promise<DecodedImageSize> {
 
 function resolveMimeType(file: File, bytes: Uint8Array): SupportedUploadMimeType | undefined {
   const sniffed = sniffMime(bytes)
-  if (sniffed === 'image/gif') return undefined
+  if (!sniffed || sniffed === 'image/gif') return undefined
   const declared = normalizeDeclaredMime(file.type)
-  if (sniffed && declared && sniffed !== declared) return undefined
-  const mimeType = sniffed ?? declared
-  return mimeType && SUPPORTED_UPLOAD_MIME_TYPES.includes(mimeType) ? mimeType : undefined
+  if (declared && sniffed !== declared) return undefined
+  return sniffed
 }
 
 function normalizeDeclaredMime(type: string): SupportedUploadMimeType | undefined {
@@ -162,6 +164,21 @@ function isWebp(bytes: Uint8Array): boolean {
   return bytes.length >= 12 && ascii(bytes, 0, 4) === 'RIFF' && ascii(bytes, 8, 4) === 'WEBP'
 }
 
+function isAnimatedPng(bytes: Uint8Array): boolean {
+  if (sniffMime(bytes) !== 'image/png' || bytes.length < 24) return false
+  let offset = 8
+  while (offset + 8 <= bytes.length) {
+    const length = readU32be(bytes, offset)
+    const type = ascii(bytes, offset + 4, 4)
+    if (type === 'acTL') return true
+    if (type === 'IDAT' || type === 'IEND') return false
+    const next = offset + 12 + length
+    if (next <= offset) break
+    offset = next
+  }
+  return false
+}
+
 function isAnimatedWebp(bytes: Uint8Array): boolean {
   if (!isWebp(bytes)) return false
   let offset = 12
@@ -193,4 +210,8 @@ function ascii(bytes: Uint8Array, offset: number, length: number): string {
 
 function readU32le(bytes: Uint8Array, offset: number): number {
   return bytes[offset]! + (bytes[offset + 1]! << 8) + (bytes[offset + 2]! << 16) + (bytes[offset + 3]! << 24)
+}
+
+function readU32be(bytes: Uint8Array, offset: number): number {
+  return ((bytes[offset]! << 24) | (bytes[offset + 1]! << 16) | (bytes[offset + 2]! << 8) | bytes[offset + 3]!) >>> 0
 }

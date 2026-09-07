@@ -9,7 +9,7 @@ export type EditorTool = 'select' | 'pan' | 'text' | 'rotate'
 export type Viewport = { zoom: number; panX: number; panY: number }
 
 export const HISTORY_LIMIT = 50
-export const TEXT_FONTS = ['Inter', 'Georgia', 'cursive', 'ui-sans-serif'] as const
+export const TEXT_FONTS = ['Plus Jakarta Sans', 'Georgia', 'cursive', 'ui-sans-serif'] as const
 
 const defaultViewport: Viewport = { zoom: 1, panX: 0, panY: 0 }
 
@@ -80,6 +80,24 @@ function uniqueAssetIds(layers: Layer[]): string[] {
     if (layer.kind === 'image' && !ids.includes(layer.assetId)) ids.push(layer.assetId)
   }
   return ids
+}
+
+function assetsFor(assets: Record<string, AssetRecord>, docs: Array<ProjectDocument | null | undefined>): Record<string, AssetRecord> {
+  const ids = new Set<string>()
+  for (const doc of docs) {
+    if (!doc) continue
+    for (const id of doc.assetIds) ids.add(id)
+    for (const layer of doc.layers) {
+      if (layer.kind === 'image') ids.add(layer.assetId)
+    }
+  }
+  let dropped = false
+  const next: Record<string, AssetRecord> = {}
+  for (const [id, record] of Object.entries(assets)) {
+    if (ids.has(id)) next[id] = record
+    else dropped = true
+  }
+  return dropped ? next : assets
 }
 
 function resetState(): Pick<
@@ -180,12 +198,15 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       set({ gestureActive: false, gestureStart: null })
       return
     }
+    const past = [...state.past, start].slice(-HISTORY_LIMIT)
+    const document = touch(state.document)
     set({
       gestureActive: false,
       gestureStart: null,
-      past: [...state.past, start].slice(-HISTORY_LIMIT),
+      past,
       future: [],
-      document: touch(state.document),
+      document,
+      assets: assetsFor(state.assets, [document, ...past]),
       dirty: true,
       saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
     })
@@ -209,17 +230,19 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         locked: false,
       },
     ]
+    const document = touch({
+      ...state.document,
+      layers,
+      assetIds: uniqueAssetIds(layers),
+    })
+    const assets = { ...state.assets, [record.asset.id]: record }
     set({
       ...history,
-      assets: { ...state.assets, [record.asset.id]: record },
-      document: touch({
-        ...state.document,
-        layers,
-        assetIds: uniqueAssetIds(layers),
-      }),
+      assets: assetsFor(assets, [document, ...history.past, ...history.future]),
+      document,
       selectedLayerId: layerId,
       dirty: true,
-      saveStatus: 'unsaved',
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
       uploadError: null,
       activeTool: 'select',
     })
@@ -235,7 +258,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       name: 'Text',
       kind: 'text',
       content: 'Text',
-      fontFamily: 'Inter',
+      fontFamily: 'Plus Jakarta Sans',
       fontSize: 64,
       color: '#08152f',
       transform: { x: 320, y: 430, rotation: 0, scaleX: 1, scaleY: 1 },
@@ -243,12 +266,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       visible: true,
       locked: false,
     }
+    const document = touch({ ...state.document, layers: [...state.document.layers, layer] })
     set({
       ...history,
-      document: touch({ ...state.document, layers: [...state.document.layers, layer] }),
+      document,
+      assets: assetsFor(state.assets, [document, ...history.past, ...history.future]),
       selectedLayerId: layerId,
       dirty: true,
-      saveStatus: 'unsaved',
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
       activeTool: 'select',
     })
   },
@@ -312,12 +337,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     if (!state.document || !layer || layer.locked) return
     const history = withHistory(state)
     const layers = state.document.layers.filter((item) => item.id !== layer.id)
+    const document = touch({ ...state.document, layers, assetIds: uniqueAssetIds(layers) })
     set({
       ...history,
-      document: touch({ ...state.document, layers, assetIds: uniqueAssetIds(layers) }),
+      document,
+      assets: assetsFor(state.assets, [document, ...history.past, ...history.future]),
       selectedLayerId: null,
       dirty: true,
-      saveStatus: 'unsaved',
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
     })
   },
 
@@ -334,12 +361,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       locked: false,
     }
     const layers = [...state.document.layers, copy]
+    const document = touch({ ...state.document, layers, assetIds: uniqueAssetIds(layers) })
     set({
       ...history,
-      document: touch({ ...state.document, layers, assetIds: uniqueAssetIds(layers) }),
+      document,
+      assets: assetsFor(state.assets, [document, ...history.past, ...history.future]),
       selectedLayerId: copy.id,
       dirty: true,
-      saveStatus: 'unsaved',
+      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
     })
   },
 
@@ -380,10 +409,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const state = get()
     if (state.gestureActive || !state.document || state.past.length === 0) return
     const previous = state.past[state.past.length - 1]!
+    const document = touch({ ...previous, revision: state.document.revision })
+    const past = state.past.slice(0, -1)
+    const future = [...state.future, cloneDocument(state.document)]
     set({
-      document: touch({ ...previous, revision: state.document.revision }),
-      past: state.past.slice(0, -1),
-      future: [...state.future, cloneDocument(state.document)],
+      document,
+      past,
+      future,
+      assets: assetsFor(state.assets, [document, ...past, ...future]),
       selectedLayerId: previous.layers.some((layer) => layer.id === state.selectedLayerId) ? state.selectedLayerId : null,
       dirty: true,
       saveStatus: 'unsaved',
@@ -394,10 +427,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const state = get()
     if (state.gestureActive || !state.document || state.future.length === 0) return
     const next = state.future[state.future.length - 1]!
+    const document = touch({ ...next, revision: state.document.revision })
+    const future = state.future.slice(0, -1)
+    const past = [...state.past, cloneDocument(state.document)]
     set({
-      document: touch({ ...next, revision: state.document.revision }),
-      future: state.future.slice(0, -1),
-      past: [...state.past, cloneDocument(state.document)],
+      document,
+      future,
+      past,
+      assets: assetsFor(state.assets, [document, ...past, ...future]),
       selectedLayerId: next.layers.some((layer) => layer.id === state.selectedLayerId) ? state.selectedLayerId : null,
       dirty: true,
       saveStatus: 'unsaved',

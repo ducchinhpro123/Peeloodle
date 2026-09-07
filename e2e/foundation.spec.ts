@@ -56,14 +56,20 @@ test('tablet headers stay within their fixed height at 1024px and 1100px', async
   }
 })
 
-test('editor tablet layout and deferred modal render without clipping', async ({ page }) => {
+test('editor tablet layout and export modal render without clipping', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 768 })
   await page.goto('/create')
+  await expect(page.getByTestId('editor-canvas')).toBeVisible()
+  await expect(page.getByText('Opening sticker…')).toHaveCount(0)
   await expectContained(page)
   await page.screenshot({ path: `${screenshots}/editor-1100x768-current.png`, fullPage: true })
-  await page.getByRole('button', { name: /save to my stickers/i }).click()
-  await expect(page.getByRole('status')).toContainText(/saving|saved locally|not saved yet|unsaved/i)
+  await page.getByRole('button', { name: /export and share/i }).click()
+  const dialog = page.getByRole('dialog', { name: 'Export sticker' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Download PNG' })).toBeVisible()
   await page.screenshot({ path: `${screenshots}/editor-save-modal-1100x768-current.png`, fullPage: true })
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
 })
 
 test.describe('mobile touch Dashboard', () => {
@@ -115,5 +121,22 @@ test.describe('mobile touch Dashboard', () => {
     const sheet = page.getByRole('dialog', { name: 'Navigation' })
     await sheet.getByRole('link', { name: 'Background Eraser' }).click()
     await expect(sheet).toBeHidden()
+  })
+
+  test('navigation and dialog close controls have 44px hit areas', async ({ page }) => {
+    await page.goto('/')
+    const opener = page.getByRole('button', { name: 'Open navigation' })
+    const openerBox = await opener.boundingBox()
+    expect(openerBox).not.toBeNull()
+    expect(openerBox!.width).toBeGreaterThanOrEqual(44)
+    expect(openerBox!.height).toBeGreaterThanOrEqual(44)
+    await opener.click()
+    const close = page.getByRole('button', { name: 'Close navigation' })
+    const closeBox = await close.boundingBox()
+    expect(closeBox).not.toBeNull()
+    expect(closeBox!.width).toBeGreaterThanOrEqual(44)
+    expect(closeBox!.height).toBeGreaterThanOrEqual(44)
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: 'Navigation' })).toBeHidden()
   })
 })

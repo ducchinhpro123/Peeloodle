@@ -187,4 +187,107 @@ describe('editor integration', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(useEditorStore.getState().document?.id).not.toBe('stale-load')
   })
+
+  it('flushes a dirty draft when leaving before the autosave debounce', async () => {
+    const repo = renderApp()
+    fireEvent.click(await screen.findByRole('button', { name: 'Text' }))
+    const content = await screen.findByLabelText('Text content')
+    fireEvent.focus(content)
+    fireEvent.change(content, { target: { value: 'Keep me' } })
+    fireEvent.blur(content)
+    fireEvent.click(screen.getByRole('link', { name: 'Home' }))
+    await waitFor(async () => {
+      const saved = await repo.listProjects()
+      expect(saved).toHaveLength(1)
+      const text = saved[0]?.layers.find((layer) => layer.kind === 'text')
+      expect(text && text.kind === 'text' ? text.content : undefined).toBe('Keep me')
+    })
+  })
+
+  it('saves the snapshot captured at request time, not a replacement project', async () => {
+    const repo = createMemoryRepository()
+    let release = () => {}
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let started = 0
+    const titles: string[] = []
+    const inner = repo.saveProjectWithAssets.bind(repo)
+    repo.saveProjectWithAssets = async (document, assets) => {
+      started += 1
+      titles.push(document.title)
+      if (started === 1) await blocked
+      return inner(document, assets)
+    }
+    renderApp('/create', repo)
+    fireEvent.change(await screen.findByLabelText('Sticker title'), { target: { value: 'Original draft' } })
+    fireEvent.click(screen.getByRole('button', { name: /save to my stickers/i }))
+    await waitFor(() => expect(started).toBe(1))
+    const firstId = useEditorStore.getState().document!.id
+    useEditorStore.getState().createDraft()
+    expect(useEditorStore.getState().document!.id).not.toBe(firstId)
+    release()
+    await waitFor(async () => {
+      expect((await repo.getProject(firstId)).title).toBe('Original draft')
+    })
+    expect(titles[0]).toBe('Original draft')
+  })
+
+  it('discards a stale upload and sample after the project is replaced', async () => {
+    let releaseUpload = () => {}
+    const blockedUpload = new Promise<void>((resolve) => {
+      releaseUpload = resolve
+    })
+    globalThis.createImageBitmap = async () => {
+      await blockedUpload
+      return { width: 64, height: 64, close() {} } as ImageBitmap
+    }
+    renderApp()
+    await screen.findByRole('heading', { name: /untitled sticker/i })
+    const firstId = useEditorStore.getState().document!.id
+    uploadPhoto()
+    useEditorStore.getState().createDraft()
+    const secondId = useEditorStore.getState().document!.id
+    expect(secondId).not.toBe(firstId)
+    releaseUpload()
+    await new Promise((resolve) => setTimeout(resolve, 40))
+    expect(useEditorStore.getState().document?.id).toBe(secondId)
+    expect(useEditorStore.getState().document?.layers).toEqual([])
+    expect(useEditorStore.getState().uploadError).toBe(null)
+
+    useEditorStore.getState().createDraft(firstId)
+    await screen.findByRole('button', { name: 'Cat in console sample' })
+    let releaseSample = () => {}
+    const blockedSample = new Promise<void>((resolve) => {
+      releaseSample = resolve
+    })
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async () => {
+      await blockedSample
+      return new Response(pngBytes, { status: 200, headers: { 'Content-Type': 'image/png' } })
+    }) as typeof fetch
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Cat in console sample' }))
+      useEditorStore.getState().createDraft()
+      const thirdId = useEditorStore.getState().document!.id
+      expect(thirdId).not.toBe(firstId)
+      releaseSample()
+      await new Promise((resolve) => setTimeout(resolve, 40))
+      expect(useEditorStore.getState().document?.id).toBe(thirdId)
+      expect(useEditorStore.getState().document?.layers).toEqual([])
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('does not nudge a layer while the font size slider is focused', async () => {
+    renderApp()
+    fireEvent.click(await screen.findByRole('button', { name: 'Text' }))
+    const slider = await screen.findByRole('slider', { name: 'Font size' })
+    slider.focus()
+    const x = useEditorStore.getState().document!.layers[0]!.transform.x
+    fireEvent.keyDown(slider, { key: 'ArrowRight' })
+    expect(useEditorStore.getState().document!.layers[0]!.transform.x).toBe(x)
+    expect(useEditorStore.getState().gestureActive).toBe(false)
+  })
 })

@@ -192,6 +192,26 @@ describe('editor commands', () => {
     expect(useEditorStore.getState().document!.layers[0]!.transform).toEqual(start)
   })
 
+  it('drops runtime assets after history no longer references them and does not keep them on save', async () => {
+    const store = useEditorStore.getState()
+    const repo = createMemoryRepository()
+    store.createDraft('p1')
+    store.addImageLayer(pngRecord('asset-a'))
+    store.addImageLayer(pngRecord('asset-b'))
+    expect(Object.keys(useEditorStore.getState().assets).sort()).toEqual(['asset-a', 'asset-b'])
+    store.removeSelected()
+    expect(Object.keys(useEditorStore.getState().assets).sort()).toEqual(['asset-a', 'asset-b'])
+    store.selectLayer(useEditorStore.getState().document!.layers[0]!.id)
+    store.removeSelected()
+    for (let i = 0; i < HISTORY_LIMIT; i += 1) store.addTextLayer()
+    expect(Object.keys(useEditorStore.getState().assets)).toEqual([])
+    const snapshot = useEditorStore.getState().document!
+    await repo.saveProjectWithAssets(snapshot, Object.values(useEditorStore.getState().assets))
+    expect(await repo.listAssets()).toEqual([])
+    await repo.saveAsset(pngRecord('other-project-asset'))
+    expect((await repo.listAssets()).map((asset) => asset.id)).toContain('other-project-asset')
+  })
+
   it('does not record a no-op gesture or mutate a locked layer', () => {
     useEditorStore.getState().createDraft('p1')
     useEditorStore.getState().addTextLayer()
