@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" preserveAspectRatio="none">
+  <defs>
+    <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".55" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".16"/></feComponentTransfer><feBlend in="SourceGraphic" mode="multiply"/></filter>
+    <pattern id="print" width="110" height="17" patternUnits="userSpaceOnUse"><path d="M0 3h72m5 0h28M0 7h42m5 0h58M0 11h85m5 0h15" stroke="#544b40" stroke-width="1" opacity=".32"/></pattern>
+    <pattern id="gingham" width="24" height="24" patternUnits="userSpaceOnUse"><rect width="24" height="24" fill="#fff8dc"/><path d="M6 0v24M0 6h24" stroke="#008c61" stroke-width="12" opacity=".55"/></pattern>
+  </defs>
+  <g filter="url(#paper)">
+    <path fill="#e3d2b4" d="M0 0h1200v360H0z"/>
+    <path fill="url(#print)" d="M590 0h610v360H590z"/>
+    <path fill="#fffaf0" d="m14 28 61-13 30 7 88-10 58 10 63-15 62 14 68-9 84 7 72-12 57 17 48-10 51 9 74-13 66 13 89-12 83 11 68-16 38 26-7 277-51 17-52-7-72 11-53-9-60 13-54-10-71 9-82-12-54 10-72-8-59 11-55-7-57 10-72-12-63 10-48-9-53 6Z"/>
+    <path fill="#95d8bd" d="m26 43 61-15 54 8 67-12 69 10 47-9 73 13 65-11 82 5 74-12 43 22-17 100 19 53-22 104-63 17-50-9-76 15-61-11-56 10-63-8-72 11-47-10-70 4Z"/>
+    <path fill="#b499dc" d="m614 51 126-32 85 24 79 247-229 42-97-40 16-102-20-53Z"/>
+    <path fill="#ef85b5" d="m802 45 79-23 65 8 49-18 90 31 37 139-290 28-51-63Z"/>
+    <path fill="#83c9e0" d="m761 225 164-49 140 21 37 103-321 24Z"/>
+    <path fill="#f6d46b" d="m1034 63 147-33 9 273-113 18-51-125Z"/>
+    <path fill="url(#gingham)" d="m852 272 194 43-12 43-194-43Z"/>
+    <path fill="#f290b7" d="m1096 10 97 10-4 35-97-10Z"/>
+    <path d="m390 300 67-16m-60 29 58-14" stroke="#ef609b" stroke-width="7"/>
+  </g>
+</svg>

@@ -62,7 +62,7 @@ Playwright uses Chromium at `/usr/bin/chromium` via `playwright.config.ts`. Fire
 - [x] Full pack ZIP export with numbered transparent PNGs and manifest.json
 - [x] Image filters (brightness, contrast, saturation, grayscale) with reset, shared between canvas preview and PNG exports
 - [x] Silhouette outlines & borders with customizable color and thickness on canvas and export
-- [x] User-supplied cat stickers banner collage on Templates page
+- [x] Scrapbook-style Templates banner with textured paper, yellow headline highlights, and layered user-supplied cat stickers; responsive HTML text rather than a screenshot
 - [x] Manual alpha mask erase / restore in image-local coordinates with continuous strokes, crop clipping, matching cursor geometry, and undo/redo
 - [ ] Cloud auth/sharing and native WhatsApp/Telegram installation
 

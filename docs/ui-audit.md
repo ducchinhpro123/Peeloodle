@@ -27,6 +27,14 @@ Direction: lively, vivid, engaging—an original sticker-workshop interpretation
 - Commands: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, `npm run test:browser -- --workers=2`.
 - Screenshot evidence is local, not committed: `/tmp/stickerlab-ui-audit/` (`before-*.png`, route/viewport screenshots, and dialog screenshots).
 
+## Scrapbook panel follow-up
+
+The “Find your vibe. Make it yours.” panel is on `/templates` (not Dashboard). It now uses original textured SVG paper, HTML headline strips, layered existing cat cutouts, stars, gingham tape, and handwritten notes. Styling is scoped to the Templates collage; mobile stacks the copy above the artwork.
+
+Verified with `npm run typecheck`, targeted ESLint on changed TSX/tests, `npm run build`, and `npm run test:browser -- e2e/ui-polish.spec.ts --grep 'scrapbook hero' --workers=3` (3 passed). Chromium hero screenshots inspected at 1440×900, 1024×768, and 390×844: `/tmp/stickerlab-ui-audit/scrapbook-*.png`. Focused tests also exercise search/no-results/reset.
+
+Broader checks exposed unrelated current catalog mismatches: `npm test -- src/app.test.tsx` had 14 passing and 3 failing tests expecting the old “Good Vibes Pack” name; the existing `pages and shared dialogs` browser checks stopped on missing `/art/templates/sample-0.png` through `sample-3.png`. A final full `npm run lint` also reported undefined `FileReader`, `Buffer`, and `console` in concurrently added `scripts/generate-template-previews.mjs` (plus a repository-provider Fast Refresh warning). These unrelated issues were not changed in this visual task. No physical-device or Firefox/WebKit verification.
+
 ## Boundaries
 
 No new dependencies, cloud setup, or database migrations. Source PNGs and the source ZIP are preserved; the app serves nine optimized WebP derivatives. These decorative images do not replace editable template data or pretend to be saved user stickers. Artwork rights still need owner review before public distribution; a new layout is not legal clearance.

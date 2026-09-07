@@ -16,3 +16,9 @@ Decorative sample images are stored locally under `public/samples/`. They are no
 These files are low resolution and are only for UI decoration / optional sample insertion. Do not treat them as production 512/1024 source art.
 
 `e2e/fixtures/red.png` and `e2e/fixtures/center-blue.png` are generated test fixtures (solid/test pixels), not third-party artwork.
+
+## Scrapbook hero
+
+`public/art/scrapbook-paper.svg` is original code-drawn decorative artwork inspired by the user-supplied scrapbook panel: paper polygons, procedural grain, print-like lines, and gingham. It contains no embedded screenshot, external images, or fonts. The Templates hero reuses the existing supplied cat/star cutouts under their existing rights limitations; its headline and description remain HTML.
+
+Chewy is bundled from Google Fonts under the SIL Open Font License 1.1 (`public/fonts/chewy-LICENSE.txt`). The yellow sparkle (`public/art/stickers/07-yellow-sparkle.webp`) is a derivative of user-supplied cutout 07, with the same unverified artwork rights as the other cutouts.

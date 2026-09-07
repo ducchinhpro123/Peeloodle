@@ -23,6 +23,26 @@ async function expectDialogFits(page: Page, dialog: Locator) {
 }
 
 for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }, { width: 390, height: 844 }]) {
+  test(`scrapbook hero stays readable at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/templates')
+    await page.evaluate(() => document.fonts.ready)
+    const hero = page.locator('.hero')
+    await expect(hero.getByRole('heading', { name: 'Find your vibe. Make it yours.' })).toBeVisible()
+    await hero.locator('img').evaluateAll((images) => Promise.all(images.map((image) => image.decode())))
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const copy = (await hero.locator('.hero-copy').boundingBox())!
+    const art = (await hero.locator('.collage').boundingBox())!
+    if (viewport.width === 390) expect(art.y).toBeGreaterThan(copy.y + copy.height)
+    else expect(art.x).toBeGreaterThan(copy.x + copy.width - 12)
+    await hero.screenshot({ path: `${screenshots}/scrapbook-${viewport.width}.png` })
+    await page.getByRole('textbox', { name: 'Search sample templates' }).fill('no-such-template')
+    await expect(page.getByRole('heading', { name: 'No sample templates found' })).toBeVisible()
+    await page.getByRole('button', { name: 'Reset filters' }).click()
+    await expect(page.locator('.template-card').first()).toBeVisible()
+  })
+
   test(`pages and shared dialogs stay usable at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport)
     await page.emulateMedia({ reducedMotion: 'reduce' })

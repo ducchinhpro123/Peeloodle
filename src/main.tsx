@@ -369,7 +369,7 @@ function TemplatesPage() {
 
   return (
     <Shell>
-      <Hero title={<>Find your vibe.<br /><em>Make it yours.</em></>} kicker={<p className="hero-kicker"><Sparkles size={14} /> THE INSPIRATION STATION</p>} art={<StickerCollage variant="templates" />}>
+      <Hero title={<><span>Find your vibe.</span><br /><em>Make it yours.</em></>} kicker={<p className="hero-kicker"><Sparkles size={14} /> THE INSPIRATION STATION</p>} art={<StickerCollage variant="templates" />}>
         Start with a spark, add your own twist. Every template becomes your very own editable sticker.
       </Hero>
       <div className="pills" aria-label="Template category filters">{TEMPLATE_CATEGORIES.map((item) => <button aria-pressed={category === item} onClick={() => setCategory(item)} key={item}>{item}</button>)}</div>
