@@ -1,0 +1,175 @@
+import { crc32, deflateSync } from 'node:zlib'
+import { describe, expect, it } from 'vitest'
+import { createProjectDocument } from '../../lib/persistence/repository'
+import type { AssetRecord } from '../../lib/persistence/repository'
+import type { ImageLayer, TextLayer } from '../../types/domain'
+import { ExportError, readPngSize, renderDocument, type CanvasLike } from './renderDocument'
+
+const identity = { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 }
+
+function readBlobBytes(blob: Blob): Promise<Uint8Array> {
+  if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer().then((buffer) => new Uint8Array(buffer))
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsArrayBuffer(blob)
+  })
+}
+
+function pngChunk(type: string, data: Buffer) {
+  const typeBuf = Buffer.from(type)
+  const crc = Buffer.alloc(4)
+  crc.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])) >>> 0)
+  const len = Buffer.alloc(4)
+  len.writeUInt32BE(data.length)
+  return Buffer.concat([len, typeBuf, data, crc])
+}
+
+function encodePng(width: number, height: number, pixels: Uint8ClampedArray) {
+  const raw = Buffer.alloc((width * 4 + 1) * height)
+  for (let y = 0; y < height; y += 1) {
+    raw[y * (width * 4 + 1)] = 0
+    Buffer.from(pixels.buffer, pixels.byteOffset + y * width * 4, width * 4).copy(raw, y * (width * 4 + 1) + 1)
+  }
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(width, 0)
+  ihdr.writeUInt32BE(height, 4)
+  ihdr[8] = 8
+  ihdr[9] = 6
+  const png = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', deflateSync(raw)),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ])
+  return new Blob([png], { type: 'image/png' })
+}
+
+function fakeCanvas(width: number, height: number): CanvasLike & { pixels: Uint8ClampedArray } {
+  const pixels = new Uint8ClampedArray(width * height * 4)
+  const paintCenter = () => {
+    const x = Math.floor(width / 2)
+    const y = Math.floor(height / 2)
+    const i = (y * width + x) * 4
+    pixels[i] = 30
+    pixels[i + 1] = 144
+    pixels[i + 2] = 255
+    pixels[i + 3] = 255
+  }
+  const ctx = {
+    globalAlpha: 1,
+    font: '',
+    fillStyle: '',
+    textBaseline: 'top',
+    save() {},
+    restore() {},
+    setTransform() {},
+    scale() {},
+    translate() {},
+    rotate() {},
+    clearRect() {
+      pixels.fill(0)
+    },
+    drawImage() {
+      paintCenter()
+    },
+    fillText() {
+      paintCenter()
+    },
+    beginPath() {},
+    arc() {},
+    fillRect() {
+      paintCenter()
+    },
+    fill() {
+      paintCenter()
+    },
+  }
+  return {
+    width,
+    height,
+    pixels,
+    getContext: (type: '2d') => (type === '2d' ? (ctx as unknown as CanvasRenderingContext2D) : null),
+    toBlob: (callback) => callback(encodePng(width, height, pixels)),
+  }
+}
+
+describe('renderDocument', () => {
+  it('rejects missing assets instead of reporting success', async () => {
+    const document = createProjectDocument({ id: 'p1' })
+    const layer: ImageLayer = {
+      id: 'img',
+      name: 'Image',
+      kind: 'image',
+      assetId: 'missing',
+      transform: identity,
+      opacity: 1,
+      visible: true,
+      locked: false,
+    }
+    document.layers = [layer]
+    document.assetIds = ['missing']
+    await expect(renderDocument(document, new Map(), { size: 512 })).rejects.toBeInstanceOf(ExportError)
+  })
+
+  it('rejects decode failures', async () => {
+    const document = createProjectDocument({ id: 'p1' })
+    const record: AssetRecord = {
+      asset: { id: 'a1', mimeType: 'image/png', width: 8, height: 8, blobKey: 'a1', provenance: 'test' },
+      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+    }
+    document.layers = [
+      {
+        id: 'img',
+        name: 'Image',
+        kind: 'image',
+        assetId: 'a1',
+        transform: identity,
+        opacity: 1,
+        visible: true,
+        locked: false,
+      },
+    ]
+    document.assetIds = ['a1']
+    await expect(
+      renderDocument(document, { a1: record }, {
+        size: 512,
+        createCanvas: (width, height) => fakeCanvas(width, height),
+        decodeImage: async () => {
+          throw new Error('boom')
+        },
+        waitForFonts: async () => {},
+      }),
+    ).rejects.toThrow(/decode/i)
+  })
+
+  it('writes a transparent PNG at the requested size without a checkerboard fill', async () => {
+    const document = createProjectDocument({ id: 'p1' })
+    const text: TextLayer = {
+      id: 'text',
+      name: 'Text',
+      kind: 'text',
+      content: 'Hi',
+      fontFamily: 'Inter',
+      fontSize: 32,
+      color: '#08152f',
+      transform: { x: 40, y: 40, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+    }
+    document.layers = [text]
+    const canvas = fakeCanvas(512, 512)
+    const blob = await renderDocument(document, {}, {
+      size: 512,
+      createCanvas: () => canvas,
+      waitForFonts: async () => {},
+    })
+    const bytes = await readBlobBytes(blob)
+    expect(blob.type).toBe('image/png')
+    expect(readPngSize(bytes)).toMatchObject({ width: 512, height: 512, colorType: 6 })
+    expect(canvas.pixels[3]).toBe(0)
+    expect(canvas.pixels[(256 * 512 + 256) * 4 + 3]).toBe(255)
+  })
+})
