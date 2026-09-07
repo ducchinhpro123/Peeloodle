@@ -232,4 +232,28 @@ describe('IdbRepository', () => {
     await expectCode(repo.getProject('project-1'), 'not_found')
     expect((await repo.getAsset('asset-1')).asset.id).toBe('asset-1')
   })
+
+  it('saves, lists, and deletes packs without affecting underlying projects in Memory and IndexedDB', async () => {
+    for (const repo of [createMemoryRepository(), createIdbRepository(`stickerlab-packs-${crypto.randomUUID()}`)]) {
+      const pack = {
+        id: 'pack-1',
+        title: 'Cool Stickers',
+        description: 'A test pack',
+        visibility: 'local' as const,
+        projectIds: ['project-1', 'project-2'],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      await repo.savePack(pack)
+      const loaded = await repo.getPack('pack-1')
+      expect(loaded.title).toBe('Cool Stickers')
+      expect(loaded.projectIds).toEqual(['project-1', 'project-2'])
+      expect(await repo.listPacks()).toHaveLength(1)
+
+      // Deleting pack does not throw and removes pack
+      await repo.deletePack('pack-1')
+      expect(await repo.listPacks()).toHaveLength(0)
+      await expectCode(repo.getPack('pack-1'), 'not_found')
+    }
+  })
 })

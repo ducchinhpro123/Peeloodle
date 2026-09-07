@@ -305,3 +305,48 @@ test('template cloning and layer manager workflow', async ({ page }) => {
   await page.getByRole('link', { name: /Good Vibes Pack Copy/i }).click()
   await expect(page.getByLabel('Sticker title')).toHaveValue('Good Vibes Pack Copy')
 })
+
+test('pack creation, adding sticker, and ZIP export', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openEditorFromDashboard(page)
+  await page.getByRole('button', { name: 'Text' }).click()
+  await page.getByLabel('Text content').fill('Sticker For Pack')
+  await page.getByLabel('Sticker title').fill('Pack Sticker 1')
+  await page.getByRole('button', { name: /save to my stickers/i }).click()
+  await expect(page.getByRole('status')).toContainText(/saved locally/i)
+
+  await page.goto('/my-stickers')
+  await expect(page.getByRole('heading', { name: 'My Sticker Packs' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'New Pack' }).first().click()
+  const createDialog = page.getByRole('dialog', { name: 'Create New Pack' })
+  await expect(createDialog).toBeVisible()
+  await createDialog.getByLabel('Pack Name').fill('E2E Pack')
+  await createDialog.getByRole('button', { name: 'Create Pack' }).click()
+  await expect(createDialog).toBeHidden()
+
+  await expect(page.getByRole('heading', { name: 'E2E Pack' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Add Stickers' }).click()
+  const addDialog = page.getByRole('dialog', { name: /add stickers to e2e pack/i })
+  await expect(addDialog).toBeVisible()
+  await addDialog.getByRole('checkbox').click()
+  await page.keyboard.press('Escape')
+
+  await expect(page.locator('.pack-detail')).toContainText('1 stickers · Local')
+
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download ZIP' }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('e2e_pack.zip')
+  const downloadPath = await download.path()
+  expect(downloadPath).toBeTruthy()
+
+  const { readFileSync } = await import('node:fs')
+  const zipBytes = readFileSync(downloadPath!)
+  expect(zipBytes[0]).toBe(0x50)
+  expect(zipBytes[1]).toBe(0x4b)
+  expect(zipBytes[2]).toBe(0x03)
+  expect(zipBytes[3]).toBe(0x04)
+  expect(zipBytes.length).toBeGreaterThan(200)
+})

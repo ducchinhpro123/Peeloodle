@@ -23,4 +23,5 @@ export type ProjectDocument = {
 export type Asset = { id: string; mimeType: string; width: number; height: number; blobKey: string; cloudObjectPath?: string; provenance: string }
 export type Pack = { id: string; title: string; description: string; coverAssetId?: string; visibility: 'local' | 'private'; createdAt: string; updatedAt: string }
 export type PackItem = { packId: string; projectId: string; position: number }
+export type PackRecord = Pack & { projectIds: string[] }
 export type Template = { id: string; title: string; category: string; tags: string[]; preview: string; document: ProjectDocument }

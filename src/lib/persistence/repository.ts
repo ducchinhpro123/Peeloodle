@@ -1,4 +1,4 @@
-import type { Asset, ProjectDocument } from '../../types/domain'
+import type { Asset, PackRecord, ProjectDocument } from '../../types/domain'
 import { parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
 
 export { createProjectDocument, isPersistenceError, parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
@@ -6,7 +6,8 @@ export type { PersistenceErrorCode } from './document'
 
 const PROJECTS_STORE = 'projects'
 const ASSETS_STORE = 'assets'
-const DB_VERSION = 1
+const PACKS_STORE = 'packs'
+const DB_VERSION = 2
 const DEFAULT_DB_NAME = 'stickerlab-local'
 
 /** Metadata plus the immutable original blob. Never part of ProjectDocument. */
@@ -26,11 +27,16 @@ export interface StickerLabRepository {
   saveAsset(record: AssetRecord): Promise<void>
   deleteAsset(id: string): Promise<void>
   saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[]): Promise<void>
+  getPack(id: string): Promise<PackRecord>
+  listPacks(): Promise<PackRecord[]>
+  savePack(record: PackRecord): Promise<void>
+  deletePack(id: string): Promise<void>
 }
 
 export class MemoryRepository implements StickerLabRepository {
   private projects = new Map<string, unknown>()
   private assets = new Map<string, AssetRecord>()
+  private packs = new Map<string, PackRecord>()
   private failNextWrite = false
 
   injectWriteFailure(): void {
@@ -102,6 +108,26 @@ export class MemoryRepository implements StickerLabRepository {
     this.projects = nextProjects
   }
 
+  async getPack(id: string): Promise<PackRecord> {
+    const pack = this.packs.get(id)
+    if (!pack) throw new PersistenceError('not_found', `Pack ${id} was not found`)
+    return clonePackRecord(pack)
+  }
+
+  async listPacks(): Promise<PackRecord[]> {
+    return [...this.packs.values()].map(clonePackRecord).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  }
+
+  async savePack(record: PackRecord): Promise<void> {
+    this.guardWrite()
+    this.packs.set(record.id, clonePackRecord(record))
+  }
+
+  async deletePack(id: string): Promise<void> {
+    this.guardWrite()
+    this.packs.delete(id)
+  }
+
   private guardWrite(): void {
     if (!this.failNextWrite) return
     this.failNextWrite = false
@@ -169,6 +195,34 @@ export class IdbRepository implements StickerLabRepository {
     await this.transact([ASSETS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(ASSETS_STORE).delete(id)))
   }
 
+  async getPack(id: string): Promise<PackRecord> {
+    const row = await this.transact([PACKS_STORE], 'readonly', (tx) => idbRequest<unknown>(tx.objectStore(PACKS_STORE).get(id)))
+    if (row === undefined) throw new PersistenceError('not_found', `Pack ${id} was not found`)
+    return parsePackRecord(row)
+  }
+
+  async listPacks(): Promise<PackRecord[]> {
+    const rows = await this.transact([PACKS_STORE], 'readonly', (tx) => idbRequest<unknown[]>(tx.objectStore(PACKS_STORE).getAll()))
+    const packs: PackRecord[] = []
+    for (const row of rows ?? []) {
+      try {
+        packs.push(parsePackRecord(row))
+      } catch {
+        // Skip unreadable rows
+      }
+    }
+    return packs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  }
+
+  async savePack(record: PackRecord): Promise<void> {
+    const clean = parsePackRecord(record)
+    await this.transact([PACKS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(PACKS_STORE).put(clean)))
+  }
+
+  async deletePack(id: string): Promise<void> {
+    await this.transact([PACKS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(PACKS_STORE).delete(id)))
+  }
+
   async saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[]): Promise<void> {
     const clean = serializeProjectDocument(document)
     const storedAssets = await Promise.all(assets.map(toStoredAsset))
@@ -229,6 +283,26 @@ let localRepository: StickerLabRepository | undefined
 export function getLocalRepository(): StickerLabRepository {
   if (!localRepository) localRepository = createIdbRepository()
   return localRepository
+}
+
+export function parsePackRecord(value: unknown): PackRecord {
+  if (typeof value !== 'object' || value === null) throw new PersistenceError('malformed_data', 'Pack must be an object')
+  const raw = value as Record<string, unknown>
+  const id = typeof raw.id === 'string' && raw.id ? raw.id : undefined
+  const title = typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : undefined
+  if (!id || !title) throw new PersistenceError('malformed_data', 'Pack must have id and title')
+  const description = typeof raw.description === 'string' ? raw.description : ''
+  const visibility = raw.visibility === 'private' ? 'private' : 'local'
+  const projectIds = Array.isArray(raw.projectIds) ? raw.projectIds.filter((p): p is string => typeof p === 'string') : []
+  const createdAt = typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString()
+  const updatedAt = typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString()
+  const record: PackRecord = { id, title, description, visibility, projectIds, createdAt, updatedAt }
+  if (typeof raw.coverAssetId === 'string') record.coverAssetId = raw.coverAssetId
+  return record
+}
+
+function clonePackRecord(record: PackRecord): PackRecord {
+  return { ...record, projectIds: [...record.projectIds] }
 }
 
 function cloneAssetRecord(record: AssetRecord): AssetRecord {
@@ -295,6 +369,7 @@ function openDatabase(name: string): Promise<IDBDatabase> {
       const db = request.result
       if (!db.objectStoreNames.contains(PROJECTS_STORE)) db.createObjectStore(PROJECTS_STORE, { keyPath: 'id' })
       if (!db.objectStoreNames.contains(ASSETS_STORE)) db.createObjectStore(ASSETS_STORE, { keyPath: 'id' })
+      if (!db.objectStoreNames.contains(PACKS_STORE)) db.createObjectStore(PACKS_STORE, { keyPath: 'id' })
     }
     request.onsuccess = () => {
       const db = request.result

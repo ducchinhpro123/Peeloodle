@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it } from 'vitest'
 import { App } from './main'
-import { createMemoryRepository } from './lib/persistence/repository'
+import { createMemoryRepository, createProjectDocument } from './lib/persistence/repository'
 import { resetEditorStore, useEditorStore } from './features/editor/store'
 
 class ResizeObserver { observe() {} unobserve() {} disconnect() {} }
@@ -143,6 +143,57 @@ describe('foundation interactions', () => {
     expect(favBtn).toHaveTextContent('♡')
     fireEvent.click(favBtn)
     expect(screen.getAllByRole('button', { name: 'Remove Good Vibes Pack from favorites' })[0]).toHaveTextContent('❤️')
+  })
+
+  it('creates, inspects, adds stickers to, duplicates, and deletes a pack', async () => {
+    const repo = createMemoryRepository()
+    const p1 = createProjectDocument({ id: 'proj-1', title: 'Happy Cat' })
+    await repo.saveProject(p1)
+
+    render(
+      <MemoryRouter initialEntries={['/my-stickers']}>
+        <App repository={repo} />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'No local packs yet' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getAllByRole('button', { name: /new pack/i })[0]!)
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Pack' })
+    fireEvent.change(within(dialog).getByLabelText('Pack Name'), { target: { value: 'My Cats' } })
+    fireEvent.change(within(dialog).getByLabelText('Description (optional)'), { target: { value: 'Cats stickers' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create Pack' }))
+
+    await waitFor(async () => {
+      const packs = await repo.listPacks()
+      expect(packs).toHaveLength(1)
+      expect(packs[0]?.title).toBe('My Cats')
+    })
+    expect(await screen.findByRole('heading', { name: 'My Cats' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /add stickers/i }))
+    const addDialog = await screen.findByRole('dialog', { name: /add stickers to my cats/i })
+    const checkbox = within(addDialog).getByRole('checkbox')
+    fireEvent.click(checkbox)
+    fireEvent.click(within(addDialog).getByRole('button', { name: 'Close dialog' }))
+
+    await waitFor(async () => {
+      const packs = await repo.listPacks()
+      expect(packs[0]?.projectIds).toContain('proj-1')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }))
+    await waitFor(async () => {
+      const packs = await repo.listPacks()
+      expect(packs).toHaveLength(2)
+      expect(packs.some((p) => p.title === 'My Cats Copy')).toBe(true)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(async () => {
+      const packs = await repo.listPacks()
+      expect(packs).toHaveLength(1)
+    })
   })
 
   it('opens export options without claiming messenger success', async () => {

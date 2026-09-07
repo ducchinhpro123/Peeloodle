@@ -1,4 +1,4 @@
-import { StrictMode, Suspense, lazy, useState, type ReactNode } from 'react'
+import { StrictMode, Suspense, lazy, useCallback, useEffect, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { RepositoryProvider, useRepository } from './app/repository'
@@ -9,6 +9,8 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  Copy,
+  Download,
   Heart,
   Home,
   ImagePlus,
@@ -19,17 +21,19 @@ import {
   Plus,
   Scissors,
   Search,
-  Share2,
   Sparkles,
+  Trash2,
   Type,
   Upload,
   UserRound,
+  X,
 } from 'lucide-react'
 import {
   Button,
   Card,
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogTitle,
   DialogTrigger,
   NoticeDialog,
@@ -40,7 +44,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from './components/ui'
-import type { Template } from './types/domain'
+import type { PackRecord, ProjectDocument, Template } from './types/domain'
+import { downloadBlob } from './features/exports/renderDocument'
+import { exportPackZip } from './features/exports/zipExport'
 import {
   cloneTemplateDocument,
   getFavoriteTemplateIds,
@@ -357,51 +363,354 @@ function EditorLayout({ children }: { children: ReactNode }) {
 }
 
 function Packs() {
+  const repo = useRepository()
   const [params, setParams] = useSearchParams()
-  const view = params.get('view') === 'favorites' ? 'Favorites' : params.get('view') === 'shared' ? 'Shared with Me' : 'All Packs'
+  const [packs, setPacks] = useState<PackRecord[]>([])
+  const [projects, setProjects] = useState<ProjectDocument[]>([])
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newDesc, setNewDesc] = useState('')
+  const [addStickerOpen, setAddStickerOpen] = useState(false)
+  const [exportingZip, setExportingZip] = useState(false)
+
+  const reload = useCallback(() => {
+    void repo.listPacks().then((list) => {
+      setPacks(list)
+      setSelectedPackId((prev) => (prev && list.some((p) => p.id === prev) ? prev : list[0]?.id ?? null))
+    })
+    void repo.listProjects().then(setProjects)
+  }, [repo])
+
+  useEffect(() => {
+    reload()
+  }, [reload])
+
+  const viewParam = params.get('view')
+  const view =
+    viewParam === 'favorites'
+      ? 'Favorites'
+      : viewParam === 'shared'
+      ? 'Shared with Me'
+      : viewParam === 'export-history'
+      ? 'Export History'
+      : 'All Packs'
   const selectView = (next: string) => {
     if (next === 'Favorites') setParams({ view: 'favorites' })
     else if (next === 'Shared with Me') setParams({ view: 'shared' })
+    else if (next === 'Export History') setParams({ view: 'export-history' })
     else setParams({})
   }
+
+  const selectedPack = packs.find((p) => p.id === selectedPackId) || packs[0] || null
+
+  const handleCreatePack = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = newTitle.trim()
+    if (!trimmed) return
+    const newPack: PackRecord = {
+      id: crypto.randomUUID(),
+      title: trimmed,
+      description: newDesc.trim(),
+      visibility: 'local',
+      projectIds: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    await repo.savePack(newPack)
+    setNewTitle('')
+    setNewDesc('')
+    setCreateOpen(false)
+    setSelectedPackId(newPack.id)
+    reload()
+  }
+
+  const handleDuplicatePack = async (pack: PackRecord) => {
+    const dup: PackRecord = {
+      ...pack,
+      id: crypto.randomUUID(),
+      title: `${pack.title} Copy`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    await repo.savePack(dup)
+    setSelectedPackId(dup.id)
+    reload()
+  }
+
+  const handleDeletePack = async (packId: string) => {
+    await repo.deletePack(packId)
+    setSelectedPackId(null)
+    reload()
+  }
+
+  const handleToggleStickerInPack = async (projectId: string) => {
+    if (!selectedPack) return
+    const projectIds = selectedPack.projectIds.includes(projectId)
+      ? selectedPack.projectIds.filter((id) => id !== projectId)
+      : [...selectedPack.projectIds, projectId]
+    const updated: PackRecord = {
+      ...selectedPack,
+      projectIds,
+      updatedAt: new Date().toISOString(),
+    }
+    await repo.savePack(updated)
+    reload()
+  }
+
+  const handleReorderStickerInPack = async (index: number, direction: 'up' | 'down') => {
+    if (!selectedPack) return
+    const ids = [...selectedPack.projectIds]
+    const target = direction === 'up' ? index - 1 : index + 1
+    if (target < 0 || target >= ids.length) return
+    const [item] = ids.splice(index, 1)
+    ids.splice(target, 0, item!)
+    const updated: PackRecord = {
+      ...selectedPack,
+      projectIds: ids,
+      updatedAt: new Date().toISOString(),
+    }
+    await repo.savePack(updated)
+    reload()
+  }
+
+  const handleExportZip = async (pack: PackRecord) => {
+    setExportingZip(true)
+    try {
+      const zipBlob = await exportPackZip(pack, repo)
+      const safe = pack.title.replace(/[^\w.-]+/g, '_').toLowerCase() || 'pack'
+      downloadBlob(zipBlob, `${safe}.zip`)
+    } catch {
+      // Export handled gracefully
+    } finally {
+      setExportingZip(false)
+    }
+  }
+
   const favoriteIds = getFavoriteTemplateIds()
   const favoriteTemplates = templateData.filter((t) => favoriteIds.includes(t.id))
   const emptyHeading = view === 'Favorites' ? 'No favorite local packs yet' : view === 'Shared with Me' ? 'Sharing is not available yet' : 'No local packs yet'
-  const emptyDetail = view === 'Shared with Me' ? 'Cloud sharing is not set up. Local stickers stay on this device.' : 'Packs will group stickers without deleting them. Sharing is unavailable.'
+  const emptyDetail = view === 'Shared with Me' ? 'Cloud sharing is not set up. Local stickers stay on this device.' : 'Packs group stickers into collections and export them as ZIP archives.'
+
   return (
     <Shell>
-      <Hero title="My Sticker Packs" action={<div className="actions"><Unavailable><Plus />New Pack</Unavailable><Unavailable><ImagePlus />Import Photos</Unavailable></div>}>
-        Organize saved stickers locally. Pack collections, favorites, and sharing arrive in a later milestone.
+      <Hero
+        title="My Sticker Packs"
+        action={
+          <div className="actions">
+            <Button className="primary" onClick={() => setCreateOpen(true)}>
+              <Plus size={16} />New Pack
+            </Button>
+            <Link className="button" to="/create">
+              <ImagePlus size={16} />Import Photos
+            </Link>
+          </div>
+        }
+      >
+        Organize saved stickers locally. Group them into packs and export transparent PNG ZIP bundles.
       </Hero>
       <div className="packs-controls">
         <div className="pills">
           {['All Packs', 'My Packs', 'Favorites', 'Shared with Me', 'Export History'].map((item) => (
-            <button aria-pressed={view === item} disabled={!['All Packs', 'Favorites', 'Shared with Me'].includes(item)} onClick={() => selectView(item)} key={item}>{item}</button>
+            <button aria-pressed={view === item} disabled={!['All Packs', 'My Packs', 'Favorites', 'Shared with Me', 'Export History'].includes(item)} onClick={() => selectView(item)} key={item}>
+              {item}
+            </button>
           ))}
         </div>
-        <span className="muted">Packs are not implemented yet. Saved stickers are listed below.</span>
+        <span className="muted">Pack collections stay private on this device.</span>
       </div>
+
       {view === 'Favorites' && favoriteTemplates.length > 0 ? (
         <TemplateRail title="Favorite Templates" items={favoriteTemplates} />
       ) : null}
-      <section>
-        <div className="section-title"><h2>Local stickers</h2><Link to="/create">Create</Link></div>
-        <LocalProjectList emptyTitle="No local stickers yet" emptyDetail="Save a sticker from the editor to reopen it here." />
-      </section>
-      <div className="packs-layout">
+
+      {view === 'Shared with Me' ? (
+        <section className="empty packs-empty">
+          <Layers3 size={36} />
+          <h2>Sharing is not available yet</h2>
+          <p>{emptyDetail}</p>
+        </section>
+      ) : view === 'Export History' ? (
+        <section className="empty packs-empty">
+          <Download size={36} />
+          <h2>Export History</h2>
+          <p>Pack ZIP files and individual PNG stickers download directly to your browser downloads folder.</p>
+        </section>
+      ) : packs.length === 0 ? (
         <section className="empty packs-empty">
           <Layers3 size={36} />
           <h2>{emptyHeading}</h2>
           <p>{emptyDetail}</p>
-          <Unavailable label="Packs are not implemented"><Plus />New Pack</Unavailable>
+          <Button className="primary" onClick={() => setCreateOpen(true)}>
+            <Plus size={16} />Create a Pack
+          </Button>
         </section>
-        <aside className="pack-detail">
-          <h2>Pack details</h2>
-          <div className="detail-cover">✦</div>
-          <p>Select a local pack to inspect its stickers and settings once packs exist.</p>
-          <Button disabled><Share2 />Share Pack</Button>
-        </aside>
-      </div>
+      ) : (
+        <div className="packs-layout">
+          <div className="pack-grid">
+            {packs.map((pack) => (
+              <button
+                type="button"
+                key={pack.id}
+                className={`pack-card ${selectedPack?.id === pack.id ? 'active' : ''}`}
+                onClick={() => setSelectedPackId(pack.id)}
+              >
+                <div className="pack-thumb">📦</div>
+                <b>{pack.title}</b>
+                <small>{pack.description || 'No description'}</small>
+                <span className="pack-badge">{pack.projectIds.length} stickers · Local</span>
+              </button>
+            ))}
+          </div>
+          {selectedPack ? (
+            <aside className="pack-detail">
+              <h2>{selectedPack.title}</h2>
+              <p className="muted">{selectedPack.description || 'No description'}</p>
+              <span className="pack-badge">{selectedPack.projectIds.length} stickers · Local</span>
+
+              <div className="button-row" style={{ marginTop: 12 }}>
+                <Button
+                  className="primary"
+                  disabled={exportingZip || selectedPack.projectIds.length === 0}
+                  onClick={() => handleExportZip(selectedPack)}
+                >
+                  <Download size={16} />{exportingZip ? 'Exporting…' : 'Download ZIP'}
+                </Button>
+                <Button onClick={() => setAddStickerOpen(true)}>
+                  <Plus size={16} />Add Stickers
+                </Button>
+              </div>
+              <div className="button-row" style={{ marginTop: 8 }}>
+                <Button onClick={() => handleDuplicatePack(selectedPack)} title="Duplicate pack">
+                  <Copy size={16} />Duplicate
+                </Button>
+                <Button onClick={() => handleDeletePack(selectedPack.id)} title="Delete pack">
+                  <Trash2 size={16} />Delete
+                </Button>
+                <NoticeDialog title="Messenger packs are unavailable" trigger={<Button>WhatsApp / Telegram</Button>}>
+                  Native WhatsApp and Telegram installation is not implemented. Download the pack ZIP and add stickers manually.
+                </NoticeDialog>
+              </div>
+
+              <h3 style={{ marginTop: 16 }}>Stickers in Pack ({selectedPack.projectIds.length})</h3>
+              {selectedPack.projectIds.length === 0 ? (
+                <p className="muted" style={{ fontSize: 13 }}>No stickers in this pack. Click Add Stickers to include saved stickers.</p>
+              ) : (
+                <div className="pack-stickers-list">
+                  {selectedPack.projectIds.map((pId, idx) => {
+                    const prj = projects.find((p) => p.id === pId)
+                    const title = prj?.title || `Sticker (${pId.slice(0, 6)})`
+                    return (
+                      <div key={pId} className="pack-sticker-row">
+                        <span>{title}</span>
+                        <div className="layer-actions">
+                          <button
+                            type="button"
+                            className="layer-action-btn"
+                            disabled={idx === 0}
+                            aria-label={`Move ${title} up`}
+                            onClick={() => handleReorderStickerInPack(idx, 'up')}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            className="layer-action-btn"
+                            disabled={idx === selectedPack.projectIds.length - 1}
+                            aria-label={`Move ${title} down`}
+                            onClick={() => handleReorderStickerInPack(idx, 'down')}
+                          >
+                            ↓
+                          </button>
+                          <button
+                            type="button"
+                            className="layer-action-btn"
+                            aria-label={`Remove ${title} from pack`}
+                            onClick={() => handleToggleStickerInPack(pId)}
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </aside>
+          ) : (
+            <aside className="pack-detail">
+              <h2>Pack details</h2>
+              <div className="detail-cover">✦</div>
+              <p className="muted">Select a pack to inspect its stickers or export as ZIP.</p>
+            </aside>
+          )}
+        </div>
+      )}
+
+      <section style={{ marginTop: 24 }}>
+        <div className="section-title"><h2>All Local Stickers</h2><Link to="/create">Create</Link></div>
+        <LocalProjectList emptyTitle="No local stickers yet" emptyDetail="Save a sticker from the editor to reopen it here." />
+      </section>
+
+      {/* Dialogs */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogTitle>Create New Pack</DialogTitle>
+          <DialogDescription>Group your stickers into a named pack.</DialogDescription>
+          <form onSubmit={handleCreatePack}>
+            <div className="dialog-field">
+              <label htmlFor="pack-title">Pack Name</label>
+              <input
+                id="pack-title"
+                required
+                placeholder="e.g. My Favorite Cats"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+              />
+            </div>
+            <div className="dialog-field">
+              <label htmlFor="pack-desc">Description (optional)</label>
+              <input
+                id="pack-desc"
+                placeholder="e.g. Playful reactions for chats"
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+              />
+            </div>
+            <div className="button-row" style={{ marginTop: 16 }}>
+              <Button className="primary" type="submit">Create Pack</Button>
+              <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addStickerOpen} onOpenChange={setAddStickerOpen}>
+        <DialogContent>
+          <DialogTitle>Add stickers to {selectedPack?.title}</DialogTitle>
+          <DialogDescription>Check saved local stickers to include them in this pack.</DialogDescription>
+          {projects.length === 0 ? (
+            <p className="muted">No saved stickers yet. Create and save stickers in the editor first.</p>
+          ) : (
+            <div className="pack-stickers-list" style={{ maxHeight: 300 }}>
+              {projects.map((proj) => {
+                const inPack = selectedPack?.projectIds.includes(proj.id) ?? false
+                return (
+                  <div key={proj.id} className="pack-sticker-row">
+                    <span>{proj.title}</span>
+                    <input
+                      type="checkbox"
+                      aria-label={`Include ${proj.title}`}
+                      checked={inPack}
+                      onChange={() => handleToggleStickerInPack(proj.id)}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Shell>
   )
 }

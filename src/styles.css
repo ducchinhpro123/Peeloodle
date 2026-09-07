@@ -456,6 +456,83 @@ main { min-width: 0; flex: 1; padding: 0 16px 25px; overflow: hidden; }
 
 .packs-layout { display: grid; grid-template-columns: 1fr 360px; gap: 16px; }
 .packs-empty { min-height: 340px; }
+.pack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.pack-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+.pack-card.active {
+  border-color: #08b879;
+  box-shadow: 0 0 0 2px #08b87933;
+}
+.pack-thumb {
+  display: grid;
+  height: 100px;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ddf7ed, #f0eafe);
+  font-size: 40px;
+}
+.pack-card b { font-size: 15px; }
+.pack-card small { color: var(--muted); font-size: 12px; }
+.pack-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #eef4f8;
+  color: #3b506d;
+  font-size: 11px;
+  font-weight: 700;
+  width: max-content;
+}
+.pack-stickers-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.pack-sticker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.pack-sticker-row span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.dialog-field {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+.dialog-field label {
+  font-size: 13px;
+  font-weight: 700;
+}
+.dialog-field input, .dialog-field textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+}
 .pack-detail { padding: 16px; border: 1px solid var(--line); border-radius: 16px; }
 .detail-cover { display: grid; height: 155px; place-items: center; border-radius: 12px; background: linear-gradient(135deg, #dff7ee, #f5e7ff); font-size: 72px; }
 .pack-detail p { color: var(--muted); }
