@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent, type MutableRefObject } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, Copy, Download, Eye, EyeOff, Lock, Trash2, Unlock, Upload, Eraser, Paintbrush, Crop, Circle, Type, Smile, Sparkles, Layers, Undo2, Redo2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, ChevronLeft, Circle, CloudUpload, Copy, Crop, Download, Eye, EyeOff, FlipHorizontal2, FlipVertical2, Hand, Layers, Lightbulb, Lock, Maximize2, Paintbrush, Pencil, RotateCw, Scissors, Smile, Sparkles, Trash2, Type, Undo2, Unlock, Upload, Redo2 } from 'lucide-react'
 import { useRepository } from '../../app/repository'
 import { useCloudStatus, useWorkspace } from '../auth/Workspace'
 import { Button } from '@/components/ui/button'
@@ -177,6 +177,9 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
     updateInspectorTab(tab)
   }
   const [assetTab, setAssetTab] = useState('uploads')
+  const [railFocus, setRailFocus] = useState<'erase' | 'rotate' | 'restore' | 'outline' | 'text' | 'stickers' | 'effects' | 'layers' | null>(null)
+  const [tipOpen, setTipOpen] = useState(true)
+  const titleRef = useRef<HTMLInputElement>(null)
   const trayRef = useRef<HTMLElement>(null)
   const saveStatus = useEditorStore((state) => state.saveStatus)
   const saveError = useEditorStore((state) => state.saveError)
@@ -202,153 +205,192 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
     void persistDocument(repo, 'manual')
   }
 
+  const saveLabel = maskBusy && saveStatus !== 'save-failed'
+    ? 'Mask edit pending'
+    : cloud && !dirty && saveStatus === 'saved-locally'
+      ? cloudStatus.state === 'synced' ? 'Saved to cloud' : cloudStatus.state === 'syncing' ? 'Saved locally · syncing' : 'Saved locally · cloud pending'
+      : saveStatusLabel(saveStatus, dirty)
+  const savedOk = saveStatus === 'saved-locally' && !dirty && !maskBusy
+
   return (
-    <>
-      <section className="editor-top">
-        <div>
-          <h1>
-            <input
-              className="title-input"
-              aria-label="Sticker title"
-              value={document.title}
-              onFocus={() => useEditorStore.getState().beginGesture()}
-              onChange={(event) => useEditorStore.getState().updateTitle(event.target.value)}
-              onBlur={() => useEditorStore.getState().commitGesture()}
-            />
-          </h1>
-          <small className="save-status" data-state={saveStatus} role="status">
-            {maskBusy && saveStatus !== 'save-failed' ? 'Mask edit pending' : cloud && !dirty && saveStatus === 'saved-locally' ? cloudStatus.state === 'synced' ? 'Saved to cloud' : cloudStatus.state === 'syncing' ? 'Saved locally · syncing' : 'Saved locally · cloud pending' : saveStatusLabel(saveStatus, dirty)}
-            {saveStatus === 'save-failed' && saveError ? ` — ${saveError}` : ''}
-          </small>
-        </div>
-        <div className="editor-actions">
-          <Button className="primary" onClick={saveNow} aria-label="Save to My Stickers">
-            <Upload />Save to My Stickers
-          </Button>
-          <ExportDialog document={document} />
-        </div>
-      </section>
-      <div className="editor">
-        <aside className="tool-rail">
-          <b>Tools</b>
-          <span className="tool-note">A little crop, a little color, a whole lot of personality.</span>
-          <button
-            type="button"
-            aria-pressed={activeTool === 'erase'}
-            onClick={() => {
-              useEditorStore.getState().setTool('erase')
-              setInspectorTab('adjust')
-            }}
-          >
-            <Eraser size={18} />Erase
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeTool === 'restore'}
-            onClick={() => {
-              useEditorStore.getState().setTool('restore')
-              setInspectorTab('adjust')
-            }}
-          >
-            <Paintbrush size={18} />Brush / Restore
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeTool === 'rotate'}
-            onClick={() => {
-              useEditorStore.getState().setTool('rotate')
-              setInspectorTab('adjust')
-            }}
-          >
-            <Crop size={18} />Crop &amp; Rotate
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeTool === 'select' && inspectorTab === 'adjust'}
-            onClick={() => {
-              useEditorStore.getState().setTool('select')
-              setInspectorTab('adjust')
-            }}
-          >
-            <Circle size={18} />Outline &amp; Border
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeTool === 'text'}
-            onClick={() => {
-              useEditorStore.getState().addTextLayer()
-              setInspectorTab('adjust')
-            }}
-          >
-            <Type size={18} />Text
-          </button>
-          <button type="button" onClick={() => {
+    <div className="editor-workspace">
+      <aside className="tool-rail">
+        <Link className="back-home" to="/"><ChevronLeft size={16} />Back to Home</Link>
+        <button
+          type="button"
+          aria-pressed={activeTool === 'erase'}
+          onClick={() => {
+            setRailFocus('erase')
+            useEditorStore.getState().setTool('erase')
+            setInspectorTab('adjust')
+          }}
+        >
+          <Scissors size={18} />Background Eraser
+        </button>
+        <button
+          type="button"
+          aria-pressed={activeTool === 'rotate'}
+          onClick={() => {
+            setRailFocus('rotate')
+            useEditorStore.getState().setTool('rotate')
+            setInspectorTab('adjust')
+          }}
+        >
+          <Crop size={18} />Crop &amp; Rotate
+        </button>
+        <button
+          type="button"
+          aria-pressed={activeTool === 'restore'}
+          onClick={() => {
+            setRailFocus('restore')
+            useEditorStore.getState().setTool('restore')
+            setInspectorTab('adjust')
+          }}
+        >
+          <Paintbrush size={18} />Brush / Restore
+        </button>
+        <button
+          type="button"
+          aria-pressed={railFocus === 'outline' && inspectorTab === 'adjust' && activeTool === 'select'}
+          onClick={() => {
+            setRailFocus('outline')
+            useEditorStore.getState().setTool('select')
+            setInspectorTab('adjust')
+          }}
+        >
+          <Circle size={18} />Outline &amp; Border
+        </button>
+        <button
+          type="button"
+          aria-pressed={activeTool === 'text'}
+          onClick={() => {
+            setRailFocus('text')
+            useEditorStore.getState().addTextLayer()
+            setInspectorTab('adjust')
+          }}
+        >
+          <Type size={18} />Text
+        </button>
+        <button
+          type="button"
+          aria-label="Stickers & decorations"
+          aria-pressed={railFocus === 'stickers'}
+          onClick={() => {
+            setRailFocus('stickers')
             setAssetTab('stickers')
             trayRef.current?.scrollIntoView({ block: 'nearest' })
             trayRef.current?.focus({ preventScroll: true })
-          }}><Smile size={18} />Stickers &amp; decorations</button>
-          <button
-            type="button"
-            aria-pressed={activeTool === 'select' && inspectorTab === 'effects'}
-            onClick={() => {
-              useEditorStore.getState().setTool('select')
-              setInspectorTab('effects')
-            }}
-          >
-            <Sparkles size={18} />Filters &amp; Effects
+          }}
+        >
+          <Smile size={18} />Emoji &amp; Stickers
+        </button>
+        <button
+          type="button"
+          aria-pressed={inspectorTab === 'effects'}
+          onClick={() => {
+            setRailFocus('effects')
+            useEditorStore.getState().setTool('select')
+            setInspectorTab('effects')
+          }}
+        >
+          <Sparkles size={18} />Filters &amp; Effects
+        </button>
+        <button
+          type="button"
+          aria-pressed={inspectorTab === 'layers'}
+          onClick={() => {
+            setRailFocus('layers')
+            useEditorStore.getState().setTool('select')
+            setInspectorTab('layers')
+          }}
+        >
+          <Layers size={18} />Layers
+        </button>
+        <div className="tool-history">
+          <button type="button" disabled={!canUndo || maskBusy} onClick={() => useEditorStore.getState().undo()}>
+            <Undo2 size={16} />Undo
           </button>
-          <button
-            type="button"
-            aria-pressed={activeTool === 'select' && inspectorTab === 'layers'}
-            onClick={() => {
-              useEditorStore.getState().setTool('select')
-              setInspectorTab('layers')
-            }}
-          >
-            <Layers size={18} />Layers
+          <button type="button" disabled={!canRedo || maskBusy} onClick={() => useEditorStore.getState().redo()}>
+            <Redo2 size={16} />Redo
           </button>
-          <div className="tool-history">
-            <button type="button" disabled={!canUndo || maskBusy} onClick={() => useEditorStore.getState().undo()}>
-              <Undo2 size={16} />Undo
-            </button>
-            <button type="button" disabled={!canRedo || maskBusy} onClick={() => useEditorStore.getState().redo()}>
-              <Redo2 size={16} />Redo
-            </button>
+        </div>
+        <div className="tool-rail-footer">
+          {tipOpen ? (
+            <div className="tool-tip-card">
+              <strong><Lightbulb size={14} aria-hidden="true" /> Pro Tip</strong>
+              <p>Use the brush tool to fine-tune edges for a cleaner sticker!</p>
+              <button type="button" onClick={() => setTipOpen(false)}>Got it!</button>
+            </div>
+          ) : null}
+          <div className="tool-mascot" aria-hidden="true">
+            <img src="/art/stickers/04-winking-smiley.webp" alt="" width={52} height={52} />
+            <p>Good stickers make a brighter day!</p>
           </div>
-        </aside>
-        <section className="canvas-area">
+        </div>
+      </aside>
+      <div className="editor-stage">
+        <section className="editor-top">
+          <div className="editor-identity">
+            <h1>
+              <input
+                ref={titleRef}
+                className="title-input"
+                aria-label="Sticker title"
+                size={Math.max(document.title.length + 1, 8)}
+                value={document.title}
+                onFocus={() => useEditorStore.getState().beginGesture()}
+                onChange={(event) => useEditorStore.getState().updateTitle(event.target.value)}
+                onBlur={() => useEditorStore.getState().commitGesture()}
+              />
+              <Pencil size={16} aria-hidden="true" onClick={() => titleRef.current?.focus()} />
+            </h1>
+            <small className="save-status" data-state={saveStatus} role="status">
+              {savedOk ? <Check size={14} aria-hidden="true" /> : null}
+              {saveLabel}
+              {saveStatus === 'save-failed' && saveError ? ` — ${saveError}` : ''}
+            </small>
+          </div>
           <div className="canvas-controls">
-            <button type="button" aria-label="Zoom out" onClick={() => useEditorStore.getState().setViewport({ zoom: Math.max(0.25, Math.round((zoom - 0.1) * 10) / 10) })}>
-              −
-            </button>
+            <button type="button" aria-label="Zoom out" onClick={() => useEditorStore.getState().setViewport({ zoom: Math.max(0.25, Math.round((zoom - 0.1) * 10) / 10) })}>−</button>
             <b>{Math.round(zoom * 100)}%</b>
-            <button type="button" aria-label="Zoom in" onClick={() => useEditorStore.getState().setViewport({ zoom: Math.min(4, Math.round((zoom + 0.1) * 10) / 10) })}>
-              +
-            </button>
+            <button type="button" aria-label="Zoom in" onClick={() => useEditorStore.getState().setViewport({ zoom: Math.min(4, Math.round((zoom + 0.1) * 10) / 10) })}>+</button>
             <button type="button" aria-pressed={activeTool === 'pan'} aria-label="Pan canvas" onClick={() => useEditorStore.getState().setTool(activeTool === 'pan' ? 'select' : 'pan')}>
-              ✋
+              <Hand size={16} />
+            </button>
+            <button type="button" aria-label="Reset view" onClick={() => useEditorStore.getState().setViewport({ zoom: 1, panX: 0, panY: 0 })}>
+              <Maximize2 size={16} />
             </button>
           </div>
-          <div className="checkerboard">
-            <EditorArtboard urls={urls} />
-            {document.layers.length === 0 ? (
-              <div className="editor-welcome">
-                <img src="/art/stickers/04-winking-smiley.webp" alt="" width={72} height={72} />
-                <h2>A blank canvas. Endless you.</h2>
-                <p>Drop in a little personality. Start with a photo, then make it your own.</p>
-                <Button className="primary" onClick={() => fileRef.current?.click()}><Upload size={16} />Upload a photo</Button>
-                <small>PNG, JPEG or WebP · up to 15 MB</small>
-              </div>
-            ) : null}
+          <div className="editor-actions">
+            <Button onClick={saveNow} aria-label="Save to My Stickers">
+              <CloudUpload size={16} />Save to My Stickers
+            </Button>
+            <ExportDialog document={document} />
           </div>
         </section>
-        <Inspector document={document} selected={selected} tab={inspectorTab} onTabChange={setInspectorTab} />
+        <div className="editor">
+          <section className="canvas-area">
+            <div className="checkerboard">
+              <EditorArtboard urls={urls} />
+              {document.layers.length === 0 ? (
+                <div className="editor-welcome">
+                  <img src="/art/stickers/04-winking-smiley.webp" alt="" width={72} height={72} />
+                  <h2>A blank canvas. Endless you.</h2>
+                  <p>Drop in a little personality. Start with a photo, then make it your own.</p>
+                  <Button className="primary" onClick={() => fileRef.current?.click()}><Upload size={16} />Upload a photo</Button>
+                  <small>PNG, JPEG or WebP · up to 15 MB</small>
+                </div>
+              ) : null}
+            </div>
+          </section>
+          <Inspector document={document} selected={selected} urls={urls} tab={inspectorTab} onTabChange={setInspectorTab} />
+        </div>
+        <AssetTray urls={urls} fileRef={fileRef} onUpload={onUpload} uploadError={uploadError} document={document}
+          tab={assetTab} onTabChange={setAssetTab} trayRef={trayRef}
+          onAddText={(style) => { useEditorStore.getState().addTextLayer(style); setInspectorTab('adjust') }} />
       </div>
-      <PropertiesDialog document={document} selected={selected} tab={inspectorTab} onTabChange={setInspectorTab} />
-      <AssetTray urls={urls} fileRef={fileRef} onUpload={onUpload} uploadError={uploadError} document={document}
-        tab={assetTab} onTabChange={setAssetTab} trayRef={trayRef}
-        onAddText={(style) => { useEditorStore.getState().addTextLayer(style); setInspectorTab('adjust') }} />
-    </>
+      <PropertiesDialog document={document} selected={selected} urls={urls} tab={inspectorTab} onTabChange={setInspectorTab} />
+    </div>
   )
 }
 
@@ -417,11 +459,13 @@ function DomArtboard({ urls }: { urls: Record<string, string> }) {
 function PropertiesDialog({
   document,
   selected,
+  urls,
   tab,
   onTabChange,
 }: {
   document: ProjectDocument
   selected: Layer | undefined
+  urls: Record<string, string>
   tab?: string
   onTabChange?: (tab: string) => void
 }) {
@@ -433,7 +477,7 @@ function PropertiesDialog({
       <DialogContent>
         <DialogTitle>Sticker properties</DialogTitle>
         <DialogDescription>Fine-tune your selected layer.</DialogDescription>
-        <Inspector document={document} selected={selected} tab={tab} onTabChange={onTabChange} />
+        <Inspector document={document} selected={selected} urls={urls} tab={tab} onTabChange={onTabChange} />
       </DialogContent>
     </Dialog>
   )
@@ -442,23 +486,26 @@ function PropertiesDialog({
 function Inspector({
   document,
   selected,
+  urls,
   tab = 'adjust',
   onTabChange,
 }: {
   document: ProjectDocument
   selected: Layer | undefined
+  urls: Record<string, string>
   tab?: string
   onTabChange?: (tab: string) => void
 }) {
   return (
     <aside className="inspector">
       <h2>Sticker Properties</h2>
+      {selected?.kind === 'image' ? <ImageLayerCard layer={selected} urls={urls} /> : null}
       <Tabs.Root value={tab} onValueChange={onTabChange}>
         <Tabs.List>
           <Tabs.Trigger value="adjust">Adjust</Tabs.Trigger>
-          <Tabs.Trigger value="layers">Layers</Tabs.Trigger>
           <Tabs.Trigger value="effects">Effects</Tabs.Trigger>
           <Tabs.Trigger value="position">Position</Tabs.Trigger>
+          <Tabs.Trigger value="layers">Layers</Tabs.Trigger>
         </Tabs.List>
         <Tabs.Content value="adjust">
           {!selected ? <p className="muted">Select a layer to edit its properties.</p> : null}
@@ -666,17 +713,22 @@ function TextInspector({ layer }: { layer: Extract<Layer, { kind: 'text' }> }) {
   )
 }
 
-function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> }) {
+function ImageLayerCard({ layer, urls }: { layer: Extract<Layer, { kind: 'image' }>; urls: Record<string, string> }) {
   const replacementInput = useRef<HTMLInputElement>(null)
   const [replacing, setReplacing] = useState(false)
-  const outline = layer.outline ?? { enabled: false, color: '#ffffff', width: 12 }
-  const brushSize = useEditorStore((state) => state.brushSize)
-  const activeTool = useEditorStore((state) => state.activeTool)
+  const asset = useEditorStore((state) => state.assets[layer.assetId]?.asset)
   const store = useEditorStore.getState
   return (
-    <div className="inspector-fields">
-      <h3>Image layer</h3>
-      <Button title="Keeps position, rotation, and effects; resets crop and erasure. Backgrounds are not removed automatically." disabled={layer.locked || replacing} onClick={() => replacementInput.current?.click()}>{replacing ? 'Replacing…' : 'Replace photo'}</Button>
+    <div className="layer-card">
+      <img className="layer-card-thumb" alt="" src={urls[layer.assetId]} />
+      <div className="layer-card-meta">
+        <strong>{layer.name}</strong>
+        <small>{asset ? `${asset.width} × ${asset.height}` : 'Image layer'}</small>
+      </div>
+      <div className="layer-card-actions">
+        <Button title="Keeps position, rotation, and effects; resets crop and erasure. Backgrounds are not removed automatically." disabled={layer.locked || replacing} onClick={() => replacementInput.current?.click()}>{replacing ? 'Replacing…' : 'Replace photo'}</Button>
+        <Button className="layer-delete" aria-label={`Delete ${layer.name}`} onClick={() => { store().selectLayer(layer.id); store().removeSelected() }}><Trash2 size={14} />Delete</Button>
+      </div>
       <input ref={replacementInput} type="file" accept="image/png,image/jpeg,image/webp" aria-label="Replacement photo" hidden onChange={(event) => {
         const file = event.target.files?.[0]
         event.target.value = ''
@@ -684,48 +736,21 @@ function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> })
         setReplacing(true)
         void ingestIntoCurrentProject(() => ingestImageFile(file), undefined, layer.id).finally(() => setReplacing(false))
       }} />
-      <p className="muted">Replacement resets crop and erasure. Use a transparent photo or erase its background.</p>
-      <div className="button-row">
-        <Button
-          className={activeTool === 'erase' ? 'primary' : undefined}
-          onClick={() => store().setTool(activeTool === 'erase' ? 'select' : 'erase')}
-        >
-          Erase
-        </Button>
-        <Button
-          className={activeTool === 'restore' ? 'primary' : undefined}
-          onClick={() => store().setTool(activeTool === 'restore' ? 'select' : 'restore')}
-        >
-          Restore
-        </Button>
-        {layer.maskKey && (
-          <Button onClick={() => store().clearMask(layer.id)} title="Reset mask to show full image">
-            Reset Mask
-          </Button>
-        )}
-      </div>
+    </div>
+  )
+}
 
-      {(activeTool === 'erase' || activeTool === 'restore') && (
-        <label>
-          <span>Brush size <small>{brushSize}px</small></span>
-          <Slider
-            aria-label="Brush size"
-            min={4}
-            max={120}
-            value={[brushSize]}
-            onValueChange={(val) => store().setBrushSize(val[0] ?? 30)}
-          />
-        </label>
-      )}
-
-      <div className="button-row">
-        <Button onClick={() => store().flipSelected('horizontal')}>Flip H</Button>
-        <Button onClick={() => store().flipSelected('vertical')}>Flip V</Button>
-        <Button onClick={() => store().rotateSelected90()}>Rotate 90°</Button>
-      </div>
-      <label>
+function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> }) {
+  const outline = layer.outline ?? { enabled: false, color: '#ffffff', width: 12 }
+  const brushSize = useEditorStore((state) => state.brushSize)
+  const activeTool = useEditorStore((state) => state.activeTool)
+  const store = useEditorStore.getState
+  return (
+    <div className="inspector-fields">
+      <label className="inspector-toggle">
         Outline
         <input
+          className="inspector-switch"
           type="checkbox"
           aria-label="Toggle silhouette outline"
           checked={outline.enabled}
@@ -734,32 +759,86 @@ function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> })
       </label>
       {outline.enabled ? (
         <>
-          <label>
-            Outline color
-            <input
-              type="color"
-              aria-label="Outline color"
-              value={outline.color}
-              onChange={(e) => store().updateOutline(layer.id, { color: e.target.value })}
-            />
+          <label className="inspector-color">
+            <span>Color</span>
+            <span className="inspector-color-value">
+              <input
+                type="color"
+                aria-label="Outline color"
+                value={outline.color}
+                onChange={(e) => store().updateOutline(layer.id, { color: e.target.value })}
+              />
+              <code>{outline.color.toUpperCase()}</code>
+            </span>
           </label>
           <label>
-            <span>Thickness <small>{outline.width}px</small></span>
-            <Slider
-              aria-label="Outline thickness"
-              min={2}
-              max={40}
-              value={[outline.width]}
-              onPointerDown={(e) => {
-                if (e.button === 0) store().beginGesture()
-              }}
-              onPointerUp={() => store().commitGesture()}
-              onPointerCancel={() => store().commitGesture()}
-              onValueChange={(val) => store().updateOutline(layer.id, { width: val[0] ?? 12 })}
-            />
+            <span>Thickness</span>
+            <span className="inspector-slider-value">
+              <Slider
+                aria-label="Outline thickness"
+                min={2}
+                max={40}
+                value={[outline.width]}
+                onPointerDown={(e) => {
+                  if (e.button === 0) store().beginGesture()
+                }}
+                onPointerUp={() => store().commitGesture()}
+                onPointerCancel={() => store().commitGesture()}
+                onValueChange={(val) => store().updateOutline(layer.id, { width: val[0] ?? 12 })}
+              />
+              <small>{outline.width} px</small>
+            </span>
           </label>
         </>
       ) : null}
+
+      <div className="inspector-section">
+        <b>Flip &amp; Rotate</b>
+        <div className="button-row flip-row">
+          <Button onClick={() => store().flipSelected('horizontal')}><FlipHorizontal2 size={14} />Flip H</Button>
+          <Button onClick={() => store().flipSelected('vertical')}><FlipVertical2 size={14} />Flip V</Button>
+          <Button onClick={() => store().rotateSelected90()}><RotateCw size={14} />Rotate 90°</Button>
+        </div>
+      </div>
+
+      <div className="inspector-section">
+        <b>Background</b>
+        <div className="button-row">
+          <Button
+            className={activeTool === 'erase' ? 'primary' : undefined}
+            onClick={() => store().setTool(activeTool === 'erase' ? 'select' : 'erase')}
+          >
+            Erase
+          </Button>
+          <Button
+            className={activeTool === 'restore' ? 'primary' : undefined}
+            onClick={() => store().setTool(activeTool === 'restore' ? 'select' : 'restore')}
+          >
+            Restore
+          </Button>
+          {layer.maskKey && (
+            <Button onClick={() => store().clearMask(layer.id)} title="Reset mask to show full image">
+              Reset Mask
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {(activeTool === 'erase' || activeTool === 'restore') && (
+        <label>
+          <span>Brush size</span>
+          <span className="inspector-slider-value">
+            <Slider
+              aria-label="Brush size"
+              min={4}
+              max={120}
+              value={[brushSize]}
+              onValueChange={(val) => store().setBrushSize(val[0] ?? 30)}
+            />
+            <small>{brushSize} px</small>
+          </span>
+        </label>
+      )}
     </div>
   )
 }
@@ -887,11 +966,14 @@ function AssetTray({
       />
       {uploadError ? <p role="alert" className="asset-error">{uploadError}</p> : null}
       <Tabs.Root value={tab} onValueChange={onTabChange}>
-        <Tabs.List aria-label="Asset types">
-          <Tabs.Trigger value="uploads">Recent Uploads</Tabs.Trigger>
-          <Tabs.Trigger value="stickers">Stickers &amp; decorations</Tabs.Trigger>
-          <Tabs.Trigger value="text">Text styles</Tabs.Trigger>
-        </Tabs.List>
+        <div className="asset-tray-head">
+          <Tabs.List aria-label="Asset types">
+            <Tabs.Trigger value="uploads">Recent Uploads</Tabs.Trigger>
+            <Tabs.Trigger value="stickers">Stickers</Tabs.Trigger>
+            <Tabs.Trigger value="text">Text styles</Tabs.Trigger>
+          </Tabs.List>
+          <button type="button" className="asset-view-all" onClick={() => onTabChange('stickers')}>View All</button>
+        </div>
         <Tabs.Content value="uploads">
           <div className="asset-items">
             <button type="button" className="asset-upload" onClick={() => fileRef.current?.click()}>
@@ -973,7 +1055,7 @@ function ExportDialog({ document }: { document: ProjectDocument }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button aria-label="Export and share">
+        <Button className="primary" aria-label="Export and share">
           <Download />Export &amp; Share
         </Button>
       </DialogTrigger>
