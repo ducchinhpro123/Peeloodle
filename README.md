@@ -73,9 +73,29 @@ Fonts and cutouts are served locally, with no extra credentials or dependencies.
 - [x] Silhouette outlines & borders with customizable color and thickness on canvas and export
 - [x] Scrapbook-style Templates banner with textured paper, yellow headline highlights, and layered user-supplied cat stickers; responsive HTML text rather than a screenshot
 - [x] Manual alpha mask erase / restore in image-local coordinates with continuous strokes, crop clipping, matching cursor geometry, and undo/redo
-- [ ] Cloud auth/sharing and native WhatsApp/Telegram installation
+- [x] Email magic-link sign-in, session restoration, and private cloud saving backed by Supabase Auth, PostgreSQL, and private Storage
+- [x] Local-first save/reopen, offline editing, retry queue across reload, and explicit guest collection import
+- [x] Atomic compare-and-set concurrency revision checks with automatic conflict copies for stickers and packs
+- [ ] Public/read-only cloud sharing and native WhatsApp/Telegram installation
 
-Deferred actions open an explanation or stay disabled. They do not report success. Automatic background removal is unavailable.
+Deferred actions open an explanation or stay disabled. They do not report success. Automatic background removal and public sharing are unavailable.
+
+## Cloud configuration
+
+StickerLab operates fully local-only when cloud configuration is absent. To enable private cloud saving:
+
+1. Copy `.env.example` to `.env.local` and provide your project's URL and publishable key (`sb_publishable_...` or legacy `anon` key; never service-role secrets):
+   ```bash
+   cp .env.example .env.local
+   ```
+2. In Supabase Dashboard → Authentication → URL Configuration, set your Site URL and add each authorized redirect origin (e.g. `http://localhost:5173/auth/callback`, `http://127.0.0.1:4173/auth/callback`). Set matching comma-separated origins in `VITE_AUTH_ALLOWED_ORIGINS`.
+3. Migrations in `supabase/migrations/` apply the PostgreSQL schema, JSON schema document validators, owner-based RLS policies, private bucket configuration, and transactional `commit_sticker_resource` RPC.
+4. Default Supabase SMTP allows only authorized team members and has a 2/hour rate limit. For production delivery to any address, configure custom SMTP in Supabase Auth settings.
+5. Verification suite for real cloud authorization:
+   ```bash
+   node --env-file=.env.cloud-test scripts/verify-cloud.mjs
+   npx playwright test e2e/cloud.spec.ts
+   ```
 
 ## Design mapping
 

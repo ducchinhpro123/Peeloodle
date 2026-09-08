@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ImagePlus } from 'lucide-react'
 import { useRepository } from '../../app/repository'
+import { useCloudStatus, useWorkspace } from '../auth/Workspace'
 import type { ProjectDocument } from '../../types/domain'
 
 export function LocalProjectList({
@@ -14,6 +15,8 @@ export function LocalProjectList({
   limit?: number
 }) {
   const repo = useRepository()
+  const cloud = useWorkspace()?.cloud
+  const cloudStatus = useCloudStatus()
   const location = useLocation()
   const [projects, setProjects] = useState<ProjectDocument[] | null>(null)
 
@@ -30,7 +33,7 @@ export function LocalProjectList({
     return () => {
       live = false
     }
-  }, [repo, location.pathname, location.key])
+  }, [repo, location.pathname, location.key, cloudStatus.version])
 
   if (!projects) return <p className="muted">Loading projects…</p>
   const visible = limit ? projects.slice(0, limit) : projects
@@ -51,7 +54,7 @@ export function LocalProjectList({
         <Link className="project-card" to={`/editor/${project.id}`} key={project.id}>
           <div className="project-thumb" aria-hidden="true">{project.title.slice(0, 1) || 'S'}</div>
           <b>{project.title}</b>
-          <small>Saved locally</small>
+          <small>{cloud ? 'Private workspace' : 'Saved locally'}</small>
         </Link>
       ))}
       <Link className="project-card project-new" to="/create">

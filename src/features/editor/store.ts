@@ -14,6 +14,7 @@ export type TextStyle = Pick<TextLayer, 'content' | 'fontFamily' | 'fontSize' | 
 const defaultViewport: Viewport = { zoom: 1, panX: 0, panY: 0 }
 
 export type EditorStore = {
+  workspaceEpoch: number
   document: ProjectDocument | null
   assets: Record<string, AssetRecord>
   masks: Record<string, Blob>
@@ -187,6 +188,7 @@ function selected(state: EditorStore): Layer | undefined {
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
   ...resetState(),
+  workspaceEpoch: 0,
 
   createDraft: (id) => {
     const document = createProjectDocument({ id, title: 'Untitled Sticker' })
@@ -702,7 +704,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set({ dirty: false, saveStatus: 'saved-locally', saveError: null })
   },
 
-  reset: () => set(resetState()),
+  reset: () => set({ ...resetState(), workspaceEpoch: get().workspaceEpoch + 1 }),
 }))
 
 export function resetEditorStore(): void {

@@ -1,4 +1,5 @@
 import type { Asset, PackRecord, ProjectDocument } from '../../types/domain'
+import type { CommitResult, RemoteResource, ResourceKind, SyncEntry, SyncValue } from './syncTypes'
 import { parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
 
 export { createProjectDocument, isPersistenceError, parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
@@ -8,7 +9,8 @@ const PROJECTS_STORE = 'projects'
 const ASSETS_STORE = 'assets'
 const PACKS_STORE = 'packs'
 const MASKS_STORE = 'masks'
-const DB_VERSION = 3
+const SYNC_STORE = 'sync'
+const DB_VERSION = 4
 const DEFAULT_DB_NAME = 'stickerlab-local'
 
 /** Metadata plus the immutable original blob. Never part of ProjectDocument. */
@@ -35,8 +37,8 @@ export interface StickerLabRepository {
   saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[], masks?: MaskRecord[]): Promise<void>
   getPack(id: string): Promise<PackRecord>
   listPacks(): Promise<PackRecord[]>
-  savePack(record: PackRecord): Promise<void>
-  deletePack(id: string): Promise<void>
+  savePack(record: PackRecord, previous?: PackRecord): Promise<void>
+  deletePack(id: string, previous?: PackRecord): Promise<void>
   getMask(key: string): Promise<Blob>
   saveMask(key: string, blob: Blob): Promise<void>
   deleteMask(key: string): Promise<void>
@@ -174,7 +176,7 @@ export class MemoryRepository implements StickerLabRepository {
 export class IdbRepository implements StickerLabRepository {
   private openPromise: Promise<IDBDatabase> | undefined
 
-  constructor(private readonly dbName = DEFAULT_DB_NAME) {}
+  constructor(private readonly dbName = DEFAULT_DB_NAME, private readonly trackChanges = false) {}
 
   async getProject(id: string): Promise<ProjectDocument> {
     const value = await this.transact([PROJECTS_STORE], 'readonly', (tx) => idbRequest<unknown>(tx.objectStore(PROJECTS_STORE).get(id)))
@@ -200,7 +202,10 @@ export class IdbRepository implements StickerLabRepository {
   }
 
   async deleteProject(id: string): Promise<void> {
-    await this.transact([PROJECTS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(PROJECTS_STORE).delete(id)))
+    await this.transact([PROJECTS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
+      await idbRequest(tx.objectStore(PROJECTS_STORE).delete(id))
+      await this.enqueue(tx, 'project', id, null)
+    })
   }
 
   async getAsset(id: string): Promise<AssetRecord> {
@@ -251,12 +256,26 @@ export class IdbRepository implements StickerLabRepository {
   }
 
   async savePack(record: PackRecord): Promise<void> {
+    await this.savePackAtRevision(record)
+  }
+
+  protected async savePackAtRevision(record: PackRecord, baseRevision?: number): Promise<void> {
     const clean = parsePackRecord(record)
-    await this.transact([PACKS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(PACKS_STORE).put(clean)))
+    await this.transact([PACKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
+      await idbRequest(tx.objectStore(PACKS_STORE).put(clean))
+      await this.enqueue(tx, 'pack', clean.id, clean, baseRevision)
+    })
   }
 
   async deletePack(id: string): Promise<void> {
-    await this.transact([PACKS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(PACKS_STORE).delete(id)))
+    await this.deletePackAtRevision(id)
+  }
+
+  protected async deletePackAtRevision(id: string, baseRevision?: number): Promise<void> {
+    await this.transact([PACKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
+      await idbRequest(tx.objectStore(PACKS_STORE).delete(id))
+      await this.enqueue(tx, 'pack', id, null, baseRevision)
+    })
   }
 
   async getMask(key: string): Promise<Blob> {
@@ -282,7 +301,7 @@ export class IdbRepository implements StickerLabRepository {
     const storedMasks = await Promise.all(
       masks.map(async (m) => ({ key: m.key, blob: await blobToArrayBuffer(m.blob) })),
     )
-    await this.transact([PROJECTS_STORE, ASSETS_STORE, MASKS_STORE], 'readwrite', async (tx) => {
+    await this.transact([PROJECTS_STORE, ASSETS_STORE, MASKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
       const assetStore = tx.objectStore(ASSETS_STORE)
       const maskStore = tx.objectStore(MASKS_STORE)
       for (const stored of storedAssets) await idbRequest(assetStore.put(stored))
@@ -299,6 +318,96 @@ export class IdbRepository implements StickerLabRepository {
         }
       }
       await idbRequest(tx.objectStore(PROJECTS_STORE).put(clean))
+      await this.enqueue(tx, 'project', clean.id, clean)
+    })
+  }
+
+  async listSyncEntries(): Promise<SyncEntry[]> {
+    return this.transact([SYNC_STORE], 'readonly', (tx) => idbRequest(tx.objectStore(SYNC_STORE).getAll()))
+  }
+
+  protected async projectWithRevision(id: string): Promise<{ document: ProjectDocument; baseRevision: number }> {
+    return this.transact([PROJECTS_STORE, SYNC_STORE], 'readonly', async (tx) => {
+      const value: unknown = await idbRequest(tx.objectStore(PROJECTS_STORE).get(id))
+      if (value === undefined) throw new PersistenceError('not_found', `Project ${id} was not found`)
+      const entry: SyncEntry | undefined = await idbRequest(tx.objectStore(SYNC_STORE).get(`project:${id}`))
+      return { document: parseProjectDocument(value), baseRevision: entry?.baseRevision ?? 0 }
+    })
+  }
+
+  protected async packsWithRevisions(): Promise<Array<{ pack: PackRecord; baseRevision: number; pendingIds: string[] }>> {
+    return this.transact([PACKS_STORE, SYNC_STORE], 'readonly', async (tx) => {
+      const rows: unknown[] = await idbRequest(tx.objectStore(PACKS_STORE).getAll())
+      const result: Array<{ pack: PackRecord; baseRevision: number; pendingIds: string[] }> = []
+      for (const row of rows) {
+        try {
+          const pack = parsePackRecord(row)
+          const entry: SyncEntry | undefined = await idbRequest(tx.objectStore(SYNC_STORE).get(`pack:${pack.id}`))
+          result.push({ pack, baseRevision: entry?.baseRevision ?? 0, pendingIds: entry?.pending.map((operation) => operation.operationId) ?? [] })
+        } catch { /* An unreadable pack must not hide other packs. */ }
+      }
+      return result
+    })
+  }
+
+  protected writeBase?: (kind: ResourceKind, id: string) => number | undefined
+
+  private async enqueue(tx: IDBTransaction, kind: ResourceKind, id: string, value: SyncValue | null, baseRevision?: number) {
+    if (!this.trackChanges) return
+    const store = tx.objectStore(SYNC_STORE)
+    const key = `${kind}:${id}`
+    const entry: SyncEntry = await idbRequest(store.get(key)) ?? { key, kind, id, baseRevision: 0, pending: [] }
+    if (!entry.pending.length) entry.baseRevision = baseRevision ?? this.writeBase?.(kind, id) ?? entry.baseRevision
+    // The head may have reached the server. Never change its identity or snapshot.
+    // Only the not-yet-sent tail is coalesced, bounding the queue to two snapshots.
+    if (JSON.stringify(entry.pending.at(-1)?.value) === JSON.stringify(value)) return
+    entry.pending = [...entry.pending.slice(0, 1), { operationId: crypto.randomUUID(), value }]
+    await idbRequest(store.put(entry))
+  }
+
+  /** Cache only fully downloaded resources; never overwrite pending local work. */
+  async cacheRemote(resource: RemoteResource, assets: AssetRecord[] = [], masks: MaskRecord[] = []): Promise<void> {
+    const value = resource.kind === 'project' ? serializeProjectDocument(resource.value as ProjectDocument) : parsePackRecord(resource.value)
+    const storedAssets = await Promise.all(assets.map(toStoredAsset))
+    const storedMasks = await Promise.all(masks.map(async (mask) => ({ key: mask.key, blob: await blobToArrayBuffer(mask.blob) })))
+    await this.transact([PROJECTS_STORE, PACKS_STORE, ASSETS_STORE, MASKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
+      const key = `${resource.kind}:${resource.id}`
+      const entry: SyncEntry | undefined = await idbRequest(tx.objectStore(SYNC_STORE).get(key))
+      if (entry?.pending.length || (entry && entry.baseRevision > resource.revision)) return
+      for (const asset of storedAssets) await idbRequest(tx.objectStore(ASSETS_STORE).put(asset))
+      for (const mask of storedMasks) await idbRequest(tx.objectStore(MASKS_STORE).put(mask))
+      const store = tx.objectStore(resource.kind === 'project' ? PROJECTS_STORE : PACKS_STORE)
+      if (resource.deleted) await idbRequest(store.delete(resource.id))
+      else await idbRequest(store.put(value))
+      await idbRequest(tx.objectStore(SYNC_STORE).put({ key, kind: resource.kind, id: resource.id, baseRevision: resource.revision, pending: [], notice: entry?.notice } satisfies SyncEntry))
+    })
+  }
+
+  /** Acknowledge exactly the sent snapshot, leaving any later edit pending. */
+  async acknowledge(key: string, operationId: string, result: CommitResult): Promise<void> {
+    await this.transact([PROJECTS_STORE, PACKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
+      const sync = tx.objectStore(SYNC_STORE)
+      const entry: SyncEntry | undefined = await idbRequest(sync.get(key))
+      if (!entry || entry.pending[0]?.operationId !== operationId) return
+      entry.pending.shift()
+      const original = result.original ?? result.resource
+      if (!result.conflict) entry.baseRevision = original.revision
+      if (result.conflict) entry.notice = result.original ? `Conflict copy saved: ${result.resource.value.title}` : 'Deletion was not applied: the cloud version changed. Refresh and review it.'
+      const store = tx.objectStore(entry.kind === 'project' ? PROJECTS_STORE : PACKS_STORE)
+      if (result.original) {
+        const copyKey = `${entry.kind}:${result.resource.id}`
+        const copy: SyncEntry | undefined = await idbRequest(sync.get(copyKey))
+        if (!copy?.pending.length && (!copy || copy.baseRevision <= result.resource.revision)) {
+          await idbRequest(store.put(result.resource.value))
+          await idbRequest(sync.put({ key: copyKey, kind: entry.kind, id: result.resource.id, baseRevision: result.resource.revision, pending: [] } satisfies SyncEntry))
+        }
+      }
+      if (!entry.pending.length) {
+        if (original.deleted) await idbRequest(store.delete(original.id))
+        else await idbRequest(store.put(original.value))
+        entry.baseRevision = original.revision
+      }
+      await idbRequest(sync.put(entry))
     })
   }
 
@@ -441,6 +550,7 @@ function openDatabase(name: string): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(ASSETS_STORE)) db.createObjectStore(ASSETS_STORE, { keyPath: 'id' })
       if (!db.objectStoreNames.contains(PACKS_STORE)) db.createObjectStore(PACKS_STORE, { keyPath: 'id' })
       if (!db.objectStoreNames.contains(MASKS_STORE)) db.createObjectStore(MASKS_STORE, { keyPath: 'key' })
+      if (!db.objectStoreNames.contains(SYNC_STORE)) db.createObjectStore(SYNC_STORE, { keyPath: 'key' })
     }
     request.onsuccess = () => {
       const db = request.result

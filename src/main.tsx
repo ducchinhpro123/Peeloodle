@@ -1,12 +1,13 @@
 import { StrictMode, Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { RepositoryProvider, useRepository } from './app/repository'
+import { useRepository } from './app/repository'
+import { WorkspaceProvider, useCloudStatus, useWorkspace } from './features/auth/Workspace'
+import { Account, AuthCallback, CloudBanner } from './features/auth/Account'
 import { LocalProjectList } from './features/editor/LocalProjectList'
 import type { StickerLabRepository } from './lib/persistence/repository'
 import {
   Bell,
-  ChevronDown,
   ChevronRight,
   Clock,
   Copy,
@@ -106,9 +107,9 @@ function Header() {
         <Search size={16} /><span>Search templates and packs</span>
       </Unavailable>
       <NoticeDialog title="Notifications are unavailable" trigger={<Button className="icon" aria-label="Notifications"><Bell size={18} /></Button>}>
-        Notifications are unavailable until accounts exist.
+        Notifications are not implemented.
       </NoticeDialog>
-      <span className="profile" aria-label="Guest profile"><span>G</span><b>Guest</b><ChevronDown size={15} aria-hidden="true" /></span>
+      <Account />
     </header>
   )
 }
@@ -152,7 +153,7 @@ function Sidebar({ mobile = false }: { mobile?: boolean }) {
 }
 
 function Shell({ children, editor = false }: { children: ReactNode; editor?: boolean }) {
-  return <><Header /><div className={`layout${editor ? ' editor-layout' : ''}`}><Sidebar /><main>{children}</main></div></>
+  return <><Header /><div className={`layout${editor ? ' editor-layout' : ''}`}><Sidebar /><main><CloudBanner />{children}</main></div></>
 }
 
 const dashboardFeatures = [
@@ -335,10 +336,13 @@ function TemplateRail({
     setFavorites(toggleFavoriteTemplateId(id))
   }
 
+  const live = useRef(true)
+  useEffect(() => { live.current = true; return () => { live.current = false } }, [])
   const handleUse = async (template: Template) => {
     const { document, assets } = await instantiateTemplate(template)
+    if (!live.current) return
     await repo.saveProjectWithAssets(document, assets)
-    navigate(`/editor/${document.id}`)
+    if (live.current) navigate(`/editor/${document.id}`)
   }
 
   return (
@@ -386,11 +390,16 @@ function EditorLayout({ children }: { children: ReactNode }) {
 
 function Packs() {
   const repo = useRepository()
+  const cloud = useWorkspace()?.cloud
+  const cloudStatus = useCloudStatus()
+  const live = useRef(true)
+  useEffect(() => { live.current = true; return () => { live.current = false } }, [])
   const [params, setParams] = useSearchParams()
   const [packs, setPacks] = useState<PackRecord[]>([])
   const [projects, setProjects] = useState<ProjectDocument[]>([])
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [editingPack, setEditingPack] = useState<PackRecord | null>(null)
   const [deletePack, setDeletePack] = useState<PackRecord | null>(null)
   const deleteOpener = useRef<HTMLButtonElement | null>(null)
   const [newTitle, setNewTitle] = useState('')
@@ -406,6 +415,7 @@ function Packs() {
 
   const reload = useCallback(async () => {
     const [list, savedProjects] = await Promise.all([repo.listPacks(), repo.listProjects()])
+    if (!live.current) return
     setPacks(list)
     setProjects(savedProjects)
     setSelectedPackId((prev) => (prev && list.some((p) => p.id === prev) ? prev : list[0]?.id ?? null))
@@ -413,7 +423,7 @@ function Packs() {
 
   useEffect(() => {
     void reload().catch(() => setError('Could not load local packs. Please retry.'))
-  }, [reload])
+  }, [reload, cloudStatus.version])
 
   const runPackAction = async (action: () => Promise<void>) => {
     if (operationActive.current) return
@@ -456,15 +466,15 @@ function Packs() {
     const trimmed = newTitle.trim()
     if (!trimmed) return
     const newPack: PackRecord = {
-      id: crypto.randomUUID(),
+      id: editingPack?.id ?? crypto.randomUUID(),
       title: trimmed,
       description: newDesc.trim(),
-      visibility: 'local',
-      projectIds: [],
-      createdAt: new Date().toISOString(),
+      visibility: editingPack?.visibility ?? 'local',
+      projectIds: editingPack?.projectIds ?? [],
+      createdAt: editingPack?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
-    await repo.savePack(newPack)
+    await repo.savePack(newPack, editingPack ?? undefined)
     setNewTitle('')
     setNewDesc('')
     setCreateOpen(false)
@@ -484,7 +494,7 @@ function Packs() {
   }
 
   const handleDeletePack = async (packId: string) => {
-    await repo.deletePack(packId)
+    await repo.deletePack(packId, deletePack ?? undefined)
     deleteOpener.current = null
     setDeletePack(null)
     setSelectedPackId(null)
@@ -500,7 +510,7 @@ function Packs() {
       projectIds,
       updatedAt: new Date().toISOString(),
     }
-    await repo.savePack(updated)
+    await repo.savePack(updated, selectedPack)
   }
 
   const handleReorderStickerInPack = async (index: number, direction: 'up' | 'down') => {
@@ -515,7 +525,7 @@ function Packs() {
       projectIds: ids,
       updatedAt: new Date().toISOString(),
     }
-    await repo.savePack(updated)
+    await repo.savePack(updated, selectedPack)
   }
 
   const handleExportZip = async (pack: PackRecord) => {
@@ -523,7 +533,7 @@ function Packs() {
     try {
       const zipBlob = await exportPackZip(pack, repo)
       const safe = pack.title.replace(/[^\w.-]+/g, '_').toLowerCase() || 'pack'
-      downloadBlob(zipBlob, `${safe}.zip`)
+      if (live.current) downloadBlob(zipBlob, `${safe}.zip`)
     } finally {
       setExportingZip(false)
     }
@@ -542,7 +552,7 @@ function Packs() {
         art={<StickerCollage variant="packs" />}
         action={
           <div className="actions">
-            <Button ref={newPackButton} className="primary" onClick={(event) => { createOpener.current = event.currentTarget; setCreateOpen(true) }}>
+            <Button ref={newPackButton} className="primary" onClick={(event) => { createOpener.current = event.currentTarget; setEditingPack(null); setNewTitle(''); setNewDesc(''); setCreateOpen(true) }}>
               <Plus size={16} />New Pack
             </Button>
             <Link className="button" to="/create">
@@ -551,7 +561,7 @@ function Packs() {
           </div>
         }
       >
-        Organize saved stickers locally. Group them into packs and export transparent PNG ZIP bundles.
+        Organize saved stickers into packs and export transparent PNG ZIP bundles.
       </Hero>
       {error ? <p role="alert">{error}</p> : null}
       <div className="packs-controls">
@@ -562,7 +572,7 @@ function Packs() {
             </button>
           ))}
         </div>
-        <span className="muted">Pack collections stay private on this device.</span>
+        <span className="muted">{cloud ? 'Private account · local-first cloud saving' : 'Pack collections stay private on this device.'}</span>
       </div>
 
       {view === 'Favorites' && favoriteTemplates.length > 0 ? (
@@ -586,7 +596,7 @@ function Packs() {
           <Layers3 size={36} />
           <h2>{emptyHeading}</h2>
           <p>{emptyDetail}</p>
-          <Button className="primary" onClick={(event) => { createOpener.current = event.currentTarget; setCreateOpen(true) }}>
+          <Button className="primary" onClick={(event) => { createOpener.current = event.currentTarget; setEditingPack(null); setNewTitle(''); setNewDesc(''); setCreateOpen(true) }}>
             <Plus size={16} />Create a Pack
           </Button>
         </section>
@@ -603,7 +613,7 @@ function Packs() {
                 <div className="pack-thumb">📦</div>
                 <b>{pack.title}</b>
                 <small>{pack.description || 'No description'}</small>
-                <span className="pack-badge">{pack.projectIds.length} stickers · Local</span>
+                <span className="pack-badge">{pack.projectIds.length} stickers · {cloud ? 'Private' : 'Local'}</span>
               </button>
             ))}
           </div>
@@ -611,7 +621,7 @@ function Packs() {
             <aside className="pack-detail">
               <h2>{selectedPack.title}</h2>
               <p className="muted">{selectedPack.description || 'No description'}</p>
-              <span className="pack-badge">{selectedPack.projectIds.length} stickers · Local</span>
+              <span className="pack-badge">{selectedPack.projectIds.length} stickers · {cloud ? 'Private' : 'Local'}</span>
 
               <div className="button-row">
                 <Button
@@ -626,6 +636,7 @@ function Packs() {
                 </Button>
               </div>
               <div className="button-row">
+                <Button disabled={busy} onClick={(event) => { createOpener.current = event.currentTarget; setEditingPack(selectedPack); setNewTitle(selectedPack.title); setNewDesc(selectedPack.description); setCreateOpen(true) }}>Edit pack</Button>
                 <Button disabled={busy} onClick={() => void runPackAction(() => handleDuplicatePack(selectedPack))} title="Duplicate pack">
                   <Copy size={16} />Duplicate
                 </Button>
@@ -694,7 +705,7 @@ function Packs() {
       )}
 
       <section className="local-stickers-section">
-        <div className="section-title"><h2>All Local Stickers</h2><Link to="/create">Create</Link></div>
+        <div className="section-title"><h2>{cloud ? 'All Private Stickers' : 'All Local Stickers'}</h2><Link to="/create">Create</Link></div>
         <LocalProjectList emptyTitle="No local stickers yet" emptyDetail="Save a sticker from the editor to reopen it here." />
       </section>
 
@@ -713,7 +724,7 @@ function Packs() {
       {/* Dialogs */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); (createOpener.current?.isConnected ? createOpener.current : newPackButton.current)?.focus() }}>
-          <DialogTitle>Create New Pack</DialogTitle>
+          <DialogTitle>{editingPack ? 'Edit Pack' : 'Create New Pack'}</DialogTitle>
           <DialogDescription>Group your stickers into a named pack.</DialogDescription>
           <form onSubmit={(event) => { event.preventDefault(); void runPackAction(handleCreatePack) }}>
             <div className="dialog-field">
@@ -738,7 +749,7 @@ function Packs() {
             {error ? <p role="alert">{error}</p> : null}
             <DialogFooter>
               <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
-              <Button className="primary" type="submit" disabled={busy}>Create Pack</Button>
+              <Button className="primary" type="submit" disabled={busy}>{editingPack ? 'Save Pack' : 'Create Pack'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -779,8 +790,9 @@ function Packs() {
 
 export function App({ repository }: { repository?: StickerLabRepository } = {}) {
   return (
-    <RepositoryProvider repository={repository}>
+    <WorkspaceProvider repository={repository}>
       <Routes>
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/" element={<Dashboard />} />
         <Route path="/create" element={<EditorLayout><CreateEditor /></EditorLayout>} />
         <Route path="/editor/:projectId" element={<EditorLayout><ProjectEditor /></EditorLayout>} />
@@ -788,7 +800,7 @@ export function App({ repository }: { repository?: StickerLabRepository } = {}) 
         <Route path="/my-stickers" element={<Packs />} />
         <Route path="*" element={<Dashboard />} />
       </Routes>
-    </RepositoryProvider>
+    </WorkspaceProvider>
   )
 }
 

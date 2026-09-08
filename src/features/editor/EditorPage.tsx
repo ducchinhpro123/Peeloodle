@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ChangeEv
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowDown, ArrowUp, Copy, Download, Eye, EyeOff, Lock, Trash2, Unlock, Upload, Eraser, Paintbrush, Crop, Circle, Type, Smile, Sparkles, Layers, Undo2, Redo2 } from 'lucide-react'
 import { useRepository } from '../../app/repository'
+import { useCloudStatus, useWorkspace } from '../auth/Workspace'
 import {
   Button,
   Dialog,
@@ -72,6 +73,28 @@ function EditorWorkspace({ projectId }: { projectId?: string }) {
   const loadError = useEditorStore((state) => state.loadError)
   const loading = useEditorStore((state) => state.loading)
   const urls = useAssetUrls(assets)
+  const cloud = useWorkspace()?.cloud
+  const cloudStatus = useCloudStatus()
+  const conflict = projectId ? cloudStatus.conflicts[projectId] : undefined
+  useEffect(() => {
+    if (!conflict || !projectId) return
+    let live = true
+    void (async () => {
+      await useEditorStore.getState().finishMaskStroke?.()
+      if (!live) return
+      const state = useEditorStore.getState()
+      if (state.document?.id !== projectId) return
+      state.commitGesture()
+      const latest = useEditorStore.getState()
+      if (!latest.document) return
+      const newer = latest.dirty || latest.document.revision !== conflict.revision
+      latest.hydrate({ ...latest.document, id: conflict.id, title: `${latest.document.title} (conflict copy)` }, Object.values(latest.assets), Object.entries(latest.masks).map(([key, blob]) => ({ key, blob })))
+      if (newer) useEditorStore.setState({ dirty: true, saveStatus: 'unsaved' })
+      navigate(`/editor/${conflict.id}`, { replace: true })
+      cloud?.dismissConflict(projectId)
+    })().catch(() => useEditorStore.getState().setSaveStatus('save-failed', 'Finish the mask edit to open the conflict copy.'))
+    return () => { live = false }
+  }, [conflict, projectId, navigate, cloud])
 
   useEffect(() => {
     if (!projectId) return
@@ -149,6 +172,8 @@ function EditorWorkspace({ projectId }: { projectId?: string }) {
 }
 
 function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Record<string, string> }) {
+  const cloud = useWorkspace()?.cloud
+  const cloudStatus = useCloudStatus()
   const fileRef = useRef<HTMLInputElement>(null)
   const [inspectorTab, updateInspectorTab] = useState('adjust')
   const setInspectorTab = (tab: string) => {
@@ -198,7 +223,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
             />
           </h1>
           <small className="save-status" data-state={saveStatus} role="status">
-            {maskBusy && saveStatus !== 'save-failed' ? 'Mask edit pending' : saveStatusLabel(saveStatus, dirty)}
+            {maskBusy && saveStatus !== 'save-failed' ? 'Mask edit pending' : cloud && !dirty && saveStatus === 'saved-locally' ? cloudStatus.state === 'synced' ? 'Saved to cloud' : cloudStatus.state === 'syncing' ? 'Saved locally · syncing' : 'Saved locally · cloud pending' : saveStatusLabel(saveStatus, dirty)}
             {saveStatus === 'save-failed' && saveError ? ` — ${saveError}` : ''}
           </small>
         </div>
@@ -932,6 +957,7 @@ function ExportDialog({ document }: { document: ProjectDocument }) {
       const state = useEditorStore.getState()
       if (state.document?.id !== document.id) throw new Error('The open project changed. Reopen export to continue.')
       const blob = await renderDocument(state.document, state.assets, { size, masks: state.masks })
+      if (useEditorStore.getState().workspaceEpoch !== state.workspaceEpoch) throw new Error('Export canceled because the workspace changed.')
       const safeTitle = document.title.replace(/[^\w.-]+/g, '-').replace(/^-|-$/g, '') || 'sticker'
       downloadBlob(blob, `${safeTitle}-${size}.png`)
       setMessage('Download started. Check your browser downloads to confirm the file was saved.')
@@ -1070,6 +1096,7 @@ function captureSave(reason: 'auto' | 'manual') {
   if (!state.document) return null
   if (reason === 'auto' && !state.dirty) return null
   return {
+    workspaceEpoch: state.workspaceEpoch,
     document: serializeProjectDocument(state.document),
     records: referencedRecords(state.document, state.assets),
     masks: referencedMasks(state.document, state.masks),
@@ -1081,7 +1108,7 @@ async function persistDocument(repo: StickerLabRepository, reason: 'auto' | 'man
   if (initial.finishMaskStroke) {
     try { await initial.finishMaskStroke() } catch { return persistTail } // Stroke retains its recoverable error/work.
   }
-  if (useEditorStore.getState().document?.id !== initial.document?.id) return persistTail
+  if (useEditorStore.getState().workspaceEpoch !== initial.workspaceEpoch || useEditorStore.getState().document?.id !== initial.document?.id) return persistTail
   const payload = captureSave(reason)
   if (!payload) return persistTail
   persistTail = persistTail.then(
@@ -1093,9 +1120,9 @@ async function persistDocument(repo: StickerLabRepository, reason: 'auto' | 'man
 
 async function persistCaptured(
   repo: StickerLabRepository,
-  payload: { document: ProjectDocument; records: AssetRecord[]; masks: MaskRecord[] },
+  payload: { workspaceEpoch: number; document: ProjectDocument; records: AssetRecord[]; masks: MaskRecord[] },
 ) {
-  const matches = () => useEditorStore.getState().document?.id === payload.document.id
+  const matches = () => useEditorStore.getState().workspaceEpoch === payload.workspaceEpoch && useEditorStore.getState().document?.id === payload.document.id
   if (matches()) useEditorStore.getState().setSaveStatus('saving')
   try {
     await repo.saveProjectWithAssets(payload.document, payload.records, payload.masks)
@@ -1109,21 +1136,31 @@ async function persistCaptured(
 
 async function ingestIntoCurrentProject(load: () => Promise<AssetRecord>, name?: string, replaceLayerId?: string) {
   const originId = useEditorStore.getState().document?.id
+  const epoch = useEditorStore.getState().workspaceEpoch
+  const stale = () => useEditorStore.getState().workspaceEpoch !== epoch || useEditorStore.getState().document?.id !== originId
   try {
     const record = await load()
-    if (useEditorStore.getState().document?.id !== originId) return
+    if (stale()) return
     if (replaceLayerId) {
       await useEditorStore.getState().finishMaskStroke?.()
       const state = useEditorStore.getState()
-      if (state.document?.id !== originId) return
+      if (stale()) return
       if (state.gestureActive) { state.setUploadError('Finish the current edit, then try replacing the photo again.'); return }
       state.replaceImageLayer(replaceLayerId, record)
     } else useEditorStore.getState().addImageLayer(record, name)
   } catch (error) {
-    if (useEditorStore.getState().document?.id !== originId) return
+    if (stale()) return
     const message = error instanceof UploadValidationError ? error.message : 'The image could not be added'
     useEditorStore.getState().setUploadError(message)
   }
+}
+
+export async function flushEditor(repo: StickerLabRepository): Promise<void> {
+  const state = useEditorStore.getState()
+  if (!state.document || (!state.dirty && !state.gestureActive && !state.finishMaskStroke)) return
+  await persistDocument(repo, 'manual')
+  const after = useEditorStore.getState()
+  if (after.dirty || after.finishMaskStroke || after.saveStatus === 'save-failed') throw new Error('Could not save the current draft locally. Retry before changing workspace.')
 }
 
 function useEditorShortcuts() {
