@@ -6,7 +6,6 @@ import { useCloudStatus, useWorkspace } from '../auth/Workspace'
 import type { ProjectDocument } from '../../types/domain'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'
-import { renderDocument } from '../exports/renderDocument'
 import type { StickerLabRepository } from '../../lib/persistence/repository'
 
 export function LocalProjectList({
@@ -119,6 +118,7 @@ function ProjectThumb({ project, repo }: { project: ProjectDocument; repo: Stick
         const assets = await Promise.all(project.assetIds.map((id) => repo.getAsset(id)))
         const keys = [...new Set(project.layers.flatMap((layer) => (layer.kind === 'image' && layer.maskKey ? [layer.maskKey] : [])))]
         const masks = Object.fromEntries(await Promise.all(keys.map(async (key) => [key, await repo.getMask(key)] as const)))
+        const { renderDocument } = await import('../exports/renderDocument')
         const blob = await renderDocument(project, Object.fromEntries(assets.map((record) => [record.asset.id, record])), { size: 512, masks })
         if (!live) return
         objectUrl = URL.createObjectURL(blob)

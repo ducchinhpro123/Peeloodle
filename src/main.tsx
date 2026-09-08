@@ -5,6 +5,7 @@ import { useRepository } from './app/repository'
 import { WorkspaceProvider, useCloudStatus, useWorkspace } from './features/auth/Workspace'
 import { Account, AuthCallback, CloudBanner } from './features/auth/Account'
 import { LocalProjectList } from './features/editor/LocalProjectList'
+import { downloadBlob } from './features/exports/download'
 import type { StickerLabRepository } from './lib/persistence/repository'
 import {
   Bell,
@@ -537,10 +538,7 @@ function Packs() {
   const handleExportZip = async (pack: PackRecord) => {
     setExportingZip(true)
     try {
-      const [{ exportPackZip }, { downloadBlob }] = await Promise.all([
-        import('./features/exports/zipExport'),
-        import('./features/exports/renderDocument'),
-      ])
+      const { exportPackZip } = await import('./features/exports/zipExport')
       const zipBlob = await exportPackZip(pack, repo)
       const safe = pack.title.replace(/[^\w.-]+/g, '_').toLowerCase() || 'pack'
       if (live.current) downloadBlob(zipBlob, `${safe}.zip`)
