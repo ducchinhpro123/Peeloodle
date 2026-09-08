@@ -377,7 +377,15 @@ function DomArtboard({ urls }: { urls: Record<string, string> }) {
         const selected = layer.id === selectedLayerId
         if (layer.kind === 'text') {
           return (
-            <p key={layer.id} data-selected={selected || undefined}>
+            <p
+              key={layer.id}
+              data-selected={selected || undefined}
+              onDoubleClick={() => {
+                useEditorStore.getState().selectLayer(layer.id)
+                useEditorStore.getState().beginGesture()
+                globalThis.document.querySelector<HTMLTextAreaElement>('[aria-label="Text content"]')?.focus()
+              }}
+            >
               {layer.content}
             </p>
           )

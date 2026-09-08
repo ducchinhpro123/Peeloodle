@@ -10,10 +10,10 @@ export function getStageMetrics(
   hostHeight: number,
   viewport: Viewport,
 ): { viewScale: number; stageX: number; stageY: number } {
-  const fit = Math.min((hostWidth - 36) / ARTBOARD_SIZE, (hostHeight - 36) / ARTBOARD_SIZE)
+  const fit = hostWidth > 0 ? hostWidth / ARTBOARD_SIZE : 0.05
   const viewScale = Math.max(fit * viewport.zoom, 0.05)
-  const stageX = hostWidth / 2 - (ARTBOARD_SIZE * viewScale) / 2 + viewport.panX
-  const stageY = hostHeight / 2 - (ARTBOARD_SIZE * viewScale) / 2 + viewport.panY
+  const stageX = (hostWidth - ARTBOARD_SIZE * viewScale) / 2 + viewport.panX
+  const stageY = (hostHeight - ARTBOARD_SIZE * viewScale) / 2 + viewport.panY
   return { viewScale, stageX, stageY }
 }
 

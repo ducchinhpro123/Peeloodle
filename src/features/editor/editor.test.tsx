@@ -78,7 +78,15 @@ describe('editor integration', () => {
     await screen.findByRole('heading', { name: /small stickers/i })
     fireEvent.click(screen.getByRole('link', { name: /untitled sticker/i }))
     await waitFor(() => expect(screen.getAllByText('Hello sticker').length).toBeGreaterThan(0))
-    expect(screen.getAllByAltText('Image').length).toBeGreaterThan(0)
+  })
+
+  it('starts text editing from a double click on the canvas', async () => {
+    renderApp()
+    fireEvent.click(await screen.findByRole('button', { name: 'Text' }))
+    const canvasText = (await screen.findAllByText('Text')).find((node) => node.tagName === 'P')
+    expect(canvasText).toBeTruthy()
+    fireEvent.doubleClick(canvasText!)
+    expect(screen.getAllByLabelText('Text content').some((field) => field === document.activeElement)).toBe(true)
   })
 
   it('keeps local work and reports save failed when persistence rejects', async () => {

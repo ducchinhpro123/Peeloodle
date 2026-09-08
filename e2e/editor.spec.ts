@@ -157,7 +157,7 @@ async function openEditorFromDashboard(page: Page) {
 async function artboardToScreen(page: Page, docX: number, docY: number) {
   return page.locator('[data-testid="editor-canvas"]').evaluate((host, point) => {
     const rect = host.getBoundingClientRect()
-    const fit = Math.min((rect.width - 36) / 1024, (rect.height - 36) / 1024)
+    const fit = rect.width / 1024
     const viewScale = Math.max(fit, 0.05)
     const x = rect.width / 2 - (1024 * viewScale) / 2
     const y = rect.height / 2 - (1024 * viewScale) / 2

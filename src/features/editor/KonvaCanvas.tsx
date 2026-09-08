@@ -16,6 +16,7 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
   const previewCallbacks = useRef<MaskPreviewCallbacks>(new Map())
   const brush = useMaskBrush(hostRef, previewCallbacks)
   const [size, setSize] = useState({ width: 640, height: 480 })
+  const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const document = useEditorStore((state) => state.document)
   const selectedLayerId = useEditorStore((state) => state.selectedLayerId)
   const viewport = useEditorStore((state) => state.viewport)
@@ -44,10 +45,10 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
     const { selectedLayerId: id, document: doc, activeTool: tool } = useEditorStore.getState()
     const node = id ? nodeRefs.current[id] : undefined
     const layer = doc?.layers.find((item) => item.id === id)
-    transformer.nodes(node && layer?.visible && !layer.locked && !['pan', 'erase', 'restore'].includes(tool) ? [node] : [])
+    transformer.nodes(node && layer?.visible && !layer.locked && !editingTextId && !['pan', 'erase', 'restore'].includes(tool) ? [node] : [])
     transformer.getLayer()?.batchDraw()
   }
-  useEffect(() => { attachTransformer.current() }, [selectedLayerId, document, activeTool, size, viewport])
+  useEffect(() => { attachTransformer.current() }, [selectedLayerId, document, activeTool, size, viewport, editingTextId])
   if (!document) return null
   const { viewScale, stageX: x, stageY: y } = getStageMetrics(size.width, size.height, viewport)
   const bindNode = (id: string) => (node: Konva.Node | null) => {
@@ -85,7 +86,7 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
                 url={layer.kind === 'image' ? urls[layer.assetId] : undefined}
                 mask={layer.kind === 'image' && layer.maskKey ? masks[layer.maskKey] : undefined}
                 asset={layer.kind === 'image' ? assets[layer.assetId]?.asset : undefined}
-                previews={previewCallbacks.current} panMode={activeTool === 'pan'} isBrushTool={isBrush} nodeRef={bindNode(layer.id)} />
+                previews={previewCallbacks.current} panMode={activeTool === 'pan'} isBrushTool={isBrush} editingText={layer.id === editingTextId} onEditText={() => setEditingTextId(layer.id)} nodeRef={bindNode(layer.id)} />
             ))}
           </Group>
           <Transformer ref={transformerRef} rotateEnabled enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
@@ -93,6 +94,7 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
         </Layer>
       </Stage>
       <div ref={brush.cursorRef} className="brush-cursor" data-testid="brush-cursor" aria-hidden="true" style={{ display: 'none' }} />
+      {editingTextId ? <CanvasTextEditor layerId={editingTextId} node={nodeRefs.current[editingTextId]} onClose={() => setEditingTextId(null)} /> : null}
     </div>
   )
 }
@@ -101,7 +103,7 @@ function readTransform(node: Konva.Node) {
   return { x: node.x(), y: node.y(), rotation: node.rotation(), scaleX: node.scaleX(), scaleY: node.scaleY() }
 }
 
-function DocNode({ layer, url, mask, asset, previews, panMode, isBrushTool, nodeRef }: {
+function DocNode({ layer, url, mask, asset, previews, panMode, isBrushTool, editingText, onEditText, nodeRef }: {
   layer: DocLayer
   url?: string
   mask?: Blob
@@ -109,6 +111,8 @@ function DocNode({ layer, url, mask, asset, previews, panMode, isBrushTool, node
   previews: MaskPreviewCallbacks
   panMode: boolean
   isBrushTool: boolean
+  editingText: boolean
+  onEditText: () => void
   nodeRef: (node: Konva.Node | null) => void
 }) {
   if (!layer.visible) return null
@@ -142,17 +146,32 @@ function DocNode({ layer, url, mask, asset, previews, panMode, isBrushTool, node
       useEditorStore.getState().applyTransform(layer.id, readTransform(event.target))
       useEditorStore.getState().commitGesture()
     },
+    onDblClick: (event: Konva.KonvaEventObject<MouseEvent>) => {
+      if (layer.kind !== 'text' || layer.locked || panMode || isBrushTool) return
+      event.cancelBubble = true
+      useEditorStore.getState().selectLayer(layer.id)
+      useEditorStore.getState().beginGesture()
+      onEditText()
+    },
+    onDblTap: (event: Konva.KonvaEventObject<TouchEvent>) => {
+      if (layer.kind !== 'text' || layer.locked || panMode || isBrushTool) return
+      event.cancelBubble = true
+      useEditorStore.getState().selectLayer(layer.id)
+      useEditorStore.getState().beginGesture()
+      onEditText()
+    },
   }
   if (layer.kind === 'image') return <HydratedImage layer={layer} url={url} mask={mask} asset={asset} previews={previews} nodeRef={nodeRef} handlers={handlers} />
-  if (layer.kind === 'text') return <HydratedText key={layer.fontFamily} layer={layer} handlers={handlers} nodeRef={nodeRef} />
+  if (layer.kind === 'text') return <HydratedText key={layer.fontFamily} layer={layer} handlers={handlers} nodeRef={nodeRef} hidden={editingText} />
   if (layer.shape === 'circle') return <Ellipse ref={nodeRef} {...handlers} radiusX={60} radiusY={60} offsetX={-60} offsetY={-60} fill={layer.fill} />
   return <Rect ref={nodeRef} {...handlers} width={120} height={120} fill={layer.fill} />
 }
 
-function HydratedText({ layer, handlers, nodeRef }: {
+function HydratedText({ layer, handlers, nodeRef, hidden }: {
   layer: Extract<DocLayer, { kind: 'text' }>
   handlers: Record<string, unknown>
   nodeRef: (node: Konva.Node | null) => void
+  hidden: boolean
 }) {
   const [ready, setReady] = useState(false)
   useEffect(() => {
@@ -165,7 +184,38 @@ function HydratedText({ layer, handlers, nodeRef }: {
     return () => { cancelled = true }
   }, [layer.fontFamily])
   // Mount only after loading: Konva caches text measurements at construction time.
-  return ready ? <KonvaText ref={nodeRef} {...handlers} text={layer.content} fontFamily={layer.fontFamily} fontSize={layer.fontSize} fill={layer.color} lineHeight={1} align="left" verticalAlign="top" /> : null
+  return ready ? <KonvaText ref={nodeRef} {...handlers} opacity={hidden ? 0 : layer.opacity} listening={!hidden} text={layer.content} fontFamily={layer.fontFamily} fontSize={layer.fontSize} fill={layer.color} lineHeight={1} align="left" verticalAlign="top" /> : null
+}
+
+function CanvasTextEditor({ layerId, node, onClose }: { layerId: string; node?: Konva.Node; onClose: () => void }) {
+  const layer = useEditorStore((state) => state.document?.layers.find((item) => item.id === layerId))
+  const box = node?.getClientRect() ?? { x: 24, y: 24, width: 160, height: 40 }
+  if (!layer || layer.kind !== 'text') return null
+  return (
+    <textarea
+      className="canvas-text-edit"
+      aria-label="Edit canvas text"
+      autoFocus
+      value={layer.content}
+      style={{
+        left: box.x,
+        top: box.y,
+        width: Math.max(box.width, 48),
+        height: Math.max(box.height, layer.fontSize),
+        fontFamily: layer.fontFamily,
+        fontSize: layer.fontSize * (node?.getAbsoluteScale().x ?? 1),
+        color: layer.color,
+      }}
+      onChange={(event) => useEditorStore.getState().updateText(layer.id, { content: event.target.value })}
+      onBlur={() => {
+        useEditorStore.getState().commitGesture()
+        onClose()
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') event.currentTarget.blur()
+      }}
+    />
+  )
 }
 
 function HydratedImage({ layer, url, mask, asset, previews, nodeRef, handlers }: {

@@ -566,6 +566,19 @@ main > section, main > div { min-width: 0; }
 .canvas-controls button { padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
 .checkerboard { position: relative; display: grid; min-height: 480px; height: calc(100% - 42px); place-items: center; overflow: hidden; background-color: #fff; background-image: linear-gradient(45deg, #e4e7eb 25%, transparent 25%), linear-gradient(-45deg, #e4e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e4e7eb 75%), linear-gradient(-45deg, transparent 75%, #e4e7eb 75%); background-position: 0 0, 0 12px, 12px -12px, -12px 0; background-size: 24px 24px; }
 .artboard-host, .dom-artboard { position: absolute; inset: 0; }
+.canvas-text-edit {
+  position: absolute;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #3b82f6;
+  background: #fff;
+  color: inherit;
+  line-height: 1;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
 .dom-artboard { display: grid; place-content: center; gap: 8px; padding: 16px; }
 .dom-artboard img { max-width: 220px; max-height: 220px; }
 .dom-layer { padding: 0; border: 0; background: transparent; }
