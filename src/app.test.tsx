@@ -247,6 +247,20 @@ describe('foundation interactions', () => {
     expect(await repo.listProjects()).toHaveLength(1)
   })
 
+  it('lists recent stickers, previews them, and deletes with confirmation', async () => {
+    const repo = createMemoryRepository()
+    await repo.saveProject(createProjectDocument({ id: 'sticker-1', title: 'Happy Cat' }))
+    render(<MemoryRouter initialEntries={['/']}><App repository={repo} /></MemoryRouter>)
+    expect(await screen.findByRole('link', { name: /Happy Cat/ })).toHaveAttribute('href', '/editor/sticker-1')
+    expect(within(screen.getByRole('heading', { name: /Recent Projects/ }).parentElement!).getByRole('link', { name: 'View all' })).toHaveAttribute('href', '/my-stickers#local-stickers')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Happy Cat' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this sticker?' })
+    expect(within(dialog).getByRole('button', { name: 'Keep sticker' })).toHaveFocus()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete sticker' }))
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Happy Cat/ })).not.toBeInTheDocument())
+    expect(await repo.listProjects()).toHaveLength(0)
+  })
+
   it('opens export options without claiming messenger success', async () => {
     renderRoute('/create')
     fireEvent.click(await screen.findByRole('button', { name: /export and share/i }))

@@ -222,7 +222,7 @@ function Walkthrough() {
 }
 
 function ProjectSection() {
-  return <section><div className="section-title"><h2><Clock size={16} aria-hidden="true" /> Recent Projects</h2><Link to="/my-stickers">View all</Link></div><LocalProjectList limit={6} /></section>
+  return <section><div className="section-title"><h2><Clock size={16} aria-hidden="true" /> Recent Projects</h2><Link to="/my-stickers#local-stickers">View all</Link></div><LocalProjectList limit={6} /></section>
 }
 
 function TemplateCard({
@@ -389,6 +389,7 @@ function EditorLayout({ children }: { children: ReactNode }) {
 
 function Packs() {
   const repo = useRepository()
+  const location = useLocation()
   const cloud = useWorkspace()?.cloud
   const cloudStatus = useCloudStatus()
   const live = useRef(true)
@@ -423,6 +424,10 @@ function Packs() {
   useEffect(() => {
     void reload().catch(() => setError('Could not load local packs. Please retry.'))
   }, [reload, cloudStatus.version])
+  useEffect(() => {
+    if (location.hash !== '#local-stickers') return
+    document.getElementById('local-stickers')?.scrollIntoView({ block: 'start' })
+  }, [location.hash, packs])
 
   const runPackAction = async (action: () => Promise<void>) => {
     if (operationActive.current) return
@@ -707,7 +712,7 @@ function Packs() {
         </div>
       )}
 
-      <section className="local-stickers-section">
+      <section className="local-stickers-section" id="local-stickers">
         <div className="section-title"><h2>{cloud ? 'All Private Stickers' : 'All Local Stickers'}</h2><Link to="/create">Create</Link></div>
         <LocalProjectList emptyTitle="No local stickers yet" emptyDetail="Save a sticker from the editor to reopen it here." />
       </section>

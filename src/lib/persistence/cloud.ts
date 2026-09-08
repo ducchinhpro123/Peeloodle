@@ -125,8 +125,11 @@ export class CloudRepository extends IdbRepository {
     while (this.active) {
       this.wakeRequested = false
       const entries = (await this.listSyncEntries()).filter((entry) => entry.pending.length)
-      // Projects must be committed before packs that reference them.
-      entries.sort((a, b) => a.kind.localeCompare(b.kind)).reverse()
+      // Project saves, then packs, then project deletes (membership must be cleared first).
+      entries.sort((a, b) => {
+        const rank = (entry: typeof a) => (entry.kind === 'project' && entry.pending[0]?.value === null ? 2 : entry.kind === 'pack' ? 1 : 0)
+        return rank(a) - rank(b)
+      })
       if (!entries.length) { await this.updateStatus(); return }
       this.publish({ state: 'syncing', pending: entries.reduce((sum, entry) => sum + entry.pending.length, 0), error: null })
       for (const entry of entries) {
