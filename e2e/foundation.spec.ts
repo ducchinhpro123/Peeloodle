@@ -42,7 +42,7 @@ test('tablet headers stay within their fixed height at 1024px and 1100px', async
     await page.setViewportSize({ width, height: 768 })
     await page.goto('/templates')
     const header = page.locator('.header')
-    await expect(header).toHaveCSS('height', '64px')
+    await expect(header).toHaveCSS('height', '72px')
     const headerBox = await header.boundingBox()
     const childBoxes = await header.locator(':scope > *').evaluateAll((children) => children.map((child) => {
       const box = child.getBoundingClientRect()

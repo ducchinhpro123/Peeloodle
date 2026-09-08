@@ -131,7 +131,7 @@ async function inspectPng(page: Page, downloadPath: string, expectedSize: number
 
 async function downloadExport(page: Page, size: 512 | 1024) {
   const dialog = page.getByRole('dialog', { name: 'Export sticker' })
-  await dialog.getByLabel(`${size} px longest edge`).check()
+  await dialog.getByLabel(`Up to ${size} px longest edge`).check()
   const downloadPromise = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Download PNG' }).click()
   const download = await downloadPromise

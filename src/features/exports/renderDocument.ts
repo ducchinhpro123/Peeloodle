@@ -45,7 +45,7 @@ export async function renderDocument(
       : new Map<string, Blob>()
 
   for (const layer of document.layers) {
-    if (layer.kind !== 'image' || !layer.visible) continue
+    if (layer.kind !== 'image' || !layer.visible || layer.opacity <= 0) continue
     if (!assetMap.has(layer.assetId)) {
       throw new ExportError(`Missing asset ${layer.assetId} for layer ${layer.id}`)
     }
@@ -66,6 +66,7 @@ export async function renderDocument(
     : null
   // Supersample the tight composition, with a two-pixel antialiasing guard.
   const scale = bounds ? (size * 2 - 4) / Math.max(bounds.width, bounds.height) : size / ARTBOARD_SIZE
+  if (!Number.isFinite(scale) || scale <= 0) throw new ExportError('Artwork coordinates are too large or small to export.')
   const canvas = make(bounds ? Math.ceil(bounds.width * scale) + 4 : size, bounds ? Math.ceil(bounds.height * scale) + 4 : size)
   const ctx = require2d(canvas)
   ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -137,7 +138,7 @@ async function measureArtwork(
       width = Math.ceil(x + width) - originX + 2; height = Math.ceil(y + height) - originY + 2
       // Bound native alpha measurements instead of allocating an unbounded world-sized canvas.
       if (!Number.isFinite(width * height) || width > 32767 || height > 32767 || width * height > 32_000_000) {
-        throw new ExportError('Artwork is too large to measure. Reduce the text size or outline width and try again.')
+        throw new ExportError('Artwork is too large to measure. Use a smaller image, text size, or outline width.')
       }
       local.width = width; local.height = height
       const ctx = require2d(local)
@@ -163,7 +164,7 @@ async function measureArtwork(
     }
   }
   if (left === Infinity) throw new ExportError('Nothing visible to export. Add or restore some artwork first.')
-  if (![left, top, right, bottom, right - left, bottom - top].every(Number.isFinite)) throw new ExportError('Artwork coordinates are too large to export.')
+  if (right <= left || bottom <= top || ![left, top, right, bottom, right - left, bottom - top].every(Number.isFinite)) throw new ExportError('Artwork coordinates are too large to export.')
   return { x: left, y: top, width: right - left, height: bottom - top }
 }
 

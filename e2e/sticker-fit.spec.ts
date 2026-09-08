@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
 import type Konva from 'konva'
 
 const viewports = [{ width: 1440, height: 900 }, { width: 1440, height: 600 }, { width: 1024, height: 768 }, { width: 390, height: 844 }]
@@ -39,6 +40,27 @@ test(`artwork stays visible across the former artboard boundary at ${viewport.wi
   expect(await page.locator('.canvas-workspace').evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('conic-gradient')
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
   await expect.poll(() => page.evaluate(() => (window as unknown as { Konva: typeof Konva }).Konva.stages[0]!.findOne<Konva.Image>('Image')!.x())).toBe(0)
+  if (viewport.width === 1440 && viewport.height === 900) {
+    await page.getByRole('button', { name: 'Redo', exact: true }).click()
+    await page.getByRole('button', { name: 'Save to My Stickers', exact: true }).click()
+    await expect(page.locator('.save-status')).toHaveText('Saved locally')
+    const download = async (name: string) => {
+      await page.getByRole('button', { name: 'Export and share' }).click()
+      const pending = page.waitForEvent('download')
+      await page.getByRole('button', { name: 'Download PNG', exact: true }).click()
+      const file = `/tmp/stickerlab-sticker-fit/${name}.png`
+      await (await pending).saveAs(file)
+      await page.keyboard.press('Escape')
+      return readFile(file)
+    }
+    const before = await download('exported-corgi')
+    await page.getByRole('button', { name: 'Zoom in', exact: true }).click()
+    expect((await download('exported-corgi-zoomed')).equals(before)).toBe(true)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.reload()
+    await expect(page.getByTestId('editor-canvas')).toBeVisible()
+    expect((await download('exported-corgi-reopened')).equals(before)).toBe(true)
+  }
 })
 
 

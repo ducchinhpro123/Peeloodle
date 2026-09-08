@@ -155,7 +155,7 @@ test('save and PNG export wait for the in-flight stroke rather than capturing an
   })).toBe(true)
   await page.getByRole('button', { name: /save to my stickers/i }).click()
   await page.getByRole('button', { name: /export and share/i }).click()
-  await page.getByRole('dialog', { name: 'Export sticker' }).getByLabel('512 px longest edge').check()
+  await page.getByRole('dialog', { name: 'Export sticker' }).getByLabel('Up to 512 px longest edge').check()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: /download png/i }).click()
   await releaseEncoding(page)

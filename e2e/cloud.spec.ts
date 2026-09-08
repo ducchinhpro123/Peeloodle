@@ -116,7 +116,7 @@ async function exportPixels(page: Page) {
   await page.getByRole('button', { name: 'Export and share' }).click()
   const dialog = page.getByRole('dialog', { name: 'Export sticker' })
   await expect(dialog).toBeVisible()
-  await dialog.getByRole('radio', { name: '512 px longest edge' }).check()
+  await dialog.getByRole('radio', { name: 'Up to 512 px longest edge' }).check()
   const pending = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Download PNG', exact: true }).click()
   const path = await (await pending).path()

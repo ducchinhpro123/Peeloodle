@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-for (const scenario of ['masked-outline', 'opaque-image', 'separated-layers', 'text', 'empty', 'erased'] as const) {
+for (const scenario of ['masked-outline', 'opaque-image', 'separated-layers', 'text', 'empty', 'erased', 'oversized'] as const) {
   test(`artwork export trims actual visible edges: ${scenario}`, async ({ page }) => {
     await page.goto('/create')
     await expect(page.getByTestId('editor-canvas')).toBeVisible()
@@ -21,7 +21,7 @@ for (const scenario of ['masked-outline', 'opaque-image', 'separated-layers', 't
       const layers = scenario === 'masked-outline' || scenario === 'erased' ? [image]
         : scenario === 'opaque-image' ? [{ ...image, maskKey: undefined, outline: undefined, crop: undefined, transform: { ...base.transform, scaleX: 1, rotation: 0 } }]
         : scenario === 'separated-layers' ? [shape, { ...shape, id: 'two', fill: '#0000ff', transform: { ...shape.transform, x: 2000 } }, { ...shape, id: 'hidden', visible: false, transform: { ...shape.transform, x: 100000 } }]
-        : scenario === 'text' ? [{ ...base, kind: 'text', content: 'Hello!\nSticker', fontFamily: 'Pacifico', fontSize: 48, color: '#ff0000' }]
+        : scenario === 'text' || scenario === 'oversized' ? [{ ...base, kind: 'text', content: 'Hello!\nSticker', fontFamily: 'Pacifico', fontSize: scenario === 'oversized' ? 100000 : 48, color: '#ff0000' }]
         : [{ ...image, opacity: 0 }]
       const doc = { ...createProjectDocument(), layers }
       const before = JSON.stringify(doc)
@@ -48,6 +48,10 @@ for (const scenario of ['masked-outline', 'opaque-image', 'separated-layers', 't
     expect(result.unchanged).toBe(true)
     if (scenario === 'empty' || scenario === 'erased') {
       expect(result.error).toContain('Nothing visible to export')
+      return
+    }
+    if (scenario === 'oversized') {
+      expect(result.error).toContain('too large to measure')
       return
     }
     expect(result.error).toBeNull()

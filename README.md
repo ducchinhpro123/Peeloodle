@@ -46,7 +46,7 @@ Playwright uses Chromium at `/usr/bin/chromium` via `playwright.config.ts`. Fire
 
 ## Editor tools
 
-- **Canvas:** the outlined checkerboard square is the 1024×1024 export area. It fits the available width and height with room for transform handles. Artwork remains visible and editable outside the square; move it inside the outline to include it in exports. Reset view restores the fitted view without changing your composition.
+- **Canvas:** the checkerboard fills the entire workspace. Export bounds follow the outermost visible artwork—including masks, transformed layers, and outlines—not the viewport or an export square. PNGs preserve aspect ratio with a longest edge up to 512px or 1024px; pack ZIPs use up to 512px. Fully transparent margins are trimmed. Reset view never changes the composition.
 - **Fonts:** Fredoka, Baloo 2, Luckiest Guy, Chewy, Pacifico, and Bangers, alongside the existing fonts. Choose a family in Sticker Properties or insert one of six editable presets from **Text styles**.
 - **Photo templates:** 12 layered compositions with distinct layouts (orbit, big type, polaroid, speech bubble, stamp, and others), including Orbit Pop, Nope Energy, and Pet Bestie. Stand-in photos are the six user-supplied Sep 8 cutouts (cat, corgi, people, boba). Each has a replaceable photo, editable caption, and separate decorations. Select Layers → Your photo → Adjust → Replace photo; the replacement fits without stretching and retains the layout/effects. Undo restores the original crop and erasure. The eight illustrations can appear as template decorations and remain available in the sticker tray.
 - **Cute cutouts:** 39 cats, people, drinks, hearts, stars, space illustrations, and other decorations in **Stickers & decorations**. Add them as independent image layers; resize, rotate, flip, erase/restore, and apply outlines or filters. Image quarter-turns preserve the visible image center, including crops and flips.
@@ -65,7 +65,7 @@ Fonts and cutouts are served locally, with no extra credentials or dependencies.
 - [x] Zustand commands, bounded undo, one history entry per completed drag/slider/text gesture
 - [x] Manual save and debounced autosave with Saving / Saved locally / Save failed
 - [x] Reopen from Dashboard and My Stickers; assets and fonts rehydrate
-- [x] Transparent PNG export at 512×512 and 1024×1024 from the document (not the on-screen viewport)
+- [x] Transparent PNG export cropped to visible artwork, with a longest edge up to 512px or 1024px (independent of viewport zoom/pan). Empty/fully erased artwork produces a recoverable export message.
 - [x] Template cloning into independent editable projects, preview dialogs, and template favorites
 - [x] Layer manager in editor: reorder, hide/show, lock/unlock, rename, duplicate, and delete with undo support
 - [x] Local sticker pack management (create, duplicate, delete without deleting stickers, add/remove stickers, reorder)
@@ -103,7 +103,7 @@ StickerLab operates fully local-only when cloud configuration is absent. To enab
    ```
 2. In Supabase Dashboard → Authentication → URL Configuration, set your Site URL and add each authorized redirect origin (e.g. `http://localhost:5173/auth/callback`, `http://127.0.0.1:4173/auth/callback`). Set matching comma-separated origins in `VITE_AUTH_ALLOWED_ORIGINS`.
 3. Migrations in `supabase/migrations/` apply the PostgreSQL schema, JSON schema document validators, owner-based RLS policies, private bucket configuration, and transactional `commit_sticker_resource` RPC.
-4. Default Supabase SMTP allows only authorized team members and has a 2/hour rate limit. For production delivery to any address, configure custom SMTP in Supabase Auth settings. Magic-link *request*, invalid/expired callback UI, and synthetic-session journeys are covered; a live inbox round-trip is not verified on the default SMTP service.
+4. Default Supabase SMTP allows only authorized team members and has a 2/hour rate limit. For production delivery to any address, configure custom SMTP in Supabase Auth settings. Magic-link *request*, invalid/expired callback UI, and synthetic-session journeys are covered; a live inbox round-trip is not verified on the default SMTP service. The owner checklist (Vercel variables, redirects, SMTP, magic-link gate) is [docs/production-release.md](docs/production-release.md).
 5. Image/mask bytes upload to private Storage at `ownerId/sha256` and are verified before `commit_sticker_resource` publishes database rows. PostgreSQL and Storage are not one transaction: a failed RPC can leave unused objects. They are never public, never referenced by a committed project, and retries reuse the same hash (HTTP 409). This milestone does not delete orphans; add a bounded owner-scoped sweeper if storage quota matters.
 6. Verification suite for real cloud authorization (ordinary user clients, not service-role):
    ```bash

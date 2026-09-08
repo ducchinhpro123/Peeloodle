@@ -6,7 +6,7 @@ Date: 2026-09-08. Spec: [`specs/supabase-private-cloud.md`](specs/supabase-priva
 
 **Harness follow-up is addressed in source; production is still not configured and must not be deployed without owner approval.** The defect in [the verification follow-up](supabase-review-followup.md) was a test-harness reseed of Account A on every navigation, not a demonstrated application data leak. Session seeding is now one-shot; the four same-browser A→B cases assert B’s session email after isolation navigations, wait for the held Account A response to finish, wait until a known B-owned fixture is visible, then assert A’s records are absent. Guest import still covers explicit consent, sign-out, guest-original retention, and repeat-import. A rejected stale project delete in a pack now keeps membership; that case is covered separately from the successful-delete path.
 
-**Code is ready for review on git revision `7b2b5539cf3c2b5d224a59ab9f2e0ae39aab8d8c`.** The deployed Vercel app still has cloud functionality disabled by missing configuration; real magic-link delivery/callback success is not claimed. Do not treat a green local/cloud suite as production acceptance.
+**Code is ready for review on the SHA recorded in [production-release.md](production-release.md).** The deployed Vercel app still has cloud functionality disabled by missing configuration; real magic-link delivery/callback success is not claimed. Do not treat a green local/cloud suite as production acceptance. The owner SMTP/redirect/Vercel checklist is in that release plan; magic-link inbox delivery remains an acceptance gate.
 
 Completion labels: **Code ready** — yes, pending owner review of the named revision. **Production configured/deployed** — no; Vercel production has no environment variables. **Real authentication verified** — no; no owner-controlled inbox was authorized. **End-to-end cloud acceptance** — configured test environment passes the strengthened checks; deployed acceptance remains blocked by the preceding two items.
 
@@ -158,7 +158,7 @@ For the isolated browser run, only the child Vite process received `VITE_SUPABAS
 
 ## Recommended completion order
 
-1. With explicit owner approval, set the public production environment variables, verify Supabase redirect/SMTP settings, and rebuild/redeploy from the approved source revision.
-2. Use an owner-controlled inbox to verify the actual deployed magic-link journey, then repeat second-browser cloud save/reopen/export against that deployment.
+1. With explicit owner approval, follow [production-release.md](production-release.md): set the public production environment variables, verify Site URL/redirects and custom SMTP, and rebuild/redeploy from the named SHA.
+2. Use an owner-controlled inbox to verify the actual deployed magic-link journey, then repeat second-browser cloud save/reopen/export against that deployment. This remains the acceptance gate.
 
 Public sharing, cloud favorites/export history, messenger installation, and billing are explicitly out of this spec; their absence is not an integration defect.

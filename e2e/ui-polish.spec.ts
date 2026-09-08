@@ -172,7 +172,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
     await exportOpener.click()
     const exportDialog = page.getByRole('dialog', { name: 'Export sticker', exact: true })
     await expectDialogFits(page, exportDialog)
-    await exportDialog.getByText('1024 px longest edge', { exact: true }).click()
+    await exportDialog.getByText('Up to 1024 px longest edge', { exact: true }).click()
     await expect(exportDialog.getByRole('radio').last()).toBeChecked()
     await page.screenshot({ path: `${screenshots}/export-dialog-${viewport.width}.png`, animations: 'disabled' })
     await exportDialog.getByRole('button', { name: 'WhatsApp / Telegram' }).click()

@@ -1062,16 +1062,16 @@ function ExportDialog({ document }: { document: ProjectDocument }) {
       <DialogContent>
         <DialogTitle>Export sticker</DialogTitle>
         <DialogDescription>
-          Download a transparent PNG cropped to the outermost visible artwork, including outlines. The longest edge uses the selected size; aspect ratio is preserved. Hidden layers, checkerboard, selection handles, and zoom are not included. This is not a WhatsApp or Telegram sticker pack.
+          Download a transparent PNG cropped to the outermost visible artwork, including outlines. The selected size caps the longest edge; aspect ratio is preserved. Hidden layers, checkerboard, selection handles, and zoom are not included. This is not a WhatsApp or Telegram sticker pack.
         </DialogDescription>
         <div className="export-sizes">
           <label>
             <input type="radio" name="export-size" checked={size === 512} onChange={() => setSize(512)} />
-            512 px longest edge
+            Up to 512 px longest edge
           </label>
           <label>
             <input type="radio" name="export-size" checked={size === 1024} onChange={() => setSize(1024)} />
-            1024 px longest edge
+            Up to 1024 px longest edge
           </label>
         </div>
         <DialogFooter>
