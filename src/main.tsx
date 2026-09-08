@@ -48,8 +48,6 @@ import {
   SheetTrigger,
 } from './components/ui'
 import type { PackRecord, ProjectDocument, Template } from './types/domain'
-import { downloadBlob } from './features/exports/renderDocument'
-import { exportPackZip } from './features/exports/zipExport'
 import {
   instantiateTemplate,
   getFavoriteTemplateIds,
@@ -531,11 +529,15 @@ function Packs() {
   const handleExportZip = async (pack: PackRecord) => {
     setExportingZip(true)
     try {
+      const [{ exportPackZip }, { downloadBlob }] = await Promise.all([
+        import('./features/exports/zipExport'),
+        import('./features/exports/renderDocument'),
+      ])
       const zipBlob = await exportPackZip(pack, repo)
       const safe = pack.title.replace(/[^\w.-]+/g, '_').toLowerCase() || 'pack'
       if (live.current) downloadBlob(zipBlob, `${safe}.zip`)
     } finally {
-      setExportingZip(false)
+      if (live.current) setExportingZip(false)
     }
   }
 
