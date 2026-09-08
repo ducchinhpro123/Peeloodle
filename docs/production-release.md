@@ -8,7 +8,7 @@ This is the owner checklist for enabling private cloud on the deployed site. **D
 
 Checkout this revision for the authorized production build. Vite embeds `VITE_*` values at build time; setting Vercel environment variables without rebuilding from this SHA does not enable cloud on an existing deployment.
 
-Product at this revision includes: local-first editor (Back to Home, title/save chrome, Adjust inspector), artwork-bounded PNG/ZIP export, one-shot cloud test seeding, A→B isolation waits, and pack membership restore on rejected stale deletes.
+Product at this revision includes: local-first editor (Back to Home, title/save chrome, Adjust inspector), artwork-bounded PNG/ZIP export, full-width Home/Templates/Explore/My Stickers banners, one-shot cloud test seeding, A→B isolation waits, and pack membership restore on rejected stale deletes.
 
 ## What is already true
 

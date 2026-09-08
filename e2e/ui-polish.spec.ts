@@ -2,6 +2,32 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 
 const screenshots = '/tmp/stickerlab-ui-audit'
 
+for (const width of [3200, 1920, 1440, 1024, 390]) {
+  test(`page banners fill the available content width at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    for (const route of ['/', '/templates', '/templates?view=explore', '/my-stickers']) {
+      await page.goto(route)
+      const hero = page.locator('.hero').first()
+      await expect(hero).toBeVisible()
+      const gap = await hero.evaluate((element) => {
+        const parent = element.parentElement!
+        const style = getComputedStyle(parent)
+        const bounds = element.getBoundingClientRect()
+        const outer = parent.getBoundingClientRect()
+        return {
+          left: bounds.left - outer.left - parseFloat(style.paddingLeft) - parseFloat(style.borderLeftWidth),
+          right: outer.right - bounds.right - parseFloat(style.paddingRight) - parseFloat(style.borderRightWidth),
+          overflow: document.documentElement.scrollWidth > innerWidth,
+        }
+      })
+      expect(Math.abs(gap.left)).toBeLessThanOrEqual(1)
+      expect(Math.abs(gap.right)).toBeLessThanOrEqual(1)
+      expect(gap.overflow).toBe(false)
+      await hero.screenshot({ path: `${screenshots}/full-width-${route === '/' ? 'home' : route.includes('explore') ? 'explore' : route.slice(1)}-${width}.png` })
+    }
+  })
+}
+
 async function expectDialogFits(page: Page, dialog: Locator) {
   await expect(dialog).toBeVisible()
   const box = (await dialog.boundingBox())!

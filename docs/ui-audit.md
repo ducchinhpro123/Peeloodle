@@ -63,6 +63,12 @@ Chromium screenshots cover 1440×900, 1440×600, 1024×768, and 390×844. Eviden
 
 Checks: 85 local Chromium browser tests; 108 unit/integration tests; typecheck; production build; lint (five existing Fast Refresh warnings, no errors). The real-cloud second-browser upload/mask/font/save/reopen/export journey also passed with the new PNG sizing. Production remains unchanged. A stale foundation test expecting a 64px tablet header was corrected to the previously approved 72px height.
 
+## Full-width banners at wide viewports
+
+Home, Templates, and Explore now share the full available content width, like My Stickers. Removed the shared 1400px hero cap and the redundant packs override. Headings, artwork, and supporting copy scale at wide widths instead of stretching the paper around fixed-size content; mobile overrides remain intact.
+
+Verified: 22 UI-polish browser tests, typecheck, build, lint (zero errors; five existing warnings), and `git diff --check`. New checks compare hero edges to the padded content edges on all four routes at 3200, 1920, 1440, 1024, and 390 CSS pixels. Wide CSS viewports exercise the extra layout space exposed by zooming out; native browser 60% zoom was not directly automated. Screenshots inspected under `/tmp/stickerlab-ui-audit/full-width-*.png`. No dependencies, migrations, or production changes.
+
 ## Boundaries
 
 No new dependencies, cloud setup, or database migrations. Source PNGs and the source ZIP are preserved. The UI refresh uses nine optimized WebP derivatives for decoration; the editor catalog now offers all 25 supplied cutouts plus eight new illustrated graphics for explicit insertion. Decoration does not replace editable template data or pretend to be saved user stickers. Artwork rights still need owner review before public distribution; a new layout is not legal clearance.

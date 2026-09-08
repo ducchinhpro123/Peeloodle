@@ -245,9 +245,9 @@ main > section, main > div { min-width: 0; }
 }
 
 .hero {
+  container-type: inline-size;
   display: flex;
   min-height: 360px;
-  max-width: 1400px;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-5);
@@ -334,7 +334,7 @@ main > section, main > div { min-width: 0; }
   padding: 0 1.4em;
   margin-left: -0.6em;
   font-family: Chewy, cursive;
-  font-size: clamp(2.35rem, 4vw, 3.7rem);
+  font-size: clamp(2.35rem, 4vw, 7.5rem);
   font-weight: 400;
   letter-spacing: 0.01em;
   line-height: 1.12;
@@ -351,8 +351,11 @@ main > section, main > div { min-width: 0; }
 .hero-dashboard h1::before { left: -1.35em; top: .15em; transform: rotate(-22deg); }
 .hero-dashboard h1::after { right: -1.2em; top: -.1em; transform: rotate(18deg) scaleX(-1); }
 .hero-dashboard .hero-copy { flex: 0 1 42%; min-width: 280px; }
-.hero-dashboard .actions .button { border-radius: 999px; }
-.hero-dashboard .collage { flex: 1 1 55%; height: 340px; }
+.hero-dashboard .actions .button { border-radius: 999px; font-size: clamp(13px, 1cqw, 24px); }
+.hero-dashboard .hero-lead { max-width: max(400px, 28cqw); font-size: clamp(14px, 1.1cqw, 28px); }
+.hero-dashboard .hero-kicker { font-size: clamp(12px, 1cqw, 22px); }
+.hero-dashboard .hero-points { font-size: clamp(11.5px, .9cqw, 20px); }
+.hero-dashboard .collage { flex: 1 1 55%; height: clamp(340px, 24cqw, 820px); }
 .collage { position: relative; flex: 1 1 50%; min-width: 0; height: 320px; isolation: isolate; }
 .collage img { position: absolute; object-fit: contain; filter: drop-shadow(0 6px 3px #20304a16); pointer-events: none; }
 .collage-paper { position: absolute; inset: 12% 8% 6% 12%; border: 1px solid #ffffffb3; border-radius: 46% 54% 36% 64%; background: #c2ebdd; transform: rotate(-9deg); }
@@ -473,7 +476,7 @@ main > section, main > div { min-width: 0; }
 }
 .hero:has(.collage-templates) .hero-copy { flex: 0 0 43%; min-width: 0; transform: rotate(-3deg); }
 .hero:has(.collage-templates) .hero-kicker { color: var(--scrapbook-green); border-bottom: 1px dashed currentColor; padding-bottom: var(--space-2); margin-bottom: var(--space-3); }
-.hero:has(.collage-templates) h1 { font-size: clamp(2rem, 3.5vw, 3.7rem); line-height: 1.25; letter-spacing: -.05em; }
+.hero:has(.collage-templates) h1 { font-size: clamp(2rem, 3.5vw, 7.5rem); line-height: 1.25; letter-spacing: -.05em; }
 .hero:has(.collage-templates) h1 span,
 .hero:has(.collage-templates) h1 em {
   padding: 0 var(--space-2) var(--space-1);
@@ -483,7 +486,7 @@ main > section, main > div { min-width: 0; }
   clip-path: polygon(1% 5%, 18% 2%, 30% 6%, 52% 0, 72% 5%, 96% 0, 100% 86%, 92% 97%, 64% 93%, 40% 100%, 19% 94%, 0 100%);
 }
 .hero:has(.collage-templates) h1 em { background: var(--scrapbook-yellow); color: var(--scrapbook-green); }
-.hero:has(.collage-templates) .hero-lead { max-width: 300px; padding-left: var(--space-2); color: var(--ink); font-family: 'Chewy', cursive; font-weight: 400; font-size: 16px; line-height: 1.55; }
+.hero:has(.collage-templates) .hero-lead { max-width: max(300px, 18cqw); padding-left: var(--space-2); color: var(--ink); font-family: 'Chewy', cursive; font-weight: 400; font-size: clamp(16px, 1.25cqw, 32px); line-height: 1.55; }
 .collage-templates .collage-paper { display: none; }
 .collage-templates .collage-cat { width: 53%; height: 87%; left: -2%; top: 12%; transform: rotate(-10deg); }
 .collage-templates .collage-buddy { width: 48%; height: 96%; right: 1%; top: -4%; transform: rotate(9deg); }
@@ -496,15 +499,13 @@ main > section, main > div { min-width: 0; }
 .collage-tape { position: absolute; width: 29%; height: 30px; right: 2%; bottom: -7%; background: repeating-linear-gradient(90deg, #00875e66 0 8px, transparent 8px 16px), repeating-linear-gradient(0deg, #00875e66 0 8px, #fff5d8 8px 16px); transform: rotate(13deg); z-index: 2; }
 .collage-margin-note { position: absolute; right: -4%; bottom: 30%; transform: rotate(12deg); font: 12px/1.2 'Chewy', cursive; background: var(--cream); padding: var(--space-2); z-index: 2; }
 .hero:has(.collage-templates) { min-height: 280px; }
-.collage-templates { height: 240px; }
+.collage-templates { height: clamp(240px, 20cqw, 780px); }
 .hero:has(.collage-packs) {
-  max-width: none;
   min-height: 360px;
   padding: var(--space-7) 4.6%;
   gap: 2%;
   border: 0;
   background: url('/art/packs-paper.svg') center / 100% 100% no-repeat;
-  container-type: inline-size;
 }
 .hero:has(.collage-packs) .hero-copy { flex: 0 0 43%; min-width: 0; }
 .hero:has(.collage-packs) h1 { font-size: clamp(2rem, 5.4cqw, 5.5rem); line-height: 1.04; letter-spacing: -.055em; }
