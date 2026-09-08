@@ -187,46 +187,43 @@ function HydratedText({ layer, handlers, nodeRef, hidden }: {
   return ready ? <KonvaText ref={nodeRef} {...handlers} opacity={hidden ? 0 : layer.opacity} listening={!hidden} text={layer.content} fontFamily={layer.fontFamily} fontSize={layer.fontSize} fill={layer.color} lineHeight={1} wrap="none" align="left" verticalAlign="top" /> : null
 }
 
-function fitTextarea(el: HTMLTextAreaElement) {
-  el.style.width = '0px'
-  el.style.height = '0px'
-  el.style.width = `${Math.max(el.scrollWidth, 1)}px`
-  el.style.height = `${Math.max(el.scrollHeight, 1)}px`
+let measureCtx: CanvasRenderingContext2D | null = null
+function measureTextBox(content: string, family: string, fontSize: number) {
+  const ctx = measureCtx ?? (measureCtx = document.createElement('canvas').getContext('2d'))
+  const font = `${fontSize}px ${cssFontFamily(family)}`
+  if (ctx) ctx.font = font
+  const lines = (content || ' ').split('\n')
+  const width = Math.max(...lines.map((line) => (ctx ? ctx.measureText(line.length ? line : ' ').width : line.length * fontSize * 0.6))) + Math.max(2, fontSize * 0.08)
+  return { width, height: fontSize * Math.max(lines.length, 1) }
 }
 
 function CanvasTextEditor({ layerId, node, onClose }: { layerId: string; node?: Konva.Node; onClose: () => void }) {
   const layer = useEditorStore((state) => state.document?.layers.find((item) => item.id === layerId))
-  const areaRef = useRef<HTMLTextAreaElement>(null)
   if (!layer || layer.kind !== 'text') return null
   const scale = node?.getAbsoluteScale() ?? { x: 1, y: 1 }
   const pos = node?.getAbsolutePosition() ?? { x: 24, y: 24 }
-  const fontSize = layer.fontSize * Math.abs(scale.y)
-  const width = (node instanceof Konva.Text ? node.getTextWidth() : 80) * Math.abs(scale.x) + 2
-  const height = (node instanceof Konva.Text ? node.height() : layer.fontSize) * Math.abs(scale.y)
+  const fontSize = layer.fontSize * Math.abs(scale.y || scale.x || 1)
+  const box = measureTextBox(layer.content, layer.fontFamily, fontSize)
   const rotation = node?.getAbsoluteRotation() ?? layer.transform.rotation
   return (
     <textarea
-      ref={areaRef}
       className="canvas-text-edit"
       aria-label="Edit canvas text"
       autoFocus
       value={layer.content}
+      rows={Math.max(1, layer.content.split('\n').length)}
       style={{
         left: pos.x,
         top: pos.y,
-        width,
-        height,
+        width: box.width,
+        height: box.height,
         fontFamily: cssFontFamily(layer.fontFamily),
         fontSize,
         color: layer.color,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
         transformOrigin: 'top left',
       }}
-      onChange={(event) => {
-        useEditorStore.getState().updateText(layer.id, { content: event.target.value })
-        fitTextarea(event.currentTarget)
-      }}
-      onFocus={(event) => fitTextarea(event.currentTarget)}
+      onChange={(event) => useEditorStore.getState().updateText(layer.id, { content: event.target.value })}
       onBlur={() => {
         useEditorStore.getState().commitGesture()
         onClose()
