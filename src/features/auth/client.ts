@@ -1,4 +1,5 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '../../types/database'
 
 export type PublicCloudConfig = { url: string; key: string; origins: string[] }
 export function readCloudConfig(): PublicCloudConfig | null {
@@ -15,13 +16,20 @@ export function readCloudConfig(): PublicCloudConfig | null {
   } catch { return null }
 }
 
-let client: SupabaseClient | null | undefined
-export function getAuthClient() {
-  if (client === undefined) {
-    const config = readCloudConfig()
-    client = config ? createClient(config.url, config.key, { auth: { flowType: 'pkce', detectSessionInUrl: false } }) : null
+let client: SupabaseClient<Database> | null | undefined
+let pending: Promise<SupabaseClient<Database> | null> | undefined
+
+export async function getAuthClient() {
+  if (client !== undefined) return client
+  if (!pending) {
+    pending = (async () => {
+      const config = readCloudConfig()
+      if (!config) return (client = null)
+      const { createClient } = await import('@supabase/supabase-js')
+      return (client = createClient<Database>(config.url, config.key, { auth: { flowType: 'pkce', detectSessionInUrl: false } }))
+    })()
   }
-  return client
+  return pending
 }
 
 export function safeReturnPath(value: string | null): string {

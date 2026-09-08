@@ -3,13 +3,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '../../components/ui'
 import { getLocalRepository } from '../../lib/persistence/repository'
-import { getAuthClient, safeReturnPath } from './client'
+import { getAuthClient, readCloudConfig, safeReturnPath } from './client'
 import { flushWorkspace, useCloudStatus, useWorkspace } from './Workspace'
 
 export function Account() {
   const workspace = useWorkspace()
   const status = useCloudStatus()
-  const auth = getAuthClient()
+  const cloudReady = !!readCloudConfig()
   const location = useLocation()
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
@@ -33,7 +33,9 @@ export function Account() {
     try { await action() } catch (cause) { setError(cause instanceof Error ? cause.message : 'The request failed. Please retry.') } finally { setBusy(false) }
   }
   const requestLink = async () => {
-    if (!auth || !workspace) return
+    if (!workspace) return
+    const auth = await getAuthClient()
+    if (!auth) throw new Error('Cloud sign-in is not configured for this origin.')
     await flushWorkspace(workspace.repository)
     sessionStorage.setItem('stickerlab-auth-return', safeReturnPath(location.pathname))
     const { error } = await auth.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback` } })
@@ -45,7 +47,7 @@ export function Account() {
     <DialogContent>
       <DialogTitle>{session ? 'Your private workspace' : 'Sign in to StickerLab'}</DialogTitle>
       <DialogDescription>{session ? session.user.email : 'Guest editing stays on this device. Sign in by email to save a private cloud copy.'}</DialogDescription>
-      {!auth ? <p>Cloud saving is not configured for this site. Local editing, saving, and export still work. See the cloud setup guide for public configuration and approved callback origins.</p> : session ? <>
+      {!cloudReady ? <p>Cloud saving is not configured for this site. Local editing, saving, and export still work. See the cloud setup guide for public configuration and approved callback origins.</p> : session ? <>
         <p>Account caches are kept separately on this browser. Signing out hides them in the app; they are not encrypted against someone controlling this device.</p>
         <p role="status">{status.error ?? (status.state === 'synced' ? 'Saved to cloud' : status.state === 'syncing' ? 'Syncing saved work…' : 'Saved locally · cloud pending')}</p>
         {status.notices.map((notice) => <p key={notice}>{notice} <Link to="/my-stickers" onClick={() => setOpen(false)}>Review stickers and packs</Link></p>)}
@@ -64,6 +66,8 @@ export function Account() {
         <DialogFooter><DialogClose asChild><Button>Close</Button></DialogClose><Button disabled={busy} onClick={() => void run(async () => {
           if (workspace) await flushWorkspace(workspace.repository)
           setOpen(false)
+          const auth = await getAuthClient()
+          if (!auth) return
           const { error } = await auth.auth.signOut({ scope: 'local' })
           if (error) throw error
         })}>Sign out</Button></DialogFooter>
@@ -100,7 +104,7 @@ export function AuthCallback() {
     {!code || badLink ? <p role="alert">This sign-in link is missing, expired, invalid, or already used. Request a fresh link from Account.</p> : <Button disabled={busy} className="primary" onClick={async () => {
       setBusy(true)
       try {
-        const auth = getAuthClient()
+        const auth = await getAuthClient()
         if (!auth) throw new Error('Cloud sign-in is not configured for this origin.')
         const { error } = await auth.auth.exchangeCodeForSession(code)
         if (error) throw new Error('This link could not be used. It may be expired, already used, or opened in another browser. Request a fresh link.')

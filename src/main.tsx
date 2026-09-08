@@ -60,6 +60,7 @@ import './styles.css'
 
 const CreateEditor = lazy(() => import('./features/editor/EditorPage').then((module) => ({ default: module.CreateEditor })))
 const ProjectEditor = lazy(() => import('./features/editor/EditorPage').then((module) => ({ default: module.ProjectEditor })))
+const preloadEditor = () => { void import('./features/editor/EditorPage') }
 const editorFallback = <p className="muted" style={{ padding: 24 }}>Opening sticker…</p>
 
 const getView = (search: string) => new URLSearchParams(search).get('view')
@@ -98,7 +99,7 @@ function Header() {
       <Link to="/" className="brand"><span className="mascot">●ᴗ●</span><span>Sticker<span>Lab</span><small>Turn moments into stickers</small></span></Link>
       <nav className="topnav" aria-label="Primary navigation">
         {topNavigation.map((item) => (
-          <Link key={item.label} to={item.to} className={item.active(pathname, search) ? 'active' : undefined}>{item.label}</Link>
+          <Link key={item.label} to={item.to} className={item.active(pathname, search) ? 'active' : undefined} onMouseEnter={item.to === '/create' ? preloadEditor : undefined} onFocus={item.to === '/create' ? preloadEditor : undefined}>{item.label}</Link>
         ))}
       </nav>
       <Unavailable className="search search-button" label="Search is not implemented" aria-label="Search templates and packs">
@@ -126,7 +127,7 @@ function Sidebar({ mobile = false }: { mobile?: boolean }) {
   ]
 
   const itemLink = ({ to, label, icon: Icon, active }: typeof items[number]) => {
-    const link = <Link className={active ? 'active' : undefined} to={to}><Icon size={18} />{label}</Link>
+    const link = <Link className={active ? 'active' : undefined} to={to} onMouseEnter={to === '/create' ? preloadEditor : undefined} onFocus={to === '/create' ? preloadEditor : undefined}><Icon size={18} />{label}</Link>
     return mobile ? <SheetClose asChild key={label}>{link}</SheetClose> : <span key={label}>{link}</span>
   }
 
@@ -182,7 +183,7 @@ function Dashboard() {
       <Hero
         title={<>Small stickers.<br /><em>Big personality.</em></>}
         kicker={<p className="hero-kicker tape">YOUR EVERYDAY, REMIXED</p>}
-        action={<div className="actions"><Link className="button primary" to="/create"><ImagePlus size={16} />Create a Sticker<ChevronRight size={16} /></Link><Walkthrough /></div>}
+        action={<div className="actions"><Link className="button primary" to="/create" onMouseEnter={preloadEditor} onFocus={preloadEditor}><ImagePlus size={16} />Create a Sticker<ChevronRight size={16} /></Link><Walkthrough /></div>}
         points={<ul className="hero-points"><li>No account needed</li><li>Saved on your device</li><li>Made by you</li></ul>}
         art={<StickerCollage />}
       >

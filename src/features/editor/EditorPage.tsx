@@ -191,9 +191,9 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
   const uploadError = useEditorStore((state) => state.uploadError)
   const selectedLayerId = useEditorStore((state) => state.selectedLayerId)
   const activeTool = useEditorStore((state) => state.activeTool)
-  const viewport = useEditorStore((state) => state.viewport)
-  const past = useEditorStore((state) => state.past)
-  const future = useEditorStore((state) => state.future)
+  const zoom = useEditorStore((state) => state.viewport.zoom)
+  const canUndo = useEditorStore((state) => state.past.length > 0)
+  const canRedo = useEditorStore((state) => state.future.length > 0)
   const repo = useRepository()
   const selected = document.layers.find((layer) => layer.id === selectedLayerId)
 
@@ -314,21 +314,21 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
             <Layers size={18} />Layers
           </button>
           <div className="tool-history">
-            <button type="button" disabled={past.length === 0 || maskBusy} onClick={() => useEditorStore.getState().undo()}>
+            <button type="button" disabled={!canUndo || maskBusy} onClick={() => useEditorStore.getState().undo()}>
               <Undo2 size={16} />Undo
             </button>
-            <button type="button" disabled={future.length === 0 || maskBusy} onClick={() => useEditorStore.getState().redo()}>
+            <button type="button" disabled={!canRedo || maskBusy} onClick={() => useEditorStore.getState().redo()}>
               <Redo2 size={16} />Redo
             </button>
           </div>
         </aside>
         <section className="canvas-area">
           <div className="canvas-controls">
-            <button type="button" aria-label="Zoom out" onClick={() => useEditorStore.getState().setViewport({ zoom: Math.max(0.25, Math.round((viewport.zoom - 0.1) * 10) / 10) })}>
+            <button type="button" aria-label="Zoom out" onClick={() => useEditorStore.getState().setViewport({ zoom: Math.max(0.25, Math.round((zoom - 0.1) * 10) / 10) })}>
               −
             </button>
-            <b>{Math.round(viewport.zoom * 100)}%</b>
-            <button type="button" aria-label="Zoom in" onClick={() => useEditorStore.getState().setViewport({ zoom: Math.min(4, Math.round((viewport.zoom + 0.1) * 10) / 10) })}>
+            <b>{Math.round(zoom * 100)}%</b>
+            <button type="button" aria-label="Zoom in" onClick={() => useEditorStore.getState().setViewport({ zoom: Math.min(4, Math.round((zoom + 0.1) * 10) / 10) })}>
               +
             </button>
             <button type="button" aria-pressed={activeTool === 'pan'} aria-label="Pan canvas" onClick={() => useEditorStore.getState().setTool(activeTool === 'pan' ? 'select' : 'pan')}>
