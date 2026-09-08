@@ -4,7 +4,7 @@ This is the owner checklist for enabling private cloud on the deployed site. **D
 
 ## Release revision
 
-**Git SHA: `RELEASE_SHA_PENDING`**
+**Git SHA: `ff7b35fa6d364aa592f3b342bc5612ac184f0223`**
 
 Checkout this revision for the authorized production build. Vite embeds `VITE_*` values at build time; setting Vercel environment variables without rebuilding from this SHA does not enable cloud on an existing deployment.
 
