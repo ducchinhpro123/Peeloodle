@@ -282,14 +282,14 @@ test('editor layouts at 1024 and 1100 keep the canvas ready', async ({ page }) =
 test('template cloning and layer manager workflow', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/templates')
-  const card = page.getByRole('button', { name: 'Good Vibes' }).first()
+  const card = page.getByRole('button', { name: 'Orbit Pop' }).first()
   await card.click()
-  const dialog = page.getByRole('dialog', { name: 'Good Vibes' })
+  const dialog = page.getByRole('dialog', { name: 'Orbit Pop' })
   await expect(dialog).toBeVisible()
   await dialog.getByRole('button', { name: 'Use Template' }).click()
   await page.waitForURL(/\/editor\/[0-9a-f-]+/i)
 
-  await expect(page.getByLabel('Sticker title')).toHaveValue('Good Vibes Copy')
+  await expect(page.getByLabel('Sticker title')).toHaveValue('Orbit Pop Copy')
   const canvas = page.getByTestId('editor-canvas')
   await expect(canvas).toBeVisible()
 
@@ -306,8 +306,8 @@ test('template cloning and layer manager workflow', async ({ page }) => {
   await expect(page.getByRole('status')).toContainText(/saved locally/i)
 
   await page.goto('/my-stickers')
-  await page.getByRole('link', { name: /Good Vibes Copy/i }).click()
-  await expect(page.getByLabel('Sticker title')).toHaveValue('Good Vibes Copy')
+  await page.getByRole('link', { name: /Orbit Pop Copy/i }).click()
+  await expect(page.getByLabel('Sticker title')).toHaveValue('Orbit Pop Copy')
 })
 
 test('pack creation, adding sticker, and ZIP export', async ({ page }) => {

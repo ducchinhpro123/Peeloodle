@@ -30,8 +30,8 @@ test('Dashboard composition at 1440x900', async ({ page }) => {
     const computed = getComputedStyle(el)
     return { weight: computed.fontWeight, family: computed.fontFamily, size: computed.fontSize }
   })
-  expect(Number(styles.weight)).toBeGreaterThanOrEqual(700)
-  expect(styles.family).toMatch(/Plus Jakarta Sans/i)
+  expect(Number(styles.weight)).toBeLessThan(700)
+  expect(styles.family).toMatch(/Chewy/i)
   await expect(page.locator('.hero-art')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Search templates and packs' })).toBeVisible()
   await page.screenshot({ path: `${screenshots}/dashboard-1440x900-current.png`, fullPage: false })

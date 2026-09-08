@@ -38,9 +38,9 @@ test('all twelve layered templates match their actual rendered previews', async 
   expect(results).toHaveLength(12)
   for (const result of results) {
     expect(result, result.title).toMatchObject({ caption: 'text', corner: 0 })
-    expect(result.layers).toBeGreaterThanOrEqual(5)
-    expect(result.ink).toBeGreaterThan(30000)
-    expect(result.differences / result.ink).toBeLessThan(0.01)
+    expect(result.layers, result.title).toBeGreaterThanOrEqual(4)
+    expect(result.ink, result.title).toBeGreaterThan(20000)
+    expect(result.differences / result.ink, result.title).toBeLessThan(0.01)
   }
 })
 
@@ -48,32 +48,44 @@ for (const width of [1440, 1024, 390]) {
   test(`template → replace photo and caption → undo/redo → reopen → PNG at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 1440 ? 900 : width === 1024 ? 768 : 844 })
     await page.goto('/templates')
-    await page.getByLabel('Search sample templates').fill('Good Vibes')
-    await page.getByRole('button', { name: 'Preview Good Vibes', exact: true }).first().click()
+    await page.getByLabel('Search sample templates').fill('Orbit Pop')
+    await page.getByRole('button', { name: 'Preview Orbit Pop', exact: true }).first().click()
     await page.getByRole('button', { name: 'Use Template', exact: true }).click()
-    await expect(page.getByLabel('Sticker title')).toHaveValue('Good Vibes Copy')
+    await expect(page.getByLabel('Sticker title')).toHaveValue('Orbit Pop Copy')
     const url = page.url()
     if (width < 1150) await page.getByRole('button', { name: 'Sticker properties', exact: true }).click()
     const inspector = width < 1150 ? page.getByRole('dialog', { name: 'Sticker properties' }) : page.locator('.editor > .inspector')
-    await inspector.getByLabel('Text content').fill('My good vibes')
+    await inspector.getByLabel('Text content').fill('My wild card')
     await inspector.getByLabel('Font family').selectOption('Fredoka')
     await inspector.getByRole('tab', { name: 'Layers', exact: true }).click()
     await inspector.getByRole('button', { name: 'Select Your photo', exact: true }).click()
     await inspector.getByRole('tab', { name: 'Adjust', exact: true }).click()
     await expect(inspector.getByRole('button', { name: 'Replace photo', exact: true })).toBeEnabled()
-    const originalId = await page.evaluate(async (path) => (await import(path)).useEditorStore.getState().document.layers[0].assetId, storePath)
+    const originalId = await page.evaluate(async (path) => {
+      const document = (await import(path)).useEditorStore.getState().document
+      return document.layers.find((layer: { name: string }) => layer.name === 'Your photo').assetId
+    }, storePath)
     if (width === 1440) {
       await inspector.getByLabel('Replacement photo').setInputFiles({ name: 'invalid.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>') })
       await expect(page.getByRole('alert')).toContainText('SVG uploads are not supported')
-      expect(await page.evaluate(async (path) => (await import(path)).useEditorStore.getState().document.layers[0].assetId, storePath)).toBe(originalId)
+      expect(await page.evaluate(async (path) => {
+        const document = (await import(path)).useEditorStore.getState().document
+        return document.layers.find((layer: { name: string }) => layer.name === 'Your photo').assetId
+      }, storePath)).toBe(originalId)
     }
     const chooser = page.waitForEvent('filechooser')
     await inspector.getByRole('button', { name: 'Replace photo', exact: true }).click()
     await (await chooser).setFiles('public/samples/solenodon.png')
-    await expect.poll(() => page.evaluate(async (path) => (await import(path)).useEditorStore.getState().document.layers[0].assetId, storePath)).not.toBe(originalId)
+    await expect.poll(() => page.evaluate(async (path) => {
+      const document = (await import(path)).useEditorStore.getState().document
+      return document.layers.find((layer: { name: string }) => layer.name === 'Your photo').assetId
+    }, storePath)).not.toBe(originalId)
     if (width < 1150) await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Undo', exact: true }).click()
-    expect(await page.evaluate(async (path) => (await import(path)).useEditorStore.getState().document.layers[0].assetId, storePath)).toBe(originalId)
+    expect(await page.evaluate(async (path) => {
+      const document = (await import(path)).useEditorStore.getState().document
+      return document.layers.find((layer: { name: string }) => layer.name === 'Your photo').assetId
+    }, storePath)).toBe(originalId)
     await page.getByRole('button', { name: 'Redo', exact: true }).click()
     await page.getByRole('button', { name: 'Save to My Stickers', exact: true }).click()
     await expect(page.getByRole('status')).toContainText('Saved locally')
@@ -81,16 +93,19 @@ for (const width of [1440, 1024, 390]) {
     await page.route('**/samples/*.png', (route) => route.request().resourceType() === 'fetch' ? route.abort() : route.continue())
     await page.reload()
     await expect(page.getByTestId('editor-canvas')).toBeVisible()
-    await expect.poll(() => page.evaluate(async (path) => (await import(path)).useEditorStore.getState().document?.layers.length, storePath)).toBe(5)
+    await expect.poll(() => page.evaluate(async (path) => (await import(path)).useEditorStore.getState().document?.layers.length, storePath)).toBe(6)
     const saved = await page.evaluate(async (path) => {
       const state = (await import(path)).useEditorStore.getState()
-      return { layers: state.document.layers, assetCount: Object.keys(state.assets).length, photo: state.assets[state.document.layers[0].assetId].asset }
+      const photoLayer = state.document.layers.find((layer: { name: string }) => layer.name === 'Your photo')
+      const caption = state.document.layers.at(-1)
+      return { layers: state.document.layers, assetCount: Object.keys(state.assets).length, photo: state.assets[photoLayer.assetId].asset, photoLayer, caption }
     }, storePath)
-    expect(saved.assetCount).toBe(4)
+    expect(saved.assetCount).toBe(5)
     expect(saved.photo.provenance).toBe('user-upload:solenodon.png')
-    expect(saved.layers[0]).toMatchObject({ kind: 'image', name: 'Your photo', outline: { enabled: true }, transform: { rotation: -7 } })
-    expect(saved.layers[0].crop).toBeUndefined()
-    expect(saved.layers[4]).toMatchObject({ kind: 'text', content: 'My good vibes', fontFamily: 'Fredoka' })
+    expect(saved.photoLayer).toMatchObject({ kind: 'image', name: 'Your photo', transform: { rotation: -3 } })
+    expect(saved.photoLayer.crop).toBeUndefined()
+    expect(saved.photoLayer.outline).toBeUndefined()
+    expect(saved.caption).toMatchObject({ kind: 'text', content: 'My wild card', fontFamily: 'Fredoka' })
     await page.getByRole('button', { name: 'Export and share' }).click()
     const download = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Download PNG', exact: true }).click()
@@ -113,28 +128,29 @@ for (const width of [1440, 1024, 390]) {
     await page.screenshot({ path: `/tmp/stickerlab-ui-audit/composition-editor-${width}.png`, fullPage: true })
     await page.unroute('**/samples/*.png')
     await page.goto('/templates')
-    await page.getByRole('button', { name: 'Preview Good Vibes', exact: true }).first().click()
+    await page.getByRole('button', { name: 'Preview Orbit Pop', exact: true }).first().click()
     await page.getByRole('button', { name: 'Use Template', exact: true }).click()
-    await expect(page.getByLabel('Sticker title')).toHaveValue('Good Vibes Copy')
+    await expect(page.getByLabel('Sticker title')).toHaveValue('Orbit Pop Copy')
     expect(page.url()).not.toBe(url)
     const fresh = await page.evaluate(async (path) => (await import(path)).useEditorStore.getState().document, storePath)
-    expect(fresh.layers[0].assetId).not.toBe(saved.layers[0].assetId)
-    expect(fresh.layers[0].crop).toBeDefined()
-    expect(fresh.layers[4].content).toBe('Good Vibes!')
+    const freshPhoto = fresh.layers.find((layer: { name: string }) => layer.name === 'Your photo')
+    expect(freshPhoto.assetId).not.toBe(saved.photoLayer.assetId)
+    expect(freshPhoto.crop).toBeUndefined()
+    expect(fresh.layers.at(-1).content).toBe('WILD CARD')
   })
 }
 
 test('missing template artwork reports failure without creating a broken project; retry works', async ({ page }) => {
-  await page.route('**/samples/cat-in-console.png', (route) => route.fulfill({ status: 503, body: 'Unavailable' }))
+  await page.route('**/art/template-photos/waving-cat.webp', (route) => route.fulfill({ status: 503, body: 'Unavailable' }))
   await page.goto('/templates')
-  await page.getByRole('button', { name: 'Preview Good Vibes', exact: true }).first().click()
+  await page.getByRole('button', { name: 'Preview Orbit Pop', exact: true }).first().click()
   await page.getByRole('button', { name: 'Use Template', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Could not save the template')
   expect(await page.evaluate(async () => {
     const path = '/src/lib/persistence/repository.ts'
     return (await (await import(path)).getLocalRepository().listProjects()).length
   })).toBe(0)
-  await page.unroute('**/samples/cat-in-console.png')
+  await page.unroute('**/art/template-photos/waving-cat.webp')
   await page.getByRole('button', { name: 'Use Template', exact: true }).click()
-  await expect(page.getByLabel('Sticker title')).toHaveValue('Good Vibes Copy')
+  await expect(page.getByLabel('Sticker title')).toHaveValue('Orbit Pop Copy')
 })

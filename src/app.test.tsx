@@ -104,8 +104,8 @@ describe('foundation interactions', () => {
   it('filters sample templates and resets the selected filter and search', () => {
     renderRoute('/templates')
     fireEvent.click(screen.getByRole('button', { name: 'Cute Animals' }))
-    expect(screen.getAllByText('Cat Expressions').length).toBeGreaterThan(0)
-    expect(screen.queryByText('Good Vibes')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Pet Bestie').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Orbit Pop')).not.toBeInTheDocument()
     fireEvent.change(screen.getByRole('textbox', { name: 'Search sample templates' }), { target: { value: 'no-match' } })
     expect(screen.getByRole('heading', { name: 'No sample templates found' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
@@ -126,11 +126,11 @@ describe('foundation interactions', () => {
         <App repository={repo} />
       </MemoryRouter>,
     )
-    const cardTitle = screen.getAllByRole('button', { name: 'Good Vibes' })[0]!
+    const cardTitle = screen.getAllByRole('button', { name: 'Orbit Pop' })[0]!
     fireEvent.click(cardTitle)
-    const dialog = await screen.findByRole('dialog', { name: 'Good Vibes' })
+    const dialog = await screen.findByRole('dialog', { name: 'Orbit Pop' })
     expect(dialog).toBeInTheDocument()
-    expect(within(dialog).getByText(/Your photo, Heart \/ badge, Sparkles \/ accent, Caption backing, Your caption/i)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Your photo, Shooting star, Blue fish, Little mint sparkle, Caption backing, Your caption/i)).toBeInTheDocument()
 
     const useBtn = within(dialog).getByRole('button', { name: 'Use Template' })
     fireEvent.click(useBtn)
@@ -138,22 +138,22 @@ describe('foundation interactions', () => {
     await waitFor(() => {
       const doc = useEditorStore.getState().document
       expect(doc).not.toBeNull()
-      expect(doc?.title).toBe('Good Vibes Copy')
+      expect(doc?.title).toBe('Orbit Pop Copy')
       expect(doc?.layers.length).toBeGreaterThan(0)
     })
     const saved = await repo.listProjects()
     expect(saved).toHaveLength(1)
-    expect(saved[0]?.title).toBe('Good Vibes Copy')
+    expect(saved[0]?.title).toBe('Orbit Pop Copy')
   })
 
   it('keeps a template preview open on save failure and restores focus on dismissal', async () => {
     const repo = createMemoryRepository()
     repo.injectWriteFailure()
     render(<MemoryRouter initialEntries={['/templates']}><App repository={repo} /></MemoryRouter>)
-    const opener = screen.getAllByRole('button', { name: 'Good Vibes' })[0]!
+    const opener = screen.getAllByRole('button', { name: 'Orbit Pop' })[0]!
     opener.focus()
     fireEvent.click(opener)
-    const dialog = screen.getByRole('dialog', { name: 'Good Vibes' })
+    const dialog = screen.getByRole('dialog', { name: 'Orbit Pop' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Use Template' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not save')
     expect(await repo.listProjects()).toHaveLength(0)
@@ -163,11 +163,11 @@ describe('foundation interactions', () => {
 
   it('toggles template favorites and stores them', () => {
     renderRoute('/templates')
-    const favBtn = screen.getAllByRole('button', { name: 'Add Good Vibes to favorites' })[0]!
+    const favBtn = screen.getAllByRole('button', { name: 'Add Orbit Pop to favorites' })[0]!
     expect(favBtn).toHaveTextContent('♡')
     fireEvent.click(favBtn)
-    expect(screen.getAllByRole('button', { name: 'Remove Good Vibes from favorites' })[0]).toHaveTextContent('❤️')
-    expect(screen.queryAllByRole('button', { name: 'Add Good Vibes to favorites' })).toHaveLength(0)
+    expect(screen.getAllByRole('button', { name: 'Remove Orbit Pop from favorites' })[0]).toHaveTextContent('❤️')
+    expect(screen.queryAllByRole('button', { name: 'Add Orbit Pop to favorites' })).toHaveLength(0)
   })
 
   it('shows pack write failures without closing the form or losing its title', async () => {

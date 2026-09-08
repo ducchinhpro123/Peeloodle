@@ -4,15 +4,12 @@ Issues and specs live in GitHub Issues. Use the `gh` CLI.
 
 ## Repository
 
-Repository creation and Git initialization are pending.
+GitHub repository: `ducchinhpro123/Peeloodle` (private).
 Preferred SSH host alias: `github.com-ducchinhpro123`.
 
-Once configured, resolve owner/repo from the Git remote. The SSH alias
-is not the GitHub API hostname; use `gh --repo OWNER/REPO` explicitly
-if automatic detection fails.
-
-Until the repository is known, ask for it before tracker operations.
-Do not guess the owner or create a repository automatically.
+Resolve owner/repo from the Git remote. The SSH alias is not the GitHub
+API hostname; use `gh --repo ducchinhpro123/Peeloodle` if automatic
+detection fails.
 
 ## Operations
 

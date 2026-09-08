@@ -124,7 +124,7 @@ for (const width of [1440, 1024, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 })
     await page.goto('/create')
     await page.getByRole('button', { name: 'Stickers & decorations', exact: true }).click()
-    await expect(page.locator('.asset-items .catalog-asset')).toHaveCount(33)
+    await expect(page.locator('.asset-items .catalog-asset')).toHaveCount(39)
     if (width === 1440) {
       const images = page.locator('.asset-items .catalog-asset img')
       const broken = await images.evaluateAll(async (images) => Promise.all(images.map(async (element) => {

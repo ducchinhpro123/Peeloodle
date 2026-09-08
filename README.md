@@ -47,8 +47,8 @@ Playwright uses Chromium at `/usr/bin/chromium` via `playwright.config.ts`. Fire
 ## Editor tools
 
 - **Fonts:** Fredoka, Baloo 2, Luckiest Guy, Chewy, Pacifico, and Bangers, alongside the existing fonts. Choose a family in Sticker Properties or insert one of six editable presets from **Text styles**.
-- **Photo templates:** 12 layered compositions including Good Vibes, Best Buddy, and Stay Cool. Each has a replaceable sample photo, editable caption, and separate decorations. Select Layers → Your photo → Adjust → Replace photo; the replacement fits without stretching and retains the layout/effects. Undo restores the original crop and erasure. The eight illustrations are sticker assets, not templates.
-- **Cute cutouts:** 33 cats, hearts, stars, space illustrations, and other decorations in **Stickers & decorations**. Add them as independent image layers; resize, rotate, flip, erase/restore, and apply outlines or filters. Image quarter-turns preserve the visible image center, including crops and flips.
+- **Photo templates:** 12 layered compositions with distinct layouts (orbit, big type, polaroid, speech bubble, stamp, and others), including Orbit Pop, Nope Energy, and Pet Bestie. Stand-in photos are the six user-supplied Sep 8 cutouts (cat, corgi, people, boba). Each has a replaceable photo, editable caption, and separate decorations. Select Layers → Your photo → Adjust → Replace photo; the replacement fits without stretching and retains the layout/effects. Undo restores the original crop and erasure. The eight illustrations can appear as template decorations and remain available in the sticker tray.
+- **Cute cutouts:** 39 cats, people, drinks, hearts, stars, space illustrations, and other decorations in **Stickers & decorations**. Add them as independent image layers; resize, rotate, flip, erase/restore, and apply outlines or filters. Image quarter-turns preserve the visible image center, including crops and flips.
 - **Save and export:** font choices, text styles, and inserted image blobs survive reopening. The canvas measures text after fonts load; PNG/ZIP exports await the required fonts and report failures instead of silently substituting a bundled font.
 
 Fonts and cutouts are served locally, with no extra credentials or dependencies. Font licenses and source-art limitations are listed in [asset provenance](docs/assets-provenance.md). Cutout lettering is part of the image; use a text preset when you want editable words. Large upscales can soften the modest-resolution sample artwork.
@@ -79,6 +79,16 @@ Fonts and cutouts are served locally, with no extra credentials or dependencies.
 - [ ] Public/read-only cloud sharing and native WhatsApp/Telegram installation
 
 Deferred actions open an explanation or stay disabled. They do not report success. Automatic background removal and public sharing are unavailable.
+
+## Hosting
+
+Production is a Vite static app on Vercel. Client routes (`/templates`, `/editor/:id`, and so on) fall back to `index.html` via `vercel.json`. Cloud auth is optional; the site works fully locally in the browser without `VITE_SUPABASE_*` keys.
+
+```bash
+npx vercel --prod
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, lint, unit tests, and the production build on pushes and pull requests to `main`. Vercel deploys from the GitHub repository when the project is linked.
 
 ## Cloud configuration
 

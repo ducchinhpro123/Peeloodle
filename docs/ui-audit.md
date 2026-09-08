@@ -2,6 +2,8 @@
 
 Direction: lively, vivid, engaging—an original sticker-workshop interpretation of the four supplied references, not an exact clone. Existing local documents, editing commands, persistence, and exports remain the functional foundation.
 
+The Dashboard hero is a scrapbook panel: original torn cream/mint paper, polaroid frames with code-drawn daisy/field scenes, and the supplied cat cutouts (crown, Meow!, Stay Cool are part of those stickers). Feature cards add a “Make it yours!” scrap, polaroid stack, and a torn edge on Share & Export. This is assembled from HTML/CSS/SVG, not a screenshot of the mockup.
+
 ## Findings and fixes
 
 | Observed issue | Change |
@@ -39,4 +41,4 @@ The catalog name expectations, missing generated previews, and preview-script li
 
 No new dependencies, cloud setup, or database migrations. Source PNGs and the source ZIP are preserved. The UI refresh uses nine optimized WebP derivatives for decoration; the editor catalog now offers all 25 supplied cutouts plus eight new illustrated graphics for explicit insertion. Decoration does not replace editable template data or pretend to be saved user stickers. Artwork rights still need owner review before public distribution; a new layout is not legal clearance.
 
-Firefox/WebKit and physical mobile devices were not verified. The mobile editor retains its horizontally scrollable tool rail and properties dialog. Native messenger installation and cloud sharing remain unavailable. The eight illustrations remain sticker-tray assets. Templates now contain 12 photo/caption/decoration compositions with actual generated previews. Replace photo, caption editing, undo/redo, save/reopen, and PNG export are covered at all three viewport sizes. All layouts currently reuse the licensed sample cat; photo backgrounds are not removed automatically.
+Firefox/WebKit and physical mobile devices were not verified. The mobile editor retains its horizontally scrollable tool rail and properties dialog. Native messenger installation and cloud sharing remain unavailable. The eight illustrations remain sticker-tray assets and may also appear as template decorations. Six Sep 8 photo stickers are template stand-ins and tray assets. Templates contain 12 photo/caption/decoration compositions with distinct layouts, distinct stand-in subjects, and generated previews. Replace photo, caption editing, undo/redo, save/reopen, and PNG export are covered at all three viewport sizes. Photo backgrounds are not removed automatically.

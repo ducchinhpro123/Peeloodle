@@ -7,13 +7,13 @@ export function StickerCollage({ variant = 'studio' }: { variant?: 'studio' | 't
       <div className="collage-paper" />
       {variant === 'studio' && <>
         <span className="collage-grid" />
-        <span className="collage-lilac" />
-        <span className="collage-tape" />
-        <span className="collage-margin-note">stick good<br />things around you</span>
-        <span className="collage-aside-note">Same cats.<br />Brighter days.</span>
+        <span className="collage-polaroid collage-polaroid-field"><img src="/art/polaroid-field.svg" alt="" decoding="async" /></span>
+        <span className="collage-polaroid collage-polaroid-daisy"><img src="/art/polaroid-daisy.svg" alt="" decoding="async" /></span>
+        <span className="collage-tape-gingham" />
+        <span className="collage-tape-kraft collage-tape-left" />
+        <span className="collage-tape-kraft collage-tape-bottom" />
+        <span className="collage-aside-note">Same cats.<br />Brighter days. ♡</span>
         <img className="collage-star" src="/art/stickers/17-yellow-star.webp" alt="" decoding="async" />
-        <img className="collage-twinkle" src="/art/stickers/07-yellow-sparkle.webp" alt="" decoding="async" />
-        <img className="collage-mini-heart" src="/art/stickers/12-small-pink-heart.webp" alt="" decoding="async" />
       </>}
       {variant === 'templates' && <>
         <span className="collage-tape" />
@@ -22,10 +22,10 @@ export function StickerCollage({ variant = 'studio' }: { variant?: 'studio' | 't
       </>}
       <img className="hero-art collage-cat" src={`/art/stickers/${variant === 'templates' ? '03-white-cat-good-vibes' : '01-orange-cat-meow'}.webp`} alt="" decoding="async" />
       <img className="collage-buddy" src="/art/stickers/02-cat-stay-cool.webp" alt="" decoding="async" />
-      <img className="collage-lettering" src={`/art/stickers/${variant === 'packs' ? '19-you-got-this' : '18-good-vibes-lettering'}.webp`} alt="" decoding="async" />
+      {variant !== 'studio' && <img className="collage-lettering" src={`/art/stickers/${variant === 'packs' ? '19-you-got-this' : '18-good-vibes-lettering'}.webp`} alt="" decoding="async" />}
       <img className="collage-heart" src="/art/stickers/14-large-pink-heart.webp" alt="" decoding="async" />
-      <img className="collage-sparkle" src="/art/stickers/05-mint-sparkle-top.webp" alt="" decoding="async" />
-      <span className="collage-stamp">100% your kind of fun{variant === 'templates' ? ' ☺' : ''}</span>
+      {variant !== 'studio' && <img className="collage-sparkle" src="/art/stickers/05-mint-sparkle-top.webp" alt="" decoding="async" />}
+      {variant !== 'studio' && <span className="collage-stamp">100% your kind of fun{variant === 'templates' ? ' ☺' : ''}</span>}
     </div>
   )
 }

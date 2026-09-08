@@ -20,6 +20,29 @@ it('isolates nested layer settings when cloning a template', () => {
 })
 
 
+it('builds twelve distinct layouts with independent photo, caption, and decoration layers', () => {
+  expect(templateData).toHaveLength(12)
+  expect(templateData.slice(0, 4).map((item) => item.category)).toEqual(['Trending', 'Trending', 'Trending', 'Trending'])
+  expect(new Set(templateData.map((item) => item.tags.at(-1))).size).toBe(12)
+  expect(new Set(templateData.map((item) => item.title)).size).toBe(12)
+  const polaroid = templateData.find((item) => item.title === 'Pet Bestie')!
+  expect(polaroid.document.layers[0]).toMatchObject({ kind: 'shape', name: 'Photo frame', shape: 'rectangle' })
+  expect(polaroid.document.layers.some((layer) => layer.kind === 'image' && layer.name === 'Your photo' && !layer.outline)).toBe(true)
+  const rocket = templateData.find((item) => item.title === 'Tiny Win')!
+  expect(Object.values(rocket.assetSources ?? {})).toContain('/art/illustrations/little-rocket.webp')
+  expect(rocket.assetSources?.photo).toBe('/art/template-photos/boba-tea.webp')
+  expect(new Set(templateData.slice(0, 4).map((item) => item.assetSources?.photo)).size).toBe(4)
+  for (const template of templateData) {
+    const photo = template.document.layers.find((layer) => layer.name === 'Your photo')
+    const caption = template.document.layers.at(-1)
+    expect(photo).toMatchObject({ kind: 'image' })
+    expect(photo && 'crop' in photo ? photo.crop : undefined).toBeUndefined()
+    expect(template.assetSources?.photo).toMatch(/^\/art\/template-photos\/.+\.webp$/)
+    expect(caption).toMatchObject({ kind: 'text', name: 'Your caption' })
+    expect(template.document.layers.length).toBeGreaterThanOrEqual(4)
+  }
+})
+
 it('hydrates layered photo templates with independent assets and saves them atomically', async () => {
   vi.spyOn(assetLoader, 'ingestBundledImage').mockImplementation(async (src) => {
     const id = crypto.randomUUID()
@@ -32,8 +55,10 @@ it('hydrates layered photo templates with independent assets and saves them atom
     const second = await instantiateTemplate(template)
     expect(first.document.id).not.toBe(second.document.id)
     expect(first.document.assetIds[0]).not.toBe(second.document.assetIds[0])
-    expect(first.document.layers[0]!.id).not.toBe(second.document.layers[0]!.id)
-    expect(first.document.layers[0]).toMatchObject({ assetId: first.assets[0]!.asset.id })
+    const firstPhoto = first.document.layers.find((layer) => layer.name === 'Your photo')
+    const secondPhoto = second.document.layers.find((layer) => layer.name === 'Your photo')
+    expect(firstPhoto?.id).not.toBe(secondPhoto?.id)
+    expect(firstPhoto).toMatchObject({ assetId: first.assets[0]!.asset.id })
     repo.injectWriteFailure()
     await expect(repo.saveProjectWithAssets(first.document, first.assets)).rejects.toThrow()
     await expect(repo.getAsset(first.assets[0]!.asset.id)).rejects.toThrow()

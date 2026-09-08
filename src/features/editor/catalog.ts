@@ -1,5 +1,6 @@
 import type { TextStyle } from './store'
 import { ILLUSTRATIONS } from '../assets/illustrations'
+import { TEMPLATE_PHOTOS } from '../assets/templatePhotos'
 
 export const TEXT_PRESETS = [
   { content: 'Hello, cutie!', fontFamily: 'Fredoka', fontSize: 80, color: '#00875e', description: 'Cute & rounded' },
@@ -10,7 +11,7 @@ export const TEXT_PRESETS = [
   { content: 'STAY COOL', fontFamily: 'Bangers', fontSize: 96, color: '#087ca7', description: 'Big meme energy' },
 ] satisfies Array<TextStyle & { description: string }>
 
-export const STICKER_CATALOG = [...ILLUSTRATIONS, ...([
+export const STICKER_CATALOG = [...ILLUSTRATIONS, ...TEMPLATE_PHOTOS, ...([
   ['01-orange-cat-meow', 'Meow cat'],
   ['02-cat-stay-cool', 'Cool cat'],
   ['03-white-cat-good-vibes', 'Good vibes cat'],

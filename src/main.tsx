@@ -106,7 +106,7 @@ function Header() {
         ))}
       </nav>
       <Unavailable className="search search-button" label="Search is not implemented" aria-label="Search templates and packs">
-        <Search size={16} /><span>Search templates and packs</span>
+        <Search size={16} /><span>Search templates and packs...</span>
       </Unavailable>
       <NoticeDialog title="Notifications are unavailable" trigger={<Button className="icon" aria-label="Notifications"><Bell size={18} /></Button>}>
         Notifications are not implemented.
@@ -165,9 +165,9 @@ const dashboardFeatures = [
   { icon: Upload, title: 'Share & Export', to: '/create', detail: 'Made it? Take it with you as a transparent PNG.', tone: 'green' },
 ] as const
 
-function Hero({ title, children, action, art, kicker, points }: { title: ReactNode; children: ReactNode; action?: ReactNode; art?: ReactNode; kicker?: ReactNode; points?: ReactNode }) {
+function Hero({ title, children, action, art, kicker, points, className }: { title: ReactNode; children: ReactNode; action?: ReactNode; art?: ReactNode; kicker?: ReactNode; points?: ReactNode; className?: string }) {
   return (
-    <section className="hero">
+    <section className={className ? `hero ${className}` : 'hero'}>
       <div className="hero-copy">
         {kicker}
         <h1>{title}</h1>
@@ -184,6 +184,7 @@ function Dashboard() {
   return (
     <Shell>
       <Hero
+        className="hero-dashboard"
         title={<>Small stickers.<br /><em>Big personality.</em></>}
         kicker={<p className="hero-kicker tape">YOUR EVERYDAY, REMIXED</p>}
         action={<div className="actions"><Link className="button primary" to="/create" onMouseEnter={preloadEditor} onFocus={preloadEditor}><ImagePlus size={16} />Create a Sticker<ChevronRight size={16} /></Link><Walkthrough /></div>}
@@ -192,7 +193,20 @@ function Dashboard() {
       >
         Your cat. Your chaos. Your favorite face. Turn everyday photos into little things worth sending.
       </Hero>
-      <div className="feature-grid">{dashboardFeatures.map(({ icon: Icon, title, to, detail, tone }) => <Link className="feature" to={to} key={title}><b className={tone}><Icon size={18} /></b><span><strong>{title}</strong><small>{detail}</small></span><i className="feature-doodle" aria-hidden="true" /></Link>)}</div>
+      <div className="feature-grid">{dashboardFeatures.map(({ icon: Icon, title, to, detail, tone }) => (
+        <Link className="feature" to={to} key={title}>
+          <b className={tone}><Icon size={18} /></b>
+          <span><strong>{title}</strong><small>{detail}</small></span>
+          <i className="feature-doodle" aria-hidden="true">
+            {title === 'Text & Emoji' ? <span className="feature-scrap">Make it yours!</span> : null}
+            {title === 'Templates' ? <>
+              <span className="feature-polaroid field"><img src="/art/polaroid-field.svg" alt="" /></span>
+              <span className="feature-polaroid daisy"><img src="/art/polaroid-daisy.svg" alt="" /></span>
+              <img className="feature-smiley" src="/art/stickers/04-winking-smiley.webp" alt="" />
+            </> : null}
+          </i>
+        </Link>
+      ))}</div>
       <div className="split"><ProjectSection /><TemplateRail title="🔥 Trending Templates" /></div>
       <section className="bottom-banner">
         <img className="banner-sticker" src="/art/stickers/16-rainbow.webp" alt="" width={96} height={72} /><b>Less ordinary.<br />More you.</b>
