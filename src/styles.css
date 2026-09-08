@@ -532,12 +532,14 @@ main > section, main > div { min-width: 0; }
 .collage-packs .collage-aside-note { position: absolute; right: -8%; bottom: -13%; color: var(--ink); font: 400 clamp(11px, 1.3cqw, 22px)/1.25 'Chewy', cursive; text-align: center; transform: rotate(-12deg); }
 .sticker { font-size: 86px; line-height: 1; filter: drop-shadow(0 3px 1px #fff) drop-shadow(0 0 4px #fff); }
 
-.feature-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); margin: var(--space-5) 0 var(--space-6); }
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-4); margin: var(--space-5) 0 var(--space-6); }
 .feature { display: flex; position: relative; min-height: 196px; align-items: flex-start; gap: var(--space-3); padding: var(--space-5) var(--space-4) 72px; border: 1px solid #08152f06; border-radius: 24px; background: var(--blush); color: var(--ink); text-decoration: none; transition: transform 160ms ease, box-shadow 160ms ease; }
 .feature:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
 .feature:nth-child(2) { background: var(--sky); }
-.feature:nth-child(3) { background: var(--lav); }
-.feature:nth-child(4) {
+.feature:nth-child(3) { background: var(--pale); }
+.feature:nth-child(4) { background: var(--lav); }
+.feature:nth-child(5),
+.feature.torn {
   background: var(--pale);
   clip-path: polygon(0 0, 100% 0, 100% 78%, 97% 84%, 100% 90%, 94% 100%, 0 100%);
 }
@@ -554,6 +556,7 @@ main > section, main > div { min-width: 0; }
 .feature > b.blue { background: var(--icon-blue); }
 .feature > b.purple { background: var(--icon-purple); }
 .feature > b.green { background: var(--icon-green); }
+.feature > b.yellow { background: #e0a106; }
 .feature span { display: grid; gap: 2px; min-width: 0; }
 .feature strong { max-width: 9.5em; font-size: 15px; font-weight: 700; line-height: 1.25; }
 .feature small, .template-card small { color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.35; }
@@ -933,6 +936,8 @@ main > section, main > div { min-width: 0; }
 .editor-welcome h2 { font-size: 20px; line-height: 1.3; letter-spacing: -.04em; }
 .editor-welcome p, .editor-welcome small { color: var(--muted); font-size: 12px; }
 .editor-welcome small { font-size: 10px; }
+.asset-tray .filter-search { margin: 0 0 8px; max-width: min(280px, 100%); }
+.asset-tray .filter-search input { min-width: 0; width: 100%; }
 .canvas-placeholder strong, .canvas-placeholder small { display: block; }
 .canvas-placeholder small { margin-top: 7px; color: var(--muted); }
 .inspector { overflow: auto; min-height: 0; padding: 12px; }

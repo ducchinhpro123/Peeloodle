@@ -293,7 +293,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       dirty: true,
       saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
       uploadError: null,
-      activeTool: 'select',
+      activeTool: state.activeTool === 'erase' || state.activeTool === 'restore' ? state.activeTool : 'select',
     })
   },
 

@@ -35,6 +35,15 @@ describe('editor commands', () => {
     expect(useEditorStore.getState().document?.layers[0]?.kind).toBe('image')
   })
 
+  it('keeps erase armed after adding an image so Background Eraser stays on after upload', () => {
+    const store = useEditorStore.getState()
+    store.createDraft('p1')
+    store.setTool('erase')
+    store.addImageLayer(pngRecord())
+    expect(useEditorStore.getState().activeTool).toBe('erase')
+    expect(useEditorStore.getState().document?.layers).toHaveLength(1)
+  })
+
   it('rotates cropped and flipped images around their center with one undo entry per turn', () => {
     const record = pngRecord()
     const transform = { x: 300, y: 400, scaleX: -1.5, scaleY: 0.5, rotation: 30 }

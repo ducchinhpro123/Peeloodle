@@ -1,51 +1,148 @@
-import { expect, test } from '@playwright/test'
-import type Konva from 'konva'
+import { expect, test, type Page } from '@playwright/test'
+import {
+  asymmetricPng,
+  channelDiff,
+  comparePreviewExportGrid,
+  downloadPng,
+  inspectPngBytes,
+  openBlankEditor,
+  probePng,
+  setSlider,
+  waitForCanvasInk,
+  type PixelReport,
+} from './liveEditor'
 
-for (const effect of ['grayscale', 'brightness', 'contrast', 'saturation', 'outline', 'filtered-outline', 'translucent-outline', 'cropped-outline', 'circle'] as const) {
-  test(`preview matches exported ${effect} pixels`, async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto('/create')
-    await expect(page.locator('[data-testid="editor-canvas"] canvas')).toBeVisible()
-    await page.evaluate(async (effect) => {
-      const storePath = '/src/features/editor/store.ts'
-      const { useEditorStore } = await import(storePath)
-      const state = useEditorStore.getState()
-      const image = document.createElement('canvas')
-      image.width = image.height = 120
-      const ctx = image.getContext('2d')!
-      ctx.fillStyle = '#c82850'
-      ctx.fillRect(0, 0, 120, 120)
-      const blob = await new Promise<Blob>((resolve) => image.toBlob((blob) => resolve(blob!)))
-      const base = { id: 'probe', name: 'Probe', visible: true, locked: false, opacity: effect === 'translucent-outline' ? 0.4 : 1, transform: { x: 400, y: 400, rotation: 0, scaleX: 1, scaleY: 1 } }
-      const layer = effect === 'circle'
-        ? { ...base, kind: 'shape', shape: 'circle', fill: '#c82850' }
-        : { ...base, kind: 'image', assetId: 'probe', ...(['grayscale', 'brightness', 'contrast', 'saturation'].includes(effect) ? { filters: { brightness: 0, contrast: 0, saturation: 0, grayscale: 0, [effect]: 25 } } : { outline: { enabled: true, color: '#00ff00', width: 20 }, ...(effect === 'filtered-outline' ? { filters: { brightness: -100, contrast: 0, saturation: 0, grayscale: 0 } } : {}), ...(effect === 'cropped-outline' ? { crop: { x: 20, y: 20, width: 80, height: 80 } } : {}) }) }
-      state.hydrate({ ...state.document, layers: [layer], assetIds: effect === 'circle' ? [] : ['probe'] }, effect === 'circle' ? [] : [{ asset: { id: 'probe', blobKey: 'probe', mimeType: 'image/png', width: 120, height: 120, provenance: 'test' }, blob }])
-      useEditorStore.getState().selectLayer(null)
-    }, effect)
-    // Poll the real canvas to allow image decoding and React rendering to settle.
-    await expect.poll(async () => page.evaluate(async (effect) => {
-      const storePath = '/src/features/editor/store.ts'
-      const renderPath = '/src/features/exports/renderDocument.ts'
-      const { useEditorStore } = await import(storePath)
-      const { renderDocument } = await import(renderPath)
-      const state = useEditorStore.getState()
-      const bitmap = await createImageBitmap(await renderDocument(state.document, state.assets, { size: 1024 }))
-      const exported = document.createElement('canvas')
-      exported.width = exported.height = 1024
-      const e = exported.getContext('2d')!
-      e.drawImage(bitmap, 0, 0)
-      bitmap.close()
-      const host = document.querySelector('[data-testid="editor-canvas"]') as HTMLElement
-      const preview = host.querySelector('canvas')!
-      const stage = (window as unknown as { Konva: typeof Konva }).Konva.stages[0]!
-      const point = effect.includes('outline') ? [390, 460] : effect === 'circle' ? [405, 405] : [460, 460]
-      const x = stage.x() + point[0]! * stage.scaleX()
-      const y = stage.y() + point[1]! * stage.scaleY()
-      const pixel = Array.from(preview.getContext('2d')!.getImageData(Math.round(x * preview.width / host.clientWidth), Math.round(y * preview.height / host.clientHeight), 1, 1).data)
-      const target = Array.from(e.getImageData(point[0]!, point[1]!, 1, 1).data)
-      const outlineError = effect.includes('outline') ? Math.abs(target[1]! - 255) : 0
-      return Math.max(outlineError, ...pixel.map((value, index) => Math.abs(value - target[index]!)))
-    }, effect)).toBeLessThan(4)
-  })
+async function uploadPng(page: Page, buffer: Buffer, name = 'probe.png') {
+  await page.getByTestId('photo-file-input').setInputFiles({ name, mimeType: 'image/png', buffer })
+  await waitForCanvasInk(page, 200)
 }
+
+function desktopInspector(page: Page) {
+  return page.locator('.editor > .inspector')
+}
+
+async function enableGreenOutline(page: Page) {
+  const inspector = desktopInspector(page)
+  await inspector.getByRole('tab', { name: 'Adjust' }).click()
+  await inspector.getByLabel('Toggle silhouette outline').check()
+  await inspector.getByLabel('Outline color').fill('#00ff00')
+  await setSlider(inspector, 'Outline thickness', 20)
+}
+
+async function assertPreviewMatchesExport(
+  page: Page,
+  extra?: (png: PixelReport) => void,
+  options?: { requireGreen?: boolean; maxRatio?: number },
+) {
+  await waitForCanvasInk(page, 80)
+  const bytes = await downloadPng(page, 1024)
+  const png = await inspectPngBytes(page, bytes)
+  const grid = await comparePreviewExportGrid(page, bytes)
+  expect(Math.max(png.width, png.height)).toBe(1024)
+  expect(png.colorType).toBe(6)
+  expect(png.opaqueCount).toBeGreaterThan(100)
+  expect(grid.compared).toBeGreaterThan(40)
+  expect(grid.ratio).toBeLessThan(options?.maxRatio ?? 0.12)
+  if (options?.requireGreen) {
+    expect(grid.previewGreen).toBeGreaterThan(20)
+    expect(grid.exportGreen).toBeGreaterThan(20)
+  }
+  extra?.(png)
+  return grid
+}
+
+async function startProbeEditor(page: Page, buffer = probePng) {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openBlankEditor(page)
+  await uploadPng(page, buffer)
+}
+
+test.describe('preview matches exported pixels', () => {
+  test('preview matches exported grayscale pixels', async ({ page }) => {
+    await startProbeEditor(page)
+    const inspector = desktopInspector(page)
+    await inspector.getByRole('tab', { name: 'Effects' }).click()
+    await setSlider(inspector, 'Filter grayscale', 25)
+    await assertPreviewMatchesExport(page, (png) => {
+      expect(png.chroma).toBeLessThan(140)
+    })
+  })
+
+  test('preview matches exported brightness pixels', async ({ page }) => {
+    await startProbeEditor(page)
+    const inspector = desktopInspector(page)
+    await inspector.getByRole('tab', { name: 'Effects' }).click()
+    await setSlider(inspector, 'Filter brightness', 25)
+    await assertPreviewMatchesExport(page, (png) => {
+      expect(png.center[0]).toBeGreaterThan(180)
+    })
+  })
+
+  test('preview matches exported contrast pixels', async ({ page }) => {
+    await startProbeEditor(page)
+    const inspector = desktopInspector(page)
+    await inspector.getByRole('tab', { name: 'Effects' }).click()
+    await setSlider(inspector, 'Filter contrast', 25)
+    await assertPreviewMatchesExport(page)
+  })
+
+  test('preview matches exported saturation pixels', async ({ page }) => {
+    await startProbeEditor(page)
+    const inspector = desktopInspector(page)
+    await inspector.getByRole('tab', { name: 'Effects' }).click()
+    await setSlider(inspector, 'Filter saturation', 25)
+    await assertPreviewMatchesExport(page, (png) => {
+      expect(png.chroma).toBeGreaterThan(40)
+    })
+  })
+
+  test('preview matches exported outline pixels', async ({ page }) => {
+    await startProbeEditor(page)
+    await enableGreenOutline(page)
+    await assertPreviewMatchesExport(page, (png) => {
+      expect(png.greenCount).toBeGreaterThan(50)
+    }, { requireGreen: true })
+  })
+
+  test('preview matches exported filtered-outline pixels', async ({ page }) => {
+    await startProbeEditor(page)
+    await enableGreenOutline(page)
+    const inspector = desktopInspector(page)
+    await inspector.getByRole('tab', { name: 'Effects' }).click()
+    await setSlider(inspector, 'Filter brightness', -100)
+    await assertPreviewMatchesExport(page, (png) => {
+      expect(png.greenCount).toBeGreaterThan(50)
+      expect(png.center[0]).toBeLessThan(40)
+    }, { requireGreen: true })
+  })
+
+  test('preview matches exported rotated-outline pixels', async ({ page }) => {
+    await startProbeEditor(page, asymmetricPng)
+    await enableGreenOutline(page)
+    await desktopInspector(page).getByRole('button', { name: 'Rotate 90°', exact: true }).click()
+    const grid = await assertPreviewMatchesExport(page, (png) => {
+      expect(png.greenCount).toBeGreaterThan(50)
+    }, { requireGreen: true, maxRatio: 0.18 })
+    expect(channelDiff(grid.previewQuadrant[0]!, grid.exportQuadrant[0]!)).toBeLessThan(48)
+  })
+
+  test('preview matches exported flipped-image pixels', async ({ page }) => {
+    await startProbeEditor(page, asymmetricPng)
+    await desktopInspector(page).getByRole('button', { name: 'Flip H', exact: true }).click()
+    const grid = await assertPreviewMatchesExport(page, undefined, { maxRatio: 0.18 })
+    const topLeft = grid.previewQuadrant[0]!
+    expect(channelDiff(topLeft, grid.exportQuadrant[0]!)).toBeLessThan(48)
+    expect(topLeft[2] ?? 0).toBeGreaterThan(topLeft[0] ?? 0)
+  })
+
+  test('preview matches exported sticker-cutout pixels', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await openBlankEditor(page)
+    await page.getByRole('button', { name: 'Stickers & decorations', exact: true }).click()
+    await page.getByRole('button', { name: 'Add Meow cat', exact: true }).click()
+    await waitForCanvasInk(page, 400)
+    await assertPreviewMatchesExport(page, (png) => {
+      expect(png.transparentCount).toBeGreaterThan(100)
+    }, { maxRatio: 0.2 })
+  })
+})

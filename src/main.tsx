@@ -59,6 +59,7 @@ import {
   toggleFavoriteTemplateId,
 } from './features/templates/templates'
 import { StickerCollage } from './components/StickerCollage'
+import { isUnmodifiedPrimaryClick, parseToolIntent, requestToolIntent, shouldReuseCurrentToolRoute, toolIntentHref, type ToolIntent } from './features/editor/toolIntent'
 import './styles.css'
 
 const CreateEditor = lazy(() => import('./features/editor/EditorPage').then((module) => ({ default: module.CreateEditor })))
@@ -116,10 +117,18 @@ function Header() {
   )
 }
 
+const sidebarTools: Array<{ label: string; icon: typeof Scissors; intent: ToolIntent }> = [
+  { label: 'Background Eraser', icon: Scissors, intent: 'erase' },
+  { label: 'Text & Emoji', icon: Type, intent: 'text' },
+  { label: 'Filters & Effects', icon: Sparkles, intent: 'effects' },
+  { label: 'Export & Share', icon: Upload, intent: 'export' },
+]
+
 function Sidebar({ mobile = false }: { mobile?: boolean }) {
   const { pathname, search } = useLocation()
   const isFavorites = pathname === '/my-stickers' && getView(search) === 'favorites'
   const isShared = pathname === '/my-stickers' && getView(search) === 'shared'
+  const currentIntent = parseToolIntent(new URLSearchParams(search).get('tool'))
   const items = [
     { to: '/', label: 'Dashboard', icon: Home, active: pathname === '/' },
     { to: '/create', label: 'Create Sticker', icon: Plus, active: pathname === '/create' || pathname.startsWith('/editor/') },
@@ -139,13 +148,25 @@ function Sidebar({ mobile = false }: { mobile?: boolean }) {
       <div className="side-links">{items.map(itemLink)}</div>
       <div className="side-tools">
         <small>TOOLS</small>
-        {[
-          { label: 'Background Eraser', icon: Scissors },
-          { label: 'Text & Emoji', icon: Type },
-          { label: 'Filters & Effects', icon: Sparkles },
-          { label: 'Export & Share', icon: Upload },
-        ].map(({ label, icon: Icon }) => {
-          const link = <Link to="/create"><Icon size={18} />{label}</Link>
+        {sidebarTools.map(({ label, icon: Icon, intent }) => {
+          const to = toolIntentHref(intent, pathname)
+          const active = currentIntent === intent && (pathname === '/create' || pathname.startsWith('/editor/'))
+          const link = (
+            <Link
+              className={active ? 'active' : undefined}
+              to={to}
+              replace={shouldReuseCurrentToolRoute(pathname, search, intent)}
+              aria-current={active ? 'page' : undefined}
+              onMouseEnter={preloadEditor}
+              onFocus={preloadEditor}
+              onClick={(event) => {
+                if (!isUnmodifiedPrimaryClick(event) || !shouldReuseCurrentToolRoute(pathname, search, intent)) return
+                requestToolIntent(intent)
+              }}
+            >
+              <Icon size={18} />{label}
+            </Link>
+          )
           return mobile ? <SheetClose asChild key={label}>{link}</SheetClose> : <span key={label}>{link}</span>
         })}
       </div>
@@ -159,10 +180,11 @@ function Shell({ children, editor = false }: { children: ReactNode; editor?: boo
 }
 
 const dashboardFeatures = [
-  { icon: Scissors, title: 'Background Eraser', to: '/create', detail: 'Brush away the background. Keep the good bits.', tone: 'pink' },
-  { icon: Type, title: 'Text & Emoji', to: '/create', detail: 'Say it your way with editable text.', tone: 'blue' },
+  { icon: Scissors, title: 'Background Eraser', to: '/create?tool=erase', detail: 'Brush away the background. Keep the good bits.', tone: 'pink' },
+  { icon: Type, title: 'Text & Emoji', to: '/create?tool=text', detail: 'Say it your way with editable text.', tone: 'blue' },
+  { icon: Sparkles, title: 'Filters & Effects', to: '/create?tool=effects', detail: 'Tune brightness, contrast, and grayscale on a photo.', tone: 'yellow' },
   { icon: LayoutGrid, title: 'Templates', to: '/templates', detail: 'A little inspiration. A lot of possibilities.', tone: 'purple' },
-  { icon: Upload, title: 'Share & Export', to: '/create', detail: 'Made it? Take it with you as a transparent PNG.', tone: 'green' },
+  { icon: Upload, title: 'Share & Export', to: '/create?tool=export', detail: 'Made it? Take it with you as a transparent PNG.', tone: 'green', torn: true },
 ] as const
 
 function Hero({ title, children, action, art, kicker, points, className }: { title: ReactNode; children: ReactNode; action?: ReactNode; art?: ReactNode; kicker?: ReactNode; points?: ReactNode; className?: string }) {
@@ -193,8 +215,8 @@ function Dashboard() {
       >
         Your cat. Your chaos. Your favorite face. Turn everyday photos into little things worth sending.
       </Hero>
-      <div className="feature-grid">{dashboardFeatures.map(({ icon: Icon, title, to, detail, tone }) => (
-        <Link className="feature" to={to} key={title}>
+      <div className="feature-grid">{dashboardFeatures.map(({ icon: Icon, title, to, detail, tone, ...rest }) => (
+        <Link className={`feature${'torn' in rest && rest.torn ? ' torn' : ''}`} to={to} key={title} onMouseEnter={to.startsWith('/create') ? preloadEditor : undefined} onFocus={to.startsWith('/create') ? preloadEditor : undefined}>
           <b className={tone}><Icon size={18} /></b>
           <span><strong>{title}</strong><small>{detail}</small></span>
           <i className="feature-doodle" aria-hidden="true">

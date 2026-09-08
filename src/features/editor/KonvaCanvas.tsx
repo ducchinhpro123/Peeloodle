@@ -6,7 +6,7 @@ import { createImageSurface, decodeMaskImage, formatCssFilter } from '../exports
 import { getStageMetrics } from './maskUtils'
 import { useMaskBrush, type MaskPreviewCallbacks } from './useMaskBrush'
 import { useEditorStore } from './store'
-import { cssFontFamily, loadFont } from '../../lib/fonts'
+import { cssFontFamily, loadFont, measureTextEditBox } from '../../lib/fonts'
 
 export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -188,12 +188,14 @@ function HydratedText({ layer, handlers, nodeRef, hidden }: {
 
 let measureCtx: CanvasRenderingContext2D | null = null
 function measureTextBox(content: string, family: string, fontSize: number) {
-  const ctx = measureCtx ?? (measureCtx = document.createElement('canvas').getContext('2d'))
-  const font = `${fontSize}px ${cssFontFamily(family)}`
-  if (ctx) ctx.font = font
   const lines = (content || ' ').split('\n')
-  const width = Math.max(...lines.map((line) => (ctx ? ctx.measureText(line.length ? line : ' ').width : line.length * fontSize * 0.6))) + Math.max(2, fontSize * 0.08)
-  return { width, height: fontSize * Math.max(lines.length, 1) }
+  const fallback = {
+    width: Math.max(lines.reduce((max, line) => Math.max(max, line.length), 1) * fontSize * 0.6, 1) + Math.max(2, fontSize * 0.08),
+    height: fontSize * Math.max(lines.length, 1),
+  }
+  const ctx = measureCtx ?? (measureCtx = document.createElement('canvas').getContext('2d'))
+  if (!ctx) return fallback
+  return measureTextEditBox(ctx, content || ' ', family, fontSize)
 }
 
 function CanvasTextEditor({ layerId, node, onClose }: { layerId: string; node?: Konva.Node; onClose: () => void }) {

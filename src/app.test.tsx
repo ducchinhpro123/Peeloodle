@@ -267,3 +267,164 @@ describe('foundation interactions', () => {
     expect(screen.getByRole('dialog', { name: 'Export sticker' })).toHaveTextContent('not a WhatsApp or Telegram sticker pack')
   })
 })
+
+describe('tool intent entry', () => {
+  it('points sidebar, dashboard, and mobile tool links at typed intents instead of bare /create', () => {
+    renderRoute('/')
+    for (const [name, href] of [
+      ['Background Eraser', '/create?tool=erase'],
+      ['Text & Emoji', '/create?tool=text'],
+      ['Filters & Effects', '/create?tool=effects'],
+    ] as const) {
+      const links = screen.getAllByRole('link', { name })
+      expect(links.length).toBeGreaterThan(0)
+      expect(links.every((link) => link.getAttribute('href') === href)).toBe(true)
+    }
+    expect(screen.getByRole('link', { name: 'Export & Share' })).toHaveAttribute('href', '/create?tool=export')
+    expect(screen.getByRole('link', { name: /Share & Export/ })).toHaveAttribute('href', '/create?tool=export')
+    expect(screen.getAllByRole('link', { name: 'Create a Sticker' })[0]).toHaveAttribute('href', '/create')
+  })
+
+  it('activates Background Eraser from the tool query without claiming success or inserting layers', async () => {
+    renderRoute('/create?tool=erase')
+    expect(await screen.findByRole('button', { name: 'Background Eraser', pressed: true })).toBeInTheDocument()
+    expect(useEditorStore.getState().activeTool).toBe('erase')
+    expect(useEditorStore.getState().document?.layers).toEqual([])
+    expect(screen.getByRole('heading', { name: /upload a photo to erase the background/i })).toBeInTheDocument()
+    expect(screen.queryByText(/removed automatically|success/i)).not.toBeInTheDocument()
+  })
+
+  it('opens Text & Emoji controls without inserting a text layer', async () => {
+    renderRoute('/create?tool=text')
+    expect(await screen.findByRole('button', { name: 'Text', pressed: true })).toBeInTheDocument()
+    expect(useEditorStore.getState().activeTool).toBe('text')
+    expect(useEditorStore.getState().document?.layers).toEqual([])
+    expect(screen.getByRole('tab', { name: 'Stickers', selected: true })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /add words or a sticker/i })).toBeInTheDocument()
+  })
+
+  it('opens Filters & Effects for a compatible layer and stays honest when none exists', async () => {
+    renderRoute('/create?tool=effects')
+    expect(await screen.findByRole('tab', { name: 'Effects', selected: true })).toBeInTheDocument()
+    expect(screen.getByText(/no effect has been applied yet/i)).toBeInTheDocument()
+    expect(useEditorStore.getState().document?.layers).toEqual([])
+  })
+
+  it('opens Export & Share for the intended document without claiming messenger success', async () => {
+    renderRoute('/create?tool=export')
+    const dialog = await screen.findByRole('dialog', { name: 'Export sticker' })
+    expect(dialog).toHaveTextContent('not a WhatsApp or Telegram sticker pack')
+    expect(useEditorStore.getState().document?.layers).toEqual([])
+  })
+
+  it('reopens export when Export & Share is chosen again on the same document', async () => {
+    renderRoute('/create?tool=export')
+    expect(await screen.findByRole('dialog', { name: 'Export sticker' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Export sticker' })).not.toBeInTheDocument())
+    fireEvent.click(screen.getAllByRole('link', { name: 'Export & Share' })[0]!)
+    expect(await screen.findByRole('dialog', { name: 'Export sticker' })).toBeInTheDocument()
+  })
+
+  it('reactivates Text & Emoji after the erase tool was chosen on the same route', async () => {
+    renderRoute('/create?tool=text')
+    expect(await screen.findByRole('button', { name: 'Text', pressed: true })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Background Eraser' }))
+    await waitFor(() => expect(useEditorStore.getState().activeTool).toBe('erase'))
+    fireEvent.click(screen.getAllByRole('link', { name: 'Text & Emoji' })[0]!)
+    await waitFor(() => expect(useEditorStore.getState().activeTool).toBe('text'))
+    expect(useEditorStore.getState().document?.layers).toEqual([])
+  })
+
+  it('does not re-apply a tool shortcut on Ctrl or Cmd click', async () => {
+    renderRoute('/create?tool=text')
+    expect(await screen.findByRole('button', { name: 'Text', pressed: true })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Background Eraser' }))
+    await waitFor(() => expect(useEditorStore.getState().activeTool).toBe('erase'))
+    const shortcut = screen.getAllByRole('link', { name: 'Text & Emoji' })[0]!
+    fireEvent.click(shortcut, { ctrlKey: true })
+    expect(useEditorStore.getState().activeTool).toBe('erase')
+    fireEvent.click(shortcut, { metaKey: true })
+    expect(useEditorStore.getState().activeTool).toBe('erase')
+    fireEvent.click(shortcut, { button: 1 })
+    expect(useEditorStore.getState().activeTool).toBe('erase')
+  })
+
+  it('keeps an open sticker when a tool is chosen instead of minting a blank', async () => {
+    renderRoute('/create')
+    fireEvent.click(await screen.findByRole('button', { name: 'Text' }))
+    const id = useEditorStore.getState().document?.id
+    expect(id).toBeTruthy()
+    expect(useEditorStore.getState().document?.layers).toHaveLength(1)
+    fireEvent.click(screen.getAllByRole('link', { name: 'Background Eraser' })[0]!)
+    await waitFor(() => expect(useEditorStore.getState().activeTool).toBe('erase'))
+    expect(useEditorStore.getState().document?.id).toBe(id)
+    expect(useEditorStore.getState().document?.layers.filter((layer) => layer.kind === 'text')).toHaveLength(1)
+  })
+
+  it('offers create or reopen when a tool needs a document and stickers already exist', async () => {
+    const repo = createMemoryRepository()
+    await repo.saveProject(createProjectDocument({ id: 'keep-me', title: 'Saved Cat' }))
+    render(
+      <MemoryRouter initialEntries={['/create?tool=erase']}>
+        <App repository={repo} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByTestId('tool-document-choice')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Background Eraser' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create new sticker' })).toBeInTheDocument()
+    expect(await repo.listProjects()).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    await waitFor(() => expect(useEditorStore.getState().document?.id).toBe('keep-me'))
+    expect(useEditorStore.getState().activeTool).toBe('erase')
+    expect(screen.queryByText(/success/i)).not.toBeInTheDocument()
+  })
+
+  it('does not duplicate text when reopening a saved sticker with the text tool', async () => {
+    const repo = createMemoryRepository()
+    render(
+      <MemoryRouter initialEntries={['/create?tool=text']}>
+        <App repository={repo} />
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Text' }))
+    expect(useEditorStore.getState().document?.layers.filter((layer) => layer.kind === 'text')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: /save to my stickers/i }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/saved locally/i))
+    const id = useEditorStore.getState().document?.id
+    if (!id) throw new Error('missing project id')
+    cleanup()
+    resetEditorStore()
+    render(
+      <MemoryRouter initialEntries={[`/editor/${id}?tool=text`]}>
+        <App repository={repo} />
+      </MemoryRouter>,
+    )
+    await waitFor(() => {
+      const layers = useEditorStore.getState().document?.layers.filter((layer) => layer.kind === 'text') ?? []
+      expect(layers).toHaveLength(1)
+    })
+    expect(useEditorStore.getState().activeTool).toBe('text')
+  })
+
+  it('filters the sticker palette from Text & Emoji without adding a layer', async () => {
+    renderRoute('/create?tool=text')
+    expect(await screen.findByRole('tab', { name: 'Stickers', selected: true })).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search stickers and decorations' }), { target: { value: 'no-such-sticker-xyz' } })
+    expect(screen.getByText(/no stickers match that search/i)).toBeInTheDocument()
+    expect(useEditorStore.getState().document?.layers).toEqual([])
+  })
+
+  it('still mints a blank document for Create a Sticker when saved stickers exist', async () => {
+    const repo = createMemoryRepository()
+    await repo.saveProject(createProjectDocument({ id: 'keep-me', title: 'Saved Cat' }))
+    render(
+      <MemoryRouter initialEntries={['/create']}>
+        <App repository={repo} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: /untitled sticker/i })).toBeInTheDocument()
+    expect(screen.queryByTestId('tool-document-choice')).not.toBeInTheDocument()
+    expect(useEditorStore.getState().document?.id).not.toBe('keep-me')
+  })
+})

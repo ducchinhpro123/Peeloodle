@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent, type MutableRefObject } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, Check, ChevronLeft, Circle, CloudUpload, Copy, Crop, Download, Eye, EyeOff, FlipHorizontal2, FlipVertical2, Hand, Layers, Lightbulb, Lock, Maximize2, Paintbrush, Pencil, RotateCw, Scissors, Smile, Sparkles, Trash2, Type, Undo2, Unlock, Upload, Redo2 } from 'lucide-react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowDown, ArrowUp, Check, ChevronLeft, Circle, CloudUpload, Copy, Crop, Download, Eye, EyeOff, FlipHorizontal2, FlipVertical2, Hand, Layers, Lightbulb, Lock, Maximize2, Paintbrush, Pencil, RotateCw, Scissors, Search, Smile, Sparkles, Trash2, Type, Undo2, Unlock, Upload, Redo2 } from 'lucide-react'
 import { useRepository } from '../../app/repository'
 import { useCloudStatus, useWorkspace } from '../auth/Workspace'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,16 @@ import type { ImageLayer, Layer, ProjectDocument } from '../../types/domain'
 import { saveStatusLabel, useEditorStore, type TextStyle } from './store'
 import { cssFontFamily, TEXT_FONTS } from '../../lib/fonts'
 import { STICKER_CATALOG, TEXT_PRESETS } from './catalog'
+import {
+  applyToolIntent,
+  editorPathWithIntent,
+  isReusableOpenDocument,
+  parseToolIntent,
+  subscribeToolIntent,
+  toolEmptyCopy,
+  TOOL_INTENT_LABELS,
+  type ToolIntent,
+} from './toolIntent'
 
 const KonvaCanvas = lazy(() => import('./KonvaCanvas'))
 
@@ -30,6 +40,11 @@ function takeCreateDraftId(): string {
 export function CreateEditor() {
   const navigate = useNavigate()
   const repo = useRepository()
+  const [params] = useSearchParams()
+  const intent = parseToolIntent(params.get('tool'))
+  const [choice, setChoice] = useState<ProjectDocument[] | null>(null)
+  const [choiceError, setChoiceError] = useState<string | null>(null)
+
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -40,26 +55,97 @@ export function CreateEditor() {
         if (cancelled) return
         const after = useEditorStore.getState()
         if (after.document?.id === existing.id && (after.dirty || after.finishMaskStroke || after.saveStatus === 'save-failed')) {
-          navigate(`/editor/${existing.id}`, { replace: true })
+          navigate(editorPathWithIntent(existing.id, intent), { replace: true })
           return
         }
       }
       if (cancelled) return
-      navigate(`/editor/${takeCreateDraftId()}`, { replace: true })
+      const state = useEditorStore.getState()
+      if (intent && isReusableOpenDocument(state.document, state) && state.document) {
+        navigate(editorPathWithIntent(state.document.id, intent), { replace: true })
+        return
+      }
+      if (intent) {
+        try {
+          const projects = await repo.listProjects()
+          if (cancelled) return
+          if (projects.length > 0) {
+            setChoice(projects)
+            setChoiceError(null)
+            return
+          }
+        } catch {
+          if (cancelled) return
+          setChoice([])
+          setChoiceError('Could not load saved stickers. You can still create a new one.')
+          return
+        }
+      }
+      if (cancelled) return
+      navigate(editorPathWithIntent(takeCreateDraftId(), intent), { replace: true })
     })()
     return () => {
       cancelled = true
     }
-  }, [navigate, repo])
+  }, [navigate, repo, intent])
+
+  if (choice && intent) {
+    return (
+      <ToolDocumentChoice
+        intent={intent}
+        projects={choice}
+        error={choiceError}
+        onCreate={() => navigate(editorPathWithIntent(takeCreateDraftId(), intent), { replace: true })}
+        onOpen={(id) => navigate(editorPathWithIntent(id, intent), { replace: true })}
+      />
+    )
+  }
+
   return <p className="muted" style={{ padding: 24 }}>Opening sticker…</p>
+}
+
+function ToolDocumentChoice({
+  intent,
+  projects,
+  error,
+  onCreate,
+  onOpen,
+}: {
+  intent: ToolIntent
+  projects: ProjectDocument[]
+  error: string | null
+  onCreate: () => void
+  onOpen: (id: string) => void
+}) {
+  return (
+    <section className="empty" style={{ marginTop: 24 }} data-testid="tool-document-choice">
+      <h1>{TOOL_INTENT_LABELS[intent]}</h1>
+      <p>Choose a saved sticker or start a new one. Opening a tool never replaces your existing work on its own.</p>
+      {error ? <p role="alert">{error}</p> : null}
+      <div className="actions" style={{ marginBottom: 16 }}>
+        <Button className="primary" onClick={onCreate}>Create new sticker</Button>
+      </div>
+      {projects.length > 0 ? (
+        <ul className="pack-stickers-list">
+          {projects.map((project) => (
+            <li key={project.id} className="pack-sticker-row">
+              <span>{project.title}</span>
+              <Button onClick={() => onOpen(project.id)}>Open</Button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  )
 }
 
 export function ProjectEditor() {
   const { projectId } = useParams()
-  return <EditorWorkspace projectId={projectId} />
+  const [params] = useSearchParams()
+  return <EditorWorkspace projectId={projectId} intent={parseToolIntent(params.get('tool'))} />
 }
 
-function EditorWorkspace({ projectId }: { projectId?: string }) {
+function EditorWorkspace({ projectId, intent = null }: { projectId?: string; intent?: ToolIntent | null }) {
   const repo = useRepository()
   const navigate = useNavigate()
   const document = useEditorStore((state) => state.document)
@@ -162,23 +248,31 @@ function EditorWorkspace({ projectId }: { projectId?: string }) {
     return <p className="muted" style={{ padding: 24 }}>Opening sticker…</p>
   }
 
-  return <EditorChrome document={document} urls={urls} />
+  return <EditorChrome document={document} urls={urls} intent={intent} />
 }
 
-function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Record<string, string> }) {
+function EditorChrome({ document, urls, intent }: { document: ProjectDocument; urls: Record<string, string>; intent: ToolIntent | null }) {
   const cloud = useWorkspace()?.cloud
   const cloudStatus = useCloudStatus()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [inspectorTab, updateInspectorTab] = useState('adjust')
+  const [inspectorTab, updateInspectorTab] = useState(intent === 'effects' ? 'effects' : 'adjust')
   const setInspectorTab = (tab: string) => {
     // Radix can unmount a focused field before its blur handler runs.
     const state = useEditorStore.getState()
     if (!state.finishMaskStroke) state.commitGesture()
     updateInspectorTab(tab)
   }
-  const [assetTab, setAssetTab] = useState('uploads')
-  const [railFocus, setRailFocus] = useState<'erase' | 'rotate' | 'restore' | 'outline' | 'text' | 'stickers' | 'effects' | 'layers' | null>(null)
+  const [assetTab, setAssetTab] = useState(intent === 'text' ? 'stickers' : 'uploads')
+  const [exportOpen, setExportOpen] = useState(intent === 'export')
+  const [railFocus, setRailFocus] = useState<'erase' | 'rotate' | 'restore' | 'outline' | 'text' | 'stickers' | 'effects' | 'layers' | null>(
+    intent === 'erase' ? 'erase' : intent === 'text' ? 'text' : intent === 'effects' ? 'effects' : null,
+  )
   const [tipOpen, setTipOpen] = useState(true)
+  useEffect(() => {
+    const ui = { setInspectorTab: updateInspectorTab, setAssetTab, setExportOpen, setRailFocus }
+    applyToolIntent(intent, ui)
+    return subscribeToolIntent((requested) => applyToolIntent(requested, ui))
+  }, [intent, document.id])
   const titleRef = useRef<HTMLInputElement>(null)
   const trayRef = useRef<HTMLElement>(null)
   const saveStatus = useEditorStore((state) => state.saveStatus)
@@ -213,7 +307,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
   const savedOk = saveStatus === 'saved-locally' && !dirty && !maskBusy
 
   return (
-    <div className="editor-workspace">
+    <div className="editor-workspace" data-tool-intent={intent ?? undefined} data-active-tool={activeTool}>
       <aside className="tool-rail">
         <Link className="back-home" to="/"><ChevronLeft size={16} />Back to Home</Link>
         <button
@@ -365,7 +459,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
             <Button onClick={saveNow} aria-label="Save to My Stickers">
               <CloudUpload size={16} />Save to My Stickers
             </Button>
-            <ExportDialog document={document} />
+            <ExportDialog document={document} open={exportOpen} onOpenChange={setExportOpen} />
           </div>
         </section>
         <div className="editor">
@@ -375,9 +469,21 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
               {document.layers.length === 0 ? (
                 <div className="editor-welcome">
                   <img src="/art/stickers/04-winking-smiley.webp" alt="" width={72} height={72} />
-                  <h2>A blank canvas. Endless you.</h2>
-                  <p>Drop in a little personality. Start with a photo, then make it your own.</p>
+                  {(() => {
+                    const empty = toolEmptyCopy(intent, false, false)
+                    return (
+                      <>
+                        <h2>{empty?.title ?? 'A blank canvas. Endless you.'}</h2>
+                        <p>{empty?.body ?? 'Drop in a little personality. Start with a photo, then make it your own.'}</p>
+                      </>
+                    )
+                  })()}
                   <Button className="primary" onClick={() => fileRef.current?.click()}><Upload size={16} />Upload a photo</Button>
+                  {intent === 'text' ? (
+                    <Button onClick={() => { useEditorStore.getState().addTextLayer(); setInspectorTab('adjust') }}>
+                      <Type size={16} />Add text
+                    </Button>
+                  ) : null}
                   <small>PNG, JPEG or WebP · up to 15 MB</small>
                 </div>
               ) : null}
@@ -496,6 +602,7 @@ function Inspector({
   tab?: string
   onTabChange?: (tab: string) => void
 }) {
+  const activeTool = useEditorStore((state) => state.activeTool)
   return (
     <aside className="inspector">
       <h2>Sticker Properties</h2>
@@ -508,7 +615,10 @@ function Inspector({
           <Tabs.Trigger value="layers">Layers</Tabs.Trigger>
         </Tabs.List>
         <Tabs.Content value="adjust">
-          {!selected ? <p className="muted">Select a layer to edit its properties.</p> : null}
+          {(activeTool === 'erase' || activeTool === 'restore') && selected?.kind !== 'image' ? (
+            <p className="muted">Upload or select a photo to erase its background. Automatic removal is not available and nothing has been changed yet.</p>
+          ) : null}
+          {!selected && activeTool !== 'erase' && activeTool !== 'restore' ? <p className="muted">Select a layer to edit its properties.</p> : null}
           {selected?.kind === 'text' ? <TextInspector layer={selected} /> : null}
           {selected?.kind === 'image' ? <ImageInspector layer={selected} /> : null}
           {selected?.kind === 'shape' ? <p className="muted">Shape style editing arrives later.</p> : null}
@@ -520,7 +630,7 @@ function Inspector({
           {selected?.kind === 'image' ? (
             <EffectsInspector layer={selected} />
           ) : (
-            <p className="muted">Select an image layer to adjust brightness, contrast, saturation, and grayscale filters.</p>
+            <p className="muted">Select an image layer to adjust brightness, contrast, saturation, and grayscale filters. No effect has been applied yet.</p>
           )}
         </Tabs.Content>
         <Tabs.Content value="position">
@@ -803,6 +913,7 @@ function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> })
 
       <div className="inspector-section">
         <b>Background</b>
+        <p className="muted" style={{ fontSize: 12 }}>Automatic background removal is not available. Erase and Restore edit a mask; the original photo stays unchanged.</p>
         <div className="button-row">
           <Button
             className={activeTool === 'erase' ? 'primary' : undefined}
@@ -850,7 +961,7 @@ function EffectsInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> 
     <div className="inspector-fields">
       <h3>Filters &amp; Effects</h3>
       <p className="muted" style={{ fontSize: 12 }}>
-        Adjust photo tone. Applied to canvas preview and PNG exports.
+        Adjust photo tone on this image layer. Compose order: crop → mask → filters → silhouette outline → opacity → position. Zoom and pan do not change the sticker. Preview, save, PNG, and ZIP use this same order.
       </p>
       <label>
         <span>Brightness <small>{filters.brightness}%</small></span>
@@ -989,10 +1100,8 @@ function AssetTray({
           </div>
         </Tabs.Content>
         <Tabs.Content value="stickers">
-          <p className="muted asset-note">Pick a cutout, then move, resize, rotate, or add an outline. Lettering here is part of the image; use Text styles for editable words.</p>
-          <div className="asset-items">
-            {STICKER_CATALOG.map((asset) => <SampleButton key={asset.src} {...asset} />)}
-          </div>
+          <p className="muted asset-note">These are image layers, not editable text and not an OS emoji font. Lettering in a cutout stays part of the picture; use Text styles for words you can type.</p>
+          <StickerCatalog />
         </Tabs.Content>
         <Tabs.Content value="text">
           <p className="muted asset-note">Start with a style. Change the words, font, size, and color in Sticker Properties.</p>
@@ -1007,6 +1116,32 @@ function AssetTray({
         </Tabs.Content>
       </Tabs.Root>
     </section>
+  )
+}
+
+function StickerCatalog() {
+  const [query, setQuery] = useState('')
+  const needle = query.trim().toLowerCase()
+  const matches = needle ? STICKER_CATALOG.filter((asset) => asset.name.toLowerCase().includes(needle)) : STICKER_CATALOG
+  return (
+    <>
+      <label className="filter-search asset-search">
+        <Search size={16} />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          aria-label="Search stickers and decorations"
+          placeholder="Search stickers…"
+        />
+      </label>
+      {matches.length === 0 ? (
+        <p className="muted asset-note" role="status">No stickers match that search. Try another word — nothing was added.</p>
+      ) : (
+        <div className="asset-items">
+          {matches.map((asset) => <SampleButton key={asset.src} {...asset} />)}
+        </div>
+      )}
+    </>
   )
 }
 
@@ -1029,11 +1164,23 @@ function SampleButton({ name, src }: { name: string; src: string }) {
   )
 }
 
-function ExportDialog({ document }: { document: ProjectDocument }) {
+function ExportDialog({
+  document,
+  open,
+  onOpenChange,
+}: {
+  document: ProjectDocument
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}) {
   const [size, setSize] = useState<ExportSize>(1024)
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const exportPng = async () => {
+  const [canShare, setCanShare] = useState(false)
+  useEffect(() => {
+    setCanShare(typeof navigator.share === 'function')
+  }, [])
+  const exportPng = async (share: boolean) => {
     setBusy(true)
     setMessage('Exporting…')
     try {
@@ -1043,8 +1190,25 @@ function ExportDialog({ document }: { document: ProjectDocument }) {
       const blob = await renderDocument(state.document, state.assets, { size, masks: state.masks, bounds: 'artwork' })
       if (useEditorStore.getState().workspaceEpoch !== state.workspaceEpoch) throw new Error('Export canceled because the workspace changed.')
       const safeTitle = document.title.replace(/[^\w.-]+/g, '-').replace(/^-|-$/g, '') || 'sticker'
-      downloadBlob(blob, `${safeTitle}-${size}.png`)
-      setMessage('Download started. Check your browser downloads to confirm the file was saved.')
+      const filename = `${safeTitle}-${size}.png`
+      if (share && typeof navigator.share === 'function') {
+        try {
+          const file = new File([blob], filename, { type: 'image/png' })
+          const payload = { files: [file], title: document.title, text: 'StickerLab PNG. This is not a WhatsApp or Telegram sticker pack.' }
+          if (!navigator.canShare || navigator.canShare(payload)) {
+            await navigator.share(payload)
+            setMessage('Share sheet opened. This is not a WhatsApp or Telegram install. You can still download a PNG if you cancel.')
+            return
+          }
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') {
+            setMessage('Share cancelled. Download a PNG if you still want the file.')
+            return
+          }
+        }
+      }
+      downloadBlob(blob, filename)
+      setMessage('Download started. Check your browser downloads to confirm the file was saved. This is not a WhatsApp or Telegram sticker pack.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Export failed')
     } finally {
@@ -1053,7 +1217,7 @@ function ExportDialog({ document }: { document: ProjectDocument }) {
   }
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button className="primary" aria-label="Export and share">
           <Download />Export &amp; Share
@@ -1078,7 +1242,10 @@ function ExportDialog({ document }: { document: ProjectDocument }) {
           <NoticeDialog title="Messenger packs are not available" trigger={<Button>WhatsApp / Telegram</Button>}>
             Native WhatsApp and Telegram installation is not implemented. Download a PNG and add it in those apps manually if they accept image stickers.
           </NoticeDialog>
-          <Button className="primary" disabled={busy} onClick={() => void exportPng()}>
+          {canShare ? (
+            <Button disabled={busy} onClick={() => void exportPng(true)}>Share PNG</Button>
+          ) : null}
+          <Button className="primary" disabled={busy} onClick={() => void exportPng(false)}>
             <Download size={16} />Download PNG
           </Button>
         </DialogFooter>
