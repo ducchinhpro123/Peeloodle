@@ -1,6 +1,6 @@
 # shadcn/ui provenance
 
-`src/components/ui.tsx` adapts the official shadcn/ui new-york-v4 Button, Card, Dialog, Tabs, and Slider sources at revision `c257f688cf4de7ec10cc1be84cad29cd4631182c`:
+`src/components/ui/` adapts the official shadcn/ui new-york-v4 Button, Card, Dialog, Tabs, and Slider sources at revision `c257f688cf4de7ec10cc1be84cad29cd4631182c` (CLI file layout, mint CSS, installed `@radix-ui/react-*` packages):
 
 - https://raw.githubusercontent.com/shadcn-ui/ui/c257f688cf4de7ec10cc1be84cad29cd4631182c/apps/v4/registry/new-york-v4/ui/button.tsx
 - https://raw.githubusercontent.com/shadcn-ui/ui/c257f688cf4de7ec10cc1be84cad29cd4631182c/apps/v4/registry/new-york-v4/ui/card.tsx

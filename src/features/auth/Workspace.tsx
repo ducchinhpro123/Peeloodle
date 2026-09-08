@@ -7,7 +7,7 @@ import { getLocalRepository, type StickerLabRepository } from '../../lib/persist
 import { type CloudRepository, type CloudStatus } from '../../lib/persistence/cloud'
 import { useEditorStore } from '../editor/store'
 import { getAuthClient, readCloudConfig } from './client'
-import { Button } from '../../components/ui'
+import { Button } from '@/components/ui/button'
 
 const guestStatus: CloudStatus = { state: 'synced', pending: 0, error: null, notices: [], version: 0, conflicts: {} }
 const noopSubscribe = () => () => undefined

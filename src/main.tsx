@@ -29,9 +29,9 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import {
-  Button,
-  Card,
   Dialog,
   DialogClose,
   DialogContent,
@@ -39,14 +39,16 @@ import {
   DialogFooter,
   DialogTitle,
   DialogTrigger,
-  NoticeDialog,
+} from '@/components/ui/dialog'
+import { NoticeDialog } from '@/components/ui/notice-dialog'
+import {
   Sheet,
   SheetClose,
   SheetContent,
   SheetDescription,
   SheetTitle,
   SheetTrigger,
-} from './components/ui'
+} from '@/components/ui/sheet'
 import type { PackRecord, ProjectDocument, Template } from './types/domain'
 import {
   instantiateTemplate,

@@ -3,18 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowDown, ArrowUp, Copy, Download, Eye, EyeOff, Lock, Trash2, Unlock, Upload, Eraser, Paintbrush, Crop, Circle, Type, Smile, Sparkles, Layers, Undo2, Redo2 } from 'lucide-react'
 import { useRepository } from '../../app/repository'
 import { useCloudStatus, useWorkspace } from '../auth/Workspace'
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-  DialogTrigger,
-  NoticeDialog,
-  Slider,
-  Tabs,
-} from '../../components/ui'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { NoticeDialog } from '@/components/ui/notice-dialog'
+import { Slider } from '@/components/ui/slider'
+import { Tabs } from '@/components/ui/tabs'
 import { isPersistenceError, serializeProjectDocument, type AssetRecord, type MaskRecord, type StickerLabRepository } from '../../lib/persistence/repository'
 import { ingestImageFile, ingestBundledImage, AssetObjectUrlCache } from '../assets/assetLoader'
 import { UploadValidationError } from '../assets/validateUpload'

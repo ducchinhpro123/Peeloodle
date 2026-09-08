@@ -83,7 +83,7 @@ Names, dates, statistics, and subscription labels in screenshots are illustrativ
 
 ### Component reuse and cross-page consistency
 
-Before adding or changing UI, inspect `src/components/ui.tsx`, `src/styles.css`, and existing usages of the same pattern.
+Before adding or changing UI, inspect `src/components/ui/`, `src/styles.css`, and existing usages of the same pattern.
 
 - **Reuse first.** Use existing shared buttons, cards, dialogs, sheets, tabs, and sliders instead of creating page-local lookalikes. Compose existing primitives for new patterns. Extract repeated UI when a second real use appears; keep genuinely one-off layouts local.
 - **Fix the shared source.** When a visual or interaction defect affects a shared component, correct it there and inspect its callers. Add a small, explicit variant only for a real semantic difference—not to give each page its own padding or button style.
