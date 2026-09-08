@@ -405,7 +405,7 @@ test('manual erase and restore mask workflow with undo, export parity, and persi
   // 9. Export transparent PNG and verify exported pixels
   await page.getByRole('button', { name: /export and share/i }).click()
   const pixels = await downloadExport(page, 512)
-  expect(pixels.corner[3]).toBe(0) // Transparent corner
+  expect(pixels.corner[3]).toBeGreaterThan(200) // Tight export retains the image's opaque corner.
   expect(pixels.maxAlpha).toBeGreaterThan(200) // Red pixels still present
   expect(pixels.redCount).toBeGreaterThan(100)
   // Erased stroke hit center area, center pixel is transparent

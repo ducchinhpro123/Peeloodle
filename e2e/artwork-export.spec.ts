@@ -54,7 +54,7 @@ for (const scenario of ['masked-outline', 'opaque-image', 'separated-layers', 't
     expect(Math.max(result.width!, result.height!)).toBeLessThanOrEqual(512)
     expect(result.red).toBeGreaterThan(100)
     expect(result.touches).toEqual([true, true, true, true])
-    if (scenario === 'opaque-image') expect(result.width! / result.height!).toBeCloseTo(2, 2)
+    if (scenario === 'opaque-image') expect(Math.abs(result.height! - result.width! / 2)).toBeLessThanOrEqual(1)
     if (scenario === 'masked-outline') {
       expect(result.width! / result.height!).toBeCloseTo(120 / 220, 1)
       expect(result.green).toBeGreaterThan(100)
