@@ -2,7 +2,8 @@
 export function StickerCollage({ variant = 'studio' }: { variant?: 'studio' | 'templates' | 'packs' }) {
   return (
     <div className={`collage collage-${variant}`} aria-hidden="true">
-      <span className="collage-note">a little weird. a lot of you.</span>
+      <span className="collage-note">A little weird.<br />A lot of you. ♡</span>
+      {variant === 'studio' ? <svg className="collage-arrow" viewBox="0 0 72 48" fill="none" aria-hidden="true"><path d="M8 8c18 2 38 6 48 22" stroke="#2a3348" strokeWidth="1.6" strokeLinecap="round" /><path d="M46 22c6 4 10 10 12 16" stroke="#2a3348" strokeWidth="1.6" strokeLinecap="round" /><path d="M52 34l10 6-8 4" stroke="#2a3348" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg> : null}
       <div className="collage-paper" />
       {variant === 'studio' && <>
         <span className="collage-grid" />
