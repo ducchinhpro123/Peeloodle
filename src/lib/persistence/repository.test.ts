@@ -295,4 +295,16 @@ describe('IdbRepository', () => {
       await expectCode(repo.getMask('mask-1'), 'not_found')
     }
   })
+
+  it('keeps guest v4 saves atomic and does not enqueue cloud operations', async () => {
+    const repo = createIdbRepository(`guest-v4-${crypto.randomUUID()}`)
+    await repo.saveProject(projectWith())
+    expect(await repo.listSyncEntries()).toEqual([])
+    await expectCode(
+      repo.saveProjectWithAssets(projectWith({ id: 'broken', layers: [imageLayer('ghost')], assetIds: ['ghost'] }), []),
+      'missing_asset',
+    )
+    expect((await repo.getProject('project-1')).title).toBe('Sticker')
+    expect(await repo.listSyncEntries()).toEqual([])
+  })
 })

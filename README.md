@@ -73,7 +73,7 @@ Fonts and cutouts are served locally, with no extra credentials or dependencies.
 - [x] Silhouette outlines & borders with customizable color and thickness on canvas and export
 - [x] Scrapbook-style Templates banner with textured paper, yellow headline highlights, and layered user-supplied cat stickers; responsive HTML text rather than a screenshot
 - [x] Manual alpha mask erase / restore in image-local coordinates with continuous strokes, crop clipping, matching cursor geometry, and undo/redo
-- [x] Email magic-link sign-in, session restoration, and private cloud saving backed by Supabase Auth, PostgreSQL, and private Storage
+- [x] Email magic-link sign-in UI, session restoration, and private cloud saving backed by Supabase Auth, PostgreSQL, and private Storage (live inbox delivery unverified until custom SMTP)
 - [x] Local-first save/reopen, offline editing, retry queue across reload, and explicit guest collection import
 - [x] Atomic compare-and-set concurrency revision checks with automatic conflict copies for stickers and packs
 - [ ] Public/read-only cloud sharing and native WhatsApp/Telegram installation
@@ -90,8 +90,9 @@ StickerLab operates fully local-only when cloud configuration is absent. To enab
    ```
 2. In Supabase Dashboard → Authentication → URL Configuration, set your Site URL and add each authorized redirect origin (e.g. `http://localhost:5173/auth/callback`, `http://127.0.0.1:4173/auth/callback`). Set matching comma-separated origins in `VITE_AUTH_ALLOWED_ORIGINS`.
 3. Migrations in `supabase/migrations/` apply the PostgreSQL schema, JSON schema document validators, owner-based RLS policies, private bucket configuration, and transactional `commit_sticker_resource` RPC.
-4. Default Supabase SMTP allows only authorized team members and has a 2/hour rate limit. For production delivery to any address, configure custom SMTP in Supabase Auth settings.
-5. Verification suite for real cloud authorization:
+4. Default Supabase SMTP allows only authorized team members and has a 2/hour rate limit. For production delivery to any address, configure custom SMTP in Supabase Auth settings. Magic-link *request*, invalid/expired callback UI, and synthetic-session journeys are covered; a live inbox round-trip is not verified on the default SMTP service.
+5. Image/mask bytes upload to private Storage at `ownerId/sha256` and are verified before `commit_sticker_resource` publishes database rows. PostgreSQL and Storage are not one transaction: a failed RPC can leave unused objects. They are never public, never referenced by a committed project, and retries reuse the same hash (HTTP 409). This milestone does not delete orphans; add a bounded owner-scoped sweeper if storage quota matters.
+6. Verification suite for real cloud authorization (ordinary user clients, not service-role):
    ```bash
    node --env-file=.env.cloud-test scripts/verify-cloud.mjs
    npx playwright test e2e/cloud.spec.ts

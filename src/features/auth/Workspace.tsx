@@ -96,7 +96,14 @@ export function WorkspaceProvider({ repository, children }: { repository?: Stick
           void cloud?.refresh()
         }).catch(() => { if (live) setError('Your draft could not be saved locally. The workspace is locked and the draft is retained in memory. Free device storage, then retry; do not close this tab.') })
       }
-      const { data: listener } = auth.auth.onAuthStateChange((_event, session) => { if (live) switchTo(session) })
+      const { data: listener } = auth.auth.onAuthStateChange((event, session) => {
+        if (!live) return
+        if (event === 'SIGNED_OUT' && current.current.session) {
+          if (sessionStorage.getItem('stickerlab-signing-out')) sessionStorage.removeItem('stickerlab-signing-out')
+          else sessionStorage.setItem('stickerlab-session-expired', '1')
+        }
+        switchTo(session)
+      })
       unsubscribe = () => listener.subscription.unsubscribe()
       void auth.auth.getSession().then(({ data, error: sessionError }) => {
         if (!live || sequence) return

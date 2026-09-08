@@ -54,6 +54,14 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
       if (name === 'dashboard') {
         await expect(page.locator('.collage-studio img')).toHaveCount(8)
         await expect(page.locator('.feature-doodle')).toHaveCount(4)
+        const guest = page.getByRole('button', { name: 'Guest account' })
+        await guest.click()
+        const account = page.getByRole('dialog', { name: 'Sign in to StickerLab' })
+        await expectDialogFits(page, account)
+        await expect(account.getByText(/Cloud saving is not configured|Email address/)).toBeVisible()
+        await page.screenshot({ path: `${screenshots}/account-dialog-${viewport.width}.png`, animations: 'disabled' })
+        await page.keyboard.press('Escape')
+        await expect(guest).toBeFocused()
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
       const brokenImages = await page.locator('img').evaluateAll(async (images) => {

@@ -4,6 +4,19 @@ import type { CloudRemote } from './cloudRemote'
 import { binaryHash } from './cloudRemote'
 import type { RemoteResource, SyncEntry } from './syncTypes'
 
+function errorText(error: unknown) {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object' && 'message' in error) return String((error as { message: unknown }).message)
+  return String(error)
+}
+
+async function loadBinaries(source: StickerLabRepository, document: ProjectDocument) {
+  const assets = await Promise.all(document.assetIds.map((id) => source.getAsset(id)))
+  const keys = [...new Set(document.layers.flatMap((layer) => (layer.kind === 'image' && layer.maskKey ? [layer.maskKey] : [])))]
+  const masks = await Promise.all(keys.map(async (key) => ({ key, blob: await source.getMask(key) })))
+  return { assets, masks }
+}
+
 export type CloudStatus = { state: 'pending' | 'syncing' | 'synced' | 'error'; pending: number; error: string | null; notices: string[]; version: number; conflicts: Record<string, { id: string; revision: number }> }
 
 export class CloudRepository extends IdbRepository {
@@ -60,7 +73,9 @@ export class CloudRepository extends IdbRepository {
     return (await this.listPacks()).find((pack) => pack.id === id) ?? super.getPack(id)
   }
   override async savePack(pack: PackRecord, previous?: PackRecord) {
-    await this.savePackAtRevision({ ...pack, visibility: 'private' }, previous ? this.packBases.get(previous)?.revision : undefined)
+    const next = { ...pack, visibility: 'private' as const }
+    delete next.coverAssetId
+    await this.savePackAtRevision(next, previous ? this.packBases.get(previous)?.revision : undefined)
     this.changed()
   }
   override async deleteProject(id: string) { await super.deleteProject(id); this.changed() }
@@ -92,7 +107,14 @@ export class CloudRepository extends IdbRepository {
     if (this.work) return this.work
     if (!this.active) return Promise.resolve()
     this.work = this.drain().catch((error: unknown) => {
-      this.publish({ state: 'error', error: `Saved locally. Cloud sync failed: ${error instanceof Error ? error.message : 'Reconnect or sign in again, then retry.'}` })
+      const text = errorText(error)
+      const expired = /jwt|unauthorized|invalid.?grant|session changed|not authenticated|401/i.test(text)
+      this.publish({
+        state: 'error',
+        error: expired
+          ? 'Session expired. Your local edits are kept. Sign in again to sync.'
+          : `Saved locally. Cloud sync failed: ${text || 'Reconnect or sign in again, then retry.'}`,
+      })
     }).finally(() => {
       this.work = null
       if (this.active && this.wakeRequested && this.status.state !== 'error') void this.sync()
@@ -134,10 +156,7 @@ export class CloudRepository extends IdbRepository {
   }
   private async records(entry: SyncEntry) {
     const document = entry.kind === 'project' ? entry.pending[0].value as ProjectDocument | null : null
-    const assets = document ? await Promise.all(document.assetIds.map((id) => this.getAsset(id))) : []
-    const keys = document ? [...new Set(document.layers.flatMap((layer) => layer.kind === 'image' && layer.maskKey ? [layer.maskKey] : []))] : []
-    const masks = await Promise.all(keys.map(async (key) => ({ key, blob: await this.getMask(key) })))
-    return { assets, masks }
+    return document ? loadBinaries(this, document) : { assets: [], masks: [] }
   }
 
   async refresh(): Promise<void> {
@@ -181,8 +200,7 @@ export class CloudRepository extends IdbRepository {
       if (!this.active) throw new Error('Import paused because the workspace changed. Sign in to the same account to resume.')
       const id = mapping.get(project.id)!
       if (!(await this.listSyncEntries()).some((entry) => entry.key === `project:${id}`)) {
-        const assets = await Promise.all(project.assetIds.map((assetId) => guest.getAsset(assetId)))
-        const masks = await Promise.all([...new Set(project.layers.flatMap((layer) => layer.kind === 'image' && layer.maskKey ? [layer.maskKey] : []))].map(async (key) => ({ key, blob: await guest.getMask(key) })))
+        const { assets, masks } = await loadBinaries(guest, project)
         if (!this.active) throw new Error('Import paused; guest originals were kept.')
         await this.saveProjectWithAssets({ ...project, id }, assets, masks)
       }

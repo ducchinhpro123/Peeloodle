@@ -168,4 +168,16 @@ describe('account local-first repository', () => {
     expect((await reopened.getProject(doc.id)).title).toBe('Offline work')
     expect((await reopened.listSyncEntries())[0].pending).toHaveLength(1)
   })
+
+  it('keeps local work and asks to sign in again when the session expires during sync', async () => {
+    const remote = new Remote()
+    remote.beforeCommit = async () => { throw new Error('Invalid JWT') }
+    const repo = new CloudRepository(`expiry-${crypto.randomUUID()}`, remote)
+    const doc = createProjectDocument({ title: 'Kept locally' })
+    await repo.saveProject(doc)
+    await repo.sync()
+    expect((await repo.getProject(doc.id)).title).toBe('Kept locally')
+    expect((await repo.listSyncEntries())[0].pending).toHaveLength(1)
+    expect(repo.getStatus().error).toMatch(/sign in again/i)
+  })
 })

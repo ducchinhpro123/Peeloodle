@@ -19,6 +19,13 @@ export function Account() {
   const [guestCount, setGuestCount] = useState(0)
   const session = workspace?.session
   useEffect(() => {
+    if (sessionStorage.getItem('stickerlab-session-expired')) {
+      sessionStorage.removeItem('stickerlab-session-expired')
+      setError('Session expired. Your local edits are kept on this device. Sign in again to sync.')
+      setOpen(true)
+    }
+  }, [])
+  useEffect(() => {
     let live = true
     if (session) void Promise.all([getLocalRepository().listProjects(), getLocalRepository().listPacks()]).then(([projects, packs]) => {
       if (!live) return
@@ -66,10 +73,14 @@ export function Account() {
         <DialogFooter><DialogClose asChild><Button>Close</Button></DialogClose><Button disabled={busy} onClick={() => void run(async () => {
           if (workspace) await flushWorkspace(workspace.repository)
           setOpen(false)
+          sessionStorage.setItem('stickerlab-signing-out', '1')
           const auth = await getAuthClient()
           if (!auth) return
           const { error } = await auth.auth.signOut({ scope: 'local' })
-          if (error) throw error
+          if (error) {
+            sessionStorage.removeItem('stickerlab-signing-out')
+            throw error
+          }
         })}>Sign out</Button></DialogFooter>
       </> : <form onSubmit={(event) => { event.preventDefault(); void run(requestLink) }}>
         <div className="dialog-field"><label htmlFor="account-email">Email address</label><input id="account-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></div>
