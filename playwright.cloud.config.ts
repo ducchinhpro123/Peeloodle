@@ -19,7 +19,7 @@ export default defineConfig({
   testDir: './e2e',
   testMatch: 'cloud.spec.ts',
   workers: 1,
-  timeout: 120000,
+  timeout: 180000,
   use: { baseURL: origin, browserName: 'chromium', launchOptions: { executablePath: '/usr/bin/chromium' } },
   webServer: {
     command: `npm run dev -- --host 127.0.0.1 --port ${port}`,

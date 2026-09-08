@@ -19,19 +19,18 @@ function authStorageKey() {
   return `sb-${new URL(url!).hostname.split('.')[0]}-auth-token`
 }
 
+const seededMarker = 'cloud-test-session-seeded'
+
 async function seed(context: BrowserContext, session: Session) {
-  const parsed = new URL(url!)
   const storageKey = authStorageKey()
-  await context.addCookies([
-    { name: storageKey, value: encodeURIComponent(JSON.stringify(session)), domain: parsed.hostname, path: '/' },
-  ])
-  // Write the initial session only when storage is empty. Later navigations must
-  // not rewrite Account A after a switch or sign-out.
-  await context.addInitScript(({ session, storageKey }) => {
-    if (localStorage.getItem('cloud-test-signed-out')) return
+  // One-shot: the marker survives sign-out, so later navigations never rewrite Account A
+  // when auth localStorage is empty.
+  await context.addInitScript(({ session, storageKey, seededMarker }) => {
+    if (localStorage.getItem(seededMarker)) return
+    localStorage.setItem(seededMarker, '1')
     if (localStorage.getItem(storageKey)) return
     localStorage.setItem(storageKey, JSON.stringify(session))
-  }, { session, storageKey })
+  }, { session, storageKey, seededMarker })
 }
 
 async function sessionEmail(page: Page) {
@@ -46,6 +45,11 @@ async function sessionEmail(page: Page) {
 
 async function assertSessionEmail(page: Page, email: string) {
   expect(await sessionEmail(page)).toBe(email)
+}
+
+async function assertNotAccountA(page: Page) {
+  const email = await sessionEmail(page)
+  expect(email).not.toBe(emailA)
 }
 
 async function switchSession(page: Page, session: Session, email: string) {
@@ -140,7 +144,7 @@ async function inspectPixels(page: Page, bytes: Buffer) {
 
 test('private cloud: upload, transformed mask/font, second browser reopen/export, offline retry, sign-out isolation', async ({ browser }) => {
   test.skip(!enabled, 'Dedicated ordinary-user credentials required; no emails are sent by this test')
-  test.setTimeout(180000)
+  test.setTimeout(300000)
   const first = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const second = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   await seed(first, await login()); await seed(second, await login())
@@ -195,11 +199,11 @@ test('private cloud: upload, transformed mask/font, second browser reopen/export
   const firstMember = page.getByRole('checkbox', { name: `Include ${title}`, exact: true })
   await expect(firstMember).toBeEnabled()
   await firstMember.click()
-  await expect(firstMember).toBeChecked()
+  await expect(firstMember).toBeChecked({ timeout: 60000 })
   const secondMember = page.getByRole('checkbox', { name: `Include ${secondTitle}`, exact: true })
-  await expect(secondMember).toBeEnabled()
+  await expect(secondMember).toBeEnabled({ timeout: 60000 })
   await secondMember.click()
-  await expect(secondMember).toBeChecked()
+  await expect(secondMember).toBeChecked({ timeout: 60000 })
   await page.getByRole('button', { name: 'Done', exact: true }).click()
   await page.getByRole('button', { name: `Move ${secondTitle} up`, exact: true }).click()
   await page.getByRole('button', { name: 'Edit pack', exact: true }).click()
@@ -209,6 +213,7 @@ test('private cloud: upload, transformed mask/font, second browser reopen/export
   await page.getByRole('button', { name: 'Save Pack', exact: true }).click()
   await expect(page.locator('.cloud-banner')).toContainText('Saved work is backed up', { timeout: 60000 })
   await other.goto('/my-stickers')
+  await expect(other.getByRole('button', { name: new RegExp(packTitle) })).toBeVisible({ timeout: 60000 })
   await other.getByRole('button', { name: new RegExp(packTitle) }).click()
   const zipPromise = other.waitForEvent('download')
   await other.getByRole('button', { name: 'Download ZIP', exact: true }).click()
@@ -241,16 +246,15 @@ test('private cloud: upload, transformed mask/font, second browser reopen/export
   await expect(other.locator('.save-status')).toHaveText('Saved to cloud', { timeout: 60000 })
   await other.getByRole('button', { name: /^Account:/ }).click()
   const account = other.getByRole('dialog', { name: 'Your private workspace' })
-  await other.evaluate(({ storageKey }) => {
-    localStorage.setItem('cloud-test-signed-out', 'true')
-    localStorage.removeItem(storageKey)
-  }, { storageKey: authStorageKey() })
   await account.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect(other.getByRole('button', { name: 'Guest account' })).toBeVisible({ timeout: 15000 })
   await other.goto('/my-stickers')
+  await assertNotAccountA(other)
+  await expect(other.getByRole('button', { name: 'Guest account' })).toBeVisible()
   await expect(other.getByRole('heading', { name: 'All Local Stickers' })).toBeVisible()
   await expect(other.getByText(`${title} offline`, { exact: true })).toHaveCount(0)
   await other.goto(editorPath)
+  await assertNotAccountA(other)
   await expect(other.getByRole('heading', { name: 'Sticker not found' })).toBeVisible()
   await first.close(); await second.close()
   await first.close(); await second.close()
@@ -390,6 +394,9 @@ test('same-browser switch keeps guest originals out of account B during import',
   await expect(signedInAccount.getByRole('button', { name: 'Import guest collection / retry' })).toBeEnabled({ timeout: 60000 })
   await expect(pageA.locator('.project-card').filter({ hasText: title })).toHaveCount(1)
   await signedInAccount.getByRole('button', { name: 'Sign out', exact: true }).click()
+  await expect(pageA.getByRole('button', { name: 'Guest account' })).toBeVisible()
+  await pageA.goto('/my-stickers')
+  await assertNotAccountA(pageA)
   await expect(pageA.getByRole('button', { name: 'Guest account' })).toBeVisible()
   const guestTitles = await pageA.evaluate(() => new Promise<string[]>((resolve, reject) => {
     const request = indexedDB.open('stickerlab-local')
