@@ -5,6 +5,15 @@ import type { Viewport } from './store'
 export type Point = { x: number; y: number }
 export type ImageLocalPoint = { u: number; v: number; inBounds: boolean }
 
+export const MIN_ZOOM = 0.25
+export const MAX_ZOOM = 4
+export const WHEEL_ZOOM_PIXEL_FACTOR = 0.0015
+
+export function clampZoom(zoom: number): number {
+  if (!Number.isFinite(zoom)) return 1
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))
+}
+
 export function getStageMetrics(
   hostWidth: number,
   hostHeight: number,
@@ -16,6 +25,48 @@ export function getStageMetrics(
   const stageX = (hostWidth - ARTBOARD_SIZE * viewScale) / 2 + viewport.panX
   const stageY = (hostHeight - ARTBOARD_SIZE * viewScale) / 2 + viewport.panY
   return { viewScale, stageX, stageY }
+}
+
+/** Host-relative CSS pixels. Uses getStageMetrics() so pan accounts for centering and the 0.05 scale floor. */
+export function zoomTowardPointer(
+  hostWidth: number,
+  hostHeight: number,
+  viewport: Viewport,
+  pointerX: number,
+  pointerY: number,
+  nextZoom: number,
+): Viewport {
+  const zoom = clampZoom(nextZoom)
+  const current = getStageMetrics(hostWidth, hostHeight, viewport)
+  if (current.viewScale <= 0 || ![pointerX, pointerY].every(Number.isFinite)) return { ...viewport, zoom }
+  const documentX = (pointerX - current.stageX) / current.viewScale
+  const documentY = (pointerY - current.stageY) / current.viewScale
+  const centered = getStageMetrics(hostWidth, hostHeight, { zoom, panX: 0, panY: 0 })
+  return {
+    zoom,
+    panX: pointerX - documentX * centered.viewScale - centered.stageX,
+    panY: pointerY - documentY * centered.viewScale - centered.stageY,
+  }
+}
+
+export function normalizedWheelDeltaY(deltaY: number, deltaMode: number, pageSize = 400): number {
+  if (!Number.isFinite(deltaY)) return 0
+  if (deltaMode === 1) return deltaY * 16
+  if (deltaMode === 2) return deltaY * (Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 400)
+  return deltaY
+}
+
+export function viewportAfterWheel(
+  hostWidth: number,
+  hostHeight: number,
+  viewport: Viewport,
+  pointerX: number,
+  pointerY: number,
+  deltaY: number,
+  deltaMode: number,
+): Viewport {
+  const factor = Math.exp(-normalizedWheelDeltaY(deltaY, deltaMode, hostHeight) * WHEEL_ZOOM_PIXEL_FACTOR)
+  return zoomTowardPointer(hostWidth, hostHeight, viewport, pointerX, pointerY, viewport.zoom * factor)
 }
 
 /**

@@ -246,6 +246,9 @@ describe('editor commands', () => {
     expect(useEditorStore.getState().document!.updatedAt).toBe(updatedAt)
     expect(useEditorStore.getState().viewport).toEqual({ zoom: 1.4, panX: 20, panY: -8 })
     expect(useEditorStore.getState().dirty).toBe(true)
+    useEditorStore.getState().setViewport({ zoom: 9, panX: 20, panY: -8 })
+    expect(useEditorStore.getState().viewport.zoom).toBe(4)
+    expect(useEditorStore.getState().document!.revision).toBe(revision)
   })
 
   it('bounds undo history', () => {

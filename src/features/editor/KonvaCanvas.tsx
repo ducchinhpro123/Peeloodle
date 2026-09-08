@@ -1,22 +1,156 @@
 import Konva from 'konva'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type MutableRefObject, type RefObject } from 'react'
 import { Ellipse, Image as KonvaImage, Layer, Rect, Stage, Text as KonvaText, Transformer } from 'react-konva'
 import { ARTBOARD_SIZE, type Asset, type ImageLayer, type Layer as DocLayer } from '../../types/domain'
 import { createImageSurface, decodeMaskImage, formatCssFilter } from '../exports/renderDocument'
-import { getStageMetrics } from './maskUtils'
+import { getStageMetrics, viewportAfterWheel } from './maskUtils'
 import { useMaskBrush, type MaskPreviewCallbacks } from './useMaskBrush'
 import { useEditorStore } from './store'
 import { cssFontFamily, loadFont, measureTextEditBox } from '../../lib/fonts'
+
+function isEditableNavTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
+}
+
+function isDialogOpen() {
+  return Boolean(document.querySelector('[data-slot="dialog-content"], [role="dialog"]'))
+}
+
+function useCanvasNavigation(hostRef: RefObject<HTMLDivElement>, nodeRefs: MutableRefObject<Record<string, Konva.Node>>, editingTextId: string | null) {
+  const [spaceHeld, setSpaceHeld] = useState(false)
+  const [panning, setPanning] = useState(false)
+  const spaceHeldRef = useRef(false)
+  const panRef = useRef<{ pointerId: number; x: number; y: number; viaSpace: boolean } | null>(null)
+  const editingTextIdRef = useRef(editingTextId)
+  editingTextIdRef.current = editingTextId
+  const documentId = useEditorStore((state) => state.document?.id)
+  const workspaceEpoch = useEditorStore((state) => state.workspaceEpoch)
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host) return
+    const workspace = (host.closest('.canvas-workspace') ?? host) as HTMLElement
+
+    const endPan = () => {
+      const pan = panRef.current
+      panRef.current = null
+      setPanning(false)
+      if (pan && host.hasPointerCapture(pan.pointerId)) {
+        try { host.releasePointerCapture(pan.pointerId) } catch { /* already released */ }
+      }
+    }
+    const clearNav = () => {
+      spaceHeldRef.current = false
+      setSpaceHeld(false)
+      endPan()
+    }
+    const settle = () => {
+      for (const node of Object.values(nodeRefs.current)) {
+        if (node.isDragging()) node.stopDrag()
+      }
+      const state = useEditorStore.getState()
+      if (state.gestureActive) state.commitGesture()
+      void state.finishMaskStroke?.().catch(() => undefined)
+    }
+    const spaceBlocked = (target: EventTarget | null) =>
+      editingTextIdRef.current !== null || isEditableNavTarget(target) || isDialogOpen()
+    const wheelBlocked = (target: EventTarget | null) => isEditableNavTarget(target) || isDialogOpen()
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' && event.key !== ' ') return
+      if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing || spaceBlocked(event.target)) return
+      event.preventDefault()
+      if (event.repeat || spaceHeldRef.current) return
+      spaceHeldRef.current = true
+      setSpaceHeld(true)
+      settle()
+    }
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' && event.key !== ' ') return
+      const viaSpace = panRef.current?.viaSpace
+      spaceHeldRef.current = false
+      setSpaceHeld(false)
+      if (viaSpace) endPan()
+    }
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY === 0 || wheelBlocked(event.target)) return
+      event.preventDefault()
+      settle()
+      const rect = host.getBoundingClientRect()
+      useEditorStore.getState().setViewport(viewportAfterWheel(
+        host.clientWidth,
+        host.clientHeight,
+        useEditorStore.getState().viewport,
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+        event.deltaY,
+        event.deltaMode,
+      ))
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0 || event.pointerType === 'touch' || spaceBlocked(event.target)) return
+      const viaSpace = spaceHeldRef.current
+      if (!viaSpace && useEditorStore.getState().activeTool !== 'pan') return
+      event.preventDefault()
+      event.stopPropagation()
+      settle()
+      try { host.setPointerCapture(event.pointerId) } catch { /* pointer-up still ends pan */ }
+      panRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, viaSpace }
+      setPanning(true)
+    }
+    const onPointerMove = (event: PointerEvent) => {
+      const pan = panRef.current
+      if (!pan || pan.pointerId !== event.pointerId) return
+      const dx = event.clientX - pan.x
+      const dy = event.clientY - pan.y
+      pan.x = event.clientX
+      pan.y = event.clientY
+      const viewport = useEditorStore.getState().viewport
+      useEditorStore.getState().setViewport({ panX: viewport.panX + dx, panY: viewport.panY + dy })
+    }
+    const onPointerUp = (event: PointerEvent) => {
+      if (panRef.current?.pointerId === event.pointerId) endPan()
+    }
+    const onBlur = () => clearNav()
+    const onVisibility = () => { if (document.hidden) clearNav() }
+
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onBlur)
+    document.addEventListener('visibilitychange', onVisibility)
+    workspace.addEventListener('wheel', onWheel, { capture: true, passive: false })
+    host.addEventListener('pointerdown', onPointerDown, true)
+    host.addEventListener('pointermove', onPointerMove)
+    host.addEventListener('pointerup', onPointerUp)
+    host.addEventListener('pointercancel', onPointerUp)
+    host.addEventListener('lostpointercapture', onPointerUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onBlur)
+      document.removeEventListener('visibilitychange', onVisibility)
+      workspace.removeEventListener('wheel', onWheel, true)
+      host.removeEventListener('pointerdown', onPointerDown, true)
+      host.removeEventListener('pointermove', onPointerMove)
+      host.removeEventListener('pointerup', onPointerUp)
+      host.removeEventListener('pointercancel', onPointerUp)
+      host.removeEventListener('lostpointercapture', onPointerUp)
+      clearNav()
+    }
+  }, [documentId, workspaceEpoch, hostRef, nodeRefs])
+
+  return { spaceHeld, panning }
+}
 
 export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
   const nodeRefs = useRef<Record<string, Konva.Node>>({})
-  const panRef = useRef<{ x: number; y: number } | null>(null)
   const previewCallbacks = useRef<MaskPreviewCallbacks>(new Map())
   const brush = useMaskBrush(hostRef, previewCallbacks)
   const [size, setSize] = useState({ width: 640, height: 480 })
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
+  const nav = useCanvasNavigation(hostRef, nodeRefs, editingTextId)
   const document = useEditorStore((state) => state.document)
   const selectedLayerId = useEditorStore((state) => state.selectedLayerId)
   const viewport = useEditorStore((state) => state.viewport)
@@ -24,6 +158,7 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
   const assets = useEditorStore((state) => state.assets)
   const masks = useEditorStore((state) => state.masks)
   const isBrush = activeTool === 'erase' || activeTool === 'restore'
+  const panMode = activeTool === 'pan' || nav.spaceHeld || nav.panning
 
   useEffect(() => {
     const host = hostRef.current
@@ -45,10 +180,10 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
     const { selectedLayerId: id, document: doc, activeTool: tool } = useEditorStore.getState()
     const node = id ? nodeRefs.current[id] : undefined
     const layer = doc?.layers.find((item) => item.id === id)
-    transformer.nodes(node && layer?.visible && !layer.locked && !editingTextId && !['pan', 'erase', 'restore'].includes(tool) ? [node] : [])
+    transformer.nodes(node && layer?.visible && !layer.locked && !editingTextId && !panMode && !['erase', 'restore'].includes(tool) ? [node] : [])
     transformer.getLayer()?.batchDraw()
   }
-  useEffect(() => { attachTransformer.current() }, [selectedLayerId, document, activeTool, size, viewport, editingTextId])
+  useEffect(() => { attachTransformer.current() }, [selectedLayerId, document, activeTool, size, viewport, editingTextId, panMode])
   if (!document) return null
   const { viewScale, stageX: x, stageY: y } = getStageMetrics(size.width, size.height, viewport)
   const bindNode = (id: string) => (node: Konva.Node | null) => {
@@ -59,23 +194,19 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
   const isEmptyTarget = (target: Konva.Node) => target.name() === 'artboard' || target === target.getStage()
 
   return (
-    <div ref={hostRef} className={`artboard-host ${isBrush ? 'brush-active' : ''}`} data-testid="editor-canvas" {...brush.handlers}>
+    <div
+      ref={hostRef}
+      className={`artboard-host${isBrush ? ' brush-active' : ''}${nav.spaceHeld ? ' space-pan' : ''}${nav.panning ? ' is-panning' : ''}`}
+      data-testid="editor-canvas"
+      data-space-pan={nav.spaceHeld || undefined}
+      data-panning={nav.panning || undefined}
+      {...brush.handlers}
+    >
       <Stage width={size.width} height={size.height} scaleX={viewScale} scaleY={viewScale} x={x} y={y}
         onMouseDown={(event) => {
-          if (isBrush || !isEmptyTarget(event.target)) return
-          if (activeTool === 'pan') { panRef.current = { x: event.evt.clientX, y: event.evt.clientY }; return }
+          if (isBrush || panMode || !isEmptyTarget(event.target)) return
           useEditorStore.getState().selectLayer(null)
         }}
-        onMouseMove={(event) => {
-          if (!panRef.current) return
-          const dx = event.evt.clientX - panRef.current.x
-          const dy = event.evt.clientY - panRef.current.y
-          panRef.current = { x: event.evt.clientX, y: event.evt.clientY }
-          const current = useEditorStore.getState().viewport
-          useEditorStore.getState().setViewport({ panX: current.panX + dx, panY: current.panY + dy })
-        }}
-        onMouseUp={() => { panRef.current = null }}
-        onMouseLeave={() => { panRef.current = null }}
       >
         <Layer>
           <Rect name="artboard" width={ARTBOARD_SIZE} height={ARTBOARD_SIZE} listening />
@@ -85,7 +216,7 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
               url={layer.kind === 'image' ? urls[layer.assetId] : undefined}
               mask={layer.kind === 'image' && layer.maskKey ? masks[layer.maskKey] : undefined}
               asset={layer.kind === 'image' ? assets[layer.assetId]?.asset : undefined}
-              previews={previewCallbacks.current} panMode={activeTool === 'pan'} isBrushTool={isBrush} editingText={layer.id === editingTextId} onEditText={() => setEditingTextId(layer.id)} nodeRef={bindNode(layer.id)} />
+              previews={previewCallbacks.current} panMode={panMode} isBrushTool={isBrush} editingText={layer.id === editingTextId} onEditText={() => setEditingTextId(layer.id)} nodeRef={bindNode(layer.id)} />
           ))}
           <Transformer ref={transformerRef} rotateEnabled enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
             boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 8 || Math.abs(newBox.height) < 8 ? oldBox : newBox)} />

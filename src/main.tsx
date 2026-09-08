@@ -93,7 +93,7 @@ function Header() {
           <Sidebar mobile />
         </SheetContent>
       </Sheet>
-      <Link to="/" className="brand"><span className="mascot" aria-hidden="true"><svg viewBox="0 0 64 44" fill="none"><circle cx="19" cy="23" r="7" fill="currentColor" /><circle cx="46" cy="23" r="7" fill="currentColor" /><path d="M29 25c0 7 8 7 8 0" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg></span><span>Sticker<span>Lab</span><small>Turn moments into stickers</small></span></Link>
+      <Link to="/" className="brand"><img src="/art/logo-wordmark.webp" width={500} height={224} alt="StickerLab" /></Link>
       <nav className="topnav" aria-label="Primary navigation">
         {topNavigation.map((item) => (
           <Link key={item.label} to={item.to} className={item.active(pathname, search) ? 'active' : undefined} aria-current={item.active(pathname, search) ? 'page' : undefined} onMouseEnter={item.to === '/create' ? preloadEditor : undefined} onFocus={item.to === '/create' ? preloadEditor : undefined}>{item.label}</Link>

@@ -221,7 +221,17 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set({ selectedLayerId: id })
   },
 
-  setViewport: (viewport) => set({ viewport: { ...get().viewport, ...viewport } }),
+  setViewport: (viewport) => {
+    const current = get().viewport
+    const zoom = viewport.zoom ?? current.zoom
+    const next = {
+      zoom: Number.isFinite(zoom) ? Math.min(4, Math.max(0.25, zoom)) : current.zoom,
+      panX: viewport.panX ?? current.panX,
+      panY: viewport.panY ?? current.panY,
+    }
+    if (next.zoom === current.zoom && next.panX === current.panX && next.panY === current.panY) return
+    set({ viewport: next })
+  },
 
   setTool: (tool) => set({ activeTool: tool }),
 

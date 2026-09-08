@@ -23,7 +23,9 @@ The raster samples are modest-resolution source art (roughly 100–600px). Inser
 
 `public/art/packs-paper.svg` is original procedural grain and displaced torn-paper artwork inspired by the supplied packs-page reference. The packs collage reuses the local illustrated daisy/field polaroids and supplied cat cutouts; no screenshot is embedded. Notes and controls remain HTML. The illustrated scenery and bundled Chewy font are approximations, not the reference’s photographs/handwriting.
 
-`public/art/header-paper.svg` and `public/art/header-scrap.svg` are original procedural SVG decorations based on the supplied header reference: mint paper, a cream/grid logo backing, and a torn cream navigation strip. The mascot is an inline code-drawn SVG; tape and accent marks are CSS/SVG. No reference screenshot or external assets are embedded, and all navigation/control labels remain accessible HTML.
+`public/art/header-paper.svg` and `public/art/header-scrap.svg` are original procedural SVG decorations based on the supplied header reference: mint paper, a cream/grid logo backing, and a torn cream navigation strip. Tape and accent marks are CSS/SVG. No reference screenshot or external assets are embedded, and all navigation/control labels remain accessible HTML.
+
+`design/logo.png` and `design/logo-wordmark.png` are user-supplied brand artwork (8 Sep 2026). Served derivatives: `public/art/logo.webp` (icon), `public/art/logo-wordmark.webp` (header mark), `public/favicon.png`, and `public/apple-touch-icon.png`. Trimmed with ImageMagick, alpha preserved. Third-party rights have not been independently verified.
 
 ## Illustration assets
 
