@@ -59,6 +59,7 @@ import {
   toggleFavoriteTemplateId,
 } from './features/templates/templates'
 import { StickerCollage } from './components/StickerCollage'
+import { GlobalSearch } from './components/GlobalSearch'
 import { isUnmodifiedPrimaryClick, parseToolIntent, requestToolIntent, shouldReuseCurrentToolRoute, toolIntentHref, type ToolIntent } from './features/editor/toolIntent'
 import './styles.css'
 
@@ -76,14 +77,6 @@ const topNavigation = [
   { to: '/my-stickers', label: 'My Stickers', active: (pathname: string, search: string) => pathname === '/my-stickers' && getView(search) !== 'favorites' },
   { to: '/templates?view=explore', label: 'Explore', active: (pathname: string, search: string) => pathname === '/templates' && getView(search) === 'explore' },
 ]
-
-function Unavailable({ children, label = 'Not available yet', className, 'aria-label': ariaLabel }: { children: ReactNode; label?: string; className?: string; 'aria-label'?: string }) {
-  return (
-    <NoticeDialog title={label} trigger={<Button className={className} aria-label={ariaLabel}>{children}</Button>}>
-      This control is not available yet. Local editing, saving, packs, and PNG/ZIP export work on this device. Cloud sharing and native messenger installs are not available.
-    </NoticeDialog>
-  )
-}
 
 function Header() {
   const { pathname, search } = useLocation()
@@ -106,9 +99,7 @@ function Header() {
           <Link key={item.label} to={item.to} className={item.active(pathname, search) ? 'active' : undefined} aria-current={item.active(pathname, search) ? 'page' : undefined} onMouseEnter={item.to === '/create' ? preloadEditor : undefined} onFocus={item.to === '/create' ? preloadEditor : undefined}>{item.label}</Link>
         ))}
       </nav>
-      <Unavailable className="search search-button" label="Search is not implemented" aria-label="Search templates and packs">
-        <Search size={16} /><span>Search templates and packs...</span>
-      </Unavailable>
+      <GlobalSearch />
       <NoticeDialog title="Notifications are unavailable" trigger={<Button className="icon notifications" aria-label="Notifications"><Bell size={18} /></Button>}>
         Notifications are not implemented.
       </NoticeDialog>
@@ -406,7 +397,10 @@ function TemplateRail({
 
 function TemplatesPage() {
   const [category, setCategory] = useState('All Templates')
-  const [query, setQuery] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const query = searchParams.get('q') ?? ''
+  const setQuery = (value: string) => setSearchParams((previous) => { const next = new URLSearchParams(previous); if (value) next.set('q', value); else next.delete('q'); return next }, { replace: true })
+  useEffect(() => { setCategory('All Templates') }, [query])
   const result = templateData.filter((template) => (category === 'All Templates' || template.category === category) && template.title.toLowerCase().includes(query.toLowerCase()))
   const resetFilters = () => { setCategory('All Templates'); setQuery('') }
 
@@ -437,6 +431,8 @@ function Packs() {
   const [packs, setPacks] = useState<PackRecord[]>([])
   const [projects, setProjects] = useState<ProjectDocument[]>([])
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null)
+  const requestedPack = params.get('pack')
+  useEffect(() => { if (requestedPack) setSelectedPackId(requestedPack) }, [requestedPack])
   const [createOpen, setCreateOpen] = useState(false)
   const [editingPack, setEditingPack] = useState<PackRecord | null>(null)
   const [deletePack, setDeletePack] = useState<PackRecord | null>(null)

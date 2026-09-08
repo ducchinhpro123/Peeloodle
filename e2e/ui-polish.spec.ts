@@ -2,6 +2,65 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 
 const screenshots = '/tmp/stickerlab-ui-audit'
 
+for (const width of [1440, 1024, 390]) {
+  test(`global search finds templates and saved packs at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 })
+    await page.goto('/my-stickers')
+    await page.getByRole('button', { name: 'New Pack', exact: true }).click()
+    const create = page.getByRole('dialog', { name: 'Create New Pack' })
+    await create.getByLabel('Pack Name').fill('Searchable little joys')
+    await create.getByRole('button', { name: 'Create Pack', exact: true }).click()
+    await expect(create).toBeHidden()
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Search templates and packs' }).click()
+    const search = page.getByRole('dialog', { name: 'Search templates and packs' })
+    const input = search.getByRole('textbox', { name: 'Search library' })
+    await expect(input).toBeFocused()
+    await input.fill('  LITTLE JOYS ')
+    await search.getByRole('link', { name: /Searchable little joys/ }).click()
+    await expect(page.locator('.pack-detail h2')).toHaveText('Searchable little joys')
+    await page.keyboard.press('Control+k')
+    await input.fill('no-such-result-12345')
+    await expect(search).toContainText('No matches')
+    await input.fill('orbit')
+    const result = search.getByRole('link', { name: /Orbit Pop/ })
+    await expect(result.locator('img')).toBeVisible()
+    await page.screenshot({ path: `${screenshots}/global-search-${width}.png`, animations: 'disabled' })
+    await result.click()
+    await expect(page.getByLabel('Search sample templates')).toHaveValue('Orbit Pop')
+    await expect(page.getByRole('button', { name: 'Orbit Pop', exact: true }).first()).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
+}
+
+for (const [width, height] of [[1440, 900], [1024, 768], [390, 844]]) {
+  test(`tool project chooser shows actual artwork at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width: width!, height: height! })
+    await page.goto('/create')
+    await page.getByRole('button', { name: 'Text', exact: true }).click()
+    await page.getByLabel('Sticker title').fill('A very long sticker title with a tiny happy message inside')
+    const content = page.getByLabel('Text content')
+    if (!(await content.isVisible())) await page.getByRole('button', { name: 'Sticker properties', exact: true }).click()
+    await page.getByRole('textbox', { name: 'Text content', exact: true }).fill('Hello!')
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Save to My Stickers' }).click()
+    await expect(page.getByRole('status')).toContainText('Saved locally')
+    await page.goto('/create?tool=erase')
+    const chooser = page.getByTestId('tool-document-choice')
+    await expect(chooser).toBeVisible()
+    const card = chooser.getByRole('button', { name: 'Open A very long sticker title with a tiny happy message inside' })
+    await expect(card.locator('img')).toBeVisible()
+    await expect.poll(() => card.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: `${screenshots}/tool-choice-${width}.png`, fullPage: true })
+    await card.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('textbox', { name: 'Sticker title', exact: true })).toHaveValue('A very long sticker title with a tiny happy message inside')
+    await expect(page.getByRole('button', { name: 'Background Eraser', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  })
+}
+
 for (const width of [3200, 1920, 1440, 1024, 390]) {
   test(`page banners fill the available content width at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
@@ -74,7 +133,7 @@ for (const width of [1672, 1440, 1024, 860, 390, 320]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await header.screenshot({ path: `/tmp/stickerlab-header-comparison/header-${width}.png` })
     for (const [name, title] of [
-      ['Search templates and packs', 'Search is not implemented'],
+      ['Search templates and packs', 'Search templates and packs'],
       ['Notifications', 'Notifications are unavailable'],
       ['Guest account', 'Sign in to StickerLab'],
     ]) {

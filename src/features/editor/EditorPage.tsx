@@ -28,6 +28,8 @@ import {
   type ToolIntent,
 } from './toolIntent'
 
+import { ProjectThumb } from './ProjectThumb'
+
 const KonvaCanvas = lazy(() => import('./KonvaCanvas'))
 
 function takeCreateDraftId(): string {
@@ -117,23 +119,35 @@ function ToolDocumentChoice({
   onCreate: () => void
   onOpen: (id: string) => void
 }) {
+  const repo = useRepository()
   return (
-    <section className="empty" style={{ marginTop: 24 }} data-testid="tool-document-choice">
-      <h1>{TOOL_INTENT_LABELS[intent]}</h1>
-      <p>Choose a saved sticker or start a new one. Opening a tool never replaces your existing work on its own.</p>
+    <section className="tool-choice" data-testid="tool-document-choice">
+      <header className="tool-choice-header">
+        <div>
+          <span className="tool-choice-eyebrow">YOUR NEXT LITTLE MASTERPIECE</span>
+          <h1>{TOOL_INTENT_LABELS[intent]}</h1>
+          <p>Pick a sticker to keep creating, or start with something new. Your saved work stays yours.</p>
+        </div>
+        <Button className="primary" onClick={onCreate}><Upload size={18} />Create new sticker</Button>
+      </header>
       {error ? <p role="alert">{error}</p> : null}
-      <div className="actions" style={{ marginBottom: 16 }}>
-        <Button className="primary" onClick={onCreate}>Create new sticker</Button>
-      </div>
       {projects.length > 0 ? (
-        <ul className="pack-stickers-list">
-          {projects.map((project) => (
-            <li key={project.id} className="pack-sticker-row">
-              <span>{project.title}</span>
-              <Button onClick={() => onOpen(project.id)}>Open</Button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="tool-choice-heading"><h2>Pick up where you left off</h2><span>{projects.length} saved {projects.length === 1 ? 'sticker' : 'stickers'}</span></div>
+          <ul className="tool-choice-grid">
+            {projects.map((project) => (
+              <li key={project.id}>
+                <button className="tool-choice-card" onClick={() => onOpen(project.id)} aria-label={`Open ${project.title}`}>
+                  <ProjectThumb project={project} repo={repo} />
+                  <span className="tool-choice-card-body">
+                    <strong>{project.title}</strong>
+                    <span>{project.layers.length} {project.layers.length === 1 ? 'layer' : 'layers'}<span className="tool-choice-open">Open sticker <ChevronLeft size={16} /></span></span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
       ) : null}
     </section>
   )
