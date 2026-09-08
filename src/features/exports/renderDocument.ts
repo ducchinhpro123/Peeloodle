@@ -57,9 +57,7 @@ export async function renderDocument(
 
   const size = options.size
   const canvas = (options.createCanvas ?? defaultCreateCanvas)(size, size)
-  const ctx = canvas.getContext('2d')
-  if (!ctx) throw new ExportError('A 2D canvas is required to export')
-
+  const ctx = require2d(canvas)
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.clearRect(0, 0, size, size)
   const scale = size / ARTBOARD_SIZE
@@ -138,8 +136,7 @@ function drawOutlinedImage(
 ): void {
   const makeCanvas = createCanvas ?? defaultCreateCanvas
   const silhouetteCanvas = makeCanvas(width, height)
-  const sCtx = silhouetteCanvas.getContext('2d')
-  if (!sCtx) throw new ExportError('A 2D canvas is required to render the outline')
+  const sCtx = require2d(silhouetteCanvas)
 
   if (crop) sCtx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
   else sCtx.drawImage(image, 0, 0, width, height)
@@ -184,8 +181,7 @@ function paintImage(
     if (maskImage) {
       const makeCanvas = createCanvas ?? defaultCreateCanvas
       maskedCanvas = makeCanvas(width, height)
-      const mCtx = maskedCanvas.getContext('2d')
-      if (!mCtx) throw new ExportError('A 2D canvas is required to apply the mask')
+      const mCtx = require2d(maskedCanvas)
       if (layer.crop) {
         const crop = layer.crop
         mCtx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
@@ -202,8 +198,7 @@ function paintImage(
     if (layer.outline?.enabled && layer.outline.width > 0) {
       if (ctx.filter !== 'none') {
         const filtered = (createCanvas ?? defaultCreateCanvas)(width, height)
-        const filteredContext = filtered.getContext('2d')
-        if (!filteredContext) throw new ExportError('A 2D canvas is required for image filters')
+        const filteredContext = require2d(filtered)
         paintImage(filteredContext, source, { crop: maskImage ? undefined : layer.crop, filters: layer.filters }, width, height, createCanvas)
         ctx.filter = 'none'
         drawOutlinedImage(ctx, filtered as CanvasImageSource, undefined, width, height, layer.outline, createCanvas)
@@ -235,12 +230,11 @@ export function createImageSurface(
   const padding = layer.outline?.enabled ? Math.ceil(layer.outline.width) : 0
   const makeCanvas = pixelRatio === 1 ? createCanvas : (w: number, h: number) => {
     const surface = createCanvas(Math.max(1, Math.ceil(w * pixelRatio)), Math.max(1, Math.ceil(h * pixelRatio)))
-    surface.getContext('2d')?.scale(surface.width / w, surface.height / h)
+    require2d(surface).scale(surface.width / w, surface.height / h)
     return surface
   }
   const canvas = makeCanvas(width + padding * 2, height + padding * 2)
-  const ctx = canvas.getContext('2d')
-  if (!ctx) throw new ExportError('A 2D canvas is required for image compositing')
+  const ctx = require2d(canvas)
   ctx.translate(padding, padding)
   paintImage(ctx, image, layer, width, height, makeCanvas, maskImage)
   return { canvas, padding }
@@ -308,6 +302,14 @@ async function drawLayer(
   ctx.fillRect(0, 0, 120, 120)
 }
 
+function require2d(canvas: CanvasLike): CanvasRenderingContext2D {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new ExportError('A 2D canvas is required to export')
+  ctx.imageSmoothingEnabled = true
+  if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'high'
+  return ctx
+}
+
 function defaultCreateCanvas(width: number, height: number): CanvasLike {
   if (typeof document === 'undefined') throw new ExportError('A 2D canvas is required to export')
   const canvas = document.createElement('canvas')
@@ -338,9 +340,13 @@ export async function decodeMaskImage(blob: Blob, width: number, height: number)
 async function defaultDecodeImage(blob: Blob): Promise<CanvasImageSource> {
   if (typeof createImageBitmap === 'function') {
     try {
-      return await createImageBitmap(blob)
+      return await createImageBitmap(blob, { imageOrientation: 'from-image', resizeQuality: 'high' })
     } catch {
-      // Fall through to HTMLImageElement.
+      try {
+        return await createImageBitmap(blob)
+      } catch {
+        // Fall through to HTMLImageElement.
+      }
     }
   }
   return decodeHtmlImage(blob)

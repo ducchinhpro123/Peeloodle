@@ -98,15 +98,15 @@ for (const width of [1440, 1024, 390]) {
     const pixels = await page.evaluate(async (bytes) => {
       const image = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' }))
       const canvas = document.createElement('canvas')
-      canvas.width = canvas.height = 512
+      canvas.width = canvas.height = 1024
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(image, 0, 0)
-      const data = ctx.getImageData(0, 0, 512, 512).data
+      const data = ctx.getImageData(0, 0, 1024, 1024).data
       const result = { width: image.width, height: image.height, corner: data[3], ink: data.filter((value, i) => i % 4 === 3 && value > 127).length }
       image.close()
       return result
     }, [...bytes])
-    expect(pixels).toMatchObject({ width: 512, height: 512, corner: 0 })
+    expect(pixels).toMatchObject({ width: 1024, height: 1024, corner: 0 })
     expect(pixels.ink).toBeGreaterThan(20000)
     await page.keyboard.press('Escape')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

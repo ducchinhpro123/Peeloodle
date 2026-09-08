@@ -954,7 +954,7 @@ function SampleButton({ name, src }: { name: string; src: string }) {
 }
 
 function ExportDialog({ document }: { document: ProjectDocument }) {
-  const [size, setSize] = useState<ExportSize>(512)
+  const [size, setSize] = useState<ExportSize>(1024)
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const exportPng = async () => {

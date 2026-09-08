@@ -93,7 +93,7 @@ test('a delayed font blocks download until the real glyphs are ready', async ({ 
   expect(downloads).toEqual([])
   const download = page.waitForEvent('download')
   release()
-  expect((await download).suggestedFilename()).toMatch(/512\.png$/)
+  expect((await download).suggestedFilename()).toMatch(/1024\.png$/)
   await expectTextNode(page, 'Bangers')
   await expect(dialog.getByRole('status')).toContainText('Download started')
 })
@@ -184,9 +184,9 @@ for (const width of [1440, 1024, 390]) {
       for (let i = 3; i < pixels.length; i += 4) if (pixels[i]! > 0) ink++
       return { width: canvas.width, height: canvas.height, ink, corner: pixels[3] }
     }, [...bytes])
-    expect(image).toMatchObject({ width: 512, height: 512, corner: 0 })
+    expect(image).toMatchObject({ width: 1024, height: 1024, corner: 0 })
     expect(image.ink).toBeGreaterThan(1000)
-    expect(image.ink).toBeLessThan(512 * 512 / 2)
+    expect(image.ink).toBeLessThan(1024 * 1024 / 2)
     await page.keyboard.press('Escape')
     await page.getByRole('tab', { name: 'Text styles', exact: true }).click()
     await page.evaluate(() => document.fonts.ready)
