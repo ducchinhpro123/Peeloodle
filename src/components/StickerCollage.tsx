@@ -15,6 +15,14 @@ export function StickerCollage({ variant = 'studio' }: { variant?: 'studio' | 't
         <span className="collage-aside-note">Same cats.<br />Brighter days. ♡</span>
         <img className="collage-star" src="/art/stickers/17-yellow-star.webp" alt="" decoding="async" />
       </>}
+      {variant === 'packs' && <>
+        <span className="collage-polaroid collage-polaroid-daisy"><img src="/art/polaroid-daisy.svg" alt="" decoding="async" /></span>
+        <span className="collage-polaroid collage-polaroid-field"><img src="/art/polaroid-field.svg" alt="" decoding="async" /></span>
+        <span className="collage-tape-gingham" />
+        <span className="collage-tape" />
+        <img className="collage-star" src="/art/stickers/17-yellow-star.webp" alt="" decoding="async" />
+        <span className="collage-aside-note">Good stickers.<br />Brighter days.<br />♡</span>
+      </>}
       {variant === 'templates' && <>
         <span className="collage-tape" />
         <img className="collage-star" src="/art/stickers/07-yellow-sparkle.webp" alt="" decoding="async" />

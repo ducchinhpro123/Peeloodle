@@ -121,7 +121,8 @@ for (const width of [1440, 1024, 390]) {
       image.close()
       return result
     }, [...bytes])
-    expect(pixels).toMatchObject({ width: 1024, height: 1024, corner: 0 })
+    expect(Math.max(pixels.width, pixels.height)).toBe(1024)
+    expect(pixels.corner).toBe(0)
     expect(pixels.ink).toBeGreaterThan(20000)
     await page.keyboard.press('Escape')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

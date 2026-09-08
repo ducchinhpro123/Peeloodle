@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1672" height="116" viewBox="0 0 1672 116" preserveAspectRatio="none">
+  <defs>
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".1"/></feComponentTransfer><feBlend in="SourceGraphic" mode="multiply"/></filter>
+    <filter id="torn" x="-5%" y="-20%" width="110%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".04" numOctaves="3" seed="5" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="7" xChannelSelector="R" yChannelSelector="G"/></filter>
+    <pattern id="grid" width="21" height="23" patternUnits="userSpaceOnUse"><path d="M21 0H0v23" fill="none" stroke="#d8c8ad" stroke-width="1"/></pattern>
+  </defs>
+  <g filter="url(#grain)">
+    <path fill="#c8ecdb" d="M0 0h1672v116H0z"/>
+    <g filter="url(#torn)">
+      <path fill="#ade2ca" d="m350 0 63 8 94-8h556l-57 38-99 13-95 35-87 9-127-18-122 34-94-18-83 23H0V91l109-25Z"/>
+      <path fill="#def2e5" d="m996 0 75 24 147 5 47 41 133 11 60 35h214V0Z"/>
+      <path fill="#fff5e5" d="M0 0h447l-34 21-56 5-8 54-31 18-105 14-83 4-87-15L0 91Z"/>
+    </g>
+    <path fill="url(#grid)" d="M0 0h295L0 94Z"/>
+  </g>
+</svg>

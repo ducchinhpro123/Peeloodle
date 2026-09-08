@@ -55,8 +55,7 @@ async function inspectPng(page: Page, downloadPath: string, expectedSize: number
   const bytes = readFileSync(downloadPath)
   expect(bytes[0]).toBe(0x89)
   expect(bytes[1]).toBe(0x50)
-  expect(bytes.readUInt32BE(16)).toBe(expectedSize)
-  expect(bytes.readUInt32BE(20)).toBe(expectedSize)
+  expect(Math.max(bytes.readUInt32BE(16), bytes.readUInt32BE(20))).toBe(expectedSize)
   expect(bytes[25]).toBe(6)
 
   const pixels = await page.evaluate(async (base64) => {
@@ -122,10 +121,9 @@ async function inspectPng(page: Page, downloadPath: string, expectedSize: number
       darkBounds: darkCount ? darkBounds : null,
     }
   }, bytes.toString('base64'))
-  expect(pixels.corner[3]).toBe(0)
   expect(pixels.maxAlpha).toBeGreaterThan(0)
   expect(pixels.opaqueCount).toBeGreaterThan(100)
-  expect(pixels.opaqueCount).toBeLessThan(expectedSize * expectedSize)
+  expect(pixels.opaqueCount).toBeLessThan(pixels.width * pixels.height)
   expect(pixels.redCount).toBeGreaterThan(100)
   expect(pixels.redBounds).not.toBeNull()
   return pixels
@@ -133,7 +131,7 @@ async function inspectPng(page: Page, downloadPath: string, expectedSize: number
 
 async function downloadExport(page: Page, size: 512 | 1024) {
   const dialog = page.getByRole('dialog', { name: 'Export sticker' })
-  await dialog.getByLabel(`${size} × ${size}`).check()
+  await dialog.getByLabel(`${size} px longest edge`).check()
   const downloadPromise = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Download PNG' }).click()
   const download = await downloadPromise

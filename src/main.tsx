@@ -99,16 +99,16 @@ function Header() {
           <Sidebar mobile />
         </SheetContent>
       </Sheet>
-      <Link to="/" className="brand"><span className="mascot">●ᴗ●</span><span>Sticker<span>Lab</span><small>Turn moments into stickers</small></span></Link>
+      <Link to="/" className="brand"><span className="mascot" aria-hidden="true"><svg viewBox="0 0 64 44" fill="none"><circle cx="19" cy="23" r="7" fill="currentColor" /><circle cx="46" cy="23" r="7" fill="currentColor" /><path d="M29 25c0 7 8 7 8 0" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg></span><span>Sticker<span>Lab</span><small>Turn moments into stickers</small></span></Link>
       <nav className="topnav" aria-label="Primary navigation">
         {topNavigation.map((item) => (
-          <Link key={item.label} to={item.to} className={item.active(pathname, search) ? 'active' : undefined} onMouseEnter={item.to === '/create' ? preloadEditor : undefined} onFocus={item.to === '/create' ? preloadEditor : undefined}>{item.label}</Link>
+          <Link key={item.label} to={item.to} className={item.active(pathname, search) ? 'active' : undefined} aria-current={item.active(pathname, search) ? 'page' : undefined} onMouseEnter={item.to === '/create' ? preloadEditor : undefined} onFocus={item.to === '/create' ? preloadEditor : undefined}>{item.label}</Link>
         ))}
       </nav>
       <Unavailable className="search search-button" label="Search is not implemented" aria-label="Search templates and packs">
         <Search size={16} /><span>Search templates and packs...</span>
       </Unavailable>
-      <NoticeDialog title="Notifications are unavailable" trigger={<Button className="icon" aria-label="Notifications"><Bell size={18} /></Button>}>
+      <NoticeDialog title="Notifications are unavailable" trigger={<Button className="icon notifications" aria-label="Notifications"><Bell size={18} /></Button>}>
         Notifications are not implemented.
       </NoticeDialog>
       <Account />

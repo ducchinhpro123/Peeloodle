@@ -10,7 +10,8 @@ export function getStageMetrics(
   hostHeight: number,
   viewport: Viewport,
 ): { viewScale: number; stageX: number; stageY: number } {
-  const fit = hostWidth > 0 ? hostWidth / ARTBOARD_SIZE : 0.05
+  // Contain the full artboard with 64px around it for resize and rotation handles.
+  const fit = (Math.min(hostWidth, hostHeight) - 128) / ARTBOARD_SIZE
   const viewScale = Math.max(fit * viewport.zoom, 0.05)
   const stageX = (hostWidth - ARTBOARD_SIZE * viewScale) / 2 + viewport.panX
   const stageY = (hostHeight - ARTBOARD_SIZE * viewScale) / 2 + viewport.panY

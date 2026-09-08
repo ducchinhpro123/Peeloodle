@@ -370,7 +370,7 @@ function EditorChrome({ document, urls }: { document: ProjectDocument; urls: Rec
         </section>
         <div className="editor">
           <section className="canvas-area">
-            <div className="checkerboard">
+            <div className="canvas-workspace">
               <EditorArtboard urls={urls} />
               {document.layers.length === 0 ? (
                 <div className="editor-welcome">
@@ -1040,7 +1040,7 @@ function ExportDialog({ document }: { document: ProjectDocument }) {
       await useEditorStore.getState().finishMaskStroke?.()
       const state = useEditorStore.getState()
       if (state.document?.id !== document.id) throw new Error('The open project changed. Reopen export to continue.')
-      const blob = await renderDocument(state.document, state.assets, { size, masks: state.masks })
+      const blob = await renderDocument(state.document, state.assets, { size, masks: state.masks, bounds: 'artwork' })
       if (useEditorStore.getState().workspaceEpoch !== state.workspaceEpoch) throw new Error('Export canceled because the workspace changed.')
       const safeTitle = document.title.replace(/[^\w.-]+/g, '-').replace(/^-|-$/g, '') || 'sticker'
       downloadBlob(blob, `${safeTitle}-${size}.png`)
@@ -1062,16 +1062,16 @@ function ExportDialog({ document }: { document: ProjectDocument }) {
       <DialogContent>
         <DialogTitle>Export sticker</DialogTitle>
         <DialogDescription>
-          Download a transparent PNG of the 1024×1024 artboard. Checkerboard, selection handles, and zoom are not included. This is not a WhatsApp or Telegram sticker pack.
+          Download a transparent PNG cropped to the outermost visible artwork, including outlines. The longest edge uses the selected size; aspect ratio is preserved. Hidden layers, checkerboard, selection handles, and zoom are not included. This is not a WhatsApp or Telegram sticker pack.
         </DialogDescription>
         <div className="export-sizes">
           <label>
             <input type="radio" name="export-size" checked={size === 512} onChange={() => setSize(512)} />
-            512 × 512
+            512 px longest edge
           </label>
           <label>
             <input type="radio" name="export-size" checked={size === 1024} onChange={() => setSize(1024)} />
-            1024 × 1024
+            1024 px longest edge
           </label>
         </div>
         <DialogFooter>

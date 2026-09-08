@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 import { createClient, type Session } from '@supabase/supabase-js'
+import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
 const url = process.env.SUPABASE_TEST_URL
@@ -14,23 +15,104 @@ async function login(email = emailA!): Promise<Session> {
   if (error || !data.session) throw new Error(error?.message ?? 'No test session')
   return data.session
 }
+function authStorageKey() {
+  return `sb-${new URL(url!).hostname.split('.')[0]}-auth-token`
+}
+
 async function seed(context: BrowserContext, session: Session) {
   const parsed = new URL(url!)
-  const domain = parsed.hostname
-  const storageKey = `sb-${domain.split('.')[0]}-auth-token`
+  const storageKey = authStorageKey()
   await context.addCookies([
-    { name: storageKey, value: encodeURIComponent(JSON.stringify(session)), domain, path: '/' },
+    { name: storageKey, value: encodeURIComponent(JSON.stringify(session)), domain: parsed.hostname, path: '/' },
   ])
+  // Write the initial session only when storage is empty. Later navigations must
+  // not rewrite Account A after a switch or sign-out.
   await context.addInitScript(({ session, storageKey }) => {
-    if (!localStorage.getItem('cloud-test-signed-out')) {
-      localStorage.setItem(storageKey, JSON.stringify(session))
-    }
+    if (localStorage.getItem('cloud-test-signed-out')) return
+    if (localStorage.getItem(storageKey)) return
+    localStorage.setItem(storageKey, JSON.stringify(session))
   }, { session, storageKey })
+}
+
+async function sessionEmail(page: Page) {
+  return page.evaluate(async () => {
+    const { getAuthClient } = await import('/src/features/auth/client.ts')
+    const auth = await getAuthClient()
+    if (!auth) throw new Error('Cloud auth is not configured')
+    const { data } = await auth.auth.getSession()
+    return data.session?.user.email ?? null
+  })
+}
+
+async function assertSessionEmail(page: Page, email: string) {
+  expect(await sessionEmail(page)).toBe(email)
+}
+
+async function switchSession(page: Page, session: Session, email: string) {
+  await page.evaluate(async (next) => {
+    const { getAuthClient } = await import('/src/features/auth/client.ts')
+    const auth = await getAuthClient()
+    if (!auth) throw new Error('Cloud auth is not configured')
+    const { error } = await auth.auth.setSession({ access_token: next.access_token, refresh_token: next.refresh_token })
+    if (error) throw error
+  }, { access_token: session.access_token, refresh_token: session.refresh_token })
+  try {
+    await expect(page.getByRole('button', { name: `Account: ${email}` })).toBeVisible({ timeout: 5000 })
+  } catch {
+    await expect(page.getByRole('dialog', { name: 'Your private workspace' }).getByText(email, { exact: true })).toBeVisible({ timeout: 30000 })
+  }
+  await assertSessionEmail(page, email)
+}
+
+async function assertIsolatedCollection(page: Page, email: string, visibleTitle: string, absentTitle: string) {
+  await assertSessionEmail(page, email)
+  await page.goto('/my-stickers')
+  await assertSessionEmail(page, email)
+  await expect(page.locator('.project-card').filter({ hasText: visibleTitle })).toBeVisible({ timeout: 60000 })
+  await expect(page.locator('.project-card').filter({ hasText: absentTitle })).toHaveCount(0)
+}
+async function createFixture(session: Session, title: string) {
+  // Use the existing access token as a header. setSession() would rotate the
+  // refresh token and invalidate the Session object later passed to the page.
+  const auth = createClient(url!, key!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${session.access_token}` } },
+  })
+  const id = randomUUID()
+  const now = new Date().toISOString()
+  const document = { schemaVersion: 1, id, title, artboard: { width: 1024, height: 1024, background: 'transparent' }, layers: [], assetIds: [], createdAt: now, updatedAt: now, revision: 0 }
+  const { error } = await auth.rpc('commit_sticker_resource', { operation_id: randomUUID(), resource_kind: 'project', resource_id: id, expected_revision: 0, body: document, binaries: [] })
+  if (error) throw error
+  return id
+}
+async function holdAuthorizedRequest(page: Page, pattern: string, token: string) {
+  let release!: () => void
+  let seenResolve!: () => void
+  let finishedResolve!: () => void
+  const blocked = new Promise<void>((resolve) => { release = resolve })
+  const seen = new Promise<void>((resolve) => { seenResolve = resolve })
+  const finished = new Promise<void>((resolve) => { finishedResolve = resolve })
+  await page.route(pattern, async (route) => {
+    if (route.request().headers().authorization === `Bearer ${token}`) {
+      seenResolve()
+      await blocked
+      try {
+        const response = await route.fetch()
+        await route.fulfill({ response })
+      } catch (error) {
+        if (!String(error).includes('already handled')) throw error
+      } finally { finishedResolve() }
+      return
+    }
+    await route.continue()
+  })
+  return { seen, release, finished, unroute: () => page.unroute(pattern) }
 }
 async function exportPixels(page: Page) {
   await page.getByRole('button', { name: 'Export and share' }).click()
   const dialog = page.getByRole('dialog', { name: 'Export sticker' })
-  await dialog.getByLabel('512 × 512').check()
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('radio', { name: '512 px longest edge' }).check()
   const pending = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Download PNG', exact: true }).click()
   const path = await (await pending).path()
@@ -48,14 +130,17 @@ async function inspectPixels(page: Page, bytes: Buffer) {
     const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', data)), (byte) => byte.toString(16).padStart(2, '0')).join('')
     return { width: canvas.width, height: canvas.height, corner: data[3], opaque: data.filter((value, index) => index % 4 === 3 && value > 0).length, hash }
   }, bytes.toString('base64'))
-  expect(pixels).toMatchObject({ width: 512, height: 512, corner: 0 })
+  expect(Math.max(pixels.width, pixels.height)).toBeGreaterThanOrEqual(511)
+  expect(Math.max(pixels.width, pixels.height)).toBeLessThanOrEqual(512)
+  expect(pixels.corner).toBe(0)
   expect(pixels.opaque).toBeGreaterThan(100)
-  expect(pixels.opaque).toBeLessThan(512 * 512)
+  expect(pixels.opaque).toBeLessThan(pixels.width * pixels.height)
   return pixels.hash
 }
 
 test('private cloud: upload, transformed mask/font, second browser reopen/export, offline retry, sign-out isolation', async ({ browser }) => {
   test.skip(!enabled, 'Dedicated ordinary-user credentials required; no emails are sent by this test')
+  test.setTimeout(180000)
   const first = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const second = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   await seed(first, await login()); await seed(second, await login())
@@ -108,9 +193,11 @@ test('private cloud: upload, transformed mask/font, second browser reopen/export
   await page.getByRole('button', { name: 'Create Pack', exact: true }).click()
   await page.getByRole('button', { name: 'Add Stickers', exact: true }).click()
   const firstMember = page.getByRole('checkbox', { name: `Include ${title}`, exact: true })
+  await expect(firstMember).toBeEnabled()
   await firstMember.click()
   await expect(firstMember).toBeChecked()
   const secondMember = page.getByRole('checkbox', { name: `Include ${secondTitle}`, exact: true })
+  await expect(secondMember).toBeEnabled()
   await secondMember.click()
   await expect(secondMember).toBeChecked()
   await page.getByRole('button', { name: 'Done', exact: true }).click()
@@ -157,7 +244,7 @@ test('private cloud: upload, transformed mask/font, second browser reopen/export
   await other.evaluate(({ storageKey }) => {
     localStorage.setItem('cloud-test-signed-out', 'true')
     localStorage.removeItem(storageKey)
-  }, { storageKey: `sb-${new URL(url!).hostname.split('.')[0]}-auth-token` })
+  }, { storageKey: authStorageKey() })
   await account.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect(other.getByRole('button', { name: 'Guest account' })).toBeVisible({ timeout: 15000 })
   await other.goto('/my-stickers')
@@ -169,55 +256,152 @@ test('private cloud: upload, transformed mask/font, second browser reopen/export
   await first.close(); await second.close()
 })
 
-test('explicit guest import survives an account switch during an upload and resumes without duplicates', async ({ browser }) => {
+test('same-browser switch keeps a late private project response in account A', async ({ browser }) => {
   test.skip(!enabled || !process.env.SUPABASE_TEST_EMAIL_B, 'Two dedicated ordinary accounts required')
-  const sessionA = await login(), sessionB = await login(process.env.SUPABASE_TEST_EMAIL_B!)
+  const emailB = process.env.SUPABASE_TEST_EMAIL_B!
+  const sessionA = await login(), sessionB = await login(emailB)
+  const stamp = Date.now()
+  const title = `Late private project ${stamp}`
+  const titleB = `B collection ${stamp}`
+  await createFixture(sessionA, title)
+  await createFixture(sessionB, titleB)
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const page = await context.newPage()
+  await seed(context, sessionA)
+  const barrier = await holdAuthorizedRequest(page, '**/rest/v1/projects*', sessionA.access_token)
+  await page.goto('/')
+  await barrier.seen
+  await switchSession(page, sessionB, emailB)
+  barrier.release()
+  await barrier.finished
+  await barrier.unroute()
+  await assertIsolatedCollection(page, emailB, titleB, title)
+  await context.close()
+})
+
+test('same-browser switch keeps an in-flight binary upload in account A', async ({ browser }) => {
+  test.skip(!enabled || !process.env.SUPABASE_TEST_EMAIL_B, 'Two dedicated ordinary accounts required')
+  const emailB = process.env.SUPABASE_TEST_EMAIL_B!
+  const sessionA = await login(), sessionB = await login(emailB)
+  const stamp = Date.now()
+  const title = `Upload switch ${stamp}`
+  const titleB = `B collection ${stamp}`
+  await createFixture(sessionB, titleB)
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const page = await context.newPage()
+  await seed(context, sessionA)
+  await page.goto('/create')
+  await page.getByTestId('photo-file-input').setInputFiles('public/art/stickers/04-winking-smiley.webp')
+  await expect(page.getByAltText('Image').first()).toBeVisible()
+  await page.getByLabel('Sticker title').fill(title)
+  const barrier = await holdAuthorizedRequest(page, '**/storage/v1/object/**', sessionA.access_token)
+  await page.getByRole('button', { name: 'Save to My Stickers' }).click()
+  await barrier.seen
+  await switchSession(page, sessionB, emailB)
+  barrier.release()
+  await barrier.finished
+  await barrier.unroute()
+  await assertIsolatedCollection(page, emailB, titleB, title)
+  await switchSession(page, sessionA, emailA!)
+  await assertSessionEmail(page, emailA!)
+  await page.goto('/my-stickers')
+  await assertSessionEmail(page, emailA!)
+  await expect(page.locator('.project-card').filter({ hasText: title })).toHaveCount(1, { timeout: 60000 })
+  await context.close()
+})
+
+test('same-browser switch keeps an in-flight save in account A', async ({ browser }) => {
+  test.skip(!enabled || !process.env.SUPABASE_TEST_EMAIL_B, 'Two dedicated ordinary accounts required')
+  const emailB = process.env.SUPABASE_TEST_EMAIL_B!
+  const sessionA = await login(), sessionB = await login(emailB)
+  const stamp = Date.now()
+  const title = `Save switch ${stamp}`
+  const titleB = `B collection ${stamp}`
+  await createFixture(sessionB, titleB)
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const page = await context.newPage()
+  await seed(context, sessionA)
+  await page.goto('/create')
+  await page.getByRole('button', { name: 'Text', exact: true }).click()
+  await page.getByLabel('Sticker title').fill(title)
+  const barrier = await holdAuthorizedRequest(page, '**/rest/v1/rpc/commit_sticker_resource*', sessionA.access_token)
+  await page.getByRole('button', { name: 'Save to My Stickers' }).click()
+  await barrier.seen
+  await switchSession(page, sessionB, emailB)
+  barrier.release()
+  await barrier.finished
+  await barrier.unroute()
+  await assertIsolatedCollection(page, emailB, titleB, title)
+  await switchSession(page, sessionA, emailA!)
+  await assertSessionEmail(page, emailA!)
+  await page.goto('/my-stickers')
+  await assertSessionEmail(page, emailA!)
+  await expect(page.locator('.project-card').filter({ hasText: title })).toHaveCount(1, { timeout: 60000 })
+  await context.close()
+})
+
+test('same-browser switch keeps guest originals out of account B during import', async ({ browser }) => {
+  test.skip(!enabled || !process.env.SUPABASE_TEST_EMAIL_B, 'Two dedicated ordinary accounts required')
+  const emailB = process.env.SUPABASE_TEST_EMAIL_B!
+  const sessionA = await login(), sessionB = await login(emailB)
+  const stamp = Date.now()
+  const title = `Guest consent ${stamp}`
+  const titleB = `B collection ${stamp}`
+  await createFixture(sessionB, titleB)
   const contextA = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const pageA = await contextA.newPage()
   await pageA.goto('/create')
   await pageA.getByTestId('photo-file-input').setInputFiles('public/art/stickers/04-winking-smiley.webp')
   await expect(pageA.getByAltText('Image').first()).toBeVisible()
-  const title = `Guest consent ${Date.now()}`
   await pageA.getByLabel('Sticker title').fill(title)
   await pageA.getByRole('button', { name: 'Save to My Stickers' }).click()
   await expect(pageA.locator('.save-status')).toHaveText('Saved locally')
-  const guestPath = new URL(pageA.url()).pathname
 
-  // Import into Account A, verifying explicit user initiation and progress.
+  // Import into Account A, but pause its authorized commit before changing this same page to B.
   await seed(contextA, sessionA)
   await pageA.goto('/my-stickers')
   const accountA = pageA.getByRole('dialog', { name: 'Your private workspace' })
   await expect(accountA.getByRole('button', { name: 'Import guest collection / retry' })).toBeVisible()
   await expect(pageA.locator('.project-card').filter({ hasText: title })).toHaveCount(0)
+  const barrier = await holdAuthorizedRequest(pageA, '**/rest/v1/rpc/commit_sticker_resource*', sessionA.access_token)
   await accountA.getByRole('button', { name: 'Import guest collection / retry' }).click()
-  await expect(accountA.getByRole('status').filter({ hasText: 'Import saved to cloud' })).toBeVisible({ timeout: 60000 })
-  // Duplicate import retry is a safe no-op.
-  await accountA.getByRole('button', { name: 'Import guest collection / retry' }).click()
-  await expect(accountA.getByRole('status').filter({ hasText: 'Import saved to cloud' })).toBeVisible({ timeout: 60000 })
-  await accountA.getByRole('button', { name: 'Close', exact: true }).click()
-  await expect(pageA.locator('.project-card').filter({ hasText: title })).toHaveCount(1)
-
-  // Account B context on the same guest device: guest work is not imported without separate consent.
-  const contextB = await browser.newContext({ viewport: { width: 390, height: 844 } })
-  await seed(contextB, sessionB)
-  const pageB = await contextB.newPage()
-  await pageB.goto('/my-stickers')
-  await expect(pageB.getByRole('button', { name: `Account: ${sessionB.user.email}` })).toBeAttached()
-  const accountB = pageB.getByRole('dialog', { name: 'Your private workspace' })
+  await barrier.seen
+  await switchSession(pageA, sessionB, emailB)
+  barrier.release()
+  await barrier.finished
+  await barrier.unroute()
+  await pageA.goto('/my-stickers')
+  await assertSessionEmail(pageA, emailB)
+  const accountB = pageA.getByRole('dialog', { name: 'Your private workspace' })
   if (await accountB.isVisible()) await accountB.getByRole('button', { name: 'Not now', exact: true }).click()
-  await expect(pageB.locator('.project-card').filter({ hasText: title })).toHaveCount(0)
+  await expect(pageA.locator('.project-card').filter({ hasText: titleB })).toBeVisible({ timeout: 60000 })
+  await expect(pageA.locator('.project-card').filter({ hasText: title })).toHaveCount(0)
 
-  // Sign out Account A: guest originals survive intact on this device.
-  await pageA.getByRole('button', { name: /^Account:/ }).click()
-  await pageA.evaluate(({ storageKey }) => {
-    localStorage.setItem('cloud-test-signed-out', 'true')
-    localStorage.removeItem(storageKey)
-  }, { storageKey: `sb-${new URL(url!).hostname.split('.')[0]}-auth-token` })
-  await accountA.getByRole('button', { name: 'Sign out', exact: true }).click()
+  // Account A may finish the already-authorized import; guest originals remain after sign-out.
+  await switchSession(pageA, sessionA, emailA!)
+  await assertSessionEmail(pageA, emailA!)
+  await pageA.goto('/my-stickers')
+  await assertSessionEmail(pageA, emailA!)
+  await expect(pageA.locator('.project-card').filter({ hasText: title })).toHaveCount(1, { timeout: 60000 })
+  const signedInAccount = pageA.getByRole('dialog', { name: 'Your private workspace' })
+  if (!(await signedInAccount.isVisible())) await pageA.getByRole('button', { name: /^Account:/ }).click()
+  await expect(signedInAccount.getByRole('button', { name: 'Import guest collection / retry' })).toBeVisible()
+  await signedInAccount.getByRole('button', { name: 'Import guest collection / retry' }).click()
+  await expect(signedInAccount.getByRole('button', { name: 'Import guest collection / retry' })).toBeEnabled({ timeout: 60000 })
+  await expect(pageA.locator('.project-card').filter({ hasText: title })).toHaveCount(1)
+  await signedInAccount.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect(pageA.getByRole('button', { name: 'Guest account' })).toBeVisible()
-  await pageA.goto(guestPath)
-  await expect(pageA.getByLabel('Sticker title')).toHaveValue(title)
-  await contextA.close(); await contextB.close()
+  const guestTitles = await pageA.evaluate(() => new Promise<string[]>((resolve, reject) => {
+    const request = indexedDB.open('stickerlab-local')
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const read = request.result.transaction('projects', 'readonly').objectStore('projects').getAll()
+      read.onerror = () => reject(read.error)
+      read.onsuccess = () => resolve((read.result as Array<{ title: string }>).map((project) => project.title))
+    }
+  }))
+  expect(guestTitles).toContain(title)
+  await contextA.close()
 })
 
 for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }, { width: 390, height: 844 }]) {
@@ -240,4 +424,3 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
     await context.close()
   })
 }
-

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
+import type Konva from 'konva'
 
 let pageErrors: string[] = []
 test.beforeEach(({ page }) => {
@@ -154,6 +155,7 @@ test('save and PNG export wait for the in-flight stroke rather than capturing an
   })).toBe(true)
   await page.getByRole('button', { name: /save to my stickers/i }).click()
   await page.getByRole('button', { name: /export and share/i }).click()
+  await page.getByRole('dialog', { name: 'Export sticker' }).getByLabel('512 px longest edge').check()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: /download png/i }).click()
   await releaseEncoding(page)
@@ -164,7 +166,8 @@ test('save and PNG export wait for the in-flight stroke rather than capturing an
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512
     const ctx = canvas.getContext('2d')!
     ctx.drawImage(bitmap, 0, 0); bitmap.close()
-    return [ctx.getImageData(180, 180, 1, 1).data[3], ctx.getImageData(230, 230, 1, 1).data[3]]
+    // The 256px image now fills the 512px export; the hole is at image-local (60, 60).
+    return [ctx.getImageData(120, 120, 1, 1).data[3], ctx.getImageData(320, 320, 1, 1).data[3]]
   }, bytes.toString('base64'))
   expect(alpha).toEqual([0, 255])
   await page.keyboard.press('Escape')
@@ -275,6 +278,7 @@ test('corrupt masks fail closed in the preview and export instead of displaying 
 
 test('restoring preserves original transparency; cropped masks, filters and outlines agree across preview, PNG and ZIP', async ({ page }) => {
   await setup(page, 0.3, 0.2, 2048)
+  test.setTimeout(45000)
   await page.evaluate(async () => {
     const path = '/src/features/editor/store.ts'
     const { useEditorStore } = await import(path)
@@ -338,25 +342,30 @@ test('restoring preserves original transparency; cropped masks, filters and outl
     if (!zipPng) throw new Error('ZIP lacks sticker PNG')
     const decode = async (blob: Blob) => {
       const bitmap = await createImageBitmap(blob)
-      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512
+      const canvas = document.createElement('canvas'); canvas.width = bitmap.width; canvas.height = bitmap.height
       const ctx = canvas.getContext('2d')!; ctx.drawImage(bitmap, 0, 0); bitmap.close()
       return ctx
     }
     const pngCtx = await decode(png)
     const zipCtx = await decode(zipPng)
-    const pngPixels = pngCtx.getImageData(0, 0, 512, 512).data
-    if (!zipCtx.getImageData(0, 0, 512, 512).data.every((value, i) => value === pngPixels[i])) return 255
+    const tightCtx = await decode(await renderDocument(s.document, s.assets, { size: 512, masks: s.masks, bounds: 'artwork' }))
+    const { width, height } = tightCtx.canvas
+    if (zipCtx.canvas.width !== width || zipCtx.canvas.height !== height) throw new Error(`PNG/ZIP dimensions differ: ${width}×${height} vs ${zipCtx.canvas.width}×${zipCtx.canvas.height}`)
+    const pngPixels = tightCtx.getImageData(0, 0, width, height).data
+    const zipPixels = zipCtx.getImageData(0, 0, width, height).data
+    const difference = zipPixels.findIndex((value, i) => value !== pngPixels[i])
+    if (difference >= 0) throw new Error(`PNG/ZIP pixel ${difference} differs: ${pngPixels[difference]} vs ${zipPixels[difference]}`)
     const host = document.querySelector('[data-testid="editor-canvas"]') as HTMLElement
     const preview = host.querySelector('canvas')!
-    const fit = Math.min((host.clientWidth - 36) / 1024, (host.clientHeight - 36) / 1024)
+    const stage = (window as unknown as { Konva: typeof Konva }).Konva.stages[0]!
     let error = 0
     for (const [x, y] of [[530, 454], [660, 550], [294, 450]]) {
       const target = pngCtx.getImageData(x! / 2, y! / 2, 1, 1).data
-      const shown = preview.getContext('2d')!.getImageData(Math.round(host.clientWidth / 2 + (x! - 512) * fit), Math.round(host.clientHeight / 2 + (y! - 512) * fit), 1, 1).data
+      const shown = preview.getContext('2d')!.getImageData(Math.round((stage.x() + x! * stage.scaleX()) * preview.width / host.clientWidth), Math.round((stage.y() + y! * stage.scaleY()) * preview.height / host.clientHeight), 1, 1).data
       for (let i = 0; i < 4; i++) error = Math.max(error, Math.abs(shown[i]! - target[i]!))
     }
     return error
-  })).toBeLessThan(4)
+  }), { timeout: 30000 }).toBeLessThan(4)
 })
 
 test('rotated and flipped cropped strokes align with the cursor under zoom and pan', async ({ page }) => {

@@ -22,6 +22,12 @@ class Remote implements CloudRemote {
     if (previous) return previous
     const old = this.rows.get(entry.key)
     const conflict = (old?.revision ?? 0) !== entry.baseRevision || !!old?.deleted
+    if (conflict && operation.value === null) {
+      if (!old) throw new Error('Cannot delete unknown resource')
+      const result = { resource: old, conflict: true }
+      this.receipts.set(operation.operationId, result)
+      return result
+    }
     const id = conflict && operation.value ? operation.operationId : entry.id
     const resource: RemoteResource = { kind: entry.kind, id, revision: id === entry.id ? (old?.revision ?? 0) + 1 : 1, deleted: operation.value === null, value: operation.value ? { ...operation.value, id, title: operation.value.title + (conflict ? ' (conflict copy)' : '') } : old!.value }
     const result = { resource, original: conflict ? old : undefined, conflict }
@@ -68,6 +74,93 @@ describe('account local-first repository', () => {
     await repo.refresh()
     await repo.saveProject({ ...editing, title: 'Unsaved during refresh' }); await repo.sync()
     expect([...remote.rows.values()].map((row) => row.value.title).sort()).toEqual(['Other device', 'Unsaved during refresh (conflict copy)'])
+  })
+
+  it('rejects a stale project delete after refresh and keeps the newer cloud version', async () => {
+    const remote = new Remote()
+    const accountA = new CloudRepository(`delete-a-${crypto.randomUUID()}`, remote)
+    const accountB = new CloudRepository(`delete-b-${crypto.randomUUID()}`, remote)
+    const document = createProjectDocument({ title: 'Shared sticker' })
+
+    await accountA.saveProject(document)
+    await accountA.sync()
+    await accountA.getProject(document.id)
+    await accountB.refresh()
+    const [listed] = await accountB.listProjects()
+    expect(listed?.title).toBe('Shared sticker')
+
+    await accountA.saveProject({ ...document, title: 'Newer remote edit' })
+    await accountA.sync()
+    await accountB.refresh()
+
+    await accountB.deleteProject(listed!.id, listed)
+    await accountB.sync()
+
+    const current = remote.rows.get(`project:${document.id}`)
+    expect(current).toMatchObject({ deleted: false, revision: 2, value: { title: 'Newer remote edit' } })
+    expect(accountB.getStatus().notices).toContain('Deletion was not applied: the cloud version changed. Refresh and review it.')
+    expect((await accountB.listProjects()).map((project) => project.title)).toEqual(['Newer remote edit'])
+  })
+
+  it('keeps pack membership when a stale project delete is rejected', async () => {
+    const { removeProject } = await import('../../features/editor/removeProject')
+    const remote = new Remote()
+    const accountA = new CloudRepository(`stale-pack-a-${crypto.randomUUID()}`, remote)
+    const accountB = new CloudRepository(`stale-pack-b-${crypto.randomUUID()}`, remote)
+    const document = createProjectDocument({ title: 'Packed sticker' })
+    const retained = createProjectDocument({ title: 'Keep me' })
+    await accountA.saveProject(document)
+    await accountA.saveProject(retained)
+    await accountA.sync()
+    await accountA.savePack({
+      id: 'pack',
+      title: 'Pack',
+      description: '',
+      projectIds: [document.id, retained.id],
+      visibility: 'private',
+      createdAt: document.createdAt,
+      updatedAt: document.updatedAt,
+    })
+    await accountA.sync()
+    await accountB.refresh()
+    const listed = (await accountB.listProjects()).find((project) => project.id === document.id)
+    expect(listed?.title).toBe('Packed sticker')
+
+    await accountA.saveProject({ ...document, title: 'Newer packed edit' })
+    await accountA.sync()
+    await accountB.refresh()
+
+    await removeProject(accountB, listed!)
+    await accountB.sync()
+
+    const current = remote.rows.get(`project:${document.id}`)
+    expect(current).toMatchObject({ deleted: false, revision: 2, value: { title: 'Newer packed edit' } })
+    expect(accountB.getStatus().notices).toContain('Deletion was not applied: the cloud version changed. Refresh and review it.')
+    expect(remote.rows.get('pack:pack')?.value).toMatchObject({ projectIds: [document.id, retained.id] })
+    expect((await accountB.listPacks())[0]?.projectIds).toEqual([document.id, retained.id])
+    expect((await accountB.listProjects()).map((project) => project.title).sort()).toEqual(['Keep me', 'Newer packed edit'])
+  })
+
+  it('deletes the current listed project after clearing its pack membership', async () => {
+    const remote = new Remote()
+    const repo = new CloudRepository(`delete-current-${crypto.randomUUID()}`, remote)
+    const document = createProjectDocument({ title: 'Delete me' })
+    const retained = createProjectDocument({ title: 'Keep me' })
+    await repo.saveProject(document)
+    await repo.saveProject(retained)
+    await repo.sync()
+    await repo.savePack({ id: 'pack', title: 'Pack', description: '', projectIds: [document.id, retained.id], visibility: 'private', createdAt: document.createdAt, updatedAt: document.updatedAt })
+    await repo.sync()
+
+    const current = (await repo.listProjects()).find((project) => project.id === document.id)!
+    const pack = (await repo.listPacks())[0]!
+    await repo.savePack({ ...pack, projectIds: [retained.id], updatedAt: new Date().toISOString() }, pack)
+    await repo.sync()
+    await repo.deleteProject(current.id, current)
+    await repo.sync()
+    expect(remote.rows.get(`project:${document.id}`)?.deleted).toBe(true)
+    expect(remote.rows.get('pack:pack')?.value).toMatchObject({ projectIds: [retained.id] })
+    expect(remote.rows.get(`project:${retained.id}`)?.deleted).toBe(false)
   })
 
   it('resumes guest imports per account, preserving originals and ordered pack membership', async () => {

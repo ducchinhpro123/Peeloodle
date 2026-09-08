@@ -1,6 +1,6 @@
 import Konva from 'konva'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Ellipse, Group, Image as KonvaImage, Layer, Rect, Stage, Text as KonvaText, Transformer } from 'react-konva'
+import { Ellipse, Image as KonvaImage, Layer, Rect, Stage, Text as KonvaText, Transformer } from 'react-konva'
 import { ARTBOARD_SIZE, type Asset, type ImageLayer, type Layer as DocLayer } from '../../types/domain'
 import { createImageSurface, decodeMaskImage, formatCssFilter } from '../exports/renderDocument'
 import { getStageMetrics } from './maskUtils'
@@ -79,20 +79,19 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
       >
         <Layer>
           <Rect name="artboard" width={ARTBOARD_SIZE} height={ARTBOARD_SIZE} listening />
-          <Rect width={ARTBOARD_SIZE} height={ARTBOARD_SIZE} stroke="#ffffffaa" strokeWidth={2} listening={false} />
-          <Group clipX={0} clipY={0} clipWidth={ARTBOARD_SIZE} clipHeight={ARTBOARD_SIZE}>
-            {document.layers.map((layer) => (
-              <DocNode key={layer.id} layer={layer}
-                url={layer.kind === 'image' ? urls[layer.assetId] : undefined}
-                mask={layer.kind === 'image' && layer.maskKey ? masks[layer.maskKey] : undefined}
-                asset={layer.kind === 'image' ? assets[layer.assetId]?.asset : undefined}
-                previews={previewCallbacks.current} panMode={activeTool === 'pan'} isBrushTool={isBrush} editingText={layer.id === editingTextId} onEditText={() => setEditingTextId(layer.id)} nodeRef={bindNode(layer.id)} />
-            ))}
-          </Group>
+          {/* Document coordinates are independent of the full-panel workspace. */}
+          {document.layers.map((layer) => (
+            <DocNode key={layer.id} layer={layer}
+              url={layer.kind === 'image' ? urls[layer.assetId] : undefined}
+              mask={layer.kind === 'image' && layer.maskKey ? masks[layer.maskKey] : undefined}
+              asset={layer.kind === 'image' ? assets[layer.assetId]?.asset : undefined}
+              previews={previewCallbacks.current} panMode={activeTool === 'pan'} isBrushTool={isBrush} editingText={layer.id === editingTextId} onEditText={() => setEditingTextId(layer.id)} nodeRef={bindNode(layer.id)} />
+          ))}
           <Transformer ref={transformerRef} rotateEnabled enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
             boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 8 || Math.abs(newBox.height) < 8 ? oldBox : newBox)} />
         </Layer>
       </Stage>
+      <p className="canvas-boundary-note">Exports fit the visible artwork.</p>
       <div ref={brush.cursorRef} className="brush-cursor" data-testid="brush-cursor" aria-hidden="true" style={{ display: 'none' }} />
       {editingTextId ? <CanvasTextEditor layerId={editingTextId} node={nodeRefs.current[editingTextId]} onClose={() => setEditingTextId(null)} /> : null}
     </div>

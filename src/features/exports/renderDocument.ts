@@ -23,6 +23,8 @@ export type CanvasLike = {
 
 export type RenderDocumentOptions = {
   size: ExportSize
+  /** Fixed artboard for template/render probes; tight visible artwork for user downloads. */
+  bounds?: 'artboard' | 'artwork'
   masks?: ReadonlyMap<string, Blob> | Record<string, Blob>
   createCanvas?: (width: number, height: number) => CanvasLike
   decodeImage?: (blob: Blob) => Promise<CanvasImageSource>
@@ -56,15 +58,20 @@ export async function renderDocument(
   await (options.waitForFonts ?? waitForFonts)(families)
 
   const size = options.size
-  const canvas = (options.createCanvas ?? defaultCreateCanvas)(size, size)
-  const ctx = require2d(canvas)
-  ctx.setTransform(1, 0, 0, 1, 0, 0)
-  ctx.clearRect(0, 0, size, size)
-  const scale = size / ARTBOARD_SIZE
-  ctx.scale(scale, scale)
-
+  const make = options.createCanvas ?? defaultCreateCanvas
   const closeDecoded = !options.decodeImage
   const decode = options.decodeImage ?? defaultDecodeImage
+  const bounds = options.bounds === 'artwork'
+    ? await measureArtwork(document.layers, assetMap, maskMap, decode, closeDecoded, make)
+    : null
+  // Supersample the tight composition, with a two-pixel antialiasing guard.
+  const scale = bounds ? (size * 2 - 4) / Math.max(bounds.width, bounds.height) : size / ARTBOARD_SIZE
+  const canvas = make(bounds ? Math.ceil(bounds.width * scale) + 4 : size, bounds ? Math.ceil(bounds.height * scale) + 4 : size)
+  const ctx = require2d(canvas)
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  if (bounds) ctx.translate(2 - bounds.x * scale, 2 - bounds.y * scale)
+  ctx.scale(scale, scale)
   for (const layer of document.layers) {
     if (!layer.visible || layer.opacity <= 0) continue
     ctx.save()
@@ -76,9 +83,102 @@ export async function renderDocument(
     ctx.restore()
   }
 
-  const blob = await canvasToPng(canvas)
+  const output = bounds ? trimArtwork(canvas, size, make) : canvas
+  const blob = await canvasToPng(output)
   if (blob.type && blob.type !== 'image/png') throw new ExportError('Export did not produce a PNG')
   return blob
+}
+
+type Bounds = { x: number; y: number; width: number; height: number }
+
+function alphaBounds(canvas: CanvasLike): Bounds | null {
+  const { width, height } = canvas
+  const pixels = require2d(canvas).getImageData(0, 0, width, height).data
+  let left = width, top = height, right = -1, bottom = -1
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!pixels[(y * width + x) * 4 + 3]) continue
+      left = Math.min(left, x); top = Math.min(top, y)
+      right = Math.max(right, x); bottom = Math.max(bottom, y)
+    }
+  }
+  return right < 0 ? null : { x: left, y: top, width: right - left + 1, height: bottom - top + 1 }
+}
+
+async function measureArtwork(
+  layers: Layer[], assets: Map<string, AssetRecord>, masks: Map<string, Blob>,
+  decode: (blob: Blob) => Promise<CanvasImageSource>, closeDecoded: boolean,
+  make: (width: number, height: number) => CanvasLike,
+): Promise<Bounds> {
+  let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
+  for (const layer of layers) {
+    if (!layer.visible || layer.opacity <= 0 || !layer.transform.scaleX || !layer.transform.scaleY) continue
+    const local = make(1, 1)
+    try {
+      let x = 0, y = 0, width = 120, height = 120
+      if (layer.kind === 'image') {
+        const asset = assets.get(layer.assetId)!.asset
+        const padding = layer.outline?.enabled ? Math.ceil(layer.outline.width) : 0
+        x = y = -padding
+        width = (layer.crop?.width ?? asset.width) + padding * 2
+        height = (layer.crop?.height ?? asset.height) + padding * 2
+      } else if (layer.kind === 'text') {
+        const ctx = require2d(local)
+        ctx.font = cssFont(layer.fontSize, layer.fontFamily)
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+        const lines = layer.content.split('\n').map((line, index) => ({ metrics: ctx.measureText(line), y: index * layer.fontSize * TEXT_LINE_HEIGHT }))
+        x = Math.min(...lines.map(({ metrics }) => -metrics.actualBoundingBoxLeft))
+        y = Math.min(...lines.map(({ metrics, y }) => y - metrics.actualBoundingBoxAscent))
+        width = Math.max(...lines.map(({ metrics }) => metrics.actualBoundingBoxRight)) - x
+        height = Math.max(...lines.map(({ metrics, y }) => y + metrics.actualBoundingBoxDescent)) - y
+      }
+      if (width <= 0 || height <= 0) continue
+      const originX = Math.floor(x) - 2, originY = Math.floor(y) - 2
+      width = Math.ceil(x + width) - originX + 2; height = Math.ceil(y + height) - originY + 2
+      // Bound native alpha measurements instead of allocating an unbounded world-sized canvas.
+      if (!Number.isFinite(width * height) || width > 32767 || height > 32767 || width * height > 32_000_000) {
+        throw new ExportError('Artwork is too large to measure. Reduce the text size or outline width and try again.')
+      }
+      local.width = width; local.height = height
+      const ctx = require2d(local)
+      ctx.translate(-originX, -originY); ctx.globalAlpha = layer.opacity
+      // Measure the masked silhouette once; dilating its bounds avoids painting every outline stamp twice.
+      await drawLayer(ctx, layer.kind === 'image' ? { ...layer, outline: undefined } : layer, assets, masks, decode, closeDecoded, make)
+      const visible = alphaBounds(local)
+      if (!visible) continue
+      const outline = layer.kind === 'image' && layer.outline?.enabled ? Math.ceil(layer.outline.width) : 0
+      visible.x -= outline; visible.y -= outline; visible.width += outline * 2; visible.height += outline * 2
+      const t = layer.transform, angle = t.rotation * Math.PI / 180
+      for (const px of [visible.x + originX, visible.x + originX + visible.width]) {
+        for (const py of [visible.y + originY, visible.y + originY + visible.height]) {
+          const worldX = t.x + px * t.scaleX * Math.cos(angle) - py * t.scaleY * Math.sin(angle)
+          const worldY = t.y + px * t.scaleX * Math.sin(angle) + py * t.scaleY * Math.cos(angle)
+          left = Math.min(left, worldX); right = Math.max(right, worldX)
+          top = Math.min(top, worldY); bottom = Math.max(bottom, worldY)
+        }
+      }
+    } finally {
+      // Measure one native layer at a time; do not retain full-resolution copies for every layer.
+      local.width = local.height = 1
+    }
+  }
+  if (left === Infinity) throw new ExportError('Nothing visible to export. Add or restore some artwork first.')
+  if (![left, top, right, bottom, right - left, bottom - top].every(Number.isFinite)) throw new ExportError('Artwork coordinates are too large to export.')
+  return { x: left, y: top, width: right - left, height: bottom - top }
+}
+
+function trimArtwork(canvas: CanvasLike, size: number, make: (width: number, height: number) => CanvasLike): CanvasLike {
+  const bounds = alphaBounds(canvas)
+  if (!bounds) throw new ExportError('Nothing visible to export. Add or restore some artwork first.')
+  const scale = size / Math.max(bounds.width, bounds.height)
+  const output = make(Math.max(1, Math.round(bounds.width * scale)), Math.max(1, Math.round(bounds.height * scale)))
+  require2d(output).drawImage(canvas as CanvasImageSource, bounds.x, bounds.y, bounds.width, bounds.height, 0, 0, output.width, output.height)
+  const edge = alphaBounds(output)
+  if (!edge) throw new ExportError('Nothing visible to export. Add or restore some artwork first.')
+  if (edge.width === output.width && edge.height === output.height) return output
+  const trimmed = make(edge.width, edge.height)
+  require2d(trimmed).drawImage(output as CanvasImageSource, edge.x, edge.y, edge.width, edge.height, 0, 0, edge.width, edge.height)
+  return trimmed
 }
 
 export { downloadBlob } from './download'

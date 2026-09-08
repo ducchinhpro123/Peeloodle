@@ -78,11 +78,17 @@ describe('maskUtils coordinate mapping', () => {
 
   it('computes stage metrics with zoom and pan', () => {
     const fitted = getStageMetrics(800, 600, { zoom: 1, panX: 0, panY: 0 })
-    expect(fitted.viewScale).toBeCloseTo(800 / 1024)
-    expect(fitted.stageX).toBeCloseTo(0)
+    expect(fitted.viewScale).toBeCloseTo(472 / 1024)
+    expect(fitted.stageX).toBeCloseTo(164)
+    expect(fitted.stageY).toBeCloseTo(64)
+    const portrait = getStageMetrics(360, 600, { zoom: 1, panX: 0, panY: 0 })
+    expect(portrait.viewScale).toBeCloseTo(232 / 1024)
+    expect(portrait.stageX).toBeCloseTo(64)
+    expect(portrait.stageY).toBeCloseTo(184)
     const m = getStageMetrics(800, 600, { zoom: 1.5, panX: 40, panY: -20 })
-    expect(m.viewScale).toBeCloseTo((800 / 1024) * 1.5)
+    expect(m.viewScale).toBeCloseTo((472 / 1024) * 1.5)
     expect(m.stageX).toBeCloseTo(40 + (800 - 1024 * m.viewScale) / 2)
+    expect(m.stageY).toBeCloseTo(-20 + (600 - 1024 * m.viewScale) / 2)
   })
 
   it('maps a document-space brush to independent inverse-scaled radii', () => {

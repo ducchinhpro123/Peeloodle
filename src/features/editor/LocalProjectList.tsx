@@ -7,6 +7,7 @@ import type { ProjectDocument } from '../../types/domain'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'
 import type { StickerLabRepository } from '../../lib/persistence/repository'
+import { removeProject } from './removeProject'
 
 export function LocalProjectList({
   emptyTitle = 'No projects yet',
@@ -79,7 +80,10 @@ export function LocalProjectList({
           onCloseAutoFocus={(event) => { event.preventDefault(); opener.current?.focus() }}
         >
           <DialogTitle>Delete this sticker?</DialogTitle>
-          <DialogDescription>“{pending?.title}” will be removed from this device. Packs that include it will keep their other stickers.</DialogDescription>
+          <DialogDescription>
+            “{pending?.title}” will be removed {cloud ? 'from your private StickerLab account on this device and other signed-in devices' : 'from this browser'}.
+            Any pack memberships for this sticker will be removed; the other stickers in those packs will be kept.
+          </DialogDescription>
           {error ? <p role="alert">{error}</p> : null}
           <DialogFooter>
             <Button id="cancel-delete-project" onClick={() => setPending(null)}>Keep sticker</Button>
@@ -90,7 +94,7 @@ export function LocalProjectList({
                 if (!pending) return
                 setBusy(true)
                 setError(null)
-                void removeProject(repo, pending.id).then(() => {
+                void removeProject(repo, pending).then(() => {
                   setPending(null)
                   return reload()
                 }).catch((cause) => {
@@ -119,7 +123,7 @@ function ProjectThumb({ project, repo }: { project: ProjectDocument; repo: Stick
         const keys = [...new Set(project.layers.flatMap((layer) => (layer.kind === 'image' && layer.maskKey ? [layer.maskKey] : [])))]
         const masks = Object.fromEntries(await Promise.all(keys.map(async (key) => [key, await repo.getMask(key)] as const)))
         const { renderDocument } = await import('../exports/renderDocument')
-        const blob = await renderDocument(project, Object.fromEntries(assets.map((record) => [record.asset.id, record])), { size: 512, masks })
+        const blob = await renderDocument(project, Object.fromEntries(assets.map((record) => [record.asset.id, record])), { size: 512, masks, bounds: 'artwork' })
         if (!live) return
         objectUrl = URL.createObjectURL(blob)
         setUrl(objectUrl)
@@ -139,12 +143,4 @@ function ProjectThumb({ project, repo }: { project: ProjectDocument; repo: Stick
   )
 }
 
-async function removeProject(repo: StickerLabRepository, id: string) {
-  const packs = await repo.listPacks()
-  const now = new Date().toISOString()
-  for (const pack of packs) {
-    if (!pack.projectIds.includes(id)) continue
-    await repo.savePack({ ...pack, projectIds: pack.projectIds.filter((projectId) => projectId !== id), updatedAt: now }, pack)
-  }
-  await repo.deleteProject(id)
-}
+

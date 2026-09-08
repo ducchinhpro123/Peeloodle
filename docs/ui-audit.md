@@ -37,6 +37,28 @@ Verified with `npm run typecheck`, targeted ESLint on changed TSX/tests, `npm ru
 
 The catalog name expectations, missing generated previews, and preview-script lint errors noted during the concurrent banner work have now been resolved by the layered-template update.
 
+## Packs scrapbook reference follow-up
+
+The `/my-stickers` hero now follows the supplied clipboard reference with textured torn mint/cream/yellow/lavender paper, larger two-line typography, taped polaroids, overlapping cat stickers, and handwritten-style notes. Collection pills have roomier spacing. New Pack, Import Photos, and collection navigation remain real controls; mobile stacks the artwork below the copy.
+
+Playwright captures were visually compared at a matching 1815×866 content crop (2035px browser width includes the existing sidebar). Comparison: `/tmp/stickerlab-packs-comparison/comparison.png` (reference above implementation). Responsive hero captures inspected at 1440×900, 1024×768, and 390×844: `/tmp/stickerlab-ui-audit/packs-scrapbook-*.png`. Composition is closer, not pixel-identical: the existing illustrated polaroids, font, paper edges, and sticker proportions differ.
+
+Verified: `npm run typecheck`, `npm run lint` (zero errors, five existing Fast Refresh warnings), `npm run build`, and `npm run test:browser -- e2e/ui-polish.spec.ts --grep 'packs scrapbook|pages and shared dialogs' --workers=3` (six passed). Coverage includes all four routes, empty/populated packs, creation/deletion dialogs, focus restoration, overflow, and import navigation. No dependencies, setup, or migrations added.
+
+## Shared header reference follow-up
+
+The header now follows the supplied scrapbook reference: mint paper/grain, cream grid-backed logo, outlined mint mascot, torn navigation paper, mint active-page tape/underline, pink-taped search, paper notification button, and taped account chip. A shared `--header-height` token keeps the sticky sidebar and desktop editor aligned. Below 901px, primary navigation uses the existing sheet; at phone sizes, a two-row header preserves search, notifications, and account actions. Search and notifications still honestly explain that they are not implemented.
+
+Playwright reference comparison at 1672px: `/tmp/stickerlab-header-comparison/comparison.png` (reference, before, after). Header screenshots inspected at 1672, 1440, 1024, 860, 390, and 320px; all four route headers inspected at the standard desktop/tablet/mobile viewports. The layout closely matches; procedural paper grain/edges and mascot geometry remain approximations. An additional browser resize sweep from 320–1920px, including breakpoint edges, found no header overflow.
+
+Verified: `npm run typecheck`; `npm run lint` (zero errors, five existing Fast Refresh warnings); `npm test -- src/app.test.tsx` (18 passed); `npm run test:browser -- e2e/ui-polish.spec.ts --workers=3` (17 passed); `npm run build`. Browser checks cover header control bounds/non-overlap, keyboard notices/account dialogs and focus restoration, primary navigation, mobile sheet links, active-page semantics, sidebar/editor heights, and the existing cross-page/dialog regressions. No dependencies or migrations. Signed-in cloud sessions, Firefox/WebKit, and physical touch devices were not exercised in this visual change.
+
+## Canvas visibility follow-up
+
+The fitted view now considers both available dimensions and leaves room for resize/rotation handles. The checkerboard is confined to the actual 1024×1024 export square, with a visible border and an “Only the square is exported” note. Artwork outside that square remains visible and editable instead of disappearing at an invisible clipping boundary. This intentionally differs from the rectangular checkerboard in the mockup: the export boundary must be honest. Saved layer geometry, original images, and PNG/ZIP dimensions are unchanged.
+
+The corgi drag reproduction initially read alpha 0 for an opaque source pixel beyond the export boundary; it now remains visible. Chromium checks and screenshots cover 1440×900, 1440×600, 1024×768, and 390×844, including undo, save/reload, viewport resizing, and export-frame zoom/reset. Evidence: `/tmp/stickerlab-sticker-fit/`. The combined sticker-fit, editor, mask-regression, render-parity, and UI-polish suites passed **54 tests** on an isolated local-only server. All **107 unit/integration tests**, typecheck, build, and lint passed (five existing lint warnings, no errors). No dependencies or migrations.
+
 ## Boundaries
 
 No new dependencies, cloud setup, or database migrations. Source PNGs and the source ZIP are preserved. The UI refresh uses nine optimized WebP derivatives for decoration; the editor catalog now offers all 25 supplied cutouts plus eight new illustrated graphics for explicit insertion. Decoration does not replace editable template data or pretend to be saved user stickers. Artwork rights still need owner review before public distribution; a new layout is not legal clearance.

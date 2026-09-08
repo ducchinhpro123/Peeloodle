@@ -122,7 +122,7 @@ export async function exportPackZip(
   const manifestItems: Array<{ index: number; filename: string; title: string }> = []
   const render =
     options.renderSticker ??
-    ((project, records, masks) => renderDocument(project, records, { size: 512, masks }))
+    ((project, records, masks) => renderDocument(project, records, { size: 512, masks, bounds: 'artwork' }))
 
   let index = 1
   for (const projectId of pack.projectIds) {

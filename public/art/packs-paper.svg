@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1766" height="568" viewBox="0 0 1766 568" preserveAspectRatio="none">
+  <defs>
+    <filter id="torn" x="-5%" y="-10%" width="110%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="4" seed="8" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="17" xChannelSelector="R" yChannelSelector="G"/></filter>
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".65" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".12"/></feComponentTransfer><feBlend in="SourceGraphic" mode="multiply"/></filter>
+  </defs>
+  <g filter="url(#grain)">
+    <g filter="url(#torn)">
+      <path fill="#d6efdf" d="M0 35 80 4 240 30 385 8 520 40 710 17 920 38 1120 14 1360 28 1570 8 1766 30V568H0Z"/>
+      <path fill="#e9dff7" d="m1320 28 150-22 125 22 85-17 86 16v541h-476l45-130-32-148Z"/>
+      <path fill="#fff0bb" d="m823 134 191-39 228 5 147-25 158 41 79 125-46 118-189 93-231 82-193-6-65-105-37-141Z"/>
+      <path fill="#fffdf2" d="m41 77 96-31 158 12 141-23 192 20 104 38 35 90 18 107 26 86-34 130-120 37-179-7-175 12-172-15-82-40L18 310 30 197 15 141Z"/>
+      <path fill="#f8f7f0" d="m1330 485 90 48 89 35h-227Z"/>
+    </g>
+  </g>
+  <path d="m614 420 65-21q54-10 16 14l-35 23q-24 20 72-18" fill="none" stroke="#bce8ce" stroke-width="10" opacity=".65" stroke-linecap="round"/>
+  <path d="m1460 499 70-20q46-9 12 13l-30 17 63-8" fill="none" stroke="#c7b8df" stroke-width="10" opacity=".4" stroke-linecap="round"/>
+</svg>

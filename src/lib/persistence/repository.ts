@@ -29,7 +29,7 @@ export interface StickerLabRepository {
   getProject(id: string): Promise<ProjectDocument>
   listProjects(): Promise<ProjectDocument[]>
   saveProject(document: ProjectDocument): Promise<void>
-  deleteProject(id: string): Promise<void>
+  deleteProject(id: string, previous?: ProjectDocument): Promise<void>
   getAsset(id: string): Promise<AssetRecord>
   listAssets(): Promise<Asset[]>
   saveAsset(record: AssetRecord): Promise<void>
@@ -202,9 +202,13 @@ export class IdbRepository implements StickerLabRepository {
   }
 
   async deleteProject(id: string): Promise<void> {
+    await this.deleteProjectAtRevision(id)
+  }
+
+  protected async deleteProjectAtRevision(id: string, baseRevision?: number): Promise<void> {
     await this.transact([PROJECTS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
       await idbRequest(tx.objectStore(PROJECTS_STORE).delete(id))
-      await this.enqueue(tx, 'project', id, null)
+      await this.enqueue(tx, 'project', id, null, baseRevision)
     })
   }
 

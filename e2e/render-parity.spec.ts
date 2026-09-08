@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import type Konva from 'konva'
 
 for (const effect of ['grayscale', 'brightness', 'contrast', 'saturation', 'outline', 'filtered-outline', 'translucent-outline', 'cropped-outline', 'circle'] as const) {
   test(`preview matches exported ${effect} pixels`, async ({ page }) => {
@@ -37,10 +38,10 @@ for (const effect of ['grayscale', 'brightness', 'contrast', 'saturation', 'outl
       bitmap.close()
       const host = document.querySelector('[data-testid="editor-canvas"]') as HTMLElement
       const preview = host.querySelector('canvas')!
-      const fit = Math.min((host.clientWidth - 36) / 1024, (host.clientHeight - 36) / 1024)
+      const stage = (window as unknown as { Konva: typeof Konva }).Konva.stages[0]!
       const point = effect.includes('outline') ? [390, 460] : effect === 'circle' ? [405, 405] : [460, 460]
-      const x = host.clientWidth / 2 + (point[0]! - 512) * fit
-      const y = host.clientHeight / 2 + (point[1]! - 512) * fit
+      const x = stage.x() + point[0]! * stage.scaleX()
+      const y = stage.y() + point[1]! * stage.scaleY()
       const pixel = Array.from(preview.getContext('2d')!.getImageData(Math.round(x * preview.width / host.clientWidth), Math.round(y * preview.height / host.clientHeight), 1, 1).data)
       const target = Array.from(e.getImageData(point[0]!, point[1]!, 1, 1).data)
       const outlineError = effect.includes('outline') ? Math.abs(target[1]! - 255) : 0

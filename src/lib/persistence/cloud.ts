@@ -28,6 +28,7 @@ export class CloudRepository extends IdbRepository {
   private importWork: Promise<void> | null = null
   private remoteProjects: RemoteResource[] = []
   private openProjectBases = new Map<string, number>()
+  private projectBases = new WeakMap<ProjectDocument, { revision: number }>()
   private packBases = new WeakMap<PackRecord, { revision: number }>()
   private pendingPackBases = new Map<string, Set<{ revision: number }>>()
   protected override writeBase = (kind: string, id: string) => kind === 'project' ? this.openProjectBases.get(id) : undefined
@@ -78,12 +79,24 @@ export class CloudRepository extends IdbRepository {
     await this.savePackAtRevision(next, previous ? this.packBases.get(previous)?.revision : undefined)
     this.changed()
   }
-  override async deleteProject(id: string) { await super.deleteProject(id); this.changed() }
+  override async deleteProject(id: string, previous?: ProjectDocument) {
+    await this.deleteProjectAtRevision(id, previous ? this.projectBases.get(previous)?.revision : undefined)
+    this.changed()
+  }
   override async deletePack(id: string, previous?: PackRecord) { await this.deletePackAtRevision(id, previous ? this.packBases.get(previous)?.revision : undefined); this.changed() }
   override async listProjects() {
     const local = await super.listProjects()
-    const known = new Set((await this.listSyncEntries()).map((entry) => entry.id))
-    return [...local, ...this.remoteProjects.filter((row) => !row.deleted && !known.has(row.id)).map((row) => row.value as ProjectDocument)]
+    const entries = await this.listSyncEntries()
+    const localEntries = new Map(entries.filter((entry) => entry.kind === 'project').map((entry) => [entry.id, entry]))
+    for (const project of local) this.projectBases.set(project, { revision: localEntries.get(project.id)?.baseRevision ?? 0 })
+    const remote = this.remoteProjects
+      .filter((row) => !row.deleted && !localEntries.has(row.id))
+      .map((row) => {
+        const project = row.value as ProjectDocument
+        this.projectBases.set(project, { revision: row.revision })
+        return project
+      })
+    return [...local, ...remote]
   }
   override async getProject(id: string) {
     try {

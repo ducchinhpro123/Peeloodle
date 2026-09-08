@@ -22,7 +22,88 @@ async function expectDialogFits(page: Page, dialog: Locator) {
   }
 }
 
+for (const width of [1672, 1440, 1024, 860, 390, 320]) {
+  test(`scrapbook header fits and keeps navigation accessible at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/')
+    await page.evaluate(() => document.fonts.ready)
+    const header = page.getByRole('banner')
+    const headerBox = (await header.boundingBox())!
+    expect(headerBox.height).toBe(width <= 720 ? 112 : width <= 1150 ? 72 : 80)
+    const controls = header.locator('a:visible, button:visible')
+    const boxes = await controls.evaluateAll((elements) => elements.map((element) => {
+      const { x, y, width, height } = element.getBoundingClientRect()
+      return { x, y, width, height }
+    }))
+    for (const [index, box] of boxes.entries()) {
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(width)
+      expect(box.y).toBeGreaterThanOrEqual(headerBox.y)
+      expect(box.y + box.height).toBeLessThanOrEqual(headerBox.y + headerBox.height)
+      for (const other of boxes.slice(index + 1)) {
+        expect(box.x >= other.x + other.width || other.x >= box.x + box.width || box.y >= other.y + other.height || other.y >= box.y + box.height).toBe(true)
+      }
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await header.screenshot({ path: `/tmp/stickerlab-header-comparison/header-${width}.png` })
+    for (const [name, title] of [
+      ['Search templates and packs', 'Search is not implemented'],
+      ['Notifications', 'Notifications are unavailable'],
+      ['Guest account', 'Sign in to StickerLab'],
+    ]) {
+      const opener = header.getByRole('button', { name, exact: true })
+      await expect(opener).toBeInViewport()
+      const box = (await opener.boundingBox())!
+      expect(box.width).toBeGreaterThanOrEqual(44)
+      expect(box.height).toBeGreaterThanOrEqual(44)
+      await opener.focus()
+      await page.keyboard.press('Enter')
+      await expectDialogFits(page, page.getByRole('dialog', { name: title, exact: true }))
+      await page.keyboard.press('Escape')
+      await expect(opener).toBeFocused()
+    }
+    if (width <= 900) {
+      const menu = header.getByRole('button', { name: 'Open navigation' })
+      await menu.click()
+      const navigation = page.getByRole('dialog', { name: 'Navigation', exact: true })
+      await navigation.getByRole('link', { name: 'Templates', exact: true }).click()
+      await expect(navigation).toBeHidden()
+    } else {
+      await header.getByRole('link', { name: 'Templates', exact: true }).focus()
+      await page.keyboard.press('Enter')
+    }
+    await expect(page).toHaveURL(/\/templates$/)
+    await expect(header.getByRole('navigation', { includeHidden: true }).getByRole('link', { name: 'Templates', includeHidden: true })).toHaveAttribute('aria-current', 'page')
+  })
+}
+
 for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }, { width: 390, height: 844 }]) {
+  test(`packs scrapbook matches the composition and keeps actions usable at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/my-stickers?view=export-history')
+    await page.evaluate(() => document.fonts.ready)
+    const hero = page.locator('.hero')
+    await hero.locator('img').evaluateAll((images) => Promise.all(images.map((image) => image.decode())))
+    await expect(hero.locator('.collage-polaroid')).toHaveCount(2)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const copy = (await hero.locator('.hero-copy').boundingBox())!
+    const art = (await hero.locator('.collage').boundingBox())!
+    if (viewport.width === 390) expect(art.y).toBeGreaterThan(copy.y + copy.height)
+    else expect(art.x).toBeGreaterThan(copy.x + copy.width)
+    await hero.screenshot({ path: `${screenshots}/packs-scrapbook-${viewport.width}.png` })
+    await page.getByRole('button', { name: 'All Packs', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'No local packs yet' })).toBeVisible()
+    await hero.getByRole('button', { name: 'New Pack', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Create New Pack' })
+    await expectDialogFits(page, dialog)
+    await page.keyboard.press('Escape')
+    await expect(hero.getByRole('button', { name: 'New Pack', exact: true })).toBeFocused()
+    await hero.getByRole('link', { name: 'Import Photos', exact: true }).click()
+    await expect(page.getByTestId('editor-canvas')).toBeVisible()
+  })
+
   test(`scrapbook hero stays readable at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport)
     await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -66,6 +147,12 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
         await expect(guest).toBeFocused()
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      const headerHeight = (await page.getByRole('banner').boundingBox())!.height
+      expect((await page.locator('.layout').boundingBox())!.y).toBeGreaterThanOrEqual(headerHeight)
+      if (viewport.width > 720) {
+        const layout = page.locator(name === 'editor' ? '.editor-layout' : '.layout > .sidebar')
+        expect((await layout.boundingBox())!.height).toBeCloseTo(viewport.height - headerHeight, 0)
+      }
       const brokenImages = await page.locator('img').evaluateAll(async (images) => {
         await Promise.all(images.map((image) => { image.loading = 'eager'; return image.decode().catch(() => undefined) }))
         return images.filter((image) => image.naturalWidth === 0).map((image) => image.src)
@@ -74,11 +161,18 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
       await page.screenshot({ path: `${screenshots}/${name}-${viewport.width}.png`, fullPage: true, animations: 'disabled' })
     }
 
+    await expect(page.getByText('Exports fit the visible artwork.', { exact: true })).toBeVisible()
+    expect(await page.locator('.canvas-workspace').evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('conic-gradient')
+    await page.getByRole('button', { name: 'Zoom in', exact: true }).click()
+    await expect(page.locator('.canvas-controls')).toContainText('110%')
+    await page.getByRole('button', { name: 'Reset view', exact: true }).click()
+    await expect(page.locator('.canvas-controls')).toContainText('100%')
+
     const exportOpener = page.getByRole('button', { name: 'Export and share' })
     await exportOpener.click()
     const exportDialog = page.getByRole('dialog', { name: 'Export sticker', exact: true })
     await expectDialogFits(page, exportDialog)
-    await exportDialog.getByText('1024 × 1024', { exact: true }).click()
+    await exportDialog.getByText('1024 px longest edge', { exact: true }).click()
     await expect(exportDialog.getByRole('radio').last()).toBeChecked()
     await page.screenshot({ path: `${screenshots}/export-dialog-${viewport.width}.png`, animations: 'disabled' })
     await exportDialog.getByRole('button', { name: 'WhatsApp / Telegram' }).click()

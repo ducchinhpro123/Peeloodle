@@ -46,6 +46,7 @@ Playwright uses Chromium at `/usr/bin/chromium` via `playwright.config.ts`. Fire
 
 ## Editor tools
 
+- **Canvas:** the outlined checkerboard square is the 1024×1024 export area. It fits the available width and height with room for transform handles. Artwork remains visible and editable outside the square; move it inside the outline to include it in exports. Reset view restores the fitted view without changing your composition.
 - **Fonts:** Fredoka, Baloo 2, Luckiest Guy, Chewy, Pacifico, and Bangers, alongside the existing fonts. Choose a family in Sticker Properties or insert one of six editable presets from **Text styles**.
 - **Photo templates:** 12 layered compositions with distinct layouts (orbit, big type, polaroid, speech bubble, stamp, and others), including Orbit Pop, Nope Energy, and Pet Bestie. Stand-in photos are the six user-supplied Sep 8 cutouts (cat, corgi, people, boba). Each has a replaceable photo, editable caption, and separate decorations. Select Layers → Your photo → Adjust → Replace photo; the replacement fits without stretching and retains the layout/effects. Undo restores the original crop and erasure. The eight illustrations can appear as template decorations and remain available in the sticker tray.
 - **Cute cutouts:** 39 cats, people, drinks, hearts, stars, space illustrations, and other decorations in **Stickers & decorations**. Add them as independent image layers; resize, rotate, flip, erase/restore, and apply outlines or filters. Image quarter-turns preserve the visible image center, including crops and flips.
@@ -72,6 +73,8 @@ Fonts and cutouts are served locally, with no extra credentials or dependencies.
 - [x] Image filters (brightness, contrast, saturation, grayscale) with reset, shared between canvas preview and PNG exports
 - [x] Silhouette outlines & borders with customizable color and thickness on canvas and export
 - [x] Scrapbook-style Templates banner with textured paper, yellow headline highlights, and layered user-supplied cat stickers; responsive HTML text rather than a screenshot
+- [x] Packs scrapbook banner with torn pastel paper, taped illustrated polaroids, layered cats, and responsive New Pack / Import Photos controls; Playwright reference comparison documented in `docs/ui-audit.md`
+- [x] Shared scrapbook header with torn-paper navigation, mint mascot, taped search/account controls, and accessible tablet/mobile navigation; search/notification controls retain honest unavailable notices
 - [x] Manual alpha mask erase / restore in image-local coordinates with continuous strokes, crop clipping, matching cursor geometry, and undo/redo
 - [x] Email magic-link sign-in UI, session restoration, and private cloud saving backed by Supabase Auth, PostgreSQL, and private Storage (live inbox delivery unverified until custom SMTP)
 - [x] Local-first save/reopen, offline editing, retry queue across reload, and explicit guest collection import
@@ -105,8 +108,9 @@ StickerLab operates fully local-only when cloud configuration is absent. To enab
 6. Verification suite for real cloud authorization (ordinary user clients, not service-role):
    ```bash
    node --env-file=.env.cloud-test scripts/verify-cloud.mjs
-   npx playwright test e2e/cloud.spec.ts
+   npm run test:cloud
    ```
+   `test:cloud` loads dedicated credentials only into the test process, derives the public Vite variables for that process, and starts a separate cloud-enabled server on `127.0.0.1:4174` with server reuse disabled. It fails before Playwright starts when a dedicated test variable is missing. Ordinary local development, CI, and `npm run test:browser` remain local-only and do not require cloud secrets.
 
 ## Design mapping
 

@@ -21,6 +21,10 @@ The raster samples are modest-resolution source art (roughly 100–600px). Inser
 
 `public/art/dashboard-paper.svg`, `public/art/polaroid-field.svg`, and `public/art/polaroid-daisy.svg` are original code-drawn decorations for the Dashboard hero and feature cards (torn cream/mint paper, a hillside, and a daisy). They are not photographs, user uploads, or background-removal stand-ins. The Dashboard collage still uses the supplied cat/star/heart cutouts plus HTML “Meow!” / “STAY COOL” lettering.
 
+`public/art/packs-paper.svg` is original procedural grain and displaced torn-paper artwork inspired by the supplied packs-page reference. The packs collage reuses the local illustrated daisy/field polaroids and supplied cat cutouts; no screenshot is embedded. Notes and controls remain HTML. The illustrated scenery and bundled Chewy font are approximations, not the reference’s photographs/handwriting.
+
+`public/art/header-paper.svg` and `public/art/header-scrap.svg` are original procedural SVG decorations based on the supplied header reference: mint paper, a cream/grid logo backing, and a torn cream navigation strip. The mascot is an inline code-drawn SVG; tape and accent marks are CSS/SVG. No reference screenshot or external assets are embedded, and all navigation/control labels remain accessible HTML.
+
 ## Illustration assets
 
 Eight user-supplied generated PNGs (1254×1254, real alpha) are preserved unchanged in `design/`. Served derivatives under `public/art/illustrations/` are 1024×1024 WebP q90, produced with ImageMagick without trimming or background removal. Original margins, white outlines, and small edge artifacts remain. Third-party rights have not been independently verified; owner review is still needed before public distribution.
