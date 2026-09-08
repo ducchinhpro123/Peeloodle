@@ -6,7 +6,7 @@ import { createImageSurface, decodeMaskImage, formatCssFilter } from '../exports
 import { getStageMetrics } from './maskUtils'
 import { useMaskBrush, type MaskPreviewCallbacks } from './useMaskBrush'
 import { useEditorStore } from './store'
-import { loadFont } from '../../lib/fonts'
+import { cssFontFamily, loadFont } from '../../lib/fonts'
 
 export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -184,29 +184,49 @@ function HydratedText({ layer, handlers, nodeRef, hidden }: {
     return () => { cancelled = true }
   }, [layer.fontFamily])
   // Mount only after loading: Konva caches text measurements at construction time.
-  return ready ? <KonvaText ref={nodeRef} {...handlers} opacity={hidden ? 0 : layer.opacity} listening={!hidden} text={layer.content} fontFamily={layer.fontFamily} fontSize={layer.fontSize} fill={layer.color} lineHeight={1} align="left" verticalAlign="top" /> : null
+  return ready ? <KonvaText ref={nodeRef} {...handlers} opacity={hidden ? 0 : layer.opacity} listening={!hidden} text={layer.content} fontFamily={layer.fontFamily} fontSize={layer.fontSize} fill={layer.color} lineHeight={1} wrap="none" align="left" verticalAlign="top" /> : null
+}
+
+function fitTextarea(el: HTMLTextAreaElement) {
+  el.style.width = '0px'
+  el.style.height = '0px'
+  el.style.width = `${Math.max(el.scrollWidth, 1)}px`
+  el.style.height = `${Math.max(el.scrollHeight, 1)}px`
 }
 
 function CanvasTextEditor({ layerId, node, onClose }: { layerId: string; node?: Konva.Node; onClose: () => void }) {
   const layer = useEditorStore((state) => state.document?.layers.find((item) => item.id === layerId))
-  const box = node?.getClientRect() ?? { x: 24, y: 24, width: 160, height: 40 }
+  const areaRef = useRef<HTMLTextAreaElement>(null)
   if (!layer || layer.kind !== 'text') return null
+  const scale = node?.getAbsoluteScale() ?? { x: 1, y: 1 }
+  const pos = node?.getAbsolutePosition() ?? { x: 24, y: 24 }
+  const fontSize = layer.fontSize * Math.abs(scale.y)
+  const width = (node instanceof Konva.Text ? node.getTextWidth() : 80) * Math.abs(scale.x) + 2
+  const height = (node instanceof Konva.Text ? node.height() : layer.fontSize) * Math.abs(scale.y)
+  const rotation = node?.getAbsoluteRotation() ?? layer.transform.rotation
   return (
     <textarea
+      ref={areaRef}
       className="canvas-text-edit"
       aria-label="Edit canvas text"
       autoFocus
       value={layer.content}
       style={{
-        left: box.x,
-        top: box.y,
-        width: Math.max(box.width, 48),
-        height: Math.max(box.height, layer.fontSize),
-        fontFamily: layer.fontFamily,
-        fontSize: layer.fontSize * (node?.getAbsoluteScale().x ?? 1),
+        left: pos.x,
+        top: pos.y,
+        width,
+        height,
+        fontFamily: cssFontFamily(layer.fontFamily),
+        fontSize,
         color: layer.color,
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
+        transformOrigin: 'top left',
       }}
-      onChange={(event) => useEditorStore.getState().updateText(layer.id, { content: event.target.value })}
+      onChange={(event) => {
+        useEditorStore.getState().updateText(layer.id, { content: event.target.value })
+        fitTextarea(event.currentTarget)
+      }}
+      onFocus={(event) => fitTextarea(event.currentTarget)}
       onBlur={() => {
         useEditorStore.getState().commitGesture()
         onClose()

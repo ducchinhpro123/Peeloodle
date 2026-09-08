@@ -571,13 +571,15 @@ main > section, main > div { min-width: 0; }
   z-index: 2;
   margin: 0;
   padding: 0;
-  border: 2px solid #3b82f6;
-  background: #fff;
+  border: 0;
+  outline: 2px solid #3b82f6;
+  background: transparent;
   color: inherit;
   line-height: 1;
   resize: none;
   overflow: hidden;
-  white-space: pre-wrap;
+  white-space: pre;
+  box-sizing: content-box;
 }
 .dom-artboard { display: grid; place-content: center; gap: 8px; padding: 16px; }
 .dom-artboard img { max-width: 220px; max-height: 220px; }
