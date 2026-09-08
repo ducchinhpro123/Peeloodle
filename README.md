@@ -82,13 +82,13 @@ Deferred actions open an explanation or stay disabled. They do not report succes
 
 ## Hosting
 
-Production is a Vite static app on Vercel. Client routes (`/templates`, `/editor/:id`, and so on) fall back to `index.html` via `vercel.json`. Cloud auth is optional; the site works fully locally in the browser without `VITE_SUPABASE_*` keys.
+Production is a Vite static app on Vercel: [https://stickerlab-eta.vercel.app](https://stickerlab-eta.vercel.app). Client routes (`/templates`, `/editor/:id`, and so on) fall back to `index.html` via `vercel.json`. Cloud auth is optional; the site works fully locally in the browser without `VITE_SUPABASE_*` keys.
 
 ```bash
 npx vercel --prod
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, lint, unit tests, and the production build on pushes and pull requests to `main`. Vercel deploys from the GitHub repository when the project is linked.
+GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, lint, unit tests, and the production build on pushes and pull requests to `main`. Vercel deploys production from `main` on `ducchinhpro123/Peeloodle`.
 
 ## Cloud configuration
 
