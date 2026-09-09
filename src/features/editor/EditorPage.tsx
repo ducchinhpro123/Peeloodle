@@ -291,6 +291,20 @@ function EditorChrome({ document, urls, intent }: { document: ProjectDocument; u
   const titleRef = useRef<HTMLInputElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const [canvasFullscreen, setCanvasFullscreen] = useState(false)
+  const setExportDialogOpen = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      setExportOpen(false)
+      return
+    }
+    if (window.document.fullscreenElement === stageRef.current) {
+      void window.document.exitFullscreen().then(
+        () => setExportOpen(true),
+        () => setExportOpen(true),
+      )
+      return
+    }
+    setExportOpen(true)
+  }, [])
   useEffect(() => {
     const sync = () => setCanvasFullscreen(window.document.fullscreenElement === stageRef.current)
     window.document.addEventListener('fullscreenchange', sync)
@@ -493,7 +507,7 @@ function EditorChrome({ document, urls, intent }: { document: ProjectDocument; u
             <Button onClick={saveNow} aria-label="Save to My Stickers">
               <CloudUpload size={16} />Save to My Stickers
             </Button>
-            <ExportDialog document={document} open={exportOpen} onOpenChange={setExportOpen} />
+            <ExportDialog document={document} open={exportOpen} onOpenChange={setExportDialogOpen} />
           </div>
         </section>
         <div className="editor">
@@ -887,7 +901,14 @@ function HexColorField({ color, onChange, ariaLabel, disabled }: {
 }) {
   const [open, setOpen] = useState(false)
   const store = useEditorStore.getState
-  useEffect(() => { if (disabled) setOpen(false) }, [disabled])
+  useEffect(() => {
+    if (disabled) {
+      store().commitGesture()
+      setOpen(false)
+    }
+  }, [disabled, store])
+  useEffect(() => () => store().commitGesture(), [store])
+  const finishGesture = () => store().commitGesture()
   return (
     <span className="inspector-color-value">
       <button
@@ -897,7 +918,10 @@ function HexColorField({ color, onChange, ariaLabel, disabled }: {
         aria-expanded={open}
         disabled={disabled}
         style={{ background: color }}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          if (open) finishGesture()
+          setOpen((value) => !value)
+        }}
       />
       <HexColorInput
         className="inspector-hex"
@@ -906,6 +930,8 @@ function HexColorField({ color, onChange, ariaLabel, disabled }: {
         prefixed
         alpha
         disabled={disabled}
+        onFocus={() => store().beginGesture()}
+        onBlur={finishGesture}
         onChange={(value) => onChange(value.length === 9 && value.toLowerCase().endsWith('ff') ? value.slice(0, 7) : value)}
       />
       {open && !disabled ? (
@@ -913,8 +939,19 @@ function HexColorField({ color, onChange, ariaLabel, disabled }: {
           className="inspector-hue-picker"
           color={color.length === 7 ? `${color}ff` : color}
           onChange={(value) => onChange(value.toLowerCase().endsWith('ff') ? value.slice(0, 7) : value)}
-          onChangeEnd={() => store().commitGesture()}
-          onPointerDown={() => store().beginGesture()}
+          onChangeEnd={finishGesture}
+          onPointerDown={(event) => {
+            if (event.button === 0) store().beginGesture()
+          }}
+          onPointerUp={finishGesture}
+          onPointerCancel={finishGesture}
+          onLostPointerCapture={finishGesture}
+          onKeyDown={(event) => {
+            if (event.key.startsWith('Arrow')) store().beginGesture()
+          }}
+          onKeyUp={(event) => {
+            if (event.key.startsWith('Arrow')) finishGesture()
+          }}
         />
       ) : null}
     </span>

@@ -299,6 +299,28 @@ describe('editor integration', () => {
     expect(useEditorStore.getState().gestureActive).toBe(false)
   })
 
+  it('finishes unchanged and keyboard color-picker gestures', async () => {
+    renderApp()
+    fireEvent.click(await screen.findByRole('button', { name: 'Text' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open color picker' }))
+    const alpha = await screen.findByRole('slider', { name: 'Alpha' })
+
+    fireEvent.pointerDown(alpha, { button: 0 })
+    fireEvent.pointerUp(alpha, { button: 0 })
+    fireEvent.click(screen.getByRole('button', { name: 'Open color picker' }))
+    expect(useEditorStore.getState().gestureActive).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open color picker' }))
+    const keyboardAlpha = await screen.findByRole('slider', { name: 'Alpha' })
+    const historyBefore = useEditorStore.getState().past.length
+    keyboardAlpha.focus()
+    fireEvent.keyDown(keyboardAlpha, { key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37, which: 37 })
+    fireEvent.keyDown(keyboardAlpha, { key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37, which: 37 })
+    fireEvent.keyUp(keyboardAlpha, { key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37, which: 37 })
+    await waitFor(() => expect(useEditorStore.getState().gestureActive).toBe(false))
+    expect(useEditorStore.getState().past).toHaveLength(historyBefore + 1)
+  })
+
   it('saves, rehydrates, and retains mask work across reload and save failures', async () => {
     const repo = renderApp()
     uploadPhoto()

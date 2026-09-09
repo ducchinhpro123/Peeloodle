@@ -312,6 +312,37 @@ test('expand enters canvas full screen', async ({ page }) => {
   await expect.poll(async () => page.evaluate(() => document.fullscreenElement)).toBeNull()
 })
 
+test('export remains reachable from canvas full screen', async ({ page }) => {
+  await setup(page)
+  const trigger = page.getByRole('button', { name: /export and share/i })
+  await trigger.click()
+  await page.keyboard.press('Escape')
+  await expect(trigger).toBeFocused()
+
+  await page.getByRole('button', { name: 'Enter full screen', exact: true }).click()
+  await expect.poll(async () => page.evaluate(() => document.fullscreenElement?.classList.contains('editor-stage') ?? false)).toBe(true)
+  await trigger.click()
+  const dialog = page.getByRole('dialog', { name: 'Export sticker' })
+  await expect(dialog).toBeVisible()
+  await expect.poll(async () => page.evaluate(() => document.fullscreenElement === null)).toBe(true)
+
+  await dialog.getByRole('button', { name: 'WhatsApp / Telegram' }).click()
+  const notice = page.getByRole('dialog', { name: 'Messenger packs are not available' })
+  await expect(notice).toBeVisible()
+  await notice.getByRole('button', { name: 'Got it' }).click()
+  await expect(notice).toBeHidden()
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'WhatsApp / Telegram' })).toBeFocused()
+
+  const pending = page.waitForEvent('download')
+  await dialog.getByRole('button', { name: 'Download PNG', exact: true }).click()
+  await pending
+  await expect(dialog.getByRole('status')).toContainText(/download started/i)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(trigger).toBeFocused()
+})
+
 test.describe('mobile brush after navigation', () => {
   test.use({ isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } })
   test('touch erase still paints at 390x844', async ({ page }) => {

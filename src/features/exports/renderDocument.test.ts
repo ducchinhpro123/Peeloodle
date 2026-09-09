@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createProjectDocument } from '../../lib/persistence/repository'
 import type { AssetRecord } from '../../lib/persistence/repository'
 import type { ImageLayer, TextLayer } from '../../types/domain'
-import { ExportError, formatCssFilter, readPngSize, renderDocument, type CanvasLike } from './renderDocument'
+import { ExportError, formatCssFilter, paintText, readPngSize, renderDocument, type CanvasLike } from './renderDocument'
 
 const identity = { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 }
 
@@ -203,6 +203,30 @@ describe('renderDocument', () => {
       { text: 'Hello', x: 0, y: 0, baseline: 'top', font: '32px "Plus Jakarta Sans"' },
       { text: 'World', x: 0, y: 32, baseline: 'top', font: '32px "Plus Jakarta Sans"' },
     ])
+  })
+
+  it.each([
+    ['#f00', 'rgba(255, 0, 0, 1)'],
+    ['#ff0000', 'rgba(255, 0, 0, 1)'],
+    ['#0f08', `rgba(0, 255, 0, ${136 / 255})`],
+    ['#00ff0088', `rgba(0, 255, 0, ${136 / 255})`],
+  ])('renders saved text color %s without changing its color or alpha', (color, expected) => {
+    const canvas = fakeCanvas(32, 32)
+    const text: TextLayer = {
+      id: 'text',
+      name: 'Text',
+      kind: 'text',
+      content: 'Color',
+      fontFamily: 'Inter',
+      fontSize: 24,
+      color,
+      transform: identity,
+      opacity: 1,
+      visible: true,
+      locked: false,
+    }
+    paintText(canvas.getContext('2d')!, text)
+    expect(canvas.getContext('2d')!.fillStyle).toBe(expected)
   })
 
   it('closes owned export ImageBitmaps', async () => {

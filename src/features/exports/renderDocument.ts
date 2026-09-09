@@ -193,9 +193,10 @@ export function readPngSize(bytes: Uint8Array): { width: number; height: number;
 }
 
 function rgbaOf(color: string): { r: number; g: number; b: number; a: number } {
-  const hex = /^#?([0-9a-f]{6}|[0-9a-f]{8})$/i.exec(color.trim())
+  const hex = /^#?([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(color.trim())
   if (!hex) return { r: 255, g: 255, b: 255, a: 255 }
-  const h = hex[1]!
+  const raw = hex[1]!
+  const h = raw.length <= 4 ? [...raw].map((digit) => `${digit}${digit}`).join('') : raw
   return {
     r: parseInt(h.slice(0, 2), 16),
     g: parseInt(h.slice(2, 4), 16),
