@@ -2,6 +2,8 @@
 
 Mint-green local sticker editor. Create a sticker, upload a photo, edit, save, reopen, and export a transparent PNG — no cloud credentials required.
 
+![StickerLab overview of Dashboard, Create Sticker, and Templates](readme-included.png)
+
 ## Design previews
 
 The supplied design mockups below show StickerLab’s visual direction—not screenshots of the current app. Sample accounts, statistics, subscription offers, and integrations are illustrative; see [Milestone status](#milestone-status) for implemented features.
