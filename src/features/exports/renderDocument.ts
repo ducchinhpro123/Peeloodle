@@ -16,7 +16,7 @@ export class ExportError extends Error {
 export type CanvasLike = {
   width: number
   height: number
-  getContext: (type: '2d') => CanvasRenderingContext2D | null
+  getContext: (type: '2d', options?: CanvasRenderingContext2DSettings) => CanvasRenderingContext2D | null
   toBlob?: (callback: BlobCallback, type?: string, quality?: number) => void
   convertToBlob?: (options?: { type?: string }) => Promise<Blob>
 }
@@ -192,9 +192,26 @@ export function readPngSize(bytes: Uint8Array): { width: number; height: number;
   return { width: view.getUint32(16), height: view.getUint32(20), colorType: bytes[25]! }
 }
 
+function rgbaOf(color: string): { r: number; g: number; b: number; a: number } {
+  const hex = /^#?([0-9a-f]{6}|[0-9a-f]{8})$/i.exec(color.trim())
+  if (!hex) return { r: 255, g: 255, b: 255, a: 255 }
+  const h = hex[1]!
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+    a: h.length === 8 ? parseInt(h.slice(6, 8), 16) : 255,
+  }
+}
+
+function cssRgba(color: string): string {
+  const { r, g, b, a } = rgbaOf(color)
+  return `rgba(${r}, ${g}, ${b}, ${a / 255})`
+}
+
 export function paintText(ctx: CanvasRenderingContext2D, layer: Extract<Layer, { kind: 'text' }>): void {
   ctx.font = cssFont(layer.fontSize, layer.fontFamily)
-  ctx.fillStyle = layer.color
+  ctx.fillStyle = cssRgba(layer.color)
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
   const lines = layer.content.split('\n')
@@ -230,34 +247,7 @@ function slidingWindowMax(row: Uint8Array, offset: number, width: number, half: 
   }
 }
 
-function diskMaxAlpha(source: Uint8Array, width: number, height: number, radius: number): Uint8Array {
-  const dilated = new Uint8Array(source.length)
-  const radiusSquared = radius * radius
-  const maxDy = Math.min(height - 1, Math.ceil(radius))
-  const windowed = new Uint8Array(width)
-  const deque = new Int32Array(width)
-  for (let dy = -maxDy; dy <= maxDy; dy += 1) {
-    const dySquared = dy * dy
-    if (dySquared > radiusSquared) continue
-    const half = Math.floor(Math.sqrt(radiusSquared - dySquared))
-    for (let sourceY = 0; sourceY < height; sourceY += 1) {
-      const y = sourceY - dy
-      if (y < 0 || y >= height) continue
-      const sourceOffset = sourceY * width
-      let empty = true
-      for (let x = 0; x < width; x += 1) if (source[sourceOffset + x]) { empty = false; break }
-      if (empty) continue
-      slidingWindowMax(source, sourceOffset, width, half, windowed, deque)
-      const destOffset = y * width
-      for (let x = 0; x < width; x += 1) {
-        if (windowed[x]! > dilated[destOffset + x]!) dilated[destOffset + x] = windowed[x]!
-      }
-    }
-  }
-  return dilated
-}
-
-// ponytail: exact disk on padded bbox; worker if 25MP × r=40 blocks export.
+// ponytail: separable box max (O(WH)); Euclidean DT if round corners matter.
 function dilateMaxAlpha(source: Uint8Array, width: number, height: number, radius: number): Uint8Array {
   const dilated = new Uint8Array(source.length)
   let minX = width, minY = height, maxX = -1, maxY = -1
@@ -283,9 +273,23 @@ function dilateMaxAlpha(source: Uint8Array, width: number, height: number, radiu
   for (let y = 0; y < boxHeight; y += 1) {
     box.set(source.subarray((y + minY) * width + minX, (y + minY) * width + minX + boxWidth), y * boxWidth)
   }
-  const result = diskMaxAlpha(box, boxWidth, boxHeight, radius)
+  const half = Math.max(0, Math.round(radius))
+  const tmp = new Uint8Array(box.length)
+  const rowOut = new Uint8Array(boxWidth)
+  const deque = new Int32Array(Math.max(boxWidth, boxHeight))
   for (let y = 0; y < boxHeight; y += 1) {
-    dilated.set(result.subarray(y * boxWidth, y * boxWidth + boxWidth), (y + minY) * width + minX)
+    slidingWindowMax(box, y * boxWidth, boxWidth, half, rowOut, deque)
+    tmp.set(rowOut, y * boxWidth)
+  }
+  const col = new Uint8Array(boxHeight)
+  const colOut = new Uint8Array(boxHeight)
+  for (let x = 0; x < boxWidth; x += 1) {
+    for (let y = 0; y < boxHeight; y += 1) col[y] = tmp[y * boxWidth + x]!
+    slidingWindowMax(col, 0, boxHeight, half, colOut, deque)
+    for (let y = 0; y < boxHeight; y += 1) box[y * boxWidth + x] = colOut[y]!
+  }
+  for (let y = 0; y < boxHeight; y += 1) {
+    dilated.set(box.subarray(y * boxWidth, y * boxWidth + boxWidth), (y + minY) * width + minX)
   }
   return dilated
 }
@@ -323,24 +327,38 @@ function drawOutlinedImage(
       for (let x = 0; x < silhouetteCanvas.width; x += 1) sourceAlpha[destRow + x] = source[(sourceRow + x) * 4 + 3]!
     }
     const dilated = dilateMaxAlpha(sourceAlpha, outputWidth, outputHeight, pixelRadius)
+    const tint = rgbaOf(outline.color)
+    if (tint.a === 0) {
+      if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+      else ctx.drawImage(image, 0, 0, width, height)
+      return
+    }
+    // Mix toward white so a lowered alpha stays the same rose/pastel on black export viewers as on the editor checkerboard.
+    const ia = tint.a / 255
+    const r = Math.round(tint.r * ia + 255 * (1 - ia))
+    const g = Math.round(tint.g * ia + 255 * (1 - ia))
+    const b = Math.round(tint.b * ia + 255 * (1 - ia))
     const pixels = outlineContext.createImageData(outputWidth, outputHeight)
     for (let i = 0; i < dilated.length; i += 1) {
       const coverage = sourceAlpha[i]!
       if (coverage === 255 || dilated[i] === 0) continue
-      pixels.data[i * 4 + 3] = Math.round(255 * Math.max(0, dilated[i]! - coverage) / (255 - coverage))
+      const mask = Math.round(255 * Math.max(0, dilated[i]! - coverage) / (255 - coverage))
+      const j = i * 4
+      pixels.data[j] = r
+      pixels.data[j + 1] = g
+      pixels.data[j + 2] = b
+      pixels.data[j + 3] = mask
     }
     outlineContext.putImageData(pixels, 0, 0)
-    outlineContext.globalCompositeOperation = 'source-in'
-    outlineContext.fillStyle = outline.color
-    outlineContext.fillRect(0, 0, width + padding * 2, height + padding * 2)
+    if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+    else ctx.drawImage(image, 0, 0, width, height)
     ctx.drawImage(outlineCanvas as CanvasImageSource, -padding, -padding, width + padding * 2, height + padding * 2)
   } else {
     // Minimal canvas test doubles do not expose pixels; real browser canvases use the continuous dilation above.
+    if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
+    else ctx.drawImage(image, 0, 0, width, height)
     ctx.drawImage(silhouetteCanvas as unknown as CanvasImageSource, 0, 0, width, height)
   }
-
-  if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
-  else ctx.drawImage(image, 0, 0, width, height)
 }
 
 /** Shared image compositing for the cached preview and document export. */
@@ -483,7 +501,7 @@ async function drawLayer(
 }
 
 function require2d(canvas: CanvasLike): CanvasRenderingContext2D {
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
   if (!ctx) throw new ExportError('A 2D canvas is required to export')
   ctx.imageSmoothingEnabled = true
   if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'high'
@@ -520,7 +538,7 @@ export async function decodeMaskImage(blob: Blob, width: number, height: number)
 async function defaultDecodeImage(blob: Blob): Promise<CanvasImageSource> {
   if (typeof createImageBitmap === 'function') {
     try {
-      return await createImageBitmap(blob, { imageOrientation: 'from-image', resizeQuality: 'high' })
+      return await createImageBitmap(blob, { imageOrientation: 'from-image', resizeQuality: 'high', premultiplyAlpha: 'none' })
     } catch {
       try {
         return await createImageBitmap(blob)

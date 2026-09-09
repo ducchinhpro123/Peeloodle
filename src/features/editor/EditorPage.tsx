@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent, type MutableRefObject } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, Check, ChevronLeft, Circle, CloudUpload, Copy, Crop, Download, Eye, EyeOff, FlipHorizontal2, FlipVertical2, Hand, Layers, Lightbulb, Lock, Maximize2, Paintbrush, Pencil, RotateCw, Scissors, Search, Smile, Sparkles, Trash2, Type, Undo2, Unlock, Upload, Redo2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, ChevronLeft, Circle, CloudUpload, Copy, Crop, Download, Eye, EyeOff, FlipHorizontal2, FlipVertical2, Hand, Layers, Lightbulb, Lock, Maximize2, Minimize2, Paintbrush, Pencil, RotateCw, Scissors, Search, Smile, Sparkles, Trash2, Type, Undo2, Unlock, Upload, Redo2 } from 'lucide-react'
 import { useRepository } from '../../app/repository'
 import { useCloudStatus, useWorkspace } from '../auth/Workspace'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,7 @@ import {
   type ToolIntent,
 } from './toolIntent'
 
+import { HexAlphaColorPicker, HexColorInput } from 'react-colorful'
 import { ProjectThumb } from './ProjectThumb'
 
 const KonvaCanvas = lazy(() => import('./KonvaCanvas'))
@@ -288,6 +289,13 @@ function EditorChrome({ document, urls, intent }: { document: ProjectDocument; u
     return subscribeToolIntent((requested) => applyToolIntent(requested, ui))
   }, [intent, document.id])
   const titleRef = useRef<HTMLInputElement>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
+  const [canvasFullscreen, setCanvasFullscreen] = useState(false)
+  useEffect(() => {
+    const sync = () => setCanvasFullscreen(window.document.fullscreenElement === stageRef.current)
+    window.document.addEventListener('fullscreenchange', sync)
+    return () => window.document.removeEventListener('fullscreenchange', sync)
+  }, [])
   const trayRef = useRef<HTMLElement>(null)
   const saveStatus = useEditorStore((state) => state.saveStatus)
   const saveError = useEditorStore((state) => state.saveError)
@@ -436,7 +444,7 @@ function EditorChrome({ document, urls, intent }: { document: ProjectDocument; u
           </div>
         </div>
       </aside>
-      <div className="editor-stage">
+      <div className="editor-stage" ref={stageRef}>
         <section className="editor-top">
           <div className="editor-identity">
             <h1>
@@ -460,13 +468,25 @@ function EditorChrome({ document, urls, intent }: { document: ProjectDocument; u
           </div>
           <div className="canvas-controls">
             <button type="button" aria-label="Zoom out" onClick={() => useEditorStore.getState().setViewport({ zoom: Math.max(0.25, Math.round((zoom - 0.1) * 10) / 10) })}>−</button>
-            <b>{Math.round(zoom * 100)}%</b>
+            <button type="button" aria-label="Reset view" onClick={() => useEditorStore.getState().setViewport({ zoom: 1, panX: 0, panY: 0 })}>
+              <b>{Math.round(zoom * 100)}%</b>
+            </button>
             <button type="button" aria-label="Zoom in" onClick={() => useEditorStore.getState().setViewport({ zoom: Math.min(4, Math.round((zoom + 0.1) * 10) / 10) })}>+</button>
             <button type="button" aria-pressed={activeTool === 'pan'} aria-label="Pan canvas" onClick={() => useEditorStore.getState().setTool(activeTool === 'pan' ? 'select' : 'pan')}>
               <Hand size={16} />
             </button>
-            <button type="button" aria-label="Reset view" onClick={() => useEditorStore.getState().setViewport({ zoom: 1, panX: 0, panY: 0 })}>
-              <Maximize2 size={16} />
+            <button
+              type="button"
+              aria-pressed={canvasFullscreen}
+              aria-label={canvasFullscreen ? 'Exit full screen' : 'Enter full screen'}
+              onClick={() => {
+                const stage = stageRef.current
+                if (!stage) return
+                if (window.document.fullscreenElement === stage) void window.document.exitFullscreen()
+                else void stage.requestFullscreen()
+              }}
+            >
+              {canvasFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
           </div>
           <div className="editor-actions">
@@ -824,15 +844,10 @@ function TextInspector({ layer }: { layer: Extract<Layer, { kind: 'text' }> }) {
           }}
         />
       </label>
-      <label>
-        Color
-        <input
-          aria-label="Text color"
-          type="color"
-          value={layer.color}
-          onChange={(event) => useEditorStore.getState().updateText(layer.id, { color: event.target.value })}
-        />
-      </label>
+      <div className="inspector-color">
+        <span>Color</span>
+        <HexColorField ariaLabel="Text color" color={layer.color} onChange={(color) => useEditorStore.getState().updateText(layer.id, { color })} />
+      </div>
     </div>
   )
 }
@@ -864,6 +879,48 @@ function ImageLayerCard({ layer, urls }: { layer: Extract<Layer, { kind: 'image'
   )
 }
 
+function HexColorField({ color, onChange, ariaLabel, disabled }: {
+  color: string
+  onChange: (color: string) => void
+  ariaLabel: string
+  disabled?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const store = useEditorStore.getState
+  useEffect(() => { if (disabled) setOpen(false) }, [disabled])
+  return (
+    <span className="inspector-color-value">
+      <button
+        type="button"
+        className="inspector-swatch"
+        aria-label="Open color picker"
+        aria-expanded={open}
+        disabled={disabled}
+        style={{ background: color }}
+        onClick={() => setOpen((value) => !value)}
+      />
+      <HexColorInput
+        className="inspector-hex"
+        aria-label={ariaLabel}
+        color={color}
+        prefixed
+        alpha
+        disabled={disabled}
+        onChange={(value) => onChange(value.length === 9 && value.toLowerCase().endsWith('ff') ? value.slice(0, 7) : value)}
+      />
+      {open && !disabled ? (
+        <HexAlphaColorPicker
+          className="inspector-hue-picker"
+          color={color.length === 7 ? `${color}ff` : color}
+          onChange={(value) => onChange(value.toLowerCase().endsWith('ff') ? value.slice(0, 7) : value)}
+          onChangeEnd={() => store().commitGesture()}
+          onPointerDown={() => store().beginGesture()}
+        />
+      ) : null}
+    </span>
+  )
+}
+
 function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> }) {
   const outline = layer.outline ?? { enabled: false, color: '#ffffff', width: 12 }
   const brushSize = useEditorStore((state) => state.brushSize)
@@ -873,27 +930,20 @@ function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> })
     <div className="inspector-fields">
       <label className="inspector-toggle">
         Outline
-        <input
-          className="inspector-switch"
-          type="checkbox"
-          aria-label="Toggle silhouette outline"
-          checked={outline.enabled}
-          onChange={(e) => store().updateOutline(layer.id, { enabled: e.target.checked })}
-        />
-      </label>
-      <label className="inspector-color">
-        <span>Color</span>
-        <span className="inspector-color-value">
+        <span className="inspector-switch">
           <input
-            type="color"
-            aria-label="Outline color"
-            value={outline.color}
-            disabled={!outline.enabled}
-            onChange={(e) => store().updateOutline(layer.id, { color: e.target.value })}
+            className="inspector-switch-input"
+            type="checkbox"
+            aria-label="Toggle silhouette outline"
+            checked={outline.enabled}
+            onChange={(e) => store().updateOutline(layer.id, { enabled: e.target.checked })}
           />
-          <code>{outline.color.toUpperCase()}</code>
         </span>
       </label>
+      <div className="inspector-color">
+        <span>Color</span>
+        <HexColorField ariaLabel="Outline color" color={outline.color} disabled={!outline.enabled} onChange={(color) => store().updateOutline(layer.id, { color })} />
+      </div>
       <label>
         <span>Thickness</span>
         <span className="inspector-slider-value">

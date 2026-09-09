@@ -303,6 +303,15 @@ test('tablet layout zooms and pans', async ({ page }) => {
   expect(tablet.viewport.panX).not.toBe(before.viewport.panX)
 })
 
+test('expand enters canvas full screen', async ({ page }) => {
+  await setup(page)
+  await page.getByRole('button', { name: 'Enter full screen', exact: true }).click()
+  await expect.poll(async () => page.evaluate(() => document.fullscreenElement?.classList.contains('editor-stage') ?? false)).toBe(true)
+  await expect(page.getByRole('button', { name: 'Exit full screen', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Exit full screen', exact: true }).click()
+  await expect.poll(async () => page.evaluate(() => document.fullscreenElement)).toBeNull()
+})
+
 test.describe('mobile brush after navigation', () => {
   test.use({ isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } })
   test('touch erase still paints at 390x844', async ({ page }) => {

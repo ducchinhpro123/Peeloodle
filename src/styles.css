@@ -763,7 +763,19 @@ main > section, main > div { min-width: 0; }
 .canvas-controls { display: flex; flex: none; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .canvas-controls b { min-width: 40px; text-align: center; font-size: 12px; }
 .canvas-controls button { display: grid; width: 26px; height: 26px; place-items: center; padding: 0; border: 0; border-radius: 8px; background: transparent; }
+.canvas-controls button[aria-label="Reset view"] { width: auto; min-width: 40px; padding: 0 4px; }
 .canvas-controls button[aria-pressed="true"] { background: var(--pale); color: #008c62; }
+.editor-stage:fullscreen {
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  background: #effbf7;
+}
+.editor-stage:fullscreen .editor { grid-template-columns: minmax(0, 1fr); height: 100%; }
+.editor-stage:fullscreen .inspector,
+.editor-stage:fullscreen .asset-tray { display: none; }
+.editor-stage:fullscreen .canvas-area,
+.editor-stage:fullscreen .canvas-workspace { height: 100%; min-height: 0; border-radius: 0; }
 .canvas-workspace { position: relative; display: grid; flex: 1; min-height: 0; height: auto; place-items: center; overflow: hidden; border-radius: var(--radius-sm); background: conic-gradient(var(--line) 25%, var(--surface) 0 50%, var(--line) 0 75%, var(--surface) 0) 0 0 / 24px 24px; }
 .canvas-boundary-note { position: absolute; bottom: 0; left: var(--space-2); margin: 0; padding-inline: var(--space-1); border-radius: var(--space-1); background: var(--surface); color: var(--muted); font-size: 11px; pointer-events: none; }
 .artboard-host, .dom-artboard { position: absolute; inset: 0; }
@@ -991,14 +1003,24 @@ main > section, main > div { min-width: 0; }
 .layer-delete:hover:not(:disabled) { background: #fff1f2; color: #9f1239; box-shadow: none; }
 .inspector-toggle { font-weight: 700; }
 .inspector-switch {
-  appearance: none;
+  position: relative;
   width: 40px;
   height: 22px;
   flex: none;
-  border: 0;
   border-radius: 999px;
   background: #d5dde3;
-  position: relative;
+}
+.inspector-switch-input {
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 .inspector-switch::after {
   content: "";
@@ -1009,25 +1031,49 @@ main > section, main > div { min-width: 0; }
   height: 16px;
   border-radius: 50%;
   background: #fff;
+  pointer-events: none;
+  box-shadow: 0 1px 2px #08152f22;
   transition: transform 120ms ease;
 }
-.inspector-switch:checked { background: var(--mint); }
-.inspector-switch:checked::after { transform: translateX(18px); }
+.inspector-switch:has(input:checked) { background: var(--mint); }
+.inspector-switch:has(input:checked)::after { transform: translateX(18px); }
+.inspector-switch:has(input:focus-visible) {
+  outline: 3px solid #00875e;
+  outline-offset: 2px;
+}
 .inspector label small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
-.inspector-color-value, .inspector-slider-value { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.inspector input[type="color"] {
+.inspector-color {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eef1f4;
+  font-size: 13px;
+}
+.inspector-color-value, .inspector-slider-value { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.inspector-swatch {
+  appearance: none;
   width: 26px;
   height: 26px;
   padding: 0;
-  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 50%;
-  background: #fff;
-  appearance: none;
+  box-shadow: none;
 }
-.inspector input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-.inspector input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
-.inspector-color-value code { color: var(--muted); font-size: 11px; font-weight: 700; }
+.inspector-swatch:disabled { opacity: 0.45; }
+.inspector .inspector-hex {
+  width: 8.5rem;
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.inspector-hue-picker { flex: 1 0 100%; width: 100%; height: 188px; }
+.inspector-hue-picker .react-colorful__hue,
+.inspector-hue-picker .react-colorful__alpha { height: 14px; border-radius: 8px; }
 .inspector-help { margin: 0; font-size: 12px; }
 .inspector-section { display: grid; gap: 6px; padding: 10px 0 4px; }
 .inspector-section > b { font-size: 12px; }

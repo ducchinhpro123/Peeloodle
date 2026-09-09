@@ -383,24 +383,51 @@ function HydratedImage({ layer, url, mask, asset, previews, nodeRef, handlers }:
   const padding = outline?.enabled ? Math.ceil(outline.width) : 0
   // ponytail: preview rasters cap at 1024px; raise for sharper high zoom. Masks/exports stay full-resolution.
   const previewRatio = Math.min(1, 1024 / (Math.max(crop?.width ?? asset?.width ?? 1, crop?.height ?? asset?.height ?? 1) + padding * 2))
-  const processedImage = useMemo(() => {
+  const syncImage = useMemo(() => {
     if (!image || !asset || (layer.maskKey && !maskImage)) return null
     if (!crop && !maskImage && !outline?.enabled && formatCssFilter(filters) === 'none') return image
+    if (outline?.enabled) return image
     return createImageSurface(image, { crop, outline, filters }, crop?.width ?? asset.width, crop?.height ?? asset.height, undefined, maskImage, previewRatio).canvas as HTMLCanvasElement
   }, [image, crop, asset, outline, filters, maskImage, layer.maskKey, previewRatio])
+  const [outlinedImage, setOutlinedImage] = useState<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
-    // Only the painted layer is recomposited, once per requested animation frame.
+    if (!image || !asset || !outline?.enabled || (layer.maskKey && !maskImage)) {
+      setOutlinedImage(null)
+      return
+    }
+    let cancelled = false
+    const frame = requestAnimationFrame(() => {
+      if (cancelled) return
+      const canvas = createImageSurface(image, { crop, outline, filters }, crop?.width ?? asset.width, crop?.height ?? asset.height, undefined, maskImage, previewRatio).canvas as HTMLCanvasElement
+      if (!cancelled) setOutlinedImage(canvas)
+    })
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(frame)
+    }
+  }, [image, crop, asset, outline, filters, maskImage, layer.maskKey, previewRatio])
+  const processedImage = outline?.enabled ? (outlinedImage ?? syncImage) : syncImage
+
+  useEffect(() => {
+    let liveFrame = 0
     previews.set(layer.id, (live) => {
       if (!node.current || !image || !asset) return
-      const source = live
-        ? createImageSurface(image, { crop, outline, filters }, crop?.width ?? asset.width, crop?.height ?? asset.height, undefined, live, previewRatio).canvas as HTMLCanvasElement
-        : processedImage
-      if (!source) return
-      node.current.image(source)
-      node.current.getLayer()?.batchDraw()
+      cancelAnimationFrame(liveFrame)
+      liveFrame = requestAnimationFrame(() => {
+        if (!node.current || !image || !asset) return
+        const source = live
+          ? createImageSurface(image, { crop, outline, filters }, crop?.width ?? asset.width, crop?.height ?? asset.height, undefined, live, previewRatio).canvas as HTMLCanvasElement
+          : processedImage
+        if (!source) return
+        node.current.image(source)
+        node.current.getLayer()?.batchDraw()
+      })
     })
-    return () => { previews.delete(layer.id) }
+    return () => {
+      cancelAnimationFrame(liveFrame)
+      previews.delete(layer.id)
+    }
   }, [previews, layer.id, image, asset, crop, outline, filters, processedImage, previewRatio])
 
   if (!image || !asset || !processedImage) return null
