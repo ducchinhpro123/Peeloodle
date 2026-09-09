@@ -251,7 +251,7 @@ main > section, main > div { min-width: 0; }
   background: radial-gradient(ellipse at 30% 110%, #fff4c4 0, transparent 60%), linear-gradient(120deg, #def8e9, #edf9f2 48%, #e9e2fc);
 }
 
-.hero-copy { position: relative; z-index: 1; flex: 0 1 440px; min-width: 260px; }
+.hero-copy { position: relative; z-index: 1; flex: 0 1 440px; min-width: 260px; container-type: inline-size; }
 .hero-kicker {
   display: inline-flex;
   align-items: center;
@@ -279,10 +279,11 @@ main > section, main > div { min-width: 0; }
 }
 .hero h1 {
   margin: 0 0 var(--space-4);
-  font-size: clamp(2rem, 3.4vw, 3.4rem);
+  font-size: clamp(1.55rem, 10.5cqi, 3.4rem);
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.04em;
+  white-space: nowrap;
 }
 .hero em { color: #008d62; font-style: normal; }
 .hero-lead { max-width: 400px; margin: 0; color: #405775; font-size: 14px; font-weight: 500; line-height: 1.7; }
@@ -1291,7 +1292,7 @@ main > section, main > div { min-width: 0; }
   .feature:nth-child(2) .feature-doodle { width: 124px; }
   .feature:nth-child(2) .feature-doodle::before { font-size: 26px; }
   .hero-copy { flex: 1 1 auto; min-width: 0; }
-  .hero h1 { font-size: 2.3rem; letter-spacing: -0.04em; }
+  .hero h1 { font-size: clamp(1.55rem, 10cqi, 2.3rem); letter-spacing: -0.04em; }
   .hero-lead { font-size: 13px; }
   .collage { flex: none; width: 100%; height: 210px; }
   .hero-dashboard .collage { flex: none; width: 100%; height: 250px; }
