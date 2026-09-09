@@ -243,7 +243,6 @@ test('outline color alpha is present in preview and export rasters', async ({ pa
     exportCanvas.height = bitmap.height
     exportCanvas.getContext('2d')!.drawImage(bitmap, 0, 0)
     bitmap.close()
-    const exportPixels = exportCanvas.getContext('2d')!.getImageData(0, 0, exportCanvas.width, exportCanvas.height).data
     let overBlack = [0, 0, 0]
     const black = document.createElement('canvas')
     black.width = exportCanvas.width
