@@ -370,27 +370,37 @@ describe('editor commands', () => {
     expect(reset.kind === 'image' && reset.filters).toBeUndefined()
   })
 
-  it('updates image silhouette outline settings with undo support', () => {
+  it('keeps each image outline independent and groups a thickness gesture for undo', () => {
     const store = useEditorStore.getState()
     store.createDraft('p1')
     store.addImageLayer(pngRecord('asset-1'))
-    const imageId = useEditorStore.getState().document!.layers[0]!.id
+    store.addImageLayer(pngRecord('asset-2'))
+    const [firstId, secondId] = useEditorStore.getState().document!.layers.map((layer) => layer.id)
 
-    store.updateOutline(imageId, { enabled: true, color: '#08b879', width: 16 })
-    const layer = useEditorStore.getState().document!.layers[0]!
-    expect(layer.kind === 'image' && layer.outline).toEqual({
-      enabled: true,
-      color: '#08b879',
-      width: 16,
-    })
+    store.updateOutline(secondId!, { enabled: true, color: '#08b879' })
+    store.beginGesture()
+    store.updateOutline(secondId!, { width: 16 })
+    store.updateOutline(secondId!, { width: 24 })
+    store.commitGesture()
+
+    let [first, second] = useEditorStore.getState().document!.layers
+    expect(first?.kind === 'image' && first.outline).toBeUndefined()
+    expect(second?.kind === 'image' && second.outline).toEqual({ enabled: true, color: '#08b879', width: 24 })
 
     store.undo()
-    const undone = useEditorStore.getState().document!.layers[0]!
-    expect(undone.kind === 'image' && undone.outline).toBeUndefined()
+    ;[first, second] = useEditorStore.getState().document!.layers
+    expect(first?.kind === 'image' && first.outline).toBeUndefined()
+    expect(second?.kind === 'image' && second.outline).toEqual({ enabled: true, color: '#08b879', width: 12 })
 
     store.redo()
-    const redone = useEditorStore.getState().document!.layers[0]!
-    expect(redone.kind === 'image' && redone.outline?.width).toBe(16)
+    ;[first, second] = useEditorStore.getState().document!.layers
+    expect(second?.kind === 'image' && second.outline).toEqual({ enabled: true, color: '#08b879', width: 24 })
+
+    store.updateOutline(secondId!, { enabled: false })
+    store.updateOutline(firstId!, { enabled: true })
+    ;[first, second] = useEditorStore.getState().document!.layers
+    expect(first?.kind === 'image' && first.outline).toEqual({ enabled: true, color: '#ffffff', width: 12 })
+    expect(second?.kind === 'image' && second.outline).toEqual({ enabled: false, color: '#08b879', width: 24 })
   })
 
   it('applies and clears masks with undo support and maintains duplicate-layer mask independence', () => {

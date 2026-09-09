@@ -1028,6 +1028,7 @@ main > section, main > div { min-width: 0; }
 .inspector input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
 .inspector input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 .inspector-color-value code { color: var(--muted); font-size: 11px; font-weight: 700; }
+.inspector-help { margin: 0; font-size: 12px; }
 .inspector-section { display: grid; gap: 6px; padding: 10px 0 4px; }
 .inspector-section > b { font-size: 12px; }
 .flip-row .button { min-height: 32px; padding: 4px 8px; font-size: 12px; }

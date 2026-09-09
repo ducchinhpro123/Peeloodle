@@ -216,6 +216,80 @@ export function formatCssFilter(filters?: import('../../types/domain').ImageFilt
   return parts.length > 0 ? parts.join(' ') : 'none'
 }
 
+function slidingWindowMax(row: Uint8Array, offset: number, width: number, half: number, out: Uint8Array, deque: Int32Array): void {
+  let head = 0, tail = 0, next = 0
+  for (let x = 0; x < width; x += 1) {
+    const addUntil = Math.min(width - 1, x + half)
+    while (next <= addUntil) {
+      while (head < tail && row[offset + deque[tail - 1]!]! <= row[offset + next]!) tail -= 1
+      deque[tail++] = next
+      next += 1
+    }
+    while (head < tail && deque[head]! < x - half) head += 1
+    out[x] = head < tail ? row[offset + deque[head]!]! : 0
+  }
+}
+
+function diskMaxAlpha(source: Uint8Array, width: number, height: number, radius: number): Uint8Array {
+  const dilated = new Uint8Array(source.length)
+  const radiusSquared = radius * radius
+  const maxDy = Math.min(height - 1, Math.ceil(radius))
+  const windowed = new Uint8Array(width)
+  const deque = new Int32Array(width)
+  for (let dy = -maxDy; dy <= maxDy; dy += 1) {
+    const dySquared = dy * dy
+    if (dySquared > radiusSquared) continue
+    const half = Math.floor(Math.sqrt(radiusSquared - dySquared))
+    for (let sourceY = 0; sourceY < height; sourceY += 1) {
+      const y = sourceY - dy
+      if (y < 0 || y >= height) continue
+      const sourceOffset = sourceY * width
+      let empty = true
+      for (let x = 0; x < width; x += 1) if (source[sourceOffset + x]) { empty = false; break }
+      if (empty) continue
+      slidingWindowMax(source, sourceOffset, width, half, windowed, deque)
+      const destOffset = y * width
+      for (let x = 0; x < width; x += 1) {
+        if (windowed[x]! > dilated[destOffset + x]!) dilated[destOffset + x] = windowed[x]!
+      }
+    }
+  }
+  return dilated
+}
+
+// ponytail: exact disk on padded bbox; worker if 25MP × r=40 blocks export.
+function dilateMaxAlpha(source: Uint8Array, width: number, height: number, radius: number): Uint8Array {
+  const dilated = new Uint8Array(source.length)
+  let minX = width, minY = height, maxX = -1, maxY = -1
+  for (let y = 0; y < height; y += 1) {
+    const row = y * width
+    for (let x = 0; x < width; x += 1) {
+      if (!source[row + x]) continue
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+    }
+  }
+  if (maxX < 0) return dilated
+  const pad = Math.ceil(radius)
+  minX = Math.max(0, minX - pad)
+  minY = Math.max(0, minY - pad)
+  maxX = Math.min(width - 1, maxX + pad)
+  maxY = Math.min(height - 1, maxY + pad)
+  const boxWidth = maxX - minX + 1
+  const boxHeight = maxY - minY + 1
+  const box = new Uint8Array(boxWidth * boxHeight)
+  for (let y = 0; y < boxHeight; y += 1) {
+    box.set(source.subarray((y + minY) * width + minX, (y + minY) * width + minX + boxWidth), y * boxWidth)
+  }
+  const result = diskMaxAlpha(box, boxWidth, boxHeight, radius)
+  for (let y = 0; y < boxHeight; y += 1) {
+    dilated.set(result.subarray(y * boxWidth, y * boxWidth + boxWidth), (y + minY) * width + minX)
+  }
+  return dilated
+}
+
 function drawOutlinedImage(
   ctx: CanvasRenderingContext2D,
   image: CanvasImageSource,
@@ -232,22 +306,37 @@ function drawOutlinedImage(
   if (crop) sCtx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)
   else sCtx.drawImage(image, 0, 0, width, height)
 
-  sCtx.globalCompositeOperation = 'source-in'
-  sCtx.fillStyle = outline.color
-  sCtx.fillRect(0, 0, width, height)
-
-  const radius = outline.width
-  const steps = Math.max(16, Math.ceil(radius * 2 * Math.PI / 2))
-  for (let angle = 0; angle < Math.PI * 2; angle += (Math.PI * 2) / steps) {
-    const dx = Math.cos(angle) * radius
-    const dy = Math.sin(angle) * radius
-    ctx.drawImage(silhouetteCanvas as unknown as CanvasImageSource, dx, dy, width, height)
-  }
-  if (radius > 6) {
-    const half = radius / 2
-    for (let angle = 0; angle < Math.PI * 2; angle += (Math.PI * 2) / (steps / 2)) {
-      ctx.drawImage(silhouetteCanvas as unknown as CanvasImageSource, Math.cos(angle) * half, Math.sin(angle) * half, width, height)
+  if (typeof sCtx.getImageData === 'function' && typeof sCtx.createImageData === 'function' && typeof sCtx.putImageData === 'function') {
+    const padding = Math.ceil(outline.width)
+    const outlineCanvas = makeCanvas(width + padding * 2, height + padding * 2)
+    const outlineContext = require2d(outlineCanvas)
+    const source = sCtx.getImageData(0, 0, silhouetteCanvas.width, silhouetteCanvas.height).data
+    const outputWidth = outlineCanvas.width
+    const outputHeight = outlineCanvas.height
+    const offsetX = Math.floor((outputWidth - silhouetteCanvas.width) / 2)
+    const offsetY = Math.floor((outputHeight - silhouetteCanvas.height) / 2)
+    const pixelRadius = outline.width * Math.min(silhouetteCanvas.width / width, silhouetteCanvas.height / height)
+    const sourceAlpha = new Uint8Array(outputWidth * outputHeight)
+    for (let y = 0; y < silhouetteCanvas.height; y += 1) {
+      const destRow = (y + offsetY) * outputWidth + offsetX
+      const sourceRow = y * silhouetteCanvas.width
+      for (let x = 0; x < silhouetteCanvas.width; x += 1) sourceAlpha[destRow + x] = source[(sourceRow + x) * 4 + 3]!
     }
+    const dilated = dilateMaxAlpha(sourceAlpha, outputWidth, outputHeight, pixelRadius)
+    const pixels = outlineContext.createImageData(outputWidth, outputHeight)
+    for (let i = 0; i < dilated.length; i += 1) {
+      const coverage = sourceAlpha[i]!
+      if (coverage === 255 || dilated[i] === 0) continue
+      pixels.data[i * 4 + 3] = Math.round(255 * Math.max(0, dilated[i]! - coverage) / (255 - coverage))
+    }
+    outlineContext.putImageData(pixels, 0, 0)
+    outlineContext.globalCompositeOperation = 'source-in'
+    outlineContext.fillStyle = outline.color
+    outlineContext.fillRect(0, 0, width + padding * 2, height + padding * 2)
+    ctx.drawImage(outlineCanvas as CanvasImageSource, -padding, -padding, width + padding * 2, height + padding * 2)
+  } else {
+    // Minimal canvas test doubles do not expose pixels; real browser canvases use the continuous dilation above.
+    ctx.drawImage(silhouetteCanvas as unknown as CanvasImageSource, 0, 0, width, height)
   }
 
   if (crop) ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height)

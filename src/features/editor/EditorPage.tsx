@@ -590,7 +590,7 @@ function PropertiesDialog({
   onTabChange?: (tab: string) => void
 }) {
   return (
-    <Dialog>
+    <Dialog onOpenChange={(open) => { if (!open) useEditorStore.getState().commitGesture() }}>
       <DialogTrigger asChild>
         <Button className="properties-toggle">Sticker properties</Button>
       </DialogTrigger>
@@ -881,40 +881,43 @@ function ImageInspector({ layer }: { layer: Extract<Layer, { kind: 'image' }> })
           onChange={(e) => store().updateOutline(layer.id, { enabled: e.target.checked })}
         />
       </label>
-      {outline.enabled ? (
-        <>
-          <label className="inspector-color">
-            <span>Color</span>
-            <span className="inspector-color-value">
-              <input
-                type="color"
-                aria-label="Outline color"
-                value={outline.color}
-                onChange={(e) => store().updateOutline(layer.id, { color: e.target.value })}
-              />
-              <code>{outline.color.toUpperCase()}</code>
-            </span>
-          </label>
-          <label>
-            <span>Thickness</span>
-            <span className="inspector-slider-value">
-              <Slider
-                aria-label="Outline thickness"
-                min={2}
-                max={40}
-                value={[outline.width]}
-                onPointerDown={(e) => {
-                  if (e.button === 0) store().beginGesture()
-                }}
-                onPointerUp={() => store().commitGesture()}
-                onPointerCancel={() => store().commitGesture()}
-                onValueChange={(val) => store().updateOutline(layer.id, { width: val[0] ?? 12 })}
-              />
-              <small>{outline.width} px</small>
-            </span>
-          </label>
-        </>
-      ) : null}
+      <label className="inspector-color">
+        <span>Color</span>
+        <span className="inspector-color-value">
+          <input
+            type="color"
+            aria-label="Outline color"
+            value={outline.color}
+            disabled={!outline.enabled}
+            onChange={(e) => store().updateOutline(layer.id, { color: e.target.value })}
+          />
+          <code>{outline.color.toUpperCase()}</code>
+        </span>
+      </label>
+      <label>
+        <span>Thickness</span>
+        <span className="inspector-slider-value">
+          <Slider
+            aria-label="Outline thickness"
+            min={2}
+            max={40}
+            value={[outline.width]}
+            disabled={!outline.enabled}
+            onPointerDown={(e) => {
+              if (e.button === 0) store().beginGesture()
+            }}
+            onPointerUp={() => store().commitGesture()}
+            onPointerCancel={() => store().commitGesture()}
+            onLostPointerCapture={() => store().commitGesture()}
+            onValueCommit={() => store().commitGesture()}
+            onValueChange={(val) => store().updateOutline(layer.id, { width: val[0] ?? 12 })}
+          />
+          <small>{outline.width} px</small>
+        </span>
+      </label>
+      <p className="muted inspector-help">
+        The outline follows visible pixels. An opaque photo outlines its rectangle; use Erase to make a cutout.
+      </p>
 
       <div className="inspector-section">
         <b>Flip &amp; Rotate</b>
