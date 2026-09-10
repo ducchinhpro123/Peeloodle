@@ -1,0 +1,81 @@
+{
+  "layoutLineCount": 2,
+  "domLineCount": 2,
+  "lineComparisons": [
+    {
+      "index": 0,
+      "layoutText": "Nghiên cứu và trình bày",
+      "domText": "Nghiên cứu và trình bày",
+      "textMatches": true,
+      "centerDelta": 0,
+      "leftDelta": -0.001983642578125,
+      "rightDelta": 0.001983642578125,
+      "domLineCount": 2,
+      "layoutLineCount": 2
+    },
+    {
+      "index": 1,
+      "layoutText": "Building a sticker presentation",
+      "domText": "Building a sticker presentation",
+      "textMatches": true,
+      "centerDelta": 0.09062500000001705,
+      "leftDelta": -0.01854705810546875,
+      "rightDelta": 0.00292205810546875,
+      "domLineCount": 2,
+      "layoutLineCount": 2
+    }
+  ],
+  "domLines": [
+    {
+      "text": "Nghiên cứu và trình bày",
+      "top": 16,
+      "bottom": 125,
+      "center": 70.5,
+      "left": 183.421875,
+      "right": 976.578125
+    },
+    {
+      "text": "Building a sticker presentation",
+      "top": 112.390625,
+      "bottom": 158.390625,
+      "center": 135.390625,
+      "left": 310.359375,
+      "right": 849.625
+    }
+  ],
+  "konvaComparisons": [
+    {
+      "text": "Nghiên cứu và trình bày",
+      "layoutWidth": 793.1522827148438,
+      "konvaWidth": 793.1522827148438,
+      "measureWidth": 793.1522827148438,
+      "widthDelta": 0
+    },
+    {
+      "text": "Building a ",
+      "layoutWidth": 179.74806213378906,
+      "konvaWidth": 179.74806213378906,
+      "measureWidth": 179.74806213378906,
+      "widthDelta": 0
+    },
+    {
+      "text": "sticker",
+      "layoutWidth": 117.5040283203125,
+      "konvaWidth": 117.5040283203125,
+      "measureWidth": 117.5040283203125,
+      "widthDelta": 0
+    },
+    {
+      "text": " presentation",
+      "layoutWidth": 241.9920654296875,
+      "konvaWidth": 241.9920654296875,
+      "measureWidth": 241.9920654296875,
+      "widthDelta": 0
+    }
+  ],
+  "stageDataUrlLength": 47358,
+  "imeText": "Kết quảế",
+  "pastedText": "Heading\nPasted bold bad",
+  "pastedBold": true,
+  "pastedUnsafeLink": null
+}

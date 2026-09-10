@@ -1,3 +1,11 @@
+import {
+  isAnimatedPng,
+  isAnimatedWebp,
+  isGif,
+  looksLikeSvgMarkup,
+  sniffImageFormat,
+} from '../../lib/imageFormat'
+
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 export const MAX_UPLOAD_PIXELS = 25_000_000
 export const SUPPORTED_UPLOAD_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
@@ -45,7 +53,7 @@ export async function validateUpload(file: File, options: ValidateUploadOptions 
   if (isLabeledSvg(file) || looksLikeSvgMarkup(prefix)) {
     throw new UploadValidationError('svg_not_allowed', 'SVG uploads are not supported')
   }
-  if (isGif(file, prefix)) throw new UploadValidationError('unsupported_type', 'GIF uploads are not supported')
+  if (isGifFile(file, prefix)) throw new UploadValidationError('unsupported_type', 'GIF uploads are not supported')
 
   const mimeType = resolveMimeType(file, prefix)
   if (!mimeType) throw new UploadValidationError('unsupported_type', 'Use a PNG, JPEG, or static WebP image')
@@ -135,63 +143,15 @@ function normalizeDeclaredMime(type: string): SupportedUploadMimeType | undefine
 }
 
 function sniffMime(bytes: Uint8Array): SupportedUploadMimeType | 'image/gif' | undefined {
-  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png'
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg'
-  if (isWebp(bytes)) return 'image/webp'
-  if (isGifBytes(bytes)) return 'image/gif'
-  return undefined
+  return sniffImageFormat(bytes)
 }
 
 function isLabeledSvg(file: File): boolean {
   return file.type.toLowerCase().includes('svg') || file.name.toLowerCase().endsWith('.svg')
 }
 
-function looksLikeSvgMarkup(bytes: Uint8Array): boolean {
-  if (sniffMime(bytes)) return false
-  const header = new TextDecoder().decode(bytes).trimStart().toLowerCase()
-  return header.startsWith('<svg') || (header.startsWith('<?xml') && header.includes('<svg'))
-}
-
-function isGif(file: File, bytes: Uint8Array): boolean {
-  return file.type.toLowerCase() === 'image/gif' || file.name.toLowerCase().endsWith('.gif') || isGifBytes(bytes)
-}
-
-function isGifBytes(bytes: Uint8Array): boolean {
-  return bytes.length >= 6 && ascii(bytes, 0, 3) === 'GIF' && (ascii(bytes, 3, 3) === '87a' || ascii(bytes, 3, 3) === '89a')
-}
-
-function isWebp(bytes: Uint8Array): boolean {
-  return bytes.length >= 12 && ascii(bytes, 0, 4) === 'RIFF' && ascii(bytes, 8, 4) === 'WEBP'
-}
-
-function isAnimatedPng(bytes: Uint8Array): boolean {
-  if (sniffMime(bytes) !== 'image/png' || bytes.length < 24) return false
-  let offset = 8
-  while (offset + 8 <= bytes.length) {
-    const length = readU32be(bytes, offset)
-    const type = ascii(bytes, offset + 4, 4)
-    if (type === 'acTL') return true
-    if (type === 'IDAT' || type === 'IEND') return false
-    const next = offset + 12 + length
-    if (next <= offset) break
-    offset = next
-  }
-  return false
-}
-
-function isAnimatedWebp(bytes: Uint8Array): boolean {
-  if (!isWebp(bytes)) return false
-  let offset = 12
-  while (offset + 8 <= bytes.length) {
-    const fourcc = ascii(bytes, offset, 4)
-    const size = readU32le(bytes, offset + 4)
-    if (fourcc === 'ANIM') return true
-    if (fourcc === 'VP8X' && offset + 9 <= bytes.length && (bytes[offset + 8] & 0x02) !== 0) return true
-    const padded = size + (size & 1)
-    offset += 8 + padded
-    if (padded < 0) break
-  }
-  return false
+function isGifFile(file: File, bytes: Uint8Array): boolean {
+  return file.type.toLowerCase() === 'image/gif' || file.name.toLowerCase().endsWith('.gif') || isGif(bytes)
 }
 
 function readBlobBytes(blob: Blob): Promise<Uint8Array> {
@@ -202,16 +162,4 @@ function readBlobBytes(blob: Blob): Promise<Uint8Array> {
     reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'))
     reader.readAsArrayBuffer(blob)
   })
-}
-
-function ascii(bytes: Uint8Array, offset: number, length: number): string {
-  return String.fromCharCode(...bytes.subarray(offset, offset + length))
-}
-
-function readU32le(bytes: Uint8Array, offset: number): number {
-  return bytes[offset]! + (bytes[offset + 1]! << 8) + (bytes[offset + 2]! << 16) + (bytes[offset + 3]! << 24)
-}
-
-function readU32be(bytes: Uint8Array, offset: number): number {
-  return ((bytes[offset]! << 24) | (bytes[offset + 1]! << 16) | (bytes[offset + 2]! << 8) | bytes[offset + 3]!) >>> 0
 }

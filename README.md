@@ -2,6 +2,8 @@
 
 Mint-green local sticker editor. Create a sticker, upload a photo, edit, save, reopen, and export a transparent PNG — no cloud credentials required.
 
+Planned expansion: [university presentations implementation plan](docs/slides-implementation-plan.md), with [architecture](docs/slides-architecture.md) and an admin dashboard design concept. Presentations, PDF/PPTX export, and catalog administration are planned features, not currently implemented.
+
 ![StickerLab overview of Dashboard, Create Sticker, and Templates](readme-included.png)
 
 ## Design previews

@@ -62,6 +62,7 @@ import { StickerCollage } from './components/StickerCollage'
 import { GlobalSearch } from './components/GlobalSearch'
 import { isUnmodifiedPrimaryClick, parseToolIntent, requestToolIntent, shouldReuseCurrentToolRoute, toolIntentHref, type ToolIntent } from './features/editor/toolIntent'
 import './styles.css'
+import './features/presentations/rendering/presentation-fonts.css'
 
 const CreateEditor = lazy(() => import('./features/editor/EditorPage').then((module) => ({ default: module.CreateEditor })))
 const ProjectEditor = lazy(() => import('./features/editor/EditorPage').then((module) => ({ default: module.ProjectEditor })))

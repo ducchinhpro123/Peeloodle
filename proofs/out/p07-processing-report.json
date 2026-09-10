@@ -1,0 +1,45 @@
+{
+  "iterations": 20,
+  "cases": [
+    {
+      "case": "png-256",
+      "failure": null,
+      "expectedError": null,
+      "medianMs": 16.92,
+      "p95Ms": 19.36,
+      "maxMs": 19.36,
+      "outputBytes": 9094,
+      "rssDeltaMb": 16.8
+    },
+    {
+      "case": "webp-320x240",
+      "failure": null,
+      "expectedError": null,
+      "medianMs": 9.47,
+      "p95Ms": 11.85,
+      "maxMs": 11.85,
+      "outputBytes": 971,
+      "rssDeltaMb": 15.1
+    },
+    {
+      "case": "svg-256",
+      "failure": null,
+      "expectedError": null,
+      "medianMs": 8.89,
+      "p95Ms": 10.74,
+      "maxMs": 10.74,
+      "outputBytes": 29607,
+      "rssDeltaMb": 0.8
+    },
+    {
+      "case": "svg-hostile-rejected",
+      "failure": "svg_unsafe",
+      "expectedError": "svg_unsafe",
+      "medianMs": 0.01,
+      "p95Ms": 0.04,
+      "maxMs": 0.04,
+      "outputBytes": 0,
+      "rssDeltaMb": 0
+    }
+  ]
+}

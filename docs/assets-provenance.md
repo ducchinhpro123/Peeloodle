@@ -1,5 +1,9 @@
 # Asset provenance
 
+## Planned admin dashboard concept
+
+`docs/design/admin-dashboard-concept.png` was generated with the built-in imagegen tool on 2026-09-10 for the presentation planning documents. The exact prompt is stored in `docs/design/admin-dashboard-prompt.txt`. It is a UI reference with sample artwork and metadata, not a production asset catalog or permission record for real uploads. The image was inspected; generated format badges and readiness/provenance inconsistencies are called out in `docs/slides-architecture.md`. It is not served by the application.
+
 Decorative sample images are stored locally under `public/samples/`. They are not user uploads and are not used as fake background-removal results.
 
 | File | Source | License (as stated on the file page) | Notes |
@@ -79,3 +83,20 @@ Unmodified TTFs from the official Google Fonts repository are bundled locally wi
 All license files above live beside their fonts under `public/fonts/`. Family names are serialized as document data; CSS font faces and `src/lib/fonts.ts` provide shared canvas/export loading. Fonts are not stored in each document or copied into image assets.
 
 `e2e/fixtures/red.png` and `e2e/fixtures/center-blue.png` are generated test fixtures (solid/test pixels), not third-party artwork.
+
+## Presentation typefaces (P05)
+
+Unmodified static TTFs from the official Google Fonts repository, bundled locally with their license texts under `public/fonts/presentations/`. All eight files were verified against upstream Git blob hashes (local `git hash-object` equals the GitHub API `sha`) on 2026-09-10. Coverage and export verification are recorded in `proofs/p05-fonts.md`.
+
+| Local file | Upstream source | License |
+| --- | --- | --- |
+| `public/fonts/presentations/BeVietnamPro-Regular.ttf` | [Be Vietnam Pro](https://github.com/google/fonts/tree/main/ofl/bevietnampro) (Regular) | SIL OFL 1.1, `be-vietnam-pro-OFL.txt` |
+| `public/fonts/presentations/BeVietnamPro-Bold.ttf` | Be Vietnam Pro (Bold) | SIL OFL 1.1, `be-vietnam-pro-OFL.txt` |
+| `public/fonts/presentations/BeVietnamPro-Italic.ttf` | Be Vietnam Pro (Italic) | SIL OFL 1.1, `be-vietnam-pro-OFL.txt` |
+| `public/fonts/presentations/BeVietnamPro-BoldItalic.ttf` | Be Vietnam Pro (Bold Italic) | SIL OFL 1.1, `be-vietnam-pro-OFL.txt` |
+| `public/fonts/presentations/Spectral-Regular.ttf` | [Spectral](https://github.com/google/fonts/tree/main/ofl/spectral) (Regular) | SIL OFL 1.1, `spectral-OFL.txt` |
+| `public/fonts/presentations/Spectral-Bold.ttf` | Spectral (Bold) | SIL OFL 1.1, `spectral-OFL.txt` |
+| `public/fonts/presentations/Spectral-Italic.ttf` | Spectral (Italic) | SIL OFL 1.1, `spectral-OFL.txt` |
+| `public/fonts/presentations/Spectral-BoldItalic.ttf` | Spectral (Bold Italic) | SIL OFL 1.1, `spectral-OFL.txt` |
+
+These faces cover the full Vietnamese extended range (U+1EA0–U+1EF9) and are used only by presentation documents, which store the stable font IDs `be-vietnam-pro` and `spectral`. Serve them on demand; do not substitute the Latin-only sticker fonts for Vietnamese presentation text.

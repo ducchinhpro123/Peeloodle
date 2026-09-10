@@ -1,0 +1,24 @@
+{
+  "generator": "PptxGenJS",
+  "slideCount": 2,
+  "pageSizeInches": {
+    "width": 13.3333,
+    "height": 7.5
+  },
+  "elementCounts": {
+    "text": 2,
+    "shape": 0,
+    "image": 0
+  },
+  "fonts": [
+    "Be Vietnam Pro",
+    "Spectral"
+  ],
+  "expectedStrings": [
+    "Đánh giá tác động của biến đổi khí hậu",
+    "Đồng bằng sông Cửu Long",
+    "Năng suất giảm 12%",
+    "Khuyến nghị",
+    "thích ứng"
+  ]
+}

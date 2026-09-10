@@ -21,6 +21,7 @@ export type PersistenceErrorCode =
   | 'missing_asset'
   | 'missing_mask'
   | 'invalid_asset'
+  | 'revision_conflict'
   | 'transaction_failed'
 
 export class PersistenceError extends Error {
