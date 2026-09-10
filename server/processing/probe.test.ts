@@ -1,9 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { PROBE_MAX_REQUEST_BYTES, handleProcessProbe, probeStorageRoundTrip, requireProbeEnv, type ProbeStorageClient } from './probe'
+import { PROBE_MAX_REQUEST_BYTES, handleStagedProcessProbe, probeStorageRoundTrip, requireProbeEnv, type ProbeStorageClient } from './probe'
 import { fixtureImagePng } from '../../src/features/presentations/model/fixtures/fixture'
-
-const validPngBase64 = Buffer.from(fixtureImagePng()).toString('base64')
 
 function memoryStorage(): ProbeStorageClient & { objects: Map<string, Uint8Array> } {
   const objects = new Map<string, Uint8Array>()
@@ -23,25 +21,58 @@ function memoryStorage(): ProbeStorageClient & { objects: Map<string, Uint8Array
   }
 }
 
-describe('P08 preview probe', () => {
-  it('processes a small PNG through the function-shaped entry', async () => {
-    const { status, json } = await handleProcessProbe({ bytesBase64: validPngBase64 })
+function deps(storage: ProbeStorageClient) {
+  return { storage, bucket: 'private-probe', sourcePrefix: 'staging/', derivativePrefix: 'derivatives/' }
+}
+
+describe('P08 preview probe (staged object transport)', () => {
+  it('processes a staged object and writes a derivative back to Storage', async () => {
+    const storage = memoryStorage()
+    storage.objects.set('private-probe/staging/fixture.png', fixtureImagePng())
+    const { status, json } = await handleStagedProcessProbe({ path: 'staging/fixture.png' }, deps(storage))
     expect(status).toBe(200)
     expect(json).toMatchObject({ ok: true, sourceFormat: 'png', width: 256, height: 256 })
+    expect(json.ok && json.derivativePath).toBe('derivatives/fixture.png')
+    expect(storage.objects.has('private-probe/derivatives/fixture.png')).toBe(true)
+    // The request/response carry no image bytes.
+    expect(JSON.stringify(json).length).toBeLessThan(1000)
   })
 
-  it('returns typed failures instead of throwing', async () => {
-    const bad = await handleProcessProbe({ bytesBase64: Buffer.from('not an image').toString('base64') })
-    expect(bad.status).toBe(422)
-    expect(bad.json).toMatchObject({ ok: false, code: 'unsupported_type' })
-    const missing = await handleProcessProbe({})
-    expect(missing.status).toBe(400)
+  it('only reads objects under the configured prefix and never a client-chosen bucket', async () => {
+    const storage = memoryStorage()
+    storage.objects.set('private-probe/staging/fixture.png', fixtureImagePng())
+    for (const path of ['../secrets.png', '/staging/x.png', 'other/fixture.png', 'staging/../../x.png', 'staging\\x.png']) {
+      const result = await handleStagedProcessProbe({ path }, deps(storage))
+      expect(result.status, path).toBe(400)
+    }
   })
 
-  it('rejects request bodies beyond the documented function limit', async () => {
-    const oversized = 'A'.repeat(Math.ceil((PROBE_MAX_REQUEST_BYTES * 4) / 3) + 8)
-    const result = await handleProcessProbe({ bytesBase64: oversized })
+  it('returns typed failures for malformed requests and unreadable objects', async () => {
+    const storage = memoryStorage()
+    expect((await handleStagedProcessProbe({}, deps(storage))).status).toBe(400)
+    expect((await handleStagedProcessProbe({ path: 'staging/missing.png' }, deps(storage))).status).toBe(404)
+    storage.objects.set('private-probe/staging/text.png', new TextEncoder().encode('not an image'))
+    const unsupported = await handleStagedProcessProbe({ path: 'staging/text.png' }, deps(storage))
+    expect(unsupported.status).toBe(422)
+    expect(unsupported.json).toMatchObject({ ok: false, code: 'unsupported_type' })
+  })
+
+  it('caps request bodies at the reference-only limit', async () => {
+    const storage = memoryStorage()
+    const oversized = { path: 'staging/x.png', padding: 'A'.repeat(PROBE_MAX_REQUEST_BYTES) }
+    const result = await handleStagedProcessProbe(oversized, deps(storage))
     expect(result.status).toBe(413)
+  })
+
+  it('reports an upload failure instead of claiming success', async () => {
+    const storage = memoryStorage()
+    storage.objects.set('private-probe/staging/fixture.png', fixtureImagePng())
+    storage.upload = async () => {
+      throw new Error('bucket policy denied')
+    }
+    const result = await handleStagedProcessProbe({ path: 'staging/fixture.png' }, deps(storage))
+    expect(result.status).toBe(500)
+    expect(result.json).toMatchObject({ ok: false, code: 'upload_failed' })
   })
 
   it('round-trips bytes through an injected Storage client and verifies identity', async () => {

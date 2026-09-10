@@ -62,13 +62,25 @@ function localName(name: string): string {
 function parseNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value !== 'string') return undefined
-  const match = /^\s*([+-]?\d*\.?\d+)(px|pt|pc|in|cm|mm)?\s*$/.exec(value)
+  // SVG allows scientific notation; resvg understands it, so inspection must too.
+  const match = /^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(px|pt|pc|in|cm|mm)?\s*$/.exec(value)
   if (!match) return undefined
   const number = Number(match[1])
   if (!Number.isFinite(number) || number <= 0) return undefined
   const unit = match[2]
   const factor = unit === 'pt' ? 96 / 72 : unit === 'pc' ? 16 : unit === 'in' ? 96 : unit === 'cm' ? 96 / 2.54 : unit === 'mm' ? 96 / 25.4 : 1
   return number * factor
+}
+
+/** Explicit root width/height must be understood by us exactly as resvg will read them. */
+function resolveRootDimension(attributes: Record<string, string>, name: 'width' | 'height', fallback: number | undefined): number | undefined {
+  const explicit = attributes[name]
+  if (explicit === undefined) return fallback
+  const parsed = parseNumber(explicit)
+  if (parsed === undefined) {
+    throw new ProcessingError('unsupported_feature', `Unsupported SVG ${name} value: ${explicit}`)
+  }
+  return parsed
 }
 
 function attributesOf(node: XmlNode): Record<string, string> {
@@ -133,8 +145,8 @@ function walk(nodes: unknown[], depth: number, stats: { nodes: number; depth: nu
             stats.viewBox = { width: parts[2]!, height: parts[3]! }
           }
         }
-        stats.width = parseNumber(attributes.width) ?? stats.viewBox?.width
-        stats.height = parseNumber(attributes.height) ?? stats.viewBox?.height
+        stats.width = resolveRootDimension(attributes, 'width', stats.viewBox?.width)
+        stats.height = resolveRootDimension(attributes, 'height', stats.viewBox?.height)
       }
       const children = (node as XmlNode)[key]
       if (Array.isArray(children)) walk(children, depth + 1, stats)

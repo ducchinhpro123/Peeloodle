@@ -101,14 +101,27 @@ export class MemoryPresentationRepository implements PresentationRepository {
       }
       if (!record.bytes || record.bytes.length === 0) throw new PersistenceError('invalid_asset', `Media for ${record.assetId} is empty`)
       const existing = nextMedia.get(record.assetId)
-      if (existing && !bytesEqual(existing.bytes, record.bytes)) {
-        // Media is immutable document-local artwork; never let one presentation replace another's bytes.
-        throw new PersistenceError('invalid_asset', `Refusing to replace media ${record.assetId} with different bytes`)
+      if (existing) {
+        if (existing.mimeType !== record.mimeType) {
+          // Stored metadata is part of the immutable identity: identical-looking
+          // bytes may not be re-declared as another format.
+          throw new PersistenceError('invalid_asset', `Media ${record.assetId} is already stored as ${existing.mimeType}`)
+        }
+        if (!bytesEqual(existing.bytes, record.bytes)) {
+          // Media is immutable document-local artwork; never let one presentation replace another's bytes.
+          throw new PersistenceError('invalid_asset', `Refusing to replace media ${record.assetId} with different bytes`)
+        }
       }
       nextMedia.set(record.assetId, { ...record, bytes: record.bytes.slice() })
     }
     for (const asset of clean.assets) {
-      if (!nextMedia.has(asset.id)) throw new PersistenceError('missing_asset', `Presentation ${clean.id} references missing media ${asset.id}`)
+      const stored = nextMedia.get(asset.id)
+      if (!stored) throw new PersistenceError('missing_asset', `Presentation ${clean.id} references missing media ${asset.id}`)
+      if (stored.mimeType !== asset.mimeType) {
+        // Even a save that supplies no media must not leave the stored record
+        // describing a different type than the document declares.
+        throw new PersistenceError('invalid_asset', `Stored media ${asset.id} is ${stored.mimeType}, but the document declares ${asset.mimeType}`)
+      }
     }
     // Commit together so a failed save leaves the previous document intact.
     this.media = nextMedia

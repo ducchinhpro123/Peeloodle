@@ -91,6 +91,17 @@ function cloneElementWithNewId(element: Element): Element {
   return copy
 }
 
+/** Structural comparison so nested patches with equal content are not treated as changes. */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false
+  try {
+    return JSON.stringify(a) === JSON.stringify(b)
+  } catch {
+    return false
+  }
+}
+
 export const usePresentationStore = create<PresentationStoreState>()((set, get) => {
   /** Validates, bumps the revision and records one undo entry. Updaters return
    * `false` for a no-op so redo history and the revision are left untouched. */
@@ -261,10 +272,12 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     removeSlide(slideId) {
       const document = get().document
       if (!document || document.slides.length <= 1) return false
+      if (!document.slides.some((slide) => slide.id === slideId)) return false
       const remaining = document.slides.filter((slide) => slide.id !== slideId)
       const survivor = selectSurvivor(remaining, slideId)
       commit((draft) => {
         draft.slides = draft.slides.filter((slide) => slide.id !== slideId)
+        return true
       })
       if (get().view.activeSlideId === slideId) set({ view: { ...get().view, activeSlideId: survivor, selectedElementIds: [] } })
       return true
@@ -284,9 +297,12 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       const slide = activeSlide()
       if (!document || !slide) return null
       if (slide.elements.length >= PRESENTATION_LIMITS.maxElementsPerSlide) return null
+      if (slide.elements.some((candidate) => candidate.id === element.id)) return null
       commit((draft) => {
         const target = draft.slides.find((candidate) => candidate.id === slide.id)
-        target?.elements.push(structuredClone(element))
+        if (!target) return false
+        target.elements.push(structuredClone(element))
+        return true
       })
       set({ view: { ...get().view, selectedElementIds: [element.id] } })
       return element.id
@@ -299,8 +315,8 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         const target = element as unknown as Record<string, unknown>
         let changed = false
         for (const [key, value] of Object.entries(patch)) {
-          if (Object.is(target[key], value)) continue
-          target[key] = structuredClone(value)
+          if (sameValue(target[key], value as unknown)) continue
+          target[key] = structuredClone(value as unknown)
           changed = true
         }
         return changed

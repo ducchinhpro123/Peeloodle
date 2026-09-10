@@ -61,6 +61,27 @@ describe('presentation repository contract (memory)', () => {
     await expect(repo.savePresentation(document, [{ assetId: 'media-1', bytes: fixtureImagePng(), mimeType: 'image/webp' }])).rejects.toMatchObject({ code: 'invalid_asset' })
   })
 
+  it('refuses to re-declare stored media with another format even when bytes match', async () => {
+    const repo = createMemoryPresentationRepository()
+    const document = deckWithImage('deck-1', 'First', '2026-09-10T00:00:00.000Z')
+    await repo.savePresentation(document, [{ assetId: 'media-1', bytes: fixtureImagePng(), mimeType: 'image/png' }])
+    const redeclared = deckWithImage('deck-1', 'First', '2026-09-10T00:00:00.000Z')
+    redeclared.assets[0]!.mimeType = 'image/webp'
+    await expect(
+      repo.savePresentation(redeclared, [{ assetId: 'media-1', bytes: fixtureImagePng(), mimeType: 'image/webp' }]),
+    ).rejects.toMatchObject({ code: 'invalid_asset' })
+    expect((await repo.getMedia('media-1')).mimeType).toBe('image/png')
+  })
+
+  it('refuses a save with no media that changes the declared asset format', async () => {
+    const repo = createMemoryPresentationRepository()
+    await repo.savePresentation(deckWithImage('deck-1', 'First', '2026-09-10T00:00:00.000Z'), [{ assetId: 'media-1', bytes: fixtureImagePng(), mimeType: 'image/png' }])
+    const redeclared = deckWithImage('deck-1', 'First', '2026-09-10T00:00:00.000Z')
+    redeclared.assets[0]!.mimeType = 'image/webp'
+    await expect(repo.savePresentation(redeclared)).rejects.toMatchObject({ code: 'invalid_asset' })
+    expect((await repo.getPresentation('deck-1')).assets[0]!.mimeType).toBe('image/png')
+  })
+
   it('rejects documents that fail validation', async () => {
     const repo = createMemoryPresentationRepository()
     const invalid = deckWithImage('deck-1', 'First', '2026-09-10T00:00:00.000Z')

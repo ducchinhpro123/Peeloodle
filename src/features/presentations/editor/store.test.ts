@@ -217,6 +217,40 @@ describe('presentation command store', () => {
     expect(state().dirty).toBe(dirty)
   })
 
+  it('treats structurally identical nested patches as no-ops', () => {
+    const text = createTextElement({ id: 'text-keep', text: 'giữ nguyên' })
+    state().addElement(text)
+    const revision = state().document!.revision
+    const pastLength = state().past.length
+    const current = state().document!.slides[0]!.elements.find((element) => element.id === 'text-keep')!
+    if (current.kind !== 'text') throw new Error('expected text')
+    state().updateElement('text-keep', { paragraphs: structuredClone(current.paragraphs) })
+    state().updateElement('text-keep', { crop: undefined })
+    expect(state().document!.revision).toBe(revision)
+    expect(state().past).toHaveLength(pastLength)
+  })
+
+  it('removing an unknown slide is a no-op that preserves redo', () => {
+    state().addElement(createShapeElement({ id: 'x' }))
+    state().undo()
+    expect(state().future).toHaveLength(1)
+    const revision = state().document!.revision
+    const pastLength = state().past.length
+    expect(state().removeSlide('missing-slide')).toBe(false)
+    expect(state().document!.revision).toBe(revision)
+    expect(state().past).toHaveLength(pastLength)
+    expect(state().future).toHaveLength(1)
+  })
+
+  it('refuses to add an element with an id that already exists', () => {
+    state().addElement(createShapeElement({ id: 'dup' }))
+    const revision = state().document!.revision
+    const pastLength = state().past.length
+    expect(state().addElement(createShapeElement({ id: 'dup' }))).toBeNull()
+    expect(state().document!.revision).toBe(revision)
+    expect(state().past).toHaveLength(pastLength)
+  })
+
   it('keeps one history entry when a grouped update changes nothing on the last frame', () => {
     state().addElement(createShapeElement({ id: 'drag', x: 80 }))
     const before = state().past.length

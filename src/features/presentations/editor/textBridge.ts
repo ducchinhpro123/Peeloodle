@@ -238,8 +238,13 @@ export function readParagraphsFromDom(
 
   for (const node of root.childNodes) {
     if (node.nodeType === 3) {
-      const text = (node.textContent ?? '').trim()
-      if (text) collectRuns([node], style, options, inline)
+      const text = node.textContent ?? ''
+      if (!text) continue
+      if (text.trim() || inline.length > 0) {
+        // Whitespace joining inline content is meaningful (`<b>a</b> <i>b</i>`);
+        // whitespace between block elements is markup formatting and is ignored.
+        collectRuns([node], style, options, inline)
+      }
       continue
     }
     if (node.nodeType !== 1) continue

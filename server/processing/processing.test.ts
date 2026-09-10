@@ -148,6 +148,27 @@ describe('SVG processing', () => {
     expect(() => inspectSvg(new TextEncoder().encode(svg))).toThrow(ProcessingError)
   })
 
+  it('parses scientific notation consistently with the renderer', () => {
+    const oversized = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="1e5" viewBox="0 0 100 100"><rect width="10" height="10"/></svg>'
+    expect(() => inspectSvg(new TextEncoder().encode(oversized))).toThrowError(expect.objectContaining({ code: 'dimension_too_large' }))
+    const allowed = '<svg xmlns="http://www.w3.org/2000/svg" width="1e2" height="80"><rect width="10" height="10"/></svg>'
+    expect(inspectSvg(new TextEncoder().encode(allowed))).toMatchObject({ width: 100, height: 80 })
+  })
+
+  it('rejects explicit dimensions it cannot interpret instead of falling back to the viewBox', () => {
+    for (const attribute of ['width="100%" height="80"', 'width="0x10" height="80"', 'width="10em" height="80"', 'width="calc(100px)" height="80"']) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" ${attribute} viewBox="0 0 100 100"><rect width="10" height="10"/></svg>`
+      expect(() => inspectSvg(new TextEncoder().encode(svg)), attribute).toThrowError(expect.objectContaining({ code: 'unsupported_feature' }))
+    }
+  })
+
+  it('converts absolute units and rejects values beyond the render limit', () => {
+    const inches = '<svg xmlns="http://www.w3.org/2000/svg" width="2in" height="1in"><rect width="1" height="1"/></svg>'
+    expect(inspectSvg(new TextEncoder().encode(inches))).toMatchObject({ width: 192, height: 96 })
+    const huge = '<svg xmlns="http://www.w3.org/2000/svg" width="5000px" height="80"><rect width="1" height="1"/></svg>'
+    expect(() => inspectSvg(new TextEncoder().encode(huge))).toThrowError(expect.objectContaining({ code: 'dimension_too_large' }))
+  })
+
   it('rejects nested SVG that would shrink the recorded root bounds', () => {
     const svg =
       '<svg xmlns="http://www.w3.org/2000/svg" width="100000" height="100000"><svg width="100" height="100"><rect width="10" height="10"/></svg></svg>'

@@ -121,6 +121,39 @@ describe('presentation backup archive', () => {
     await expect(parseBackupArchive(rezip(files), { parseDocument })).rejects.toMatchObject({ code: 'invalid_media' })
   })
 
+  it('rejects truncated and spoofed media even when checksums are recomputed', async () => {
+    const tamperWithMedia = async (media: Uint8Array) => {
+      const files = decode(await createBackupArchive(createFixturePresentation(), fixtureMedia()))
+      const manifest = JSON.parse(new TextDecoder().decode(files['manifest.json']!))
+      const entry = manifest.entries.find((candidate: { kind: string }) => candidate.kind === 'media')
+      files[entry.path] = media
+      entry.bytes = media.length
+      entry.sha256 = await sha256Hex(media)
+      files['manifest.json'] = new TextEncoder().encode(JSON.stringify(manifest))
+      return rezip(files)
+    }
+    // Truncated PNG: valid signature and IHDR, no image data or trailer.
+    await expect(parseBackupArchive(await tamperWithMedia(fixtureImagePng().slice(0, 33)), { parseDocument })).rejects.toMatchObject({ code: 'invalid_media' })
+    // JPEG signature only.
+    await expect(parseBackupArchive(await tamperWithMedia(new Uint8Array([0xff, 0xd8, 0xff])), { parseDocument })).rejects.toMatchObject({ code: 'invalid_media' })
+    // Valid PNG structure with a corrupted chunk checksum.
+    const corrupted = fixtureImagePng().slice()
+    corrupted[60] = corrupted[60]! ^ 0xff
+    await expect(parseBackupArchive(await tamperWithMedia(corrupted), { parseDocument })).rejects.toMatchObject({ code: 'invalid_media' })
+  })
+
+  it('surfaces an injected media verifier failure as invalid_media', async () => {
+    const bytes = await createBackupArchive(createFixturePresentation(), fixtureMedia())
+    await expect(
+      parseBackupArchive(bytes, {
+        parseDocument,
+        verifyMedia: async () => {
+          throw new Error('decoder exploded')
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'invalid_media' })
+  })
+
   it('rejects media whose dimensions disagree with the document asset', async () => {
     const files = decode(await createBackupArchive(createFixturePresentation(), fixtureMedia()))
     const manifest = JSON.parse(new TextDecoder().decode(files['manifest.json']!))

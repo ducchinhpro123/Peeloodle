@@ -118,3 +118,79 @@ npm test            # PASS — see milestone handoff for the count
 npm run build       # PASS
 npx playwright test e2e/proofs --workers=1   # PASS (both proofs with real parser)
 ```
+
+---
+
+# Second correction pass (after review of 4977a4d..8c29638)
+
+All findings were reproduced as failing tests before the fix.
+
+## 1. Media metadata could still change across presentations (Medium)
+
+- **Defect**: identical bytes re-declared with another MIME replaced the stored
+  record, and a save supplying no media could leave stored metadata disagreeing
+  with the document.
+- **Fix** (`repository.ts`): stored media metadata is now part of the immutable
+  identity — a differing stored MIME is rejected, and the completeness check
+  compares the stored MIME with every document asset even when no new media is
+  submitted.
+- **Tests**: "refuses to re-declare stored media with another format even when
+  bytes match", "refuses a save with no media that changes the declared asset
+  format".
+
+## 2. Remaining no-op commands (Medium)
+
+- **Defects**: `updateElement` used `Object.is` for nested patches (equal
+  paragraphs compared as changed), and `removeSlide` committed for an unknown id.
+- **Fix** (`store.ts`): structural `sameValue` comparison for patches, an
+  existence check before removing a slide, and a duplicate-id guard when adding
+  an element.
+- **Tests**: "treats structurally identical nested patches as no-ops",
+  "removing an unknown slide is a no-op that preserves redo", "refuses to add an
+  element with an id that already exists".
+
+## 3. SVG dimensions disagreed with the renderer (High)
+
+- **Defect**: `height="1e5"` was unparseable by inspection and silently fell back
+  to the viewBox, while resvg understood exponent notation.
+- **Fix** (`server/processing/svg.ts`): one number parser with scientific
+  notation and absolute units; explicit root width/height that cannot be
+  interpreted are rejected (`unsupported_feature`) instead of falling back.
+- **Tests**: scientific-notation parity, percentage/garbage rejection, unit
+  conversion and over-limit rejection.
+
+## 4. Backup accepted undecodable media (Medium)
+
+- **Defect**: truncated PNGs and a three-byte JPEG signature passed header-only
+  checks.
+- **Fix**: `src/lib/imageFormat.ts` gained `inspectImageBytes` (PNG chunk walk
+  with CRC-32 verification, WebP container/animation checks, JPEG SOF + EOI
+  checks) and the backup parser gained a pluggable `MediaVerifier` that performs
+  a real `createImageBitmap` decode in browsers and structural validation
+  elsewhere, enforcing format, dimensions and the 25 MP limit before commit.
+- **Tests**: new `imageFormat.test.ts` (7 cases) plus three backup tampering
+  cases (truncated PNG, JPEG signature, corrupted chunk CRC) and an injected
+  verifier failure.
+
+## 5. Paste dropped the space between inline elements (Medium)
+
+- **Defect**: the whitespace-only text node between `<b>` and `<i>` was trimmed
+  away, producing `bolditalic`.
+- **Fix** (`textBridge.ts`): whitespace-only top-level nodes are kept when they
+  join inline content and ignored between block elements.
+- **Tests**: full-text assertions (`bold italic`, `one two three four`) alongside
+  the run-style assertions.
+
+## 6. P08 harness did not exercise the real transport (Medium) and its body cap
+was wrong (Low)
+
+- **Defect**: the probe received base64 image bytes in the function body, so it
+  proved the opposite of the required transport; the cap calculation also allowed
+  ~6 MB of base64.
+- **Fix** (`server/processing/probe.ts`): `handleStagedProcessProbe` accepts only
+  `{ path }`, resolves bucket/prefix from server env, downloads the staged
+  object, processes it, and writes the PNG derivative back to Storage. Request
+  bodies are measured JSON references capped at 64 KB.
+- **Tests**: staged success with derivative written, prefix/traversal/bucket
+  isolation, typed 404/422/413 failures, upload-failure reporting, plus the
+  existing round-trip and env tests (8 cases).

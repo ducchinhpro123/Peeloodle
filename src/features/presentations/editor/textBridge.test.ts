@@ -113,14 +113,21 @@ describe('text bridge', () => {
     expect(paragraphsToPlainText(read)).toBe('one\ntwo')
   })
 
-  it('keeps bold and italic separate across adjacent inline tags', () => {
+  it('keeps bold and italic separate across adjacent inline tags and preserves the space between them', () => {
     for (const html of ['<p><b>bold</b> <i>italic</i></p>', '<b>bold</b> <i>italic</i>']) {
       const paragraphs = htmlToParagraphs(html, defaults)
+      // The full text matters: dropping the whitespace-only node produced "bolditalic".
+      expect(paragraphsToPlainText(paragraphs).trim(), html).toBe('bold italic')
       const runs = paragraphs.flatMap((paragraph) => paragraph.runs)
       expect(runs.find((run) => run.text.trim() === 'bold')?.bold, html).toBe(true)
       expect(runs.find((run) => run.text.trim() === 'italic')?.italic, html).toBe(true)
       expect(runs.find((run) => run.text.trim() === 'bold')?.italic ?? false, html).toBe(false)
     }
+  })
+
+  it('keeps spaces between inline elements in block paragraphs', () => {
+    const paragraphs = htmlToParagraphs('<p>one <b>two</b> <i>three</i> four</p>', defaults)
+    expect(paragraphsToPlainText(paragraphs)).toBe('one two three four')
   })
 
   it('indents bullet levels in generated HTML to match the layout service', () => {

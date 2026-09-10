@@ -10,8 +10,8 @@
  */
 
 import { unzipSync, zipSync } from 'fflate'
-import { pngDimensions, sniffImageFormat, webpDimensions } from '../../../lib/imageFormat'
-import type { PresentationDocument } from '../model/types'
+import { inspectImageBytes } from '../../../lib/imageFormat'
+import type { PresentationAsset, PresentationDocument } from '../model/types'
 
 export const BACKUP_FORMAT = 'stickerlab-presentation-backup'
 export const BACKUP_VERSION = 1
@@ -144,9 +144,43 @@ export async function createBackupArchive(
 
 export type ParsedBackup = { document: PresentationDocument; media: BackupMedia; manifest: BackupManifest }
 
+/** Decodes or structurally verifies media before a restore commits. */
+export type MediaVerifier = (bytes: Uint8Array, mimeType: PresentationAsset['mimeType']) => Promise<{ width: number; height: number }>
+
+/** Structural verifier: no pixel decode, but rejects truncated/spoofed files. */
+export const structuralMediaVerifier: MediaVerifier = async (bytes, mimeType) => {
+  const inspection = inspectImageBytes(bytes)
+  if (!inspection || inspection.format !== mimeType) throw new BackupError('invalid_media', 'Media is not a decodable static image')
+  return { width: inspection.width, height: inspection.height }
+}
+
+/**
+ * Browser verifier: a real decode when the platform supports it, falling back
+ * to structural validation in Node/tests. EXIF orientation is requested the
+ * same way upload validation does, so dimensions match document metadata.
+ */
+export const browserMediaVerifier: MediaVerifier = async (bytes, mimeType) => {
+  if (typeof createImageBitmap !== 'function') return structuralMediaVerifier(bytes, mimeType)
+  let bitmap: ImageBitmap
+  try {
+    bitmap = await createImageBitmap(new Blob([bytes], { type: mimeType }), { imageOrientation: 'from-image' }).catch(() =>
+      createImageBitmap(new Blob([bytes], { type: mimeType })),
+    )
+  } catch {
+    throw new BackupError('invalid_media', 'Media could not be decoded')
+  }
+  try {
+    return { width: bitmap.width, height: bitmap.height }
+  } finally {
+    bitmap.close()
+  }
+}
+
 export type ParseBackupOptions = {
   parseDocument: (value: unknown) => PresentationDocument
   hash?: HashFn
+  /** Override for tests or a Node restore path with a full decoder. */
+  verifyMedia?: MediaVerifier
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -275,28 +309,35 @@ export async function parseBackupArchive(bytes: Uint8Array, options: ParseBackup
     throw new BackupError('invalid_document', cause instanceof Error ? cause.message : 'Backup document is invalid')
   }
 
-  // Media must correspond to a document asset, be the declared type and match
-  // the declared dimensions (for formats we can verify without decoding).
+  // Media must correspond to a document asset, be the declared type and decode
+  // to the declared dimensions (pixel decode in browsers, structural
+  // validation with CRC/shape checks elsewhere).
+  const verifyMedia = options.verifyMedia ?? browserMediaVerifier
   const assetsById = new Map(document.assets.map((asset) => [asset.id, asset]))
   for (const [assetId, file] of media) {
     const asset = assetsById.get(assetId)
     if (!asset) throw new BackupError('invalid_media', `Backup contains media for unknown asset ${assetId}`)
-    const sniffed = sniffImageFormat(file)
-    if (sniffed !== asset.mimeType) throw new BackupError('invalid_media', `Media for ${assetId} is not a ${asset.mimeType}`)
-    if (asset.mimeType === 'image/png') {
-      const dimensions = pngDimensions(file)
-      if (!dimensions) throw new BackupError('invalid_media', `Media for ${assetId} is not a valid PNG`)
-      if (dimensions.width !== asset.width || dimensions.height !== asset.height) {
-        throw new BackupError('invalid_media', `Media for ${assetId} is ${dimensions.width}×${dimensions.height}, expected ${asset.width}×${asset.height}`)
-      }
-    } else if (asset.mimeType === 'image/webp') {
-      const dimensions = webpDimensions(file)
-      if (!dimensions) throw new BackupError('invalid_media', `Media for ${assetId} is not a valid WebP`)
-      if (dimensions.width !== asset.width || dimensions.height !== asset.height) {
-        throw new BackupError('invalid_media', `Media for ${assetId} is ${dimensions.width}×${dimensions.height}, expected ${asset.width}×${asset.height}`)
-      }
+    let dimensions: { width: number; height: number }
+    try {
+      dimensions = await verifyMedia(file, asset.mimeType)
+    } catch (error) {
+      if (error instanceof BackupError) throw error
+      throw new BackupError('invalid_media', error instanceof Error ? error.message : `Media for ${assetId} could not be decoded`)
     }
-    // JPEG dimensions are not compared: EXIF orientation can legitimately swap them.
+    if (
+      !Number.isFinite(dimensions.width) ||
+      !Number.isFinite(dimensions.height) ||
+      dimensions.width <= 0 ||
+      dimensions.height <= 0 ||
+      dimensions.width > 20_000 ||
+      dimensions.height > 20_000 ||
+      dimensions.width * dimensions.height > BACKUP_LIMITS.maxMediaPixels
+    ) {
+      throw new BackupError('invalid_media', `Media for ${assetId} has unsupported dimensions`)
+    }
+    if (dimensions.width !== asset.width || dimensions.height !== asset.height) {
+      throw new BackupError('invalid_media', `Media for ${assetId} is ${dimensions.width}×${dimensions.height}, expected ${asset.width}×${asset.height}`)
+    }
   }
 
   for (const asset of document.assets) {
