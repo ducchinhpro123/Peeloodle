@@ -35,3 +35,10 @@ A portable copy of a presentation and its required artwork that can be restored 
 
 **Personal sticker snapshot**:
 A copy of a saved sticker's appearance inserted into a presentation as one image. Changes to the source sticker do not change the snapshot.
+
+## Implementation status
+
+Presentation work is in progress. The current increment, the next tasks (P15–P16)
+and the verification commands are in [`HANDOFF.md`](HANDOFF.md). Planning lives in
+`docs/` (architecture, implementation plan, ADRs); evidence lives in `proofs/`.
+

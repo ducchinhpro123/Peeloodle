@@ -4,7 +4,8 @@
 recorded evidence under `proofs/`; P08 is blocked pending an authorized preview deployment (see
 `proofs/p08-deployment-blocked.md`). Milestone 1 foundation (P09–P14) is implemented with unit
 contract tests (the IndexedDB adapter is recorded in `proofs/p13-p14-idb.md`); P15 onward is not
-started. Review-driven corrections are recorded in `proofs/correction-pass.md`.
+started. Review-driven corrections are recorded in `proofs/correction-pass.md`. Start the next
+session from [`HANDOFF.md`](../HANDOFF.md).
 
 This plan is designed for one developer working in small increments. Product scope came from the [planning interview](slides-planning.md); technical contracts are in [the architecture](slides-architecture.md).
 
