@@ -92,13 +92,15 @@ function cloneElementWithNewId(element: Element): Element {
 }
 
 export const usePresentationStore = create<PresentationStoreState>()((set, get) => {
-  /** Validates, bumps the revision and records one undo entry. */
-  const commit = (updater: (draft: PresentationDocument) => PresentationDocument | void, options: { historyGroup?: string } = {}): void => {
+  /** Validates, bumps the revision and records one undo entry. Updaters return
+   * `false` for a no-op so redo history and the revision are left untouched. */
+  const commit = (updater: (draft: PresentationDocument) => boolean | void, options: { historyGroup?: string } = {}): void => {
     const current = get().document
     if (!current) return
     const draft = structuredClone(current)
-    const result = updater(draft) ?? draft
-    const next = serializePresentationDocument(withRevision(current, result))
+    const changed = updater(draft)
+    if (changed === false) return
+    const next = serializePresentationDocument(withRevision(current, draft))
     const group = options.historyGroup
     const merge = group !== undefined && group === get().lastHistoryGroup
     let past = get().past
@@ -238,18 +240,21 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       if (!trimmed) return
       commit((draft) => {
         const slide = draft.slides.find((candidate) => candidate.id === slideId)
-        if (slide) slide.name = trimmed.slice(0, 200)
+        if (!slide || slide.name === trimmed) return false
+        slide.name = trimmed.slice(0, 200)
+        return true
       })
     },
 
     reorderSlide(slideId, targetIndex) {
       commit((draft) => {
         const index = draft.slides.findIndex((slide) => slide.id === slideId)
-        if (index === -1) return
+        if (index === -1) return false
         const clamped = Math.max(0, Math.min(targetIndex, draft.slides.length - 1))
-        if (clamped === index) return
+        if (clamped === index) return false
         const [slide] = draft.slides.splice(index, 1)
         draft.slides.splice(clamped, 0, slide!)
+        return true
       })
     },
 
@@ -268,7 +273,9 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     setSlideBackground(slideId, background) {
       commit((draft) => {
         const slide = draft.slides.find((candidate) => candidate.id === slideId)
-        if (slide) slide.background = background
+        if (!slide || slide.background === background) return false
+        slide.background = background
+        return true
       })
     },
 
@@ -288,8 +295,15 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     updateElement(elementId, patch, options) {
       commit((draft) => {
         const element = draft.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
-        if (!element) return
-        Object.assign(element, structuredClone(patch))
+        if (!element) return false
+        const target = element as unknown as Record<string, unknown>
+        let changed = false
+        for (const [key, value] of Object.entries(patch)) {
+          if (Object.is(target[key], value)) continue
+          target[key] = structuredClone(value)
+          changed = true
+        }
+        return changed
       }, options)
     },
 
@@ -303,7 +317,13 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
 
     removeElement(elementId) {
       commit((draft) => {
-        for (const slide of draft.slides) slide.elements = slide.elements.filter((element) => element.id !== elementId)
+        let removed = false
+        for (const slide of draft.slides) {
+          const before = slide.elements.length
+          slide.elements = slide.elements.filter((element) => element.id !== elementId)
+          if (slide.elements.length !== before) removed = true
+        }
+        return removed
       })
       set({ view: { ...get().view, selectedElementIds: get().view.selectedElementIds.filter((id) => id !== elementId) } })
     },
@@ -311,39 +331,49 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     reorderElement(elementId, targetIndex) {
       commit((draft) => {
         const slide = draft.slides.find((candidate) => candidate.elements.some((element) => element.id === elementId))
-        if (!slide) return
+        if (!slide) return false
         const index = slide.elements.findIndex((element) => element.id === elementId)
         const clamped = Math.max(0, Math.min(targetIndex, slide.elements.length - 1))
-        if (index === clamped) return
+        if (index === clamped) return false
         const [element] = slide.elements.splice(index, 1)
         slide.elements.splice(clamped, 0, element!)
+        return true
       })
     },
 
     toggleElementLocked(elementId) {
       commit((draft) => {
         const element = draft.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
-        if (element) element.locked = !element.locked
+        if (!element) return false
+        element.locked = !element.locked
+        return true
       })
     },
 
     toggleElementVisible(elementId) {
       commit((draft) => {
         const element = draft.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
-        if (element) element.visible = !element.visible
+        if (!element) return false
+        element.visible = !element.visible
+        return true
       })
     },
 
     updateText(elementId, paragraphs, options) {
       commit((draft) => {
         const element = draft.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
-        if (element?.kind === 'text') element.paragraphs = structuredClone(paragraphs)
+        if (element?.kind !== 'text') return false
+        if (JSON.stringify(element.paragraphs) === JSON.stringify(paragraphs)) return false
+        element.paragraphs = structuredClone(paragraphs)
+        return true
       }, options)
     },
 
     setTheme(theme) {
       commit((draft) => {
+        if (JSON.stringify(draft.theme) === JSON.stringify(theme)) return false
         draft.theme = structuredClone(theme)
+        return true
       })
     },
 

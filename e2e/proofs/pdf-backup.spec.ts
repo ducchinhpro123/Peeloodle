@@ -27,6 +27,7 @@ test('P06: fixture renders to a 2-page PDF and a verifiable backup', async ({ pa
     const fixture: any = await import('/src/features/presentations/model/fixtures/fixture.ts')
     const pdfModule: any = await import('/src/features/presentations/exports/pdf.ts')
     const backupModule: any = await import('/src/features/presentations/exports/backup.ts')
+    const parseModule: any = await import('/src/features/presentations/model/parse.ts')
     const Konva = konvaModule.Konva
 
     await fonts.ensurePresentationFonts()
@@ -146,7 +147,7 @@ test('P06: fixture renders to a 2-page PDF and a verifiable backup', async ({ pa
 
     const pdfBytes = await pdfModule.buildRasterPdf(pngPages)
     const backupBytes = await backupModule.createBackupArchive(documentModel, new Map([['fixture-asset-transparent', pngBytes]]))
-    const parsed = await backupModule.parseBackupArchive(backupBytes, { parseDocument: (value: unknown) => value })
+    const parsed = await backupModule.parseBackupArchive(backupBytes, { parseDocument: parseModule.parsePresentationDocument })
 
     const toBase64 = (bytes: Uint8Array) => {
       let binary = ''

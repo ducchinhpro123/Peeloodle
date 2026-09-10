@@ -55,15 +55,17 @@ manifest.json                 897
 - Restore in the browser proof reproduced the document JSON and the exact media
   bytes (`p06-report.json`: `restoredSlideCount: 2`).
 
-## Bounded parser checks (unit tests, 11 cases)
+## Bounded parser checks (unit tests, 17 cases)
 
 `src/features/presentations/exports/backup.test.ts` covers: fixture round trip;
 archive containing only manifest/document/media; missing media refused at write
 time; checksum mismatch; future backup version; path traversal; nested archive;
 per-file media size limit; missing/malformed manifest; injected document-parser
-failure; and the dedicated `BackupError` type. Limits are centralized in
-`BACKUP_LIMITS` (250 MB archive, 300 MB expanded, 5000 entries, 15 MB media,
-25 MP decode).
+failure; the dedicated `BackupError` type; and the correction-pass guarantees:
+the manifest must describe `document.json` exactly once, every extracted entry
+must be covered by the manifest, media must match the document asset/MIME and
+carry valid magic bytes, and PNG/WebP dimensions must agree with the document
+metadata even when an attacker recomputes the manifest checksum.
 
 Remaining for P42: ID remapping on restore, duplicate-path archives crafted
 outside fflate's writer, per-image pixel decode checks, and the restore UI.

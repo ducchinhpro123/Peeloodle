@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BRIDGE_ATTR, htmlToParagraphs, paragraphsToHtml, paragraphsToPlainText, plainTextToParagraphs, readParagraphsFromDom, runCss, safeLink } from './textBridge'
+import { BULLET_HANGING, BULLET_INDENT_PER_LEVEL } from '../rendering/textLayout'
 import { createFixturePresentation } from '../model/fixtures/fixture'
 import type { TextParagraph } from '../model/types'
 
@@ -105,11 +106,42 @@ describe('text bridge', () => {
       { runs: [{ text: 'one', fontId: 'be-vietnam-pro', size: 24, color: '#08152f' }], alignment: 'left', bullet: 'number', bulletLevel: 0 },
       { runs: [{ text: 'two', fontId: 'be-vietnam-pro', size: 24, color: '#08152f' }], alignment: 'left', bullet: 'number', bulletLevel: 0 },
     ])
-    expect(html).toContain('>1.&nbsp;</span>')
-    expect(html).toContain('>2.&nbsp;</span>')
+    expect(html).toContain('>1.</span>')
+    expect(html).toContain('>2.</span>')
     // Markers must not be read back as document text.
     const read = readHtml(html)
     expect(paragraphsToPlainText(read)).toBe('one\ntwo')
+  })
+
+  it('keeps bold and italic separate across adjacent inline tags', () => {
+    for (const html of ['<p><b>bold</b> <i>italic</i></p>', '<b>bold</b> <i>italic</i>']) {
+      const paragraphs = htmlToParagraphs(html, defaults)
+      const runs = paragraphs.flatMap((paragraph) => paragraph.runs)
+      expect(runs.find((run) => run.text.trim() === 'bold')?.bold, html).toBe(true)
+      expect(runs.find((run) => run.text.trim() === 'italic')?.italic, html).toBe(true)
+      expect(runs.find((run) => run.text.trim() === 'bold')?.italic ?? false, html).toBe(false)
+    }
+  })
+
+  it('indents bullet levels in generated HTML to match the layout service', () => {
+    const html = paragraphsToHtml([
+      { runs: [{ text: 'first', fontId: 'be-vietnam-pro', size: 24, color: '#08152f' }], alignment: 'left', bullet: 'bullet', bulletLevel: 0 },
+      { runs: [{ text: 'nested', fontId: 'be-vietnam-pro', size: 24, color: '#08152f' }], alignment: 'left', bullet: 'bullet', bulletLevel: 2 },
+    ])
+    const template = document.createElement('template')
+    template.innerHTML = html
+    const paragraphs = [...template.content.querySelectorAll('p')]
+    expect(paragraphs[0]!.style.paddingLeft).toBe(`${BULLET_HANGING}px`)
+    expect(paragraphs[0]!.style.textIndent).toBe(`-${BULLET_HANGING}px`)
+    const nestedIndent = 2 * BULLET_INDENT_PER_LEVEL + BULLET_HANGING
+    expect(paragraphs[1]!.style.paddingLeft).toBe(`${nestedIndent}px`)
+    expect(paragraphs[1]!.style.textIndent).toBe(`-${BULLET_HANGING}px`)
+    // Marker boxes occupy the hanging width so text starts at the layout indent.
+    const marker = paragraphs[1]!.querySelector(`[${BRIDGE_ATTR.marker}]`) as HTMLElement
+    expect(marker.style.width).toBe(`${BULLET_HANGING}px`)
+    // Round trip keeps the bullet level.
+    const read = readHtml(html)
+    expect(read.map((paragraph) => paragraph.bulletLevel)).toEqual([0, 2])
   })
 
   it('only accepts safe hyperlink schemes', () => {

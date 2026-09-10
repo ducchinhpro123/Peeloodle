@@ -19,7 +19,15 @@ export type RasterInspection = {
   height: number
 }
 
-export type NormalizedRaster = RasterInspection & {
+export type NormalizedRaster = {
+  /** Source format, for provenance. */
+  format: RasterFormat
+  /** Source pixel dimensions (pre-resize). */
+  sourceWidth: number
+  sourceHeight: number
+  /** Actual stored PNG derivative dimensions (what catalog/placement metadata must use). */
+  width: number
+  height: number
   /** Normalized PNG derivative (alpha preserved, metadata stripped). */
   png: Uint8Array
   /** Bounded WebP thumbnail for lists and previews. */
@@ -81,12 +89,20 @@ export async function normalizeRaster(bytes: Uint8Array): Promise<NormalizedRast
     fit: 'inside',
     withoutEnlargement: true,
   })
-  const png = await pipeline.clone().png({ compressionLevel: 9 }).toBuffer()
-  const thumbnail = await pipeline
+  const pngResult = await pipeline.clone().png({ compressionLevel: 9 }).toBuffer({ resolveWithObject: true })
+  const thumbnailResult = await pipeline
     .clone()
     .resize({ width: limits.thumbnailEdge, height: limits.thumbnailEdge, fit: 'inside', withoutEnlargement: true })
     .webp({ quality: 80 })
-    .toBuffer()
+    .toBuffer({ resolveWithObject: true })
 
-  return { format: header.format, width, height, png: new Uint8Array(png), thumbnail: new Uint8Array(thumbnail) }
+  return {
+    format: header.format,
+    sourceWidth: width,
+    sourceHeight: height,
+    width: pngResult.info.width,
+    height: pngResult.info.height,
+    png: new Uint8Array(pngResult.data),
+    thumbnail: new Uint8Array(thumbnailResult.data),
+  }
 }

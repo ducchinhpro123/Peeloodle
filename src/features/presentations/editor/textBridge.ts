@@ -10,6 +10,7 @@
 import type { BulletLevel, ParagraphAlignment, TextParagraph, TextRun } from '../model/types'
 import { safeLink } from '../model/links'
 import { fontStackFor, isKnownFontId } from '../rendering/fonts'
+import { BULLET_HANGING, BULLET_INDENT_PER_LEVEL } from '../rendering/textLayout'
 
 export type BridgeDefaults = { fontId: string; size: number; color: string }
 
@@ -90,14 +91,16 @@ export function paragraphsToHtml(paragraphs: TextParagraph[], options: Paragraph
         numbers.clear()
       }
       const bulletAttr = paragraph.bullet === 'none' ? '' : ` ${BRIDGE_ATTR.bullet}="${paragraph.bullet}" ${BRIDGE_ATTR.level}="${paragraph.bulletLevel}"`
-      const marker =
-        markerText === ''
-          ? ''
-          : `<span ${BRIDGE_ATTR.marker}="true" contenteditable="false" style="user-select:none">${markerText}&nbsp;</span>`
+      const markerX = paragraph.bulletLevel * BULLET_INDENT_PER_LEVEL
+      const indent = paragraph.bullet === 'none' ? 0 : markerX + BULLET_HANGING
+      const marker = markerText === '' ? '' : `<span ${BRIDGE_ATTR.marker}="true" contenteditable="false" style="user-select:none;display:inline-block;width:${BULLET_HANGING * scale}px">${markerText}</span>`
       const runs = paragraph.runs
         .map((run) => `<span ${runStyleAttributes(run)} style="${runCss(run, scale)}">${escapeHtml(run.text).replace(/\n/g, '<br>')}</span>`)
         .join('')
-      return `<p ${BRIDGE_ATTR.paragraph}="${index}" ${BRIDGE_ATTR.align}="${paragraph.alignment}"${bulletAttr} style="margin:0;text-align:${paragraph.alignment};${options.lineHeight ? `line-height:${options.lineHeight};` : ''}">${marker}${runs}</p>`
+      // Hanging indent mirrors the layout service: first line starts at the marker
+      // x, wrapping and the text itself align to the paragraph indent.
+      const indentStyle = indent > 0 ? `padding-left:${indent * scale}px;text-indent:-${BULLET_HANGING * scale}px;` : ''
+      return `<p ${BRIDGE_ATTR.paragraph}="${index}" ${BRIDGE_ATTR.align}="${paragraph.alignment}"${bulletAttr} style="margin:0;text-align:${paragraph.alignment};${indentStyle}${options.lineHeight ? `line-height:${options.lineHeight};` : ''}">${marker}${runs}</p>`
     })
     .join('')
 }
@@ -129,9 +132,7 @@ function sameRunStyle(a: { fontId: string; size: number; color: string; bold?: b
   return a.fontId === b.fontId && a.size === b.size && a.color === b.color && !!a.bold === !!b.bold && !!a.italic === !!b.italic && a.link === b.link
 }
 
-function runsFromContainer(container: Element | DocumentFragment, defaults: StyleState, options: { collapseWhitespace?: boolean } = {}): TextRun[] {
-  const runs: TextRun[] = []
-
+function collectRuns(nodes: Iterable<Node>, defaults: StyleState, options: { collapseWhitespace?: boolean }, runs: TextRun[]): void {
   const pushText = (text: string, style: StyleState) => {
     const normalized = text.replace(/\u00a0/g, ' ').replace(/\u200b/g, '').replace(/\r\n?/g, '\n')
     if (!normalized) return
@@ -182,7 +183,12 @@ function runsFromContainer(container: Element | DocumentFragment, defaults: Styl
     for (const child of element.childNodes) walk(child, next)
   }
 
-  for (const child of container.childNodes) walk(child, defaults)
+  for (const child of nodes) walk(child, defaults)
+}
+
+function runsFromContainer(container: Element | DocumentFragment, defaults: StyleState, options: { collapseWhitespace?: boolean } = {}): TextRun[] {
+  const runs: TextRun[] = []
+  collectRuns(container.childNodes, defaults, options, runs)
   return runs
 }
 
@@ -233,7 +239,7 @@ export function readParagraphsFromDom(
   for (const node of root.childNodes) {
     if (node.nodeType === 3) {
       const text = (node.textContent ?? '').trim()
-      if (text) inline.push(...runsFromContainerOfText(node, style, options))
+      if (text) collectRuns([node], style, options, inline)
       continue
     }
     if (node.nodeType !== 1) continue
@@ -253,17 +259,12 @@ export function readParagraphsFromDom(
       paragraphs.push(paragraphFromElement(element, style, options))
       continue
     }
-    // Unknown wrappers (tables, spans, fonts) contribute inline text.
-    inline.push(...runsFromContainer(element, style, options))
+    // Unknown wrappers (tables, spans, fonts) and inline elements contribute inline
+    // text; collectRuns applies the element's own bold/italic/link styling.
+    collectRuns([element], style, options, inline)
   }
   flushInline()
   return paragraphs.length ? paragraphs : [{ runs: [], alignment: 'left', bullet: 'none', bulletLevel: 0 }]
-}
-
-function runsFromContainerOfText(node: Node, style: StyleState, options: { collapseWhitespace?: boolean }): TextRun[] {
-  const holder = document.createElement('span')
-  holder.appendChild(node.cloneNode(true))
-  return runsFromContainer(holder, style, options)
 }
 
 /**

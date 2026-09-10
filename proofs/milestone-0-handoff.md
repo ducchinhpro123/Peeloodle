@@ -38,9 +38,11 @@ Evidence artifacts: `proofs/baseline.md`, `p05-fonts.md`, `p06-pdf-backup.md`,
    bullets, numbered lists with explicit start values, external hyperlink,
    native shapes and separately stored images; 1280×720 → 13⅓×7.5 in.
    Opened and rendered in LibreOffice 26.8.0.3.
-2. **Rich text** (P04): shared layout and DOM line boxes agree within 0.1 px on
-   the fixture; Konva widths match exactly; Vietnamese IME composition and
-   paste normalization verified in Chromium.
+2. **Rich text** (P04): shared layout and DOM line boxes agree within 0.02 px on
+   the title and a dense 4-line bullets element (nested level included); Konva
+   widths match exactly; a real caret, typed insertion and IME commit
+   accounting are exercised in Chromium; paste keeps adjacent bold/italic and
+   drops `javascript:` links.
 3. **Fonts** (P05): Be Vietnam Pro + Spectral, static regular/bold/italic,
    full Vietnamese coverage, upstream hashes verified, OFL licenses bundled.
 4. **PDF/backup** (P06): real 2-page 960×540 pt PDF from rendered slides;
@@ -62,6 +64,11 @@ Evidence artifacts: `proofs/baseline.md`, `p05-fonts.md`, `p06-pdf-backup.md`,
 - Sticker fonts remain Latin-only; only presentation text may use the new faces.
 
 ## Next
+
+A review-driven correction pass (`proofs/correction-pass.md`) fixed repository
+media immutability, one document size budget, no-op history loss, SVG root
+bounds, derivative dimensions, backup coverage/media validation and text-bridge
+parity, and added a minimal P08 preview harness.
 
 Milestone 1 continued: IndexedDB adapter (P13–P14), then the first editor
 route (P15–P16). The foundation below is complete and tested.

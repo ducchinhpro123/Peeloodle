@@ -123,7 +123,9 @@ function walk(nodes: unknown[], depth: number, stats: { nodes: number; depth: nu
       }
       const attributes = attributesOf(node as XmlNode)
       validateAttributes(element, attributes)
-      if (element === 'svg') {
+      if (element === 'svg' && depth === 1) {
+        // Only the root element defines the rendered bounds. A nested <svg>
+        // (even with its own dimensions) must not shrink or enlarge the output.
         const viewBox = attributes.viewBox
         if (viewBox) {
           const parts = viewBox.trim().split(/[\s,]+/).map(Number)

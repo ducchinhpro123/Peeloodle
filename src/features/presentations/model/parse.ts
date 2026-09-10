@@ -56,7 +56,21 @@ const MIME_TYPES: PresentationAsset['mimeType'][] = ['image/png', 'image/jpeg', 
 const PROVENANCE_SOURCES: AssetProvenance['source'][] = ['upload', 'sticker', 'catalog']
 
 export function parsePresentationDocument(value: unknown): PresentationDocument {
-  const raw = parseInput(value)
+  if (typeof value !== 'string') return parsePresentationObject(value)
+  if (value.length > PRESENTATION_LIMITS.maxDocumentChars) {
+    throw new PresentationParseError('limit_exceeded', 'Presentation document is too large')
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value) as unknown
+  } catch {
+    throw new PresentationParseError('malformed_data', 'Presentation document is not valid JSON')
+  }
+  return parsePresentationObject(parsed)
+}
+
+function parsePresentationObject(value: unknown): PresentationDocument {
+  const raw = value
   if (!isRecord(raw)) throw invalid('Presentation document must be an object')
   if (raw.kind !== PRESENTATION_KIND) throw invalid('Not a presentation document')
   if (raw.schemaVersion !== PRESENTATION_SCHEMA_VERSION) {
@@ -89,17 +103,49 @@ export function parsePresentationDocument(value: unknown): PresentationDocument 
     }
   }
 
-  return { kind: PRESENTATION_KIND, schemaVersion: PRESENTATION_SCHEMA_VERSION, id, title, revision, pageSize, theme, slides, assets, createdAt, updatedAt }
+  const document: PresentationDocument = {
+    kind: PRESENTATION_KIND,
+    schemaVersion: PRESENTATION_SCHEMA_VERSION,
+    id,
+    title,
+    revision,
+    pageSize,
+    theme,
+    slides,
+    assets,
+    createdAt,
+    updatedAt,
+  }
+  // Guarantee the round trip: anything accepted here must also be loadable from
+  // its serialized JSON (and therefore from IndexedDB/backups) under one budget.
+  assertWithinSizeBudget(document)
+  return document
+}
+
+function assertWithinSizeBudget(document: PresentationDocument): void {
+  let json: string
+  try {
+    json = JSON.stringify(document)
+  } catch {
+    throw new PresentationParseError('malformed_data', 'Presentation document is not JSON-serializable')
+  }
+  if (json.length > PRESENTATION_LIMITS.maxDocumentChars) {
+    throw new PresentationParseError('limit_exceeded', 'Presentation document exceeds the size limit')
+  }
 }
 
 /** Returns a clone containing only serializable, validated data. */
 export function serializePresentationDocument(document: PresentationDocument): PresentationDocument {
+  let json: string
   try {
-    return parsePresentationDocument(JSON.parse(JSON.stringify(document)) as unknown)
-  } catch (error) {
-    if (error instanceof PresentationParseError) throw error
+    json = JSON.stringify(document)
+  } catch {
     throw new PresentationParseError('malformed_data', 'Presentation document is not JSON-serializable')
   }
+  if (json.length > PRESENTATION_LIMITS.maxDocumentChars) {
+    throw new PresentationParseError('limit_exceeded', 'Presentation document exceeds the size limit')
+  }
+  return parsePresentationDocument(json)
 }
 
 export function presentationDocumentToJson(document: PresentationDocument): string {
@@ -117,16 +163,6 @@ export function validatePresentationDocument(value: unknown): PresentationValida
   } catch (error) {
     if (error instanceof PresentationParseError) return { ok: false, code: error.code, message: error.message }
     return { ok: false, code: 'invalid', message: error instanceof Error ? error.message : 'Invalid presentation document' }
-  }
-}
-
-function parseInput(value: unknown): unknown {
-  if (typeof value !== 'string') return value
-  if (value.length > PRESENTATION_LIMITS.maxDocumentChars) throw new PresentationParseError('limit_exceeded', 'Presentation document is too large')
-  try {
-    return JSON.parse(value) as unknown
-  } catch {
-    throw new PresentationParseError('malformed_data', 'Presentation document is not valid JSON')
   }
 }
 

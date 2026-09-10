@@ -92,7 +92,19 @@ export class MemoryPresentationRepository implements PresentationRepository {
     }
     const nextMedia = new Map(this.media)
     for (const record of media) {
+      const asset = clean.assets.find((candidate) => candidate.id === record.assetId)
+      if (!asset) {
+        throw new PersistenceError('invalid_asset', `Media ${record.assetId} is not referenced by presentation ${clean.id}`)
+      }
+      if (asset.mimeType !== record.mimeType) {
+        throw new PersistenceError('invalid_asset', `Media ${record.assetId} type does not match the document asset`)
+      }
       if (!record.bytes || record.bytes.length === 0) throw new PersistenceError('invalid_asset', `Media for ${record.assetId} is empty`)
+      const existing = nextMedia.get(record.assetId)
+      if (existing && !bytesEqual(existing.bytes, record.bytes)) {
+        // Media is immutable document-local artwork; never let one presentation replace another's bytes.
+        throw new PersistenceError('invalid_asset', `Refusing to replace media ${record.assetId} with different bytes`)
+      }
       nextMedia.set(record.assetId, { ...record, bytes: record.bytes.slice() })
     }
     for (const asset of clean.assets) {
@@ -140,4 +152,12 @@ export class MemoryPresentationRepository implements PresentationRepository {
 
 export function createMemoryPresentationRepository(): MemoryPresentationRepository {
   return new MemoryPresentationRepository()
+}
+
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
 }

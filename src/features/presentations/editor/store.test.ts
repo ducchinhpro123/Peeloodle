@@ -183,6 +183,49 @@ describe('presentation command store', () => {
     expect(state().future).toHaveLength(0)
   })
 
+  it('does not erase redo history on a no-op command', () => {
+    state().addElement(createShapeElement({ id: 'x' }))
+    state().undo()
+    expect(state().future).toHaveLength(1)
+    const revision = state().document!.revision
+    const pastLength = state().past.length
+    const slideId = state().document!.slides[0]!.id
+    // Reordering the only slide to its current position must not dirty the document.
+    state().reorderSlide(slideId, 0)
+    expect(state().document!.revision).toBe(revision)
+    expect(state().past).toHaveLength(pastLength)
+    expect(state().future).toHaveLength(1)
+    // Redo still works after the no-op.
+    state().redo()
+    expect(state().document!.slides[0]!.elements).toHaveLength(1)
+  })
+
+  it('ignores commands that change nothing', () => {
+    state().addElement(createShapeElement({ id: 'x', x: 80 }))
+    const revision = state().document!.revision
+    const pastLength = state().past.length
+    const dirty = state().dirty
+    const slide = state().document!.slides[0]!
+    state().updateElement('x', { x: 80 })
+    state().setSlideBackground(slide.id, slide.background)
+    state().renameSlide(slide.id, slide.name)
+    state().removeElement('missing-element')
+    state().reorderElement('x', 0)
+    state().setTheme(state().document!.theme)
+    expect(state().document!.revision).toBe(revision)
+    expect(state().past).toHaveLength(pastLength)
+    expect(state().dirty).toBe(dirty)
+  })
+
+  it('keeps one history entry when a grouped update changes nothing on the last frame', () => {
+    state().addElement(createShapeElement({ id: 'drag', x: 80 }))
+    const before = state().past.length
+    state().transformElement('drag', { x: 100 })
+    state().transformElement('drag', { x: 100 })
+    state().transformElement('drag', { x: 100 })
+    expect(state().past).toHaveLength(before + 1)
+  })
+
   it('validates documents on load and never stores raw input', () => {
     const bad = { ...createPresentationDocument(), schemaVersion: 99 }
     expect(() => state().loadDocument(bad as unknown as PresentationDocument)).toThrow()

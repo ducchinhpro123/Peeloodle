@@ -10,6 +10,7 @@
  */
 
 import { unzipSync, zipSync } from 'fflate'
+import { pngDimensions, sniffImageFormat, webpDimensions } from '../../../lib/imageFormat'
 import type { PresentationDocument } from '../model/types'
 
 export const BACKUP_FORMAT = 'stickerlab-presentation-backup'
@@ -35,6 +36,8 @@ export type BackupErrorCode =
   | 'unsupported_version'
   | 'malformed_manifest'
   | 'missing_entry'
+  | 'unexpected_entry'
+  | 'invalid_media'
   | 'hash_mismatch'
   | 'missing_media'
   | 'media_too_large'
@@ -232,6 +235,23 @@ export async function parseBackupArchive(bytes: Uint8Array, options: ParseBackup
   }
   const manifest = parseManifest(manifestRaw)
 
+  // The manifest must describe the document exactly once, and must cover every
+  // extracted entry. Without this, edited contents could bypass verification.
+  const documentEntries = manifest.entries.filter((entry) => entry.kind === 'document')
+  if (documentEntries.length !== 1 || documentEntries[0]!.path !== DOCUMENT_PATH) {
+    throw new BackupError('missing_entry', `Backup manifest must include exactly one ${DOCUMENT_PATH}`)
+  }
+  const manifestPaths = new Set<string>()
+  for (const entry of manifest.entries) {
+    if (entry.path === MANIFEST_PATH) throw new BackupError('malformed_manifest', 'The manifest must not list itself')
+    if (manifestPaths.has(entry.path)) throw new BackupError('malformed_manifest', `Duplicate manifest entry: ${entry.path}`)
+    manifestPaths.add(entry.path)
+  }
+  for (const path of Object.keys(extracted)) {
+    if (path === MANIFEST_PATH) continue
+    if (!manifestPaths.has(path)) throw new BackupError('unexpected_entry', `Backup contains an entry that is not in the manifest: ${path}`)
+  }
+
   const media: BackupMedia = new Map()
   for (const entry of manifest.entries) {
     validateEntryPath(entry.path)
@@ -247,14 +267,36 @@ export async function parseBackupArchive(bytes: Uint8Array, options: ParseBackup
     }
   }
 
-  const documentFile = extracted[DOCUMENT_PATH]
-  if (!documentFile) throw new BackupError('missing_entry', 'Backup is missing document.json')
-
+  const documentFile = extracted[DOCUMENT_PATH]!
   let document: PresentationDocument
   try {
     document = options.parseDocument(JSON.parse(new TextDecoder().decode(documentFile)))
   } catch (cause) {
     throw new BackupError('invalid_document', cause instanceof Error ? cause.message : 'Backup document is invalid')
+  }
+
+  // Media must correspond to a document asset, be the declared type and match
+  // the declared dimensions (for formats we can verify without decoding).
+  const assetsById = new Map(document.assets.map((asset) => [asset.id, asset]))
+  for (const [assetId, file] of media) {
+    const asset = assetsById.get(assetId)
+    if (!asset) throw new BackupError('invalid_media', `Backup contains media for unknown asset ${assetId}`)
+    const sniffed = sniffImageFormat(file)
+    if (sniffed !== asset.mimeType) throw new BackupError('invalid_media', `Media for ${assetId} is not a ${asset.mimeType}`)
+    if (asset.mimeType === 'image/png') {
+      const dimensions = pngDimensions(file)
+      if (!dimensions) throw new BackupError('invalid_media', `Media for ${assetId} is not a valid PNG`)
+      if (dimensions.width !== asset.width || dimensions.height !== asset.height) {
+        throw new BackupError('invalid_media', `Media for ${assetId} is ${dimensions.width}×${dimensions.height}, expected ${asset.width}×${asset.height}`)
+      }
+    } else if (asset.mimeType === 'image/webp') {
+      const dimensions = webpDimensions(file)
+      if (!dimensions) throw new BackupError('invalid_media', `Media for ${assetId} is not a valid WebP`)
+      if (dimensions.width !== asset.width || dimensions.height !== asset.height) {
+        throw new BackupError('invalid_media', `Media for ${assetId} is ${dimensions.width}×${dimensions.height}, expected ${asset.width}×${asset.height}`)
+      }
+    }
+    // JPEG dimensions are not compared: EXIF orientation can legitimately swap them.
   }
 
   for (const asset of document.assets) {

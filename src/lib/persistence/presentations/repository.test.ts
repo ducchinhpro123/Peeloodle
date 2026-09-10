@@ -33,6 +33,34 @@ describe('presentation repository contract (memory)', () => {
     await expect(repo.savePresentation(deckWithImage('deck-1', 'First', '2026-09-10T00:00:00.000Z'))).rejects.toMatchObject({ code: 'missing_asset' })
   })
 
+  it('refuses media that is not referenced by the incoming document', async () => {
+    const repo = createMemoryPresentationRepository()
+    await repo.savePresentation(deckWithImage('deck-1', 'First', '2026-09-10T00:00:00.000Z'), [{ assetId: 'media-1', bytes: fixtureImagePng(), mimeType: 'image/png' }])
+    const other = createPresentationDocument({ id: 'deck-2', title: 'Second', now: '2026-09-11T00:00:00.000Z' })
+    await expect(repo.savePresentation(other, [{ assetId: 'media-1', bytes: new Uint8Array([1, 2, 3]), mimeType: 'image/png' }])).rejects.toMatchObject({
+      code: 'invalid_asset',
+    })
+    // The original bytes are intact.
+    expect(Array.from((await repo.getMedia('media-1')).bytes)).toEqual(Array.from(fixtureImagePng()))
+  })
+
+  it('refuses to replace existing media with different bytes', async () => {
+    const repo = createMemoryPresentationRepository()
+    await repo.savePresentation(deckWithImage('deck-1', 'First', '2026-09-10T00:00:00.000Z'), [{ assetId: 'media-1', bytes: fixtureImagePng(), mimeType: 'image/png' }])
+    await expect(
+      repo.savePresentation(deckWithImage('deck-1', 'First', '2026-09-10T00:00:00.000Z'), [{ assetId: 'media-1', bytes: new Uint8Array([9, 9, 9]), mimeType: 'image/png' }]),
+    ).rejects.toMatchObject({ code: 'invalid_asset' })
+    expect(Array.from((await repo.getMedia('media-1')).bytes)).toEqual(Array.from(fixtureImagePng()))
+  })
+
+  it('accepts an idempotent media re-save and rejects a MIME mismatch', async () => {
+    const repo = createMemoryPresentationRepository()
+    const document = deckWithImage('deck-1', 'First', '2026-09-10T00:00:00.000Z')
+    await repo.savePresentation(document, [{ assetId: 'media-1', bytes: fixtureImagePng(), mimeType: 'image/png' }])
+    await expect(repo.savePresentation(document, [{ assetId: 'media-1', bytes: fixtureImagePng(), mimeType: 'image/png' }])).resolves.toBeUndefined()
+    await expect(repo.savePresentation(document, [{ assetId: 'media-1', bytes: fixtureImagePng(), mimeType: 'image/webp' }])).rejects.toMatchObject({ code: 'invalid_asset' })
+  })
+
   it('rejects documents that fail validation', async () => {
     const repo = createMemoryPresentationRepository()
     const invalid = deckWithImage('deck-1', 'First', '2026-09-10T00:00:00.000Z')

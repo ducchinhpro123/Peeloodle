@@ -92,6 +92,16 @@ describe('raster processing', () => {
     expect(result.height).toBe(30)
   })
 
+  it('returns the actual derivative dimensions for a downscaled source', async () => {
+    const wide = new Uint8Array(await sharp({ create: { width: 5000, height: 10, channels: 4, background: { r: 8, g: 184, b: 121, alpha: 1 } } }).png().toBuffer())
+    const result = await processAssetBytes(wide)
+    expect(result.width).toBe(4096)
+    expect(result.height).toBe(8)
+    const meta = await sharp(result.png).metadata()
+    expect(meta.width).toBe(4096)
+    expect(meta.height).toBe(8)
+  })
+
   it('rejects animated WebP before decoding', () => {
     expect(() => inspectRasterHeader(animatedWebpHeader())).toThrowError(expect.objectContaining({ code: 'animated_image' }))
   })
@@ -136,6 +146,21 @@ describe('SVG processing', () => {
 
   it.each(HOSTILE_SVGS)('rejects hostile SVG: $name', ({ svg }) => {
     expect(() => inspectSvg(new TextEncoder().encode(svg))).toThrow(ProcessingError)
+  })
+
+  it('rejects nested SVG that would shrink the recorded root bounds', () => {
+    const svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="100000" height="100000"><svg width="100" height="100"><rect width="10" height="10"/></svg></svg>'
+    expect(() => inspectSvg(new TextEncoder().encode(svg))).toThrowError(expect.objectContaining({ code: 'dimension_too_large' }))
+  })
+
+  it('allows an ordinary nested SVG inside bounded root dimensions', () => {
+    const svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80"><svg width="60" height="40" x="10" y="10"><rect width="20" height="20" fill="#08b879"/></svg></svg>'
+    const inspection = inspectSvg(new TextEncoder().encode(svg))
+    expect(inspection.width).toBe(120)
+    expect(inspection.height).toBe(80)
+    expect(rasterizeSvg(new TextEncoder().encode(svg)).png.length).toBeGreaterThan(50)
   })
 
   it('rejects an SVG over the source size limit', () => {

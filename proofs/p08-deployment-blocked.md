@@ -1,48 +1,57 @@
-# P08 — Native processing packaging on a preview deployment: BLOCKED
+# P08 — Native processing packaging: not yet executed, harness prepared
 
-Date: 2026-09-10. Status: **not executed** — the required environment and
-prerequisites are unavailable in this workspace. No deployment, publish or
-purchase was attempted (AGENTS.md and the implementation plan both prohibit
-publishing without authorization).
+Date: 2026-09-10 (updated after review). Status: **evidence still missing** — no
+deployment was performed. The previous version of this note pointed at P54–P57
+as a prerequisite, which created a circular dependency. That is corrected: P08
+needs only a minimal isolated preview harness, not catalog ingestion.
 
-## What the task requires
+## What is prepared now
 
-Evidence that sharp/resvg native modules package and run in an authorized
-preview deployment, that image bytes bypass the function request body via
-direct-to-Storage upload, and that a job invocation works. That needs:
+`server/processing/probe.ts` (not mounted by the application, unit-tested in
+`probe.test.ts`):
 
-1. An authorized Vercel account/project with `sharp` and `@resvg/resvg-js`
-   native binaries for the Node runtime.
-2. The `api/` processing endpoint and Supabase Storage integration, which are
-   scheduled for P54–P57 (Milestone 4/5), not yet implemented.
-3. Server-only credentials (`SUPABASE_SERVICE_ROLE_KEY`, storage bucket setup)
-   which are intentionally absent from this repository (only placeholders in
-   `.env.example`) and which I must not invent or request.
+- `handleProcessProbe(body)` — function-shaped entry (`{ bytesBase64 }` → JSON):
+  enforces the documented 4.5 MB request limit, runs the real
+  `processAssetBytes`, and returns typed success/failure JSON.
+- `probeStorageRoundTrip(client, bucket, path, bytes)` — upload → download →
+  hash comparison → cleanup, against a narrow injectable Storage surface.
+- `requireProbeEnv(env)` — requires **server-only** env names
+  (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CATALOG_PROBE_BUCKET`); it
+  refuses to fall back to `VITE_*` names so a probe cannot be built from
+  browser-visible configuration.
 
-Environment checks performed:
+## Exactly what the authorized preview must run
+
+1. Deploy the current app to a preview with the three server-only env vars set
+   and a private probe bucket created (no public policy).
+2. Add a throwaway guarded route (secret header check) that calls
+   `handleProcessProbe`; this is the only code that needs to exist for the
+   packaging proof.
+3. Send one fixture PNG and confirm: 200 JSON with matching dimensions; the
+   version reports the expected libvips/sharp build; the invocation stays inside
+   the configured memory/time limits.
+4. Run `probeStorageRoundTrip` with a Storage client built from the same env and
+   confirm `matches: true, removed: true`; inspect the bucket to confirm no
+   probe object remains.
+5. Record the deployment URL, runtime, memory/time configuration, function logs
+   and the responses; then remove the temporary route.
+
+## What must not happen
+
+- No production publishing, no service key in `VITE_*`, logs, client bundles or
+  committed files.
+- Do not use this probe to accept real user uploads: authentication and the
+  catalog job workflow belong to P54–P57 and are still unimplemented.
+- Full ingestion work must not be considered unblocked by the existence of this
+  harness; only by actual preview evidence.
+
+## Current environment
 
 ```
 vercel CLI      not installed
 ~/.vercel auth  not present
-git remote      git@github.com:ducchinhpro123/Peeloodle.git
-api/            does not exist yet
+api/            does not exist
 ```
 
-## What was verified instead (local, same code path)
-
-- `server/processing` runs on Node 24.21.0 with the exact production-native
-  libraries (sharp 0.35.4/libvips 8.18.6, resvg 2.6.2) — see `p07-processing.md`.
-- `npm run typecheck` now covers `server/**` via `tsconfig.server.json`.
-- The Vite production build does **not** include sharp/resvg: server code is not
-  imported by `src/`; the bundle check is recorded in the Milestone 0 handoff.
-- Vercel's documented 4.5 MB function body limit is respected by design:
-  processing receives a job id, not image bytes (architecture §Bulk upload).
-
-## Remaining work
-
-- Implement `api/` and Storage access (P54–P57), then run this task in a
-  preview deployment with the owner's authorization.
-- Record the deployed runtime, configured memory/time limits, actual cold-start
-  behavior and one-job invocation evidence.
-- Until then, the admin ingestion gate stays closed: do not advertise or use
-  catalog uploads based on local-only proof.
+Local evidence that the same code path works on this machine is in
+`proofs/p07-processing.md`.

@@ -3,7 +3,8 @@
 **Status:** scope confirmed by the owner on 2026-09-10. Milestone 0 (P01–P07) is implemented with
 recorded evidence under `proofs/`; P08 is blocked pending an authorized preview deployment (see
 `proofs/p08-deployment-blocked.md`). Milestone 1 foundation (P09–P12) is implemented with unit
-contract tests; P13 onward is not started.
+contract tests; P13 onward is not started. A review-driven correction pass is
+recorded in `proofs/correction-pass.md`.
 
 This plan is designed for one developer working in small increments. Product scope came from the [planning interview](slides-planning.md); technical contracts are in [the architecture](slides-architecture.md).
 

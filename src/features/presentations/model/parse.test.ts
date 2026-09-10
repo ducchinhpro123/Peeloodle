@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parsePresentationDocument, presentationDocumentToJson, serializePresentationDocument, validatePresentationDocument } from './parse'
-import { createPresentationDocument } from './factories'
+import { createPresentationDocument, createTextElement } from './factories'
 import { createFixturePresentation } from './fixtures/fixture'
 import { PRESENTATION_LIMITS } from './limits'
 import { PRESENTATION_SCHEMA_VERSION, type PresentationDocument } from './types'
@@ -169,6 +169,35 @@ describe('presentation parser', () => {
         }),
       ),
     ).toThrow(/size/)
+  })
+
+  it('applies one size budget for object and string entry points', () => {
+    const document = createPresentationDocument({ id: 'big', title: 'Big', now: '2026-09-10T00:00:00.000Z' })
+    // Three slides of 200 max-length text elements exceed the document budget.
+    document.slides = Array.from({ length: 3 }, (_, slideIndex) => ({
+      id: `big-slide-${slideIndex}`,
+      name: `s${slideIndex}`,
+      background: '#ffffff',
+      elements: Array.from({ length: PRESENTATION_LIMITS.maxElementsPerSlide }, (_, elementIndex) =>
+        createTextElement({ id: `big-${slideIndex}-${elementIndex}`, text: 'x'.repeat(PRESENTATION_LIMITS.maxTextLength) }),
+      ),
+    }))
+    // The object is rejected as oversized rather than serializing and failing later.
+    expect(() => serializePresentationDocument(document)).toThrowError(expect.objectContaining({ code: 'limit_exceeded' }))
+    expect(() => parsePresentationDocument(document)).toThrowError(expect.objectContaining({ code: 'limit_exceeded' }))
+    const json = `{"kind":"presentation","padding":"${'x'.repeat(PRESENTATION_LIMITS.maxDocumentChars)}"}`
+    expect(() => parsePresentationDocument(json)).toThrowError(expect.objectContaining({ code: 'limit_exceeded' }))
+  })
+
+  it('serializes a large but accepted document into JSON that reloads identically', () => {
+    const document = createPresentationDocument({ id: 'round-trip', title: 'Round trip', now: '2026-09-10T00:00:00.000Z' })
+    document.slides[0]!.elements = Array.from({ length: 60 }, (_, index) =>
+      createTextElement({ id: `rt-${index}`, text: 'Nghiên cứu và trình bày. '.repeat(200) }),
+    )
+    const json = presentationDocumentToJson(document)
+    expect(parsePresentationDocument(json)).toEqual(document)
+    // Serializing the parsed JSON again is stable.
+    expect(presentationDocumentToJson(parsePresentationDocument(json))).toBe(json)
   })
 
   it('reports validation failures without throwing', () => {

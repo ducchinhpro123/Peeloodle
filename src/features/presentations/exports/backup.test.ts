@@ -8,9 +8,11 @@ import {
   createBackupArchive,
   mediaPathForAsset,
   parseBackupArchive,
+  sha256Hex,
   type BackupMedia,
 } from './backup'
 import { createFixturePresentation, fixtureImagePng } from '../model/fixtures/fixture'
+import { encodeRgbaPng } from '../model/fixtures/png'
 import type { PresentationDocument } from '../model/types'
 
 const parseDocument = (value: unknown) => value as PresentationDocument
@@ -91,6 +93,60 @@ describe('presentation backup archive', () => {
     const document = createFixturePresentation()
     const media = new Map([['fixture-asset-transparent', new Uint8Array(BACKUP_LIMITS.maxMediaBytes + 1)]])
     await expect(createBackupArchive(document, media)).rejects.toMatchObject({ code: 'media_too_large' })
+  })
+
+  it('requires the manifest to describe document.json exactly once', async () => {
+    const files = decode(await createBackupArchive(createFixturePresentation(), fixtureMedia()))
+    const manifest = JSON.parse(new TextDecoder().decode(files['manifest.json']!))
+    manifest.entries = manifest.entries.filter((entry: { kind: string }) => entry.kind !== 'document')
+    files['manifest.json'] = new TextEncoder().encode(JSON.stringify(manifest))
+    await expect(parseBackupArchive(rezip(files), { parseDocument })).rejects.toMatchObject({ code: 'missing_entry' })
+  })
+
+  it('rejects archive entries that the manifest does not cover', async () => {
+    const files = decode(await createBackupArchive(createFixturePresentation(), fixtureMedia()))
+    files['media/unlisted.png'] = fixtureImagePng()
+    await expect(parseBackupArchive(rezip(files), { parseDocument })).rejects.toMatchObject({ code: 'unexpected_entry' })
+  })
+
+  it('rejects non-image media even when the manifest checksum was recomputed', async () => {
+    const files = decode(await createBackupArchive(createFixturePresentation(), fixtureMedia()))
+    const manifest = JSON.parse(new TextDecoder().decode(files['manifest.json']!))
+    const entry = manifest.entries.find((candidate: { kind: string }) => candidate.kind === 'media')
+    const tampered = new TextEncoder().encode('this is not an image')
+    files[entry.path] = tampered
+    entry.bytes = tampered.length
+    entry.sha256 = await sha256Hex(tampered)
+    files['manifest.json'] = new TextEncoder().encode(JSON.stringify(manifest))
+    await expect(parseBackupArchive(rezip(files), { parseDocument })).rejects.toMatchObject({ code: 'invalid_media' })
+  })
+
+  it('rejects media whose dimensions disagree with the document asset', async () => {
+    const files = decode(await createBackupArchive(createFixturePresentation(), fixtureMedia()))
+    const manifest = JSON.parse(new TextDecoder().decode(files['manifest.json']!))
+    const entry = manifest.entries.find((candidate: { kind: string }) => candidate.kind === 'media')
+    const wrongSize = encodeRgbaPng(10, 10)
+    files[entry.path] = wrongSize
+    entry.bytes = wrongSize.length
+    entry.sha256 = await sha256Hex(wrongSize)
+    files['manifest.json'] = new TextEncoder().encode(JSON.stringify(manifest))
+    await expect(parseBackupArchive(rezip(files), { parseDocument })).rejects.toMatchObject({ code: 'invalid_media' })
+  })
+
+  it('rejects media for an asset the document does not reference', async () => {
+    const files = decode(await createBackupArchive(createFixturePresentation(), fixtureMedia()))
+    const manifest = JSON.parse(new TextDecoder().decode(files['manifest.json']!))
+    manifest.entries.find((candidate: { kind: string }) => candidate.kind === 'media').assetId = 'asset-not-in-document'
+    files['manifest.json'] = new TextEncoder().encode(JSON.stringify(manifest))
+    await expect(parseBackupArchive(rezip(files), { parseDocument })).rejects.toMatchObject({ code: 'invalid_media' })
+  })
+
+  it('rejects duplicate manifest entries', async () => {
+    const files = decode(await createBackupArchive(createFixturePresentation(), fixtureMedia()))
+    const manifest = JSON.parse(new TextDecoder().decode(files['manifest.json']!))
+    manifest.entries.push({ ...manifest.entries.find((candidate: { kind: string }) => candidate.kind === 'media') })
+    files['manifest.json'] = new TextEncoder().encode(JSON.stringify(manifest))
+    await expect(parseBackupArchive(rezip(files), { parseDocument })).rejects.toMatchObject({ code: 'malformed_manifest' })
   })
 
   it('rejects archives without a manifest and malformed JSON', async () => {

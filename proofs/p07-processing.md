@@ -65,3 +65,21 @@ default, but are not capacity claims.
    strict SVG policy (not a generic "unsupported type") reports those files.
 4. Browser upload validation (`validateUpload.ts`) now shares the same byte
    parsers; its 6 unit tests still pass.
+
+## Correction-pass fixes (2026-09-10 review)
+
+5. **Nested `<svg>` could bypass the root bounds check.** Any `<svg>` element
+   overwrote the recorded width/height, so a 100000×100000 root containing a
+   100×100 nested SVG passed inspection while resvg received the original
+   markup. Only the depth-1 root now defines recorded geometry; nested SVGs
+   still render inside the bounded root. Tests: "rejects nested SVG that would
+   shrink the recorded root bounds", "allows an ordinary nested SVG inside
+   bounded root dimensions".
+6. **Derivatives reported source dimensions.** A 5000×10 input produced a
+   4096×8 PNG but reported 5000×10. `normalizeRaster` now returns the encoder's
+   actual output size and keeps `sourceWidth/sourceHeight` separately for
+   provenance. Test: "returns the actual derivative dimensions for a
+   downscaled source".
+
+Test count after the fixes: 27 in `processing.test.ts` (plus 6 probe tests in
+`probe.test.ts` for the P08 preview harness).

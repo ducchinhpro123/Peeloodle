@@ -18,7 +18,7 @@ export type ProcessedAsset = {
   sourceFormat: 'png' | 'webp' | 'svg'
   sourceBytes: number
   sourceSha256: string
-  /** Approved derivative dimensions. */
+  /** Approved derivative dimensions (post-resize, matching the stored PNG). */
   width: number
   height: number
   /** Normalized PNG used for insertion/export. */
