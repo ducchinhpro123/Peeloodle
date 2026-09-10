@@ -46,6 +46,12 @@ npm run build
 
 Playwright uses Chromium at `/usr/bin/chromium` via `playwright.config.ts`. Firefox/WebKit are attempted only when those browsers are already available; this project does not download extra browser builds.
 
+## Draft saving
+
+`src/features/editor/draftSaving.ts` owns manual saves, the 800 ms autosave debounce, and flushing before project or workspace replacement. It finishes pending edits, captures the document and referenced blobs before queuing a write, and reports whether replacement is safe. Captured writes keep their originating repository; older saves cannot clear newer revisions. `useDraftAutosave.ts` connects this module to browser lifecycle events.
+
+Project and workspace replacement wait for a safe flush. Leaving for Home starts saving without blocking navigation; failed work remains in memory. Page-hide saving is best effort, with an unload warning while work is pending. PNG export and cloud synchronization retain their existing behavior.
+
 ## Editor tools
 
 - **Tool entry:** sidebar TOOLS, dashboard shortcuts, and mobile navigation for Background Eraser, Text & Emoji, Filters & Effects, and Export & Share open the existing editor with that tool active (`/create?tool=` or `/editor/:id?tool=`). They never mint a blank sticker on top of open work. If a document is required and saved stickers exist, a responsive gallery shows real artwork previews, project titles, and layer counts so you can choose create or reopen. Create a Sticker still starts a new document. Automatic background removal is not available.

@@ -6,6 +6,7 @@ import { RepositoryProvider } from '../../app/repository'
 import { getLocalRepository, type StickerLabRepository } from '../../lib/persistence/repository'
 import { type CloudRepository, type CloudStatus } from '../../lib/persistence/cloud'
 import { useEditorStore } from '../editor/store'
+import { draftSaving } from '../editor/draftSaving'
 import { getAuthClient, readCloudConfig } from './client'
 import { Button } from '@/components/ui/button'
 
@@ -21,9 +22,9 @@ export function useCloudStatus() {
 }
 
 export async function flushWorkspace(repository: StickerLabRepository) {
-  if (useEditorStore.getState().document) {
-    const { flushEditor } = await import('../editor/EditorPage')
-    await flushEditor(repository)
+  const outcome = await draftSaving.flush(repository)
+  if (outcome.kind !== 'ready') {
+    throw new Error('Could not save the current draft locally. Retry before changing workspace.')
   }
 }
 

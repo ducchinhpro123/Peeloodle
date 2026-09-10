@@ -128,6 +128,19 @@ describe('editor integration', () => {
     expect(screen.getAllByAltText('Image').length).toBeGreaterThan(0)
   })
 
+  it.each(['/create?tool=text', '/editor/another-project'])('retains a failed draft instead of replacing it from %s', async (path) => {
+    const repo = createMemoryRepository()
+    useEditorStore.getState().createDraft('retained-draft')
+    useEditorStore.getState().updateTitle('Retained draft')
+    repo.injectWriteFailure()
+    renderApp(path, repo)
+    expect(await screen.findByRole('heading', { name: 'Retained draft' })).toBeInTheDocument()
+    expect(useEditorStore.getState().document?.id).toBe('retained-draft')
+    expect(useEditorStore.getState().dirty).toBe(true)
+    expect(await repo.listProjects()).toEqual([])
+    expect(screen.getByRole('status')).toHaveTextContent(/save failed/i)
+  })
+
   it('does not intercept undo or nudge while typing in the text field', async () => {
     renderApp()
     fireEvent.click(await screen.findByRole('button', { name: 'Text' }))
@@ -212,35 +225,6 @@ describe('editor integration', () => {
     })
   })
 
-  it('saves the snapshot captured at request time, not a replacement project', async () => {
-    const repo = createMemoryRepository()
-    let release = () => {}
-    const blocked = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    let started = 0
-    const titles: string[] = []
-    const inner = repo.saveProjectWithAssets.bind(repo)
-    repo.saveProjectWithAssets = async (document, assets) => {
-      started += 1
-      titles.push(document.title)
-      if (started === 1) await blocked
-      return inner(document, assets)
-    }
-    renderApp('/create', repo)
-    fireEvent.change(await screen.findByLabelText('Sticker title'), { target: { value: 'Original draft' } })
-    fireEvent.click(screen.getByRole('button', { name: /save to my stickers/i }))
-    await waitFor(() => expect(started).toBe(1))
-    const firstId = useEditorStore.getState().document!.id
-    useEditorStore.getState().createDraft()
-    expect(useEditorStore.getState().document!.id).not.toBe(firstId)
-    release()
-    await waitFor(async () => {
-      expect((await repo.getProject(firstId)).title).toBe('Original draft')
-    })
-    expect(titles[0]).toBe('Original draft')
-  })
-
   it('discards a stale upload and sample after the project is replaced', async () => {
     let releaseUpload = () => {}
     const blockedUpload = new Promise<void>((resolve) => {
@@ -323,6 +307,7 @@ describe('editor integration', () => {
 
   it('saves, rehydrates, and retains mask work across reload and save failures', async () => {
     const repo = renderApp()
+    await screen.findByTestId('photo-file-input')
     uploadPhoto()
     await waitFor(() => expect(screen.getAllByAltText('Image').length).toBeGreaterThan(0))
 

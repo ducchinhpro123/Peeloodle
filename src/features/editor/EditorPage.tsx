@@ -8,13 +8,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle, Di
 import { NoticeDialog } from '@/components/ui/notice-dialog'
 import { Slider } from '@/components/ui/slider'
 import { Tabs } from '@/components/ui/tabs'
-import { isPersistenceError, serializeProjectDocument, type AssetRecord, type MaskRecord, type StickerLabRepository } from '../../lib/persistence/repository'
+import { isPersistenceError, type AssetRecord } from '../../lib/persistence/repository'
 import { ingestImageFile, ingestBundledImage, AssetObjectUrlCache } from '../assets/assetLoader'
 import { UploadValidationError } from '../assets/validateUpload'
 import { downloadBlob } from '../exports/download'
 import { renderDocument, type ExportSize } from '../exports/renderDocument'
 import type { ImageLayer, Layer, ProjectDocument } from '../../types/domain'
 import { saveStatusLabel, useEditorStore, type TextStyle } from './store'
+import { draftSaving } from './draftSaving'
+import { useDraftAutosave } from './useDraftAutosave'
 import { cssFontFamily, TEXT_FONTS } from '../../lib/fonts'
 import { STICKER_CATALOG, TEXT_PRESETS } from './catalog'
 import {
@@ -51,18 +53,12 @@ export function CreateEditor() {
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const current = useEditorStore.getState()
-      const existing = current.document
-      if (existing && (current.dirty || current.gestureActive || current.finishMaskStroke)) {
-        await persistDocument(repo, 'manual').catch(() => undefined)
-        if (cancelled) return
-        const after = useEditorStore.getState()
-        if (after.document?.id === existing.id && (after.dirty || after.finishMaskStroke || after.saveStatus === 'save-failed')) {
-          navigate(editorPathWithIntent(existing.id, intent), { replace: true })
-          return
-        }
+      const outcome = await draftSaving.flush(repo)
+      if (cancelled || outcome.kind === 'superseded') return
+      if (outcome.kind === 'blocked') {
+        navigate(editorPathWithIntent(outcome.projectId, intent), { replace: true })
+        return
       }
-      if (cancelled) return
       const state = useEditorStore.getState()
       if (intent && isReusableOpenDocument(state.document, state) && state.document) {
         navigate(editorPathWithIntent(state.document.id, intent), { replace: true })
@@ -195,10 +191,7 @@ function EditorWorkspace({ projectId, intent = null }: { projectId?: string; int
     if (!projectId) return
     let cancelled = false
     const flush = () => {
-      const snap = useEditorStore.getState()
-      if (snap.document?.id === projectId && (snap.dirty || snap.gestureActive || snap.finishMaskStroke)) {
-        void persistDocument(repo, 'manual').catch(() => undefined)
-      }
+      void draftSaving.flush(repo, { projectId })
     }
     const current = useEditorStore.getState()
     if (current.document?.id === projectId) {
@@ -206,18 +199,12 @@ function EditorWorkspace({ projectId, intent = null }: { projectId?: string; int
       return flush
     }
     void (async () => {
-      const previous = useEditorStore.getState()
-      if (previous.document && (previous.dirty || previous.gestureActive || previous.finishMaskStroke)) {
-        await persistDocument(repo, 'manual').catch(() => undefined)
-        if (cancelled) return
-        const after = useEditorStore.getState()
-        if (after.document?.id === previous.document.id && (after.dirty || after.finishMaskStroke || after.saveStatus === 'save-failed')) {
-          after.setSaveStatus('save-failed', after.saveError ?? 'Save failed')
-          navigate(`/editor/${previous.document.id}`, { replace: true })
-          return
-        }
+      const outcome = await draftSaving.flush(repo)
+      if (cancelled || outcome.kind === 'superseded') return
+      if (outcome.kind === 'blocked') {
+        navigate(`/editor/${outcome.projectId}`, { replace: true })
+        return
       }
-      if (cancelled) return
       useEditorStore.getState().setLoading(true)
       try {
         const loaded = await repo.getProject(projectId)
@@ -246,7 +233,7 @@ function EditorWorkspace({ projectId, intent = null }: { projectId?: string; int
     }
   }, [projectId, repo, navigate])
 
-  useAutosave(repo)
+  useDraftAutosave(repo)
   useEditorShortcuts()
 
   if (loadError && document?.id !== projectId) {
@@ -332,7 +319,7 @@ function EditorChrome({ document, urls, intent }: { document: ProjectDocument; u
   }
 
   const saveNow = () => {
-    void persistDocument(repo, 'manual')
+    void draftSaving.save(repo)
   }
 
   const saveLabel = maskBusy && saveStatus !== 'save-failed'
@@ -1383,112 +1370,6 @@ function useAssetUrls(assets: Record<string, AssetRecord>) {
   return urls
 }
 
-function useAutosave(repo: StickerLabRepository) {
-  const dirty = useEditorStore((state) => state.dirty)
-  const gestureActive = useEditorStore((state) => state.gestureActive || !!state.finishMaskStroke)
-  const revision = useEditorStore((state) => state.document?.revision)
-  const documentId = useEditorStore((state) => state.document?.id)
-
-  const save = useCallback(() => persistDocument(repo, 'auto'), [repo])
-
-  useEffect(() => {
-    if (!dirty || gestureActive || !documentId) return
-    const timer = window.setTimeout(() => {
-      void save()
-    }, 800)
-    return () => window.clearTimeout(timer)
-  }, [dirty, gestureActive, revision, documentId, save])
-
-  useEffect(() => {
-    const onHide = () => {
-      void persistDocument(repo, 'manual')
-    }
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      const state = useEditorStore.getState()
-      if (state.dirty || state.gestureActive || state.finishMaskStroke) {
-        event.preventDefault()
-        event.returnValue = ''
-      }
-    }
-    window.addEventListener('pagehide', onHide)
-    window.addEventListener('beforeunload', onBeforeUnload)
-    return () => {
-      window.removeEventListener('pagehide', onHide)
-      window.removeEventListener('beforeunload', onBeforeUnload)
-    }
-  }, [repo])
-}
-
-let persistTail: Promise<void> = Promise.resolve()
-
-function referencedRecords(document: ProjectDocument, assets: Record<string, AssetRecord>): AssetRecord[] {
-  const ids = new Set(document.assetIds)
-  for (const layer of document.layers) {
-    if (layer.kind === 'image') ids.add(layer.assetId)
-  }
-  const records: AssetRecord[] = []
-  for (const id of ids) {
-    const record = assets[id]
-    if (record) records.push(record)
-  }
-  return records
-}
-
-function referencedMasks(document: ProjectDocument, masks: Record<string, Blob>): MaskRecord[] {
-  const records: MaskRecord[] = []
-  for (const layer of document.layers) {
-    if (layer.kind === 'image' && layer.maskKey && masks[layer.maskKey]) {
-      records.push({ key: layer.maskKey, blob: masks[layer.maskKey] })
-    }
-  }
-  return records
-}
-
-function captureSave(reason: 'auto' | 'manual') {
-  const store = useEditorStore.getState()
-  if (store.gestureActive) store.commitGesture()
-  const state = useEditorStore.getState()
-  if (!state.document) return null
-  if (reason === 'auto' && !state.dirty) return null
-  return {
-    workspaceEpoch: state.workspaceEpoch,
-    document: serializeProjectDocument(state.document),
-    records: referencedRecords(state.document, state.assets),
-    masks: referencedMasks(state.document, state.masks),
-  }
-}
-
-async function persistDocument(repo: StickerLabRepository, reason: 'auto' | 'manual') {
-  const initial = useEditorStore.getState()
-  if (initial.finishMaskStroke) {
-    try { await initial.finishMaskStroke() } catch { return persistTail } // Stroke retains its recoverable error/work.
-  }
-  if (useEditorStore.getState().workspaceEpoch !== initial.workspaceEpoch || useEditorStore.getState().document?.id !== initial.document?.id) return persistTail
-  const payload = captureSave(reason)
-  if (!payload) return persistTail
-  persistTail = persistTail.then(
-    () => persistCaptured(repo, payload),
-    () => persistCaptured(repo, payload),
-  )
-  return persistTail
-}
-
-async function persistCaptured(
-  repo: StickerLabRepository,
-  payload: { workspaceEpoch: number; document: ProjectDocument; records: AssetRecord[]; masks: MaskRecord[] },
-) {
-  const matches = () => useEditorStore.getState().workspaceEpoch === payload.workspaceEpoch && useEditorStore.getState().document?.id === payload.document.id
-  if (matches()) useEditorStore.getState().setSaveStatus('saving')
-  try {
-    await repo.saveProjectWithAssets(payload.document, payload.records, payload.masks)
-    if (matches()) useEditorStore.getState().markSaved(payload.document.revision)
-  } catch (error) {
-    if (!matches()) return
-    const message = error instanceof Error ? error.message : 'Save failed'
-    useEditorStore.getState().setSaveStatus('save-failed', message)
-  }
-}
-
 async function ingestIntoCurrentProject(load: () => Promise<AssetRecord>, name?: string, replaceLayerId?: string) {
   const originId = useEditorStore.getState().document?.id
   const epoch = useEditorStore.getState().workspaceEpoch
@@ -1508,14 +1389,6 @@ async function ingestIntoCurrentProject(load: () => Promise<AssetRecord>, name?:
     const message = error instanceof UploadValidationError ? error.message : 'The image could not be added'
     useEditorStore.getState().setUploadError(message)
   }
-}
-
-export async function flushEditor(repo: StickerLabRepository): Promise<void> {
-  const state = useEditorStore.getState()
-  if (!state.document || (!state.dirty && !state.gestureActive && !state.finishMaskStroke)) return
-  await persistDocument(repo, 'manual')
-  const after = useEditorStore.getState()
-  if (after.dirty || after.finishMaskStroke || after.saveStatus === 'save-failed') throw new Error('Could not save the current draft locally. Retry before changing workspace.')
 }
 
 function useEditorShortcuts() {
