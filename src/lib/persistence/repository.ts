@@ -1,17 +1,17 @@
 import type { Asset, PackRecord, ProjectDocument } from '../../types/domain'
 import type { CommitResult, RemoteResource, ResourceKind, SyncEntry, SyncValue } from './syncTypes'
 import { parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
+import { blobToArrayBuffer, idbRequest, isArrayBuffer, openStickerLabDatabase, runTransaction, STICKERLAB_DB_NAME, STORE_NAMES } from './idb'
 
 export { createProjectDocument, isPersistenceError, parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
 export type { PersistenceErrorCode } from './document'
 
-const PROJECTS_STORE = 'projects'
-const ASSETS_STORE = 'assets'
-const PACKS_STORE = 'packs'
-const MASKS_STORE = 'masks'
-const SYNC_STORE = 'sync'
-const DB_VERSION = 4
-const DEFAULT_DB_NAME = 'stickerlab-local'
+const PROJECTS_STORE = STORE_NAMES.projects
+const ASSETS_STORE = STORE_NAMES.assets
+const PACKS_STORE = STORE_NAMES.packs
+const MASKS_STORE = STORE_NAMES.masks
+const SYNC_STORE = STORE_NAMES.sync
+const DEFAULT_DB_NAME = STICKERLAB_DB_NAME
 
 /** Metadata plus the immutable original blob. Never part of ProjectDocument. */
 export type AssetRecord = {
@@ -417,28 +417,12 @@ export class IdbRepository implements StickerLabRepository {
 
   private async transact<T>(storeNames: string[], mode: IDBTransactionMode, work: (tx: IDBTransaction) => Promise<T>): Promise<T> {
     const db = await this.open()
-    const tx = db.transaction(storeNames, mode)
-    const done = transactionDone(tx)
-    try {
-      const result = await work(tx)
-      await done
-      return result
-    } catch (error) {
-      try {
-        tx.abort()
-      } catch {
-        // Already finished or aborted.
-      }
-      await done.catch(() => undefined)
-      throw error instanceof PersistenceError
-        ? error
-        : new PersistenceError('transaction_failed', 'IndexedDB operation failed', error)
-    }
+    return runTransaction(db, storeNames, mode, work)
   }
 
   private open(): Promise<IDBDatabase> {
     if (!this.openPromise) {
-      this.openPromise = openDatabase(this.dbName).catch((error) => {
+      this.openPromise = openStickerLabDatabase(this.dbName).catch((error) => {
         this.openPromise = undefined
         throw error
       })
@@ -494,16 +478,6 @@ async function toStoredAsset(record: AssetRecord): Promise<Asset & { blob: Array
   return { ...asset, blob: await blobToArrayBuffer(record.blob) }
 }
 
-function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
-  if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer()
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as ArrayBuffer)
-    reader.onerror = () => reject(reader.error ?? new PersistenceError('invalid_asset', 'Could not read asset blob'))
-    reader.readAsArrayBuffer(blob)
-  })
-}
-
 function parseStoredMask(value: unknown): Blob {
   if (typeof value !== 'object' || value === null) throw new PersistenceError('invalid_asset', 'Stored mask must be an object')
   const { blob } = value as { blob?: unknown }
@@ -522,15 +496,15 @@ function restoreBlob(value: unknown, mimeType: string): Blob {
     if (value.size <= 0) throw new PersistenceError('invalid_asset', 'Stored asset is missing blob data')
     return value
   }
-  if (isArrayBuffer(value) && value.byteLength > 0) return new Blob([value], { type: mimeType })
+  if (isArrayBufferValue(value) && value.byteLength > 0) return new Blob([value], { type: mimeType })
   if (ArrayBuffer.isView(value) && value.byteLength > 0) {
     return new Blob([value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength)], { type: mimeType })
   }
   throw new PersistenceError('invalid_asset', 'Stored asset is missing blob data')
 }
 
-function isArrayBuffer(value: unknown): value is ArrayBuffer {
-  return Object.prototype.toString.call(value) === '[object ArrayBuffer]'
+function isArrayBufferValue(value: unknown): value is ArrayBuffer {
+  return isArrayBuffer(value)
 }
 
 function assertAssetsResolvable(document: ProjectDocument, hasAsset: (id: string) => boolean): void {
@@ -541,41 +515,4 @@ function assertAssetsResolvable(document: ProjectDocument, hasAsset: (id: string
 
 function sortProjects(documents: ProjectDocument[]): ProjectDocument[] {
   return documents.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : a.id.localeCompare(b.id)))
-}
-
-function openDatabase(name: string): Promise<IDBDatabase> {
-  const factory = globalThis.indexedDB
-  if (!factory) throw new PersistenceError('transaction_failed', 'IndexedDB is not available')
-  return new Promise((resolve, reject) => {
-    const request = factory.open(name, DB_VERSION)
-    request.onupgradeneeded = () => {
-      const db = request.result
-      if (!db.objectStoreNames.contains(PROJECTS_STORE)) db.createObjectStore(PROJECTS_STORE, { keyPath: 'id' })
-      if (!db.objectStoreNames.contains(ASSETS_STORE)) db.createObjectStore(ASSETS_STORE, { keyPath: 'id' })
-      if (!db.objectStoreNames.contains(PACKS_STORE)) db.createObjectStore(PACKS_STORE, { keyPath: 'id' })
-      if (!db.objectStoreNames.contains(MASKS_STORE)) db.createObjectStore(MASKS_STORE, { keyPath: 'key' })
-      if (!db.objectStoreNames.contains(SYNC_STORE)) db.createObjectStore(SYNC_STORE, { keyPath: 'key' })
-    }
-    request.onsuccess = () => {
-      const db = request.result
-      db.onversionchange = () => db.close()
-      resolve(db)
-    }
-    request.onerror = () => reject(new PersistenceError('transaction_failed', 'Failed to open local database', request.error))
-  })
-}
-
-function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error ?? new PersistenceError('transaction_failed', 'IndexedDB request failed'))
-  })
-}
-
-function transactionDone(tx: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error ?? new PersistenceError('transaction_failed', 'IndexedDB transaction failed'))
-    tx.onabort = () => reject(tx.error ?? new PersistenceError('transaction_failed', 'IndexedDB transaction aborted'))
-  })
 }

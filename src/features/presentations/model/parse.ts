@@ -135,7 +135,7 @@ function assertWithinSizeBudget(document: PresentationDocument): void {
 }
 
 /** Returns a clone containing only serializable, validated data. */
-export function serializePresentationDocument(document: PresentationDocument): PresentationDocument {
+export function serializePresentationDocument(document: unknown): PresentationDocument {
   let json: string
   try {
     json = JSON.stringify(document)
