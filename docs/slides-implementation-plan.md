@@ -3,9 +3,11 @@
 **Status:** scope confirmed by the owner on 2026-09-10. Milestone 0 (P01–P07) is implemented with
 recorded evidence under `proofs/`; P08 is blocked pending an authorized preview deployment (see
 `proofs/p08-deployment-blocked.md`). Milestone 1 foundation (P09–P14) is implemented with unit
-contract tests (the IndexedDB adapter is recorded in `proofs/p13-p14-idb.md`); P15 onward is not
-started. Review-driven corrections are recorded in `proofs/correction-pass.md`. Start the next
-session from [`HANDOFF.md`](../HANDOFF.md).
+contract tests (the IndexedDB adapter is recorded in `proofs/p13-p14-idb.md`); the presentation
+library, blank creation/editor routes, and fixed slide renderer (P15–P16) are implemented and
+recorded in `proofs/p15-p16-basic-presentations.md`. P17 onward is not started. Review-driven
+corrections are recorded in `proofs/correction-pass.md`. Start the next session from
+[`HANDOFF.md`](../HANDOFF.md).
 
 This plan is designed for one developer working in small increments. Product scope came from the [planning interview](slides-planning.md); technical contracts are in [the architecture](slides-architecture.md).
 
@@ -71,8 +73,8 @@ The first coding task is **P01**, then the **export/text proof P02–P05**. Do n
 | [x] | P12 | Add presentation repository interface and memory adapter. | P10 | Contract checks cover save/load/duplicate/remove and complete asset references. |
 | [x] | P13 | Add IndexedDB stores through a safe additive upgrade; keep existing sticker data. | P12 | Upgrade a populated old DB fixture; reopen old stickers and new presentations. Use actual current DB version at implementation. |
 | [x] | P14 | Add atomic presentation/media saves and revision checks. | P13 | Failed writes preserve prior save; concurrent tab stale writes cannot silently win. |
-| [ ] | P15 | Add presentation list, blank creation and editor routes using shared shell/components. | P11, P14 | Create and reopen from real local state; empty/long-title states usable. |
-| [ ] | P16 | Render one fixed 16:9 slide, background and selected elements; fit/zoom/pan. | P15 | View transforms never alter stored coordinates; page bounds remain fixed. |
+| [x] | P15 | Add presentation list, blank creation and editor routes using shared shell/components. | P11, P14 | Create and reopen from real local state; empty/long-title states usable. |
+| [x] | P16 | Render one fixed 16:9 slide, background and selected elements; fit/zoom/pan. | P15 | View transforms never alter stored coordinates; page bounds remain fixed. |
 | [ ] | P17 | Add a basic wrapped text box using the proven text bridge and model. | P04, P05, P16 | Edit English/Vietnamese, blur/save/reopen without losing content or position. |
 | [ ] | P18 | Add personal PNG/JPEG/static WebP image upload and stored media insertion. | P14, P16 | Existing size/format validation reused where valid; failed upload leaves no broken layer. |
 | [ ] | P19 | Add autosave and explicit Save with truthful state and edit/media flushing. | P17, P18 | Dirty → saving → saved locally; induced quota/write failure retains editable work. |

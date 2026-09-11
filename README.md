@@ -2,7 +2,7 @@
 
 Mint-green local sticker editor. Create a sticker, upload a photo, edit, save, reopen, and export a transparent PNG — no cloud credentials required.
 
-Planned expansion: [university presentations implementation plan](docs/slides-implementation-plan.md), with [architecture](docs/slides-architecture.md) and an admin dashboard design concept. Presentations, PDF/PPTX export, and catalog administration are planned features, not currently implemented.
+The [university presentations implementation plan](docs/slides-implementation-plan.md) is in progress, with [architecture](docs/slides-architecture.md) and an admin dashboard design concept. The current app can create, list, reopen, and preview local 16:9 presentations; text/image editing, presentation export, templates, and catalog administration remain planned increments.
 
 ![StickerLab overview of Dashboard, Create Sticker, and Templates](readme-included.png)
 
@@ -91,6 +91,8 @@ Fonts and cutouts are served locally, with no extra credentials or dependencies.
 - [x] Email magic-link sign-in UI, session restoration, and private cloud saving backed by Supabase Auth, PostgreSQL, and private Storage (live inbox delivery unverified until custom SMTP)
 - [x] Local-first save/reopen, offline editing, retry queue across reload, and explicit guest collection import
 - [x] Atomic compare-and-set concurrency revision checks with automatic conflict copies for stickers and packs
+- [x] Local presentation library (`/presentations`), blank creation/reopen, recoverable load states, and a fixed 1280×720 slide preview with view-only fit/zoom/pan
+- [ ] Presentation text/image editing, autosave, PDF/PPTX/backup UI, templates, and administrator catalog workflows
 - [ ] Public/read-only cloud sharing and native WhatsApp/Telegram installation
 
 Deferred actions open an explanation or stay disabled. They do not report success. Automatic background removal and public sharing are unavailable.
@@ -146,4 +148,4 @@ Verification commands: `npm run typecheck`, `npm run lint`, `npm test`, `npm run
 
 `e2e/fonts-stickers.spec.ts` verifies all six font faces through the editor UI, downloaded PNG pixels after save/reopen, delayed and failed font loads, and cutout + text preset → rotate/outline → save/reopen → transparent PNG at desktop/tablet/mobile widths. These specs do not import the editor store; they drive the live document and inspect files. Run them against the production preview with `npx playwright test e2e/fonts-stickers.spec.ts e2e/render-parity.spec.ts --config playwright.preview.config.ts`.
 
-`e2e/ui-polish.spec.ts` checks all four routes and representative dialogs at 1440×900, 1024×768, and 390×844, plus a short 390×480 viewport. It covers image loading, overflow, keyboard focus trapping/restoration, mobile pack controls, and isolation of editor shortcuts from dialogs. Refresh screenshots are generated outside the repository at `/tmp/stickerlab-ui-audit/`; foundation screenshots remain at `/tmp/stickerlab-browser-verification/`.
+`e2e/ui-polish.spec.ts` checks all four sticker routes and representative dialogs at 1440×900, 1024×768, and 390×844, plus a short 390×480 viewport. It covers image loading, overflow, keyboard focus trapping/restoration, mobile pack controls, and isolation of editor shortcuts from dialogs. Refresh screenshots are generated outside the repository at `/tmp/stickerlab-ui-audit/`; foundation screenshots remain at `/tmp/stickerlab-browser-verification/`. The `/presentations` route family has its own spec and committed captures: `e2e/presentations.spec.ts` with evidence in `proofs/out/p15-*` and `proofs/out/p16-*` (see `proofs/p15-p16-basic-presentations.md`).

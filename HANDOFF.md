@@ -1,6 +1,6 @@
 # Handoff — presentation work
 
-Updated 2026-09-10. Full scope: [`docs/slides-implementation-plan.md`](docs/slides-implementation-plan.md);
+Updated 2026-09-11. Full scope: [`docs/slides-implementation-plan.md`](docs/slides-implementation-plan.md);
 contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
 
 ## Where the work stands
@@ -10,42 +10,48 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
 - **P08 blocked** — no authorized preview deployment. A unit-tested harness is
   ready at `server/processing/probe.ts`; see `proofs/p08-deployment-blocked.md`.
   Do not add catalog/admin ingestion before preview evidence exists.
-- **Milestone 1 foundation (P09–P14) complete** — model, parser, command store,
-  repository contract (memory + IndexedDB at schema v5), all with tests.
-- **No user-facing presentation route exists yet.**
-- Commits: `f7e84e6` (P13/P14), `fd33d9f` + `8c29638` (review corrections),
-  `4977a4d` (proofs + foundation).
+- **Milestone 1 through P16 complete** — model, parser, command store,
+  repository contract (memory + IndexedDB at schema v5), local library/blank
+  creation/editor routes, and fixed 16:9 rendering are implemented with tests.
+- `/presentations` creates and reopens real local documents (blank documents are
+  saved at creation). The editor renders the active slide, lists the document's
+  slides, and switches between them; user mutations and edit autosave arrive in
+  P17–P19.
+- Evidence: `proofs/p15-p16-basic-presentations.md` (including committed captures
+  in `proofs/out/p15-*` and `p16-*`) plus the earlier foundation and correction
+  proofs.
 
-## Start here: P15, then P16
+## Start here: P17, then P18–P19
 
-**P15 — list, blank creation and editor routes** (acceptance: create and reopen
-from real local state; empty/long-title states usable):
+**P17 — basic wrapped text editing** (acceptance: edit English/Vietnamese,
+blur/save/reopen without losing content or position):
 
-1. `src/app/presentationRepository.tsx` — small context/provider handing out
-   `createIdbPresentationRepository()`. Do **not** widen the sticker
-   `RepositoryProvider` or mix the two document types.
-2. `src/features/presentations/library/PresentationsPage.tsx` (`/presentations`)
-   — list from `listPresentations()`, blank creation via
-   `createPresentationDocument()` + `savePresentation(document)`, then navigate
-   to `/presentations/:id`. Show real empty/error states. Leave rename/
-   duplicate/delete and backup restore for P20/P43 (no dead-looking controls).
-3. `src/features/presentations/editor/PresentationEditorPage.tsx`
-   (`/presentations/:id`) — load document and media, `loadDocument(document,
-   { saved: true })`, show the title and a recoverable missing/unsupported state.
-4. Routes in `src/main.tsx`; navigation entry using existing shell components.
+- Insert a real `TextElement` through `usePresentationStore` commands; do not
+  mutate the loaded document object or Konva node.
+- Reuse `textBridge.ts` for the DOM editor and `layoutTextElement` for the canvas.
+  Keep IME composition and paste normalization from the P04 proof.
+- Use Be Vietnam Pro/Spectral only and wait for the font promise already owned by
+  `PresentationEditorPage` before measuring.
+- Add an accessible DOM field/overlay; canvas shortcuts must stay inactive while
+  typing. One completed text session becomes one history entry.
 
-**P16 — fixed 16:9 slide rendering** (acceptance: view transforms never alter
-stored coordinates; page bounds fixed):
+**P18 — personal image insertion** (acceptance: supported upload is stored and
+inserted atomically; failure leaves no broken element):
 
-- `src/features/presentations/rendering/renderSlide.ts` — render background,
-  shapes, text (via `layoutTextElement` + `konvaText.ts`) and images (crop/flip)
-  in slide order. Base this on the renderer already proven in
-  `e2e/proofs/pdf-backup.spec.ts`.
-- `src/features/presentations/editor/PresentationCanvas.tsx` — Konva stage;
-  `view.zoom`/`view.pan` only, document units unchanged; fit the 1280×720 page
-  into the viewport. Selection/handles come with P24.
-- Extend `e2e/` with a presentations journey (create → library → reopen) that
-  P21 will grow into the full save/reload check.
+- Reuse the existing upload byte/format/dimension validation where its contract
+  matches PNG, JPEG, and static WebP. Do not accept SVG or animation.
+- Hash and create a document-local immutable `PresentationAsset`, then save the
+  media and document together before exposing an apparently complete image.
+- Extend the current media decode/dispose path; never persist object URLs.
+
+**P19 — truthful save/autosave** (acceptance: dirty → saving → saved locally;
+failed writes retain editable work):
+
+- Add explicit Save and ~750 ms autosave after completed text/image commands.
+- Flush active text/gesture/media work before save and route replacement.
+- Use `savedRevision`/`baseRevision`; surface revision conflicts without silently
+  overwriting another tab. Do not reuse sticker `draftSaving` wholesale.
+- Grow `e2e/presentations.spec.ts` into the edit → save → reload → reopen flow.
 
 ## Interfaces to build on
 
@@ -57,6 +63,9 @@ stored coordinates; page bounds fixed):
 | Mutations + undo | `editor/store.ts` (`usePresentationStore`; view state never dirties) |
 | Persistence | `lib/persistence/presentations/repository.ts` (memory) and `.../idb.ts` |
 | Text | `rendering/textLayout.ts` + `editor/textBridge.ts` + `rendering/fonts.ts` (`ensurePresentationFonts()` before measuring) |
+| Page rendering | `rendering/renderSlide.ts` + `editor/PresentationCanvas.tsx`; stage transforms are view-only |
+| Canvas view controls | `editor/PresentationCanvasControls.tsx` + `editor/viewGeometry.ts` (shared 0.25–4 clamp) |
+| Current routes | `library/PresentationsPage.tsx` and `editor/PresentationEditorPage.tsx` |
 | Exports (later) | `exports/pdf.ts`, `exports/backup.ts` |
 
 ## Guardrails
@@ -70,6 +79,10 @@ stored coordinates; page bounds fixed):
   not. Re-run sticker persistence tests after any version change.
 - Use shared UI primitives (`src/components/ui/`) and tokens in
   `src/styles.css`; no page-local lookalikes.
+- Keep canvas zoom/fit in `PresentationCanvasControls` and its limits in
+  `viewGeometry.ts`; do not add a second zoom implementation or clamp.
+- The P15/P16 browser spec writes its captures into `proofs/out/`; keep that
+  evidence current when the presentation UI changes.
 - Presentation text uses Be Vietnam Pro / Spectral only (Vietnamese coverage);
   the sticker fonts are Latin-only and must not be used for presentation text.
 - `docs/editor-library-research.md` is unrelated untracked work: preserve it,
@@ -82,6 +95,7 @@ stored coordinates; page bounds fixed):
 ```bash
 npm run typecheck && npm run lint && npm test && npm run build
 npx playwright test e2e/proofs --workers=1            # P04/P06 proofs
+npx playwright test e2e/presentations.spec.ts --workers=1
 npx playwright test e2e/editor.spec.ts --workers=1    # sticker regression
 npx vite-node proofs/pptx/generateStress.ts           # only when export code changes
 ```

@@ -69,6 +69,14 @@ Home, Templates, and Explore now share the full available content width, like My
 
 Verified: 22 UI-polish browser tests, typecheck, build, lint (zero errors; five existing warnings), and `git diff --check`. New checks compare hero edges to the padded content edges on all four routes at 3200, 1920, 1440, 1024, and 390 CSS pixels. Wide CSS viewports exercise the extra layout space exposed by zooming out; native browser 60% zoom was not directly automated. Screenshots inspected under `/tmp/stickerlab-ui-audit/full-width-*.png`. No dependencies, migrations, or production changes.
 
+## Presentation routes follow-up
+
+`/presentations` now exists as a real, local-first route family. The library hero reuses the scrapbook language (mint/cream paper, taped note, outlined sticker art) while the editor stays calm: one status bar, a numbered slide rail, the fixed 16:9 page, and a read-only properties inspector. All controls are the shared `Button`/`Card` primitives and existing `--space-*`, `--line`, `--mint`, `--radius*`, and `--shadow*` tokens; the only decorative additions are paper/tape elements already used elsewhere.
+
+Responsive behaviour: below 1150 px the inspector is dropped, and at phone widths the rail and inspector are hidden in favour of an honest desktop-authoring notice plus a readable preview and the shared zoom/fit controls. There is no horizontal scrolling at 390×844, 1024×768, 1280×768, or 1440×900.
+
+Evidence: `e2e/presentations.spec.ts` (4 tests) plus committed captures in `proofs/out/` (`p15-*`, `p16-*`) at 1440×900, 1024×768, 390×844, and 1280×768. `e2e/ui-polish.spec.ts` was deliberately not extended: 12 of its desktop-width checks already fail in `proofs/baseline.md`, and the new routes carry their own containment, keyboard, and pixel assertions. The presentation editor still uses the shared sticker editor shell, the tablet inspector has no sheet yet, and nothing here removes the existing sticker-page limitations or the unresolved artwork-rights review.
+
 ## Boundaries
 
 No new dependencies, cloud setup, or database migrations. Source PNGs and the source ZIP are preserved. The UI refresh uses nine optimized WebP derivatives for decoration; the editor catalog now offers all 25 supplied cutouts plus eight new illustrated graphics for explicit insertion. Decoration does not replace editable template data or pretend to be saved user stickers. Artwork rights still need owner review before public distribution; a new layout is not legal clearance.
