@@ -10,30 +10,20 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
 - **P08 blocked** — no authorized preview deployment. A unit-tested harness is
   ready at `server/processing/probe.ts`; see `proofs/p08-deployment-blocked.md`.
   Do not add catalog/admin ingestion before preview evidence exists.
-- **Milestone 1 through P16 complete** — model, parser, command store,
+- **Milestone 1 through P17 complete** — model, parser, command store,
   repository contract (memory + IndexedDB at schema v5), local library/blank
-  creation/editor routes, and fixed 16:9 rendering are implemented with tests.
+  creation/editor routes, fixed 16:9 rendering, and basic wrapped text editing
+  are implemented with tests.
 - `/presentations` creates and reopens real local documents (blank documents are
   saved at creation). The editor renders the active slide, lists the document's
-  slides, and switches between them; user mutations and edit autosave arrive in
-  P17–P19.
-- Evidence: `proofs/p15-p16-basic-presentations.md` (including committed captures
-  in `proofs/out/p15-*` and `p16-*`) plus the earlier foundation and correction
-  proofs.
+  slides, switches between them, and edits text boxes through the DOM bridge.
+  Image insertion arrives in P18 and truthful save/autosave in P19, so edits
+  currently stay in memory and the status pill reports `Unsaved changes`.
+- Evidence: `proofs/p15-p16-basic-presentations.md` and
+  `proofs/p17-text-editing.md` (including committed captures in `proofs/out/`)
+  plus the earlier foundation and correction proofs.
 
-## Start here: P17, then P18–P19
-
-**P17 — basic wrapped text editing** (acceptance: edit English/Vietnamese,
-blur/save/reopen without losing content or position):
-
-- Insert a real `TextElement` through `usePresentationStore` commands; do not
-  mutate the loaded document object or Konva node.
-- Reuse `textBridge.ts` for the DOM editor and `layoutTextElement` for the canvas.
-  Keep IME composition and paste normalization from the P04 proof.
-- Use Be Vietnam Pro/Spectral only and wait for the font promise already owned by
-  `PresentationEditorPage` before measuring.
-- Add an accessible DOM field/overlay; canvas shortcuts must stay inactive while
-  typing. One completed text session becomes one history entry.
+## Start here: P18, then P19
 
 **P18 — personal image insertion** (acceptance: supported upload is stored and
 inserted atomically; failure leaves no broken element):
@@ -51,7 +41,8 @@ failed writes retain editable work):
 - Flush active text/gesture/media work before save and route replacement.
 - Use `savedRevision`/`baseRevision`; surface revision conflicts without silently
   overwriting another tab. Do not reuse sticker `draftSaving` wholesale.
-- Grow `e2e/presentations.spec.ts` into the edit → save → reload → reopen flow.
+- Extend `e2e/presentations.spec.ts` from the P17 repository-contract round trip
+  into the real UI save flow (edit → save → reload → reopen).
 
 ## Interfaces to build on
 
@@ -63,6 +54,7 @@ failed writes retain editable work):
 | Mutations + undo | `editor/store.ts` (`usePresentationStore`; view state never dirties) |
 | Persistence | `lib/persistence/presentations/repository.ts` (memory) and `.../idb.ts` |
 | Text | `rendering/textLayout.ts` + `editor/textBridge.ts` + `rendering/fonts.ts` (`ensurePresentationFonts()` before measuring) |
+| Text editing | `editor/TextEditOverlay.tsx` + `editor/textEditSession.ts`; commits go through `store.updateText` with `textHistoryGroup`, one entry per session |
 | Page rendering | `rendering/renderSlide.ts` + `editor/PresentationCanvas.tsx`; stage transforms are view-only |
 | Canvas view controls | `editor/PresentationCanvasControls.tsx` + `editor/viewGeometry.ts` (shared 0.25–4 clamp) |
 | Current routes | `library/PresentationsPage.tsx` and `editor/PresentationEditorPage.tsx` |
@@ -81,6 +73,9 @@ failed writes retain editable work):
   `src/styles.css`; no page-local lookalikes.
 - Keep canvas zoom/fit in `PresentationCanvasControls` and its limits in
   `viewGeometry.ts`; do not add a second zoom implementation or clamp.
+- Text edits go through `TextEditOverlay` + `textBridge` and commit with
+  `store.updateText` inside `textHistoryGroup(id)`; never persist the DOM tree.
+  `view.editingElementId` is view state, and nothing may save yet (P19).
 - The P15/P16 browser spec writes its captures into `proofs/out/`; keep that
   evidence current when the presentation UI changes.
 - Presentation text uses Be Vietnam Pro / Spectral only (Vietnamese coverage);

@@ -38,6 +38,6 @@ A copy of a saved sticker's appearance inserted into a presentation as one image
 
 ## Implementation status
 
-Presentation work is in progress. The current increment, the next tasks (P17–P19)
+Presentation work is in progress. The current increment, the next tasks (P18–P19)
 and the verification commands are in [`HANDOFF.md`](HANDOFF.md). Planning lives in
 `docs/` (architecture, implementation plan, ADRs); evidence lives in `proofs/`.
