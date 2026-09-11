@@ -224,6 +224,7 @@ button { cursor: pointer; }
 .header .profile::after { position: absolute; right: -22px; bottom: -8px; width: 22px; height: 26px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 27 32'%3E%3Cpath d='m15 3 9-1M11 13l10 5M4 20l2 9' fill='none' stroke='%231c3a52' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; content: ''; pointer-events: none; }
 main { min-width: 0; flex: 1; padding: var(--space-5); }
 main > section, main > div { min-width: 0; }
+.route-fallback { padding: var(--space-5); }
 .editor-layout { height: calc(100dvh - var(--header-height)); min-height: 0; }
 .editor-layout > .sidebar { display: none; }
 .editor-layout main {
@@ -1108,6 +1109,93 @@ main > section, main > div { min-width: 0; }
 .text-preset small { font-size: 10px; color: var(--muted); font-weight: 500; }
 .properties-toggle { display: none; }
 
+.presentations-library { display: grid; gap: var(--space-6); max-width: 1440px; margin: 0 auto; }
+.presentations-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, .75fr);
+  min-height: 300px;
+  align-items: center;
+  gap: var(--space-7);
+  padding: var(--space-7);
+  overflow: hidden;
+  border: 1px solid #cfe9dc;
+  border-radius: 28px;
+  background: radial-gradient(circle at 80% 15%, #fff2a9 0 9%, transparent 10%), linear-gradient(125deg, var(--pale), #f8f4d9 48%, var(--lav));
+}
+.presentations-hero::after { position: absolute; right: 33%; bottom: -28px; width: 130px; height: 68px; background: var(--tape-pink); opacity: .55; transform: rotate(-8deg); content: ''; }
+.presentations-hero > div:first-child { position: relative; z-index: 1; max-width: 660px; }
+.presentations-hero h1 { margin: var(--space-3) 0; font-size: clamp(2rem, 4vw, 4.5rem); line-height: 1; letter-spacing: -.055em; }
+.presentations-hero h1 em { color: var(--scrapbook-green); font-family: Chewy, cursive; font-weight: 400; }
+.presentations-hero > div:first-child > p:not(.hero-kicker) { max-width: 60ch; margin: 0 0 var(--space-5); color: #3d526d; }
+.presentation-hero-art { position: relative; min-height: 220px; }
+.presentation-paper { position: absolute; display: grid; aspect-ratio: 16 / 9; align-content: center; justify-items: center; border: 8px solid #fff; border-radius: 8px; box-shadow: 0 18px 36px #08152f26; }
+.presentation-paper-back { inset: 5% 2% auto 12%; background: #223a5e; color: #fff; transform: rotate(8deg); }
+.presentation-paper-front { inset: 18% 12% auto 0; background: #fff9df; color: var(--ink); transform: rotate(-7deg); }
+.presentation-paper strong { font: 400 clamp(22px, 2.5vw, 38px)/.95 Chewy, cursive; text-align: center; }
+.presentation-paper span { font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.presentation-paper i { position: absolute; right: 8%; bottom: 12%; width: 22%; height: 10%; background: var(--mint); transform: rotate(-5deg); }
+.presentation-hero-art img { position: absolute; z-index: 2; right: -2%; bottom: -8%; width: min(32%, 128px); height: auto; transform: rotate(12deg); filter: drop-shadow(0 8px 8px #08152f20); }
+.presentation-library-heading { display: flex; align-items: end; justify-content: space-between; gap: var(--space-5); }
+.presentation-library-heading h2 { margin: 0; font-size: 24px; }
+.presentation-library-heading p { margin: var(--space-1) 0 0; color: var(--muted); font-size: 13px; }
+.presentation-device-note { display: flex; align-items: center; gap: var(--space-2); }
+.presentation-library-state { display: grid; min-height: 260px; place-content: center; justify-items: center; gap: var(--space-3); padding: var(--space-7); text-align: center; }
+.presentation-library-state h2, .presentation-library-state p { margin: 0; }
+.presentation-library-state p { max-width: 58ch; color: var(--muted); }
+.presentation-library-alert { display: grid; justify-items: center; gap: var(--space-3); }
+.presentation-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: var(--space-5); margin: 0; padding: 0; list-style: none; }
+.presentation-grid li { min-width: 0; }
+.presentation-card { display: block; height: 100%; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); color: var(--ink); text-decoration: none; }
+.presentation-card:hover { border-color: #9ddaca; box-shadow: var(--shadow-hover); }
+.presentation-card-preview { position: relative; display: grid; aspect-ratio: 16 / 9; place-items: center; overflow: hidden; padding: var(--space-5); border-radius: var(--radius-sm); background: linear-gradient(140deg, #f8f4d9, var(--pale)); }
+.presentation-card-preview::before { position: absolute; inset: 12% 18%; border: 4px solid #fff; border-radius: 4px; background: #fffdf5; box-shadow: var(--shadow); transform: rotate(-3deg); content: ''; }
+.presentation-card-preview > span { position: relative; z-index: 1; max-width: 20ch; overflow: hidden; color: var(--scrapbook-green); font: 400 18px/1.1 Chewy, cursive; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.presentation-card-preview i { position: absolute; right: var(--space-2); bottom: var(--space-2); padding: 3px 7px; border-radius: 999px; background: #ffffffd9; color: var(--muted); font-size: 10px; font-style: normal; font-weight: 800; }
+.presentation-card-body { display: grid; gap: var(--space-2); padding: var(--space-4) var(--space-2) var(--space-2); }
+.presentation-card-body strong { overflow-wrap: anywhere; }
+.presentation-card-body small { display: flex; align-items: center; gap: var(--space-2); color: var(--muted); }
+.presentation-card-body small:last-child { justify-content: space-between; color: #007b55; font-weight: 800; }
+
+.presentation-route-state { display: grid; min-height: 100%; place-content: center; justify-items: center; gap: var(--space-4); padding: var(--space-7); text-align: center; }
+.presentation-route-state h1, .presentation-route-state p { margin: 0; }
+.presentation-route-state p { max-width: 58ch; color: var(--muted); }
+.presentation-editor { display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; background: #f2f6f5; }
+.presentation-editor-bar { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); background: var(--surface); }
+.presentation-editor-title { min-width: 0; }
+.presentation-editor-title p, .presentation-editor-title h1 { margin: 0; }
+.presentation-editor-title p { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.presentation-editor-title h1 { max-width: 100%; overflow: hidden; font-size: 18px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.presentation-local-status { margin: 0; color: #007b55; font-size: 12px; font-weight: 800; }
+.presentation-workspace { display: grid; grid-template-columns: 168px minmax(0, 1fr) 220px; min-width: 0; min-height: 0; flex: 1; }
+.presentation-slide-rail, .presentation-inspector { min-height: 0; padding: var(--space-4); overflow: auto; background: var(--surface); }
+.presentation-slide-rail { border-right: 1px solid var(--line); }
+.presentation-inspector { border-left: 1px solid var(--line); }
+.presentation-slide-rail > p, .presentation-inspector > p:first-child { margin: 0 0 var(--space-3); color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.presentation-slide-list { display: grid; gap: var(--space-3); }
+.presentation-slide-card { display: grid; width: 100%; gap: var(--space-2); padding: var(--space-2); border: 2px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); text-align: left; }
+.presentation-slide-card:hover { border-color: var(--mint); }
+.presentation-slide-card[aria-current] { border-color: var(--mint); background: var(--pale); }
+.presentation-slide-card:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.presentation-slide-card span { display: grid; aspect-ratio: 16 / 9; place-items: center; border-radius: 6px; background: #fff; color: var(--muted); font-size: 12px; }
+.presentation-slide-card b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.presentation-inspector dl { display: grid; gap: var(--space-3); margin: 0; }
+.presentation-inspector dl div { display: flex; justify-content: space-between; gap: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--line); font-size: 12px; }
+.presentation-inspector dt { color: var(--muted); }
+.presentation-inspector dd { margin: 0; font-weight: 800; }
+.presentation-inspector .muted { margin-top: var(--space-5); font-size: 12px; }
+.presentation-canvas-panel { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #dfe8e6; }
+.presentation-canvas-loading { margin: 0; padding: var(--space-5); color: var(--muted); font-size: 13px; text-align: center; }
+.presentation-canvas-error { position: absolute; z-index: 2; inset: auto var(--space-4) var(--space-7); margin: 0; padding: var(--space-3) var(--space-4); border: 1px solid #f0c9a8; border-radius: var(--radius-sm); background: #fff6ec; color: #8a4b12; font-size: 12px; font-weight: 600; }
+.presentation-canvas { position: absolute; inset: 0; cursor: grab; touch-action: none; }
+.presentation-canvas.is-panning { cursor: grabbing; }
+.presentation-canvas canvas { filter: drop-shadow(0 12px 28px #08152f2b); }
+.presentation-canvas-controls { position: absolute; z-index: 2; right: var(--space-4); bottom: var(--space-4); display: flex; align-items: center; gap: 2px; padding: var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fffffff2; box-shadow: var(--shadow); }
+.presentation-canvas-controls output { min-width: 48px; color: var(--ink); font-size: 12px; font-weight: 800; text-align: center; }
+.presentation-canvas-controls .button.icon { width: 36px; min-height: 36px; }
+.presentation-blank-slide { position: absolute; z-index: 1; inset: 50% auto auto 50%; margin: 0; color: #9aa7b7; font-size: 12px; pointer-events: none; transform: translate(-50%, -50%); }
+.presentation-mobile-note { display: none; }
+
 .packs-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--space-5); align-items: start; }
 .packs-empty { min-height: 340px; }
 .pack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--space-4); }
@@ -1252,6 +1340,8 @@ main > section, main > div { min-width: 0; }
   .editor-workspace { grid-template-columns: 172px minmax(0, 1fr); }
   .editor { grid-template-columns: minmax(0, 1fr); }
   .editor > .inspector { display: none; }
+  .presentation-workspace { grid-template-columns: 148px minmax(0, 1fr); }
+  .presentation-inspector { display: none; }
   .properties-toggle { position: fixed; right: 15px; bottom: 15px; z-index: 4; display: flex; }
   .tool-tip-card, .tool-mascot { display: none; }
   .editor-top { flex-wrap: wrap; }
@@ -1282,6 +1372,23 @@ main > section, main > div { min-width: 0; }
   .layout > .sidebar { display: none; }
   .layout main { padding: var(--space-4); padding-bottom: var(--space-6); }
   .editor-layout main { padding: 0; }
+  .presentations-library { gap: var(--space-5); }
+  .presentations-hero { grid-template-columns: 1fr; gap: var(--space-5); min-height: 0; padding: var(--space-5); }
+  .presentations-hero::after { display: none; }
+  .presentation-hero-art { min-height: 180px; }
+  .presentation-library-heading { align-items: flex-start; flex-direction: column; gap: var(--space-2); }
+  .presentation-device-note { margin: 0; }
+  .presentation-library-state { min-height: 240px; padding: var(--space-5); }
+  .presentation-grid { grid-template-columns: 1fr; }
+  .presentation-editor { min-height: calc(100dvh - var(--header-height)); }
+  .presentation-editor-bar { grid-template-columns: 44px minmax(0, 1fr); }
+  .presentation-editor-title h1 { display: -webkit-box; overflow: hidden; white-space: normal; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .presentation-local-status { grid-column: 2; }
+  .presentation-mobile-note { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid #d8e4df; background: var(--pale); color: #315b4e; font-size: 12px; line-height: 1.5; }
+  .presentation-workspace { display: block; min-height: 0; flex: 1; }
+  .presentation-slide-rail, .presentation-inspector { display: none; }
+  .presentation-canvas-panel { min-height: min(62dvh, 560px); height: 100%; }
+  .presentation-canvas-controls { right: var(--space-3); bottom: var(--space-3); }
   .hero { min-height: 0; flex-direction: column; align-items: flex-start; gap: var(--space-4); padding: var(--space-5); border-radius: 24px; }
   .hero-dashboard { min-height: 0; }
   .hero-dashboard .collage { flex: none; width: 100%; height: 250px; }

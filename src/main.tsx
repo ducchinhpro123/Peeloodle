@@ -2,11 +2,13 @@ import { StrictMode, Suspense, lazy, useCallback, useEffect, useRef, useState, t
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useRepository } from './app/repository'
+import { PresentationRepositoryProvider } from './app/presentationRepository'
 import { WorkspaceProvider, useCloudStatus, useWorkspace } from './features/auth/Workspace'
 import { Account, AuthCallback, CloudBanner } from './features/auth/Account'
 import { LocalProjectList } from './features/editor/LocalProjectList'
 import { downloadBlob } from './features/exports/download'
 import type { StickerLabRepository } from './lib/persistence/repository'
+import type { PresentationRepository } from './lib/persistence/presentations/repository'
 import {
   Bell,
   ChevronRight,
@@ -20,6 +22,7 @@ import {
   LayoutGrid,
   Menu,
   Play,
+  Presentation as PresentationIcon,
   Plus,
   Scissors,
   Search,
@@ -66,8 +69,11 @@ import './features/presentations/rendering/presentation-fonts.css'
 
 const CreateEditor = lazy(() => import('./features/editor/EditorPage').then((module) => ({ default: module.CreateEditor })))
 const ProjectEditor = lazy(() => import('./features/editor/EditorPage').then((module) => ({ default: module.ProjectEditor })))
+const PresentationsPage = lazy(() => import('./features/presentations/library/PresentationsPage'))
+const PresentationEditorPage = lazy(() => import('./features/presentations/editor/PresentationEditorPage'))
 const preloadEditor = () => { void import('./features/editor/EditorPage') }
 const editorFallback = <p className="muted" style={{ padding: 24 }}>Opening sticker…</p>
+const presentationFallback = <p className="muted route-fallback">Opening presentations…</p>
 
 const getView = (search: string) => new URLSearchParams(search).get('view')
 
@@ -125,6 +131,7 @@ function Sidebar({ mobile = false }: { mobile?: boolean }) {
     { to: '/', label: 'Dashboard', icon: Home, active: pathname === '/' },
     { to: '/create', label: 'Create Sticker', icon: Plus, active: pathname === '/create' || pathname.startsWith('/editor/') },
     { to: '/my-stickers', label: 'My Stickers', icon: ImagePlus, active: pathname === '/my-stickers' && !isFavorites && !isShared },
+    { to: '/presentations', label: 'Presentations', icon: PresentationIcon, active: pathname.startsWith('/presentations') },
     { to: '/templates', label: 'Templates', icon: LayoutGrid, active: pathname === '/templates' },
     { to: '/my-stickers?view=favorites', label: 'Favorites', icon: Heart, active: isFavorites },
     { to: '/my-stickers?view=shared', label: 'Shared with Me', icon: UserRound, active: isShared },
@@ -417,8 +424,8 @@ function TemplatesPage() {
   )
 }
 
-function EditorLayout({ children }: { children: ReactNode }) {
-  return <Shell editor><Suspense fallback={editorFallback}>{children}</Suspense></Shell>
+function EditorLayout({ children, fallback = editorFallback }: { children: ReactNode; fallback?: ReactNode }) {
+  return <Shell editor><Suspense fallback={fallback}>{children}</Suspense></Shell>
 }
 
 function Packs() {
@@ -829,19 +836,29 @@ function Packs() {
   )
 }
 
-export function App({ repository }: { repository?: StickerLabRepository } = {}) {
+export function App({
+  repository,
+  presentationRepository,
+}: {
+  repository?: StickerLabRepository
+  presentationRepository?: PresentationRepository
+} = {}) {
   return (
-    <WorkspaceProvider repository={repository}>
-      <Routes>
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/create" element={<EditorLayout><CreateEditor /></EditorLayout>} />
-        <Route path="/editor/:projectId" element={<EditorLayout><ProjectEditor /></EditorLayout>} />
-        <Route path="/templates" element={<TemplatesPage />} />
-        <Route path="/my-stickers" element={<Packs />} />
-        <Route path="*" element={<Dashboard />} />
-      </Routes>
-    </WorkspaceProvider>
+    <PresentationRepositoryProvider repository={presentationRepository}>
+      <WorkspaceProvider repository={repository}>
+        <Routes>
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/create" element={<EditorLayout><CreateEditor /></EditorLayout>} />
+          <Route path="/editor/:projectId" element={<EditorLayout><ProjectEditor /></EditorLayout>} />
+          <Route path="/presentations" element={<Shell><Suspense fallback={presentationFallback}><PresentationsPage /></Suspense></Shell>} />
+          <Route path="/presentations/:presentationId" element={<EditorLayout fallback={presentationFallback}><PresentationEditorPage /></EditorLayout>} />
+          <Route path="/templates" element={<TemplatesPage />} />
+          <Route path="/my-stickers" element={<Packs />} />
+          <Route path="*" element={<Dashboard />} />
+        </Routes>
+      </WorkspaceProvider>
+    </PresentationRepositoryProvider>
   )
 }
 
