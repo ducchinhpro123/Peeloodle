@@ -18,7 +18,11 @@ export function konvaFontStyle(run: Pick<TextRun, 'bold' | 'italic'>): string {
   return `${run.bold ? 'bold' : 'normal'} ${run.italic ? 'italic' : 'normal'}`
 }
 
-export function createKonvaTextForRun(run: TextRun, text: string, x: number, y: number): Konva.Text {
+/**
+ * Konva text node for one run. Rendering paths (exports) leave it inert; the
+ * interactive editor passes `listening: true` so the text box can be selected.
+ */
+export function createKonvaTextForRun(run: TextRun, text: string, x: number, y: number, listening = false): Konva.Text {
   return new Konva.Text({
     x,
     y,
@@ -28,7 +32,7 @@ export function createKonvaTextForRun(run: TextRun, text: string, x: number, y: 
     fontStyle: konvaFontStyle(run),
     fill: run.color,
     lineHeight: 1,
-    listening: false,
+    listening,
   })
 }
 

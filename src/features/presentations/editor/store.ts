@@ -17,6 +17,8 @@ import type { Element, PresentationDocument, Slide, TextParagraph, Theme } from 
 export type PresentationViewState = {
   activeSlideId: string | null
   selectedElementIds: string[]
+  /** Text element whose DOM editor is open; view state only. */
+  editingElementId: string | null
   zoom: number
   pan: { x: number; y: number }
 }
@@ -44,6 +46,8 @@ export type PresentationStoreState = {
   selectSlide(slideId: string): void
   selectElements(ids: string[]): void
   toggleElementSelection(id: string, additive?: boolean): void
+  startTextEdit(elementId: string): void
+  endTextEdit(): void
   setZoom(zoom: number): void
   setPan(pan: { x: number; y: number }): void
 
@@ -69,7 +73,7 @@ export type PresentationStoreState = {
   redo(): void
 }
 
-const initialView: PresentationViewState = { activeSlideId: null, selectedElementIds: [], zoom: 1, pan: { x: 0, y: 0 } }
+const initialView: PresentationViewState = { activeSlideId: null, selectedElementIds: [], editingElementId: null, zoom: 1, pan: { x: 0, y: 0 } }
 
 function estimateBytes(document: PresentationDocument): number {
   try {
@@ -189,7 +193,7 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     selectSlide(slideId) {
       const document = get().document
       if (!document || !document.slides.some((slide) => slide.id === slideId)) return
-      set({ view: { ...get().view, activeSlideId: slideId, selectedElementIds: [] } })
+      set({ view: { ...get().view, activeSlideId: slideId, selectedElementIds: [], editingElementId: null } })
     },
 
     selectElements(ids) {
@@ -207,6 +211,18 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         return
       }
       set({ view: { ...get().view, selectedElementIds: current.includes(id) ? current.filter((existing) => existing !== id) : [...current, id] } })
+    },
+
+    startTextEdit(elementId) {
+      const document = get().document
+      const element = document?.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
+      if (element?.kind !== 'text') return
+      set({ view: { ...get().view, selectedElementIds: [elementId], editingElementId: elementId } })
+    },
+
+    endTextEdit() {
+      if (get().view.editingElementId === null) return
+      set({ view: { ...get().view, editingElementId: null } })
     },
 
     setZoom(zoom) {
@@ -227,7 +243,7 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         const index = draft.slides.findIndex((candidate) => candidate.id === anchor)
         draft.slides.splice(index === -1 ? draft.slides.length : index + 1, 0, slide)
       })
-      set({ view: { ...get().view, activeSlideId: slide.id, selectedElementIds: [] } })
+      set({ view: { ...get().view, activeSlideId: slide.id, selectedElementIds: [], editingElementId: null } })
       return slide.id
     },
 
@@ -242,7 +258,7 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         const index = draft.slides.findIndex((slide) => slide.id === slideId)
         draft.slides.splice(index + 1, 0, copy)
       })
-      set({ view: { ...get().view, activeSlideId: copy.id, selectedElementIds: [] } })
+      set({ view: { ...get().view, activeSlideId: copy.id, selectedElementIds: [], editingElementId: null } })
       return copy.id
     },
 
@@ -279,7 +295,10 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         draft.slides = draft.slides.filter((slide) => slide.id !== slideId)
         return true
       })
-      if (get().view.activeSlideId === slideId) set({ view: { ...get().view, activeSlideId: survivor, selectedElementIds: [] } })
+      const editingWasRemoved = get().view.editingElementId !== null
+        && document.slides.some((slide) => slide.id === slideId && slide.elements.some((element) => element.id === get().view.editingElementId))
+      if (get().view.activeSlideId === slideId) set({ view: { ...get().view, activeSlideId: survivor, selectedElementIds: [], editingElementId: null } })
+      else if (editingWasRemoved) set({ view: { ...get().view, editingElementId: null } })
       return true
     },
 
@@ -341,7 +360,13 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         }
         return removed
       })
-      set({ view: { ...get().view, selectedElementIds: get().view.selectedElementIds.filter((id) => id !== elementId) } })
+      set({
+        view: {
+          ...get().view,
+          selectedElementIds: get().view.selectedElementIds.filter((id) => id !== elementId),
+          editingElementId: get().view.editingElementId === elementId ? null : get().view.editingElementId,
+        },
+      })
     },
 
     reorderElement(elementId, targetIndex) {
@@ -438,5 +463,8 @@ function ensureView(document: PresentationDocument, view: PresentationViewState)
   const activeSlideId = slideExists ? view.activeSlideId : (document.slides[0]?.id ?? null)
   const slide = document.slides.find((candidate) => candidate.id === activeSlideId)
   const ids = new Set(slide?.elements.map((element) => element.id) ?? [])
-  return { ...view, activeSlideId, selectedElementIds: view.selectedElementIds.filter((id) => ids.has(id)) }
+  const editingElementId = view.editingElementId !== null && slide?.elements.some((element) => element.id === view.editingElementId && element.kind === 'text')
+    ? view.editingElementId
+    : null
+  return { ...view, activeSlideId, selectedElementIds: view.selectedElementIds.filter((id) => ids.has(id)), editingElementId }
 }

@@ -53,6 +53,64 @@ describe('presentation command store', () => {
     expect(state().view.pan).toEqual({ x: 10, y: 20 })
   })
 
+  it('opens and closes the text editor as view state only', () => {
+    const slideId = state().document!.slides[0]!.id
+    const text = createTextElement({ id: 'text-1' })
+    state().addElement(text)
+    const revisions = state().document!.revision
+    const history = state().past.length
+    const dirty = state().dirty
+
+    state().startTextEdit('text-1')
+    expect(state().view.editingElementId).toBe('text-1')
+    expect(state().view.selectedElementIds).toEqual(['text-1'])
+    expect(state().dirty).toBe(dirty)
+    expect(state().document!.revision).toBe(revisions)
+
+    state().endTextEdit()
+    expect(state().view.editingElementId).toBeNull()
+
+    // Non-text and unknown elements cannot be opened, and switching slides closes the editor.
+    state().addElement(createShapeElement({ id: 'shape-1' }))
+    state().startTextEdit('shape-1')
+    expect(state().view.editingElementId).toBeNull()
+    state().startTextEdit('missing')
+    expect(state().view.editingElementId).toBeNull()
+    state().startTextEdit('text-1')
+    state().selectSlide(slideId)
+    expect(state().view.editingElementId).toBeNull()
+    expect(state().past).toHaveLength(history + 1)
+  })
+
+  it('drops a stale editing target when undo removes the element', () => {
+    state().addElement(createTextElement({ id: 'text-1' }))
+    state().startTextEdit('text-1')
+    state().undo()
+    expect(state().view.editingElementId).toBeNull()
+    expect(state().document!.slides[0]!.elements).toHaveLength(0)
+  })
+
+  it('clears the editing target when its element or slide goes away', () => {
+    const first = state().document!.slides[0]!.id
+    state().addElement(createTextElement({ id: 'text-1' }))
+    state().startTextEdit('text-1')
+    state().removeElement('text-1')
+    expect(state().view.editingElementId).toBeNull()
+
+    state().addElement(createTextElement({ id: 'text-2' }))
+    state().startTextEdit('text-2')
+    const second = state().addSlide(first)
+    expect(state().view.editingElementId).toBeNull()
+    expect(state().view.activeSlideId).toBe(second)
+
+    // Removing the slide that holds the edited element drops the target too.
+    state().selectSlide(second!)
+    state().startTextEdit('text-2')
+    state().removeSlide(second!)
+    expect(state().view.activeSlideId).toBe(first)
+    expect(state().view.editingElementId).toBeNull()
+  })
+
   it('adds, duplicates, reorders and removes slides', () => {
     const first = state().document!.slides[0]!.id
     const element = createShapeElement({ id: 'shape-1' })

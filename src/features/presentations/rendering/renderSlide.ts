@@ -10,6 +10,7 @@ export type RenderSlideOptions = {
   slide: Slide
   pageSize: PresentationDocument['pageSize']
   images?: PresentationImageSources
+  /** Makes text elements hit-testable for selection; shapes and images stay inert. */
   listening?: boolean
 }
 
@@ -55,7 +56,8 @@ function elementGroup(element: Element, listening: boolean): Konva.Group {
     y: element.y,
     rotation: element.rotation,
     opacity: element.opacity,
-    listening,
+    // P17 only needs text selection; shapes and images stay inert until P24 adds transforms.
+    listening: listening && element.kind === 'text',
   })
 }
 
@@ -131,13 +133,19 @@ function renderImage(element: ImageElement, images: PresentationImageSources, li
 
 function renderText(element: TextElement, listening: boolean): Konva.Group {
   const group = elementGroup(element, listening)
+  if (listening) {
+    // Painted glyphs alone would leave an empty (or cleared) box with no hit area,
+    // making it unreachable. Konva paints this rect's color key on the hit canvas
+    // only, so the fill is invisible while the whole box stays clickable.
+    group.add(new KonvaRuntime.Rect({ width: element.width, height: element.height, fill: 'transparent', listening: true }))
+  }
   const content = new KonvaRuntime.Group({ x: element.padding, y: element.padding, listening })
   const layout = layoutTextElement(element, (text, spec) => konvaTextWidthForRun(text, spec))
 
   for (const line of layout.lines) {
     if (line.bullet && line.firstInParagraph) {
       const firstRun = element.paragraphs[line.paragraphIndex]?.runs[0]
-      if (firstRun) content.add(renderBullet(firstRun, line.bullet.marker, line.bullet.x, line.y, line.height))
+      if (firstRun) content.add(renderBullet(firstRun, line.bullet.marker, line.bullet.x, line.y, line.height, listening))
     }
     for (const run of line.runs) {
       content.add(createKonvaTextForRun(
@@ -145,6 +153,7 @@ function renderText(element: TextElement, listening: boolean): Konva.Group {
         run.text,
         run.x,
         line.y + (line.height - run.run.size) / 2,
+        listening,
       ))
     }
   }
@@ -153,7 +162,7 @@ function renderText(element: TextElement, listening: boolean): Konva.Group {
   return group
 }
 
-function renderBullet(run: TextRun, marker: string, x: number, y: number, lineHeight: number): Konva.Text {
+function renderBullet(run: TextRun, marker: string, x: number, y: number, lineHeight: number, listening: boolean): Konva.Text {
   const bulletRun: TextRun = { ...run, text: marker, bold: false, italic: false, link: undefined }
-  return createKonvaTextForRun(bulletRun, marker, x, y + (lineHeight - run.size) / 2)
+  return createKonvaTextForRun(bulletRun, marker, x, y + (lineHeight - run.size) / 2, listening)
 }

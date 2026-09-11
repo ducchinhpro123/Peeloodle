@@ -1,4 +1,4 @@
-import { ArrowLeft, MonitorUp, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, MonitorUp, PenLine, ShieldAlert, Type } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -7,9 +7,11 @@ import { usePresentationRepository } from '@/app/presentationRepositoryContext'
 import { isPersistenceError } from '@/lib/persistence/repository'
 import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
 import { isPresentationParseError } from '../model/parse'
+import { createTextElement } from '../model/factories'
 import { ensurePresentationFonts } from '../rendering/fonts'
 import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
 import { PresentationCanvasControls } from './PresentationCanvasControls'
+import { TextEditOverlay } from './TextEditOverlay'
 import { usePresentationStore } from './store'
 
 const PresentationCanvas = lazy(() => import('./PresentationCanvas').then((module) => ({ default: module.PresentationCanvas })))
@@ -69,6 +71,7 @@ export function PresentationEditorPage() {
   const repository = usePresentationRepository()
   const document = usePresentationStore((state) => state.document)
   const activeSlideId = usePresentationStore((state) => state.view.activeSlideId)
+  const selectedElementIds = usePresentationStore((state) => state.view.selectedElementIds)
   const dirty = usePresentationStore((state) => state.dirty)
   const saving = usePresentationStore((state) => state.saving)
   const saveError = usePresentationStore((state) => state.saveError)
@@ -156,6 +159,24 @@ export function PresentationEditorPage() {
 
   const activeSlide = document.slides.find((slide) => slide.id === activeSlideId) ?? document.slides[0]
   const saveStatus = saveError ? 'Save failed' : saving ? 'Saving…' : dirty ? 'Unsaved changes' : 'Saved locally'
+  const selectedElement = activeSlide?.elements.find((element) => element.id === selectedElementIds[0])
+  const selectedText = selectedElement?.kind === 'text' ? selectedElement : null
+
+  const addTextBox = () => {
+    const store = usePresentationStore.getState()
+    const textCount = activeSlide?.elements.filter((element) => element.kind === 'text').length ?? 0
+    const element = createTextElement({
+      name: textCount === 0 ? 'Text' : `Text ${textCount + 1}`,
+      x: 140 + (textCount % 4) * 24,
+      y: 240 + (textCount % 4) * 24,
+      width: 1000,
+      height: 160,
+      paragraphs: [{ runs: [], alignment: 'left', bullet: 'none', bulletLevel: 0 }],
+    })
+    const id = store.addElement(element)
+    // Open the editor straight away so the new box can be typed into immediately.
+    if (id) store.startTextEdit(id)
+  }
 
   return (
     <div className="presentation-editor">
@@ -165,7 +186,15 @@ export function PresentationEditorPage() {
           <p>Presentation</p>
           <h1 title={document.title}>{document.title}</h1>
         </div>
-        <p className="presentation-local-status" role="status" title={saveError ?? undefined}>{saveStatus}</p>
+        <div className="presentation-editor-actions">
+          <Button onClick={addTextBox}><Type size={16} aria-hidden="true" /> Add text</Button>
+          {selectedText ? (
+            <Button aria-label={`Edit text: ${selectedText.name}`} onClick={() => usePresentationStore.getState().startTextEdit(selectedText.id)}>
+              <PenLine size={16} aria-hidden="true" /> Edit text
+            </Button>
+          ) : null}
+          <p className="presentation-local-status" role="status" title={saveError ?? undefined}>{saveStatus}</p>
+        </div>
       </header>
       <div className="presentation-mobile-note">
         <MonitorUp size={18} aria-hidden="true" />
@@ -198,7 +227,7 @@ export function PresentationEditorPage() {
             <div><dt>Slides</dt><dd>{document.slides.length}</dd></div>
             <div><dt>Elements</dt><dd>{activeSlide?.elements.length ?? 0}</dd></div>
           </dl>
-          <p className="muted">Editing tools arrive in the next presentation increments.</p>
+          <p className="muted">Select a text box on the slide to edit its content. Moving and formatting arrive in later increments.</p>
         </aside>
       </div>
     </div>
@@ -209,11 +238,17 @@ export default PresentationEditorPage
 
 function PresentationCanvasSlot({ images }: { images: PresentationImageSources }) {
   const document = usePresentationStore((state) => state.document)
+  const activeSlideId = usePresentationStore((state) => state.view.activeSlideId)
+  const selectedElementId = usePresentationStore((state) => state.view.selectedElementIds[0] ?? null)
+  const editingElementId = usePresentationStore((state) => state.view.editingElementId)
   const zoom = usePresentationStore((state) => state.view.zoom)
   const pan = usePresentationStore((state) => state.view.pan)
+  const activeSlide = document?.slides.find((slide) => slide.id === activeSlideId) ?? document?.slides[0]
+  const editingElement = activeSlide?.elements.find((element) => element.id === editingElementId)
 
   if (import.meta.env.MODE === 'test') {
     if (!document) return null
+    const selectedElement = activeSlide?.elements.find((element) => element.id === selectedElementId)
     return (
       <section className="presentation-canvas-panel" aria-label="Slide canvas">
         <PresentationCanvasControls />
@@ -225,7 +260,13 @@ function PresentationCanvasSlot({ images }: { images: PresentationImageSources }
           data-view-zoom={zoom}
           data-view-pan-x={pan.x}
           data-view-pan-y={pan.y}
+          data-selected-element={selectedElementId ?? ''}
+          data-editing-element={editingElementId ?? ''}
         />
+        {selectedElement && !editingElement ? <div className="presentation-selection-outline" aria-hidden="true" /> : null}
+        {editingElement?.kind === 'text' ? (
+          <TextEditOverlay element={editingElement} scale={1} offsetX={0} offsetY={0} theme={document.theme} />
+        ) : null}
       </section>
     )
   }

@@ -195,4 +195,197 @@ describe('presentation routes', () => {
     expect(closes[1]).not.toHaveBeenCalled()
     expect(usePresentationStore.getState().document?.id).toBe(FIXTURE_ID)
   })
+
+  it('edits a text box through the DOM bridge with one history entry and no position change', async () => {
+    const repository = createMemoryPresentationRepository()
+    renderPresentations('/presentations', repository)
+    await screen.findByRole('heading', { name: 'No presentations yet' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create your first presentation' }))
+    await screen.findByRole('heading', { name: 'Untitled presentation' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+    const inserted = usePresentationStore.getState().document!.slides[0]!.elements[0]!
+    const placement = { x: inserted.x, y: inserted.y, width: inserted.width, height: inserted.height }
+
+    field.innerHTML = '<p>Xin chào Việt Nam</p>'
+    fireEvent.input(field)
+    field.innerHTML = '<p>Xin chào Việt Nam và các bạn</p>'
+    fireEvent.input(field)
+    // addElement plus one grouped text session, not one entry per keystroke.
+    expect(usePresentationStore.getState().past).toHaveLength(2)
+
+    fireEvent.blur(field)
+
+    const edited = usePresentationStore.getState().document!.slides[0]!.elements[0]!
+    expect(edited.kind).toBe('text')
+    if (edited.kind !== 'text') throw new Error('expected a text element')
+    expect(edited.paragraphs[0]!.runs[0]!.text).toBe('Xin chào Việt Nam và các bạn')
+    expect({ x: edited.x, y: edited.y, width: edited.width, height: edited.height }).toEqual(placement)
+    expect(usePresentationStore.getState().past).toHaveLength(2)
+    expect(usePresentationStore.getState().lastHistoryGroup).toBeNull()
+    expect(usePresentationStore.getState().dirty).toBe(true)
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Text content' })).not.toBeInTheDocument()
+  })
+
+  it('commits once per IME composition instead of per keystroke', async () => {
+    renderPresentations('/presentations')
+    await screen.findByRole('heading', { name: 'No presentations yet' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create your first presentation' }))
+    await screen.findByRole('heading', { name: 'Untitled presentation' })
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+    const history = usePresentationStore.getState().past.length
+
+    fireEvent.compositionStart(field)
+    field.innerHTML = '<p>Kết quả</p>'
+    fireEvent.input(field)
+    expect(usePresentationStore.getState().past).toHaveLength(history)
+    expect(usePresentationStore.getState().document!.slides[0]!.elements[0]!).toMatchObject({ kind: 'text', paragraphs: [{ runs: [] }] })
+
+    fireEvent.compositionEnd(field)
+    const element = usePresentationStore.getState().document!.slides[0]!.elements[0]!
+    if (element.kind !== 'text') throw new Error('expected a text element')
+    expect(element.paragraphs[0]!.runs[0]!.text).toBe('Kết quả')
+    expect(usePresentationStore.getState().past).toHaveLength(history + 1)
+  })
+
+  it('keeps pasted markup out of the document', async () => {
+    renderPresentations('/presentations')
+    await screen.findByRole('heading', { name: 'No presentations yet' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create your first presentation' }))
+    await screen.findByRole('heading', { name: 'Untitled presentation' })
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+
+    fireEvent.paste(field, {
+      clipboardData: {
+        getData: (type: string) => (type === 'text/html'
+          ? '<p><b>Bold</b> <a href="javascript:alert(1)">link</a> <script>alert(2)</script></p>'
+          : 'Bold link'),
+      },
+    })
+
+    const element = usePresentationStore.getState().document!.slides[0]!.elements[0]!
+    if (element.kind !== 'text') throw new Error('expected a text element')
+    const pasted = element.paragraphs.flatMap((paragraph) => paragraph.runs).map((run) => run.text).join('')
+    expect(pasted).toContain('Bold')
+    expect(pasted).not.toContain('javascript')
+    expect(pasted).not.toContain('alert')
+    expect(element.paragraphs.every((paragraph) => paragraph.runs.every((run) => run.link === undefined))).toBe(true)
+    expect(field.querySelector('script')).toBeNull()
+  })
+
+  it('edits an existing rich text element and keeps its run styling and geometry', async () => {    const repository = createMemoryPresentationRepository()
+    await saveFixture(repository)
+    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
+
+    act(() => { usePresentationStore.getState().selectElements(['fixture-text-title']) })
+    fireEvent.click(screen.getByRole('button', { name: 'Edit text: Title' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+    expect(field.textContent).toContain('Nghiên cứu và trình bày')
+
+    // Simulate typing in place: the seeded span (including its run attributes) stays.
+    field.innerHTML = field.innerHTML.replace('Nghiên cứu và trình bày', 'Bài học mới')
+    fireEvent.input(field)
+    fireEvent.blur(field)
+
+    const edited = usePresentationStore.getState().document!.slides[0]!.elements.find((element) => element.id === 'fixture-text-title')!
+    if (edited.kind !== 'text') throw new Error('expected a text element')
+    expect(edited.paragraphs[0]).toMatchObject({ alignment: 'center', bullet: 'none' })
+    expect(edited.paragraphs[0]!.runs[0]).toMatchObject({ text: 'Bài học mới', fontId: 'spectral', size: 72, color: '#ffffff', bold: true })
+    expect({ x: edited.x, y: edited.y, width: edited.width, height: edited.height }).toEqual({ x: 80, y: 96, width: 1120, height: 240 })
+  })
+
+  it('closes a text session without typing without touching history or the document', async () => {
+    const repository = createMemoryPresentationRepository()
+    await saveFixture(repository)
+    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
+    act(() => { usePresentationStore.getState().selectElements(['fixture-text-title']) })
+    const history = usePresentationStore.getState().past.length
+    const revision = usePresentationStore.getState().document!.revision
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit text: Title' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+    fireEvent.blur(field)
+
+    const after = usePresentationStore.getState()
+    expect(after.past).toHaveLength(history)
+    expect(after.document!.revision).toBe(revision)
+    expect(after.dirty).toBe(false)
+    expect(after.view.editingElementId).toBeNull()
+  })
+
+  it('styles text typed into a new box with the document theme', async () => {
+    const repository = createMemoryPresentationRepository()
+    const document = createPresentationDocument({ id: 'themed', title: 'Themed' })
+    document.theme = { ...document.theme, bodyFontId: 'spectral', colors: { ...document.theme.colors, text: '#123456' } }
+    await repository.savePresentation(document)
+    renderPresentations('/presentations/themed', repository)
+    await screen.findByRole('heading', { name: 'Themed' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+    field.innerHTML = '<p>Thème mới</p>'
+    fireEvent.input(field)
+    fireEvent.blur(field)
+
+    const element = usePresentationStore.getState().document!.slides[0]!.elements[0]!
+    if (element.kind !== 'text') throw new Error('expected a text element')
+    expect(element.paragraphs[0]!.runs[0]).toMatchObject({ text: 'Thème mới', fontId: 'spectral', color: '#123456' })
+  })
+
+  it('keeps pasted line breaks and strips their markup', async () => {
+    renderPresentations('/presentations')
+    await screen.findByRole('heading', { name: 'No presentations yet' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create your first presentation' }))
+    await screen.findByRole('heading', { name: 'Untitled presentation' })
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+
+    // A selection left over from elsewhere must not swallow the paste.
+    const stale = document.createElement('div')
+    stale.textContent = 'stale selection'
+    document.body.appendChild(stale)
+    const staleRange = document.createRange()
+    staleRange.selectNodeContents(stale)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(staleRange)
+    document.body.removeChild(stale)
+
+    fireEvent.paste(field, {
+      clipboardData: {
+        getData: (type: string) => (type === 'text/plain' ? 'Dòng một\nDòng hai' : ''),
+      },
+    })
+
+    const element = usePresentationStore.getState().document!.slides[0]!.elements[0]!
+    if (element.kind !== 'text') throw new Error('expected a text element')
+    const pasted = element.paragraphs.flatMap((paragraph) => paragraph.runs).map((run) => run.text).join('')
+    expect(pasted).toBe('Dòng một\nDòng hai')
+  })
+
+  it('keeps the session recoverable when the document rejects the text', async () => {
+    renderPresentations('/presentations')
+    await screen.findByRole('heading', { name: 'No presentations yet' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create your first presentation' }))
+    await screen.findByRole('heading', { name: 'Untitled presentation' })
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+
+    field.innerHTML = `<p>${'a'.repeat(20_100)}</p>`
+    fireEvent.input(field)
+
+    // The limit rejects the command, but the session stays open and says so.
+    expect(await screen.findByRole('alert')).toHaveTextContent(/too long/i)
+    expect(usePresentationStore.getState().view.editingElementId).not.toBeNull()
+    expect(usePresentationStore.getState().document!.slides[0]!.elements[0]!).toMatchObject({ kind: 'text', paragraphs: [{ runs: [] }] })
+
+    fireEvent.blur(field)
+    expect(usePresentationStore.getState().view.editingElementId).toBeNull()
+    expect(usePresentationStore.getState().past).toHaveLength(1)
+  })
 })
