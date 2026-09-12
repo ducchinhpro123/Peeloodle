@@ -69,6 +69,14 @@ the stronger method for this document's claims and is why almost every claim has
   `dompurify` was examined and **rejected with evidence** (§10 — the paste path already parses in an
   inert template, reduces to a text model, and escapes on the way back), and `react-data-grid` was
   rejected as React-19-only.
+- **Post-delivery corrections (2026-09-12, after user review):** two fixes were applied to the
+  committed brief and plan. (1) Offline app-shell support was originally framed as "the promise the app
+  does not yet keep"; the documented promise — core editing, saving, reopening and PNG export without
+  cloud credentials — is kept, and an installable offline shell is an enhancement beyond it. The
+  executive summary, §1 and the ranked-shortlist rationale were reframed accordingly. (2) The plan
+  artifact's task ledger, verification log, acceptance criteria and recommendation-risk table were
+  filled in accurately, including where the original acceptance criterion (two independent sources per
+  claim) was only partly met, and which claims remain inference rather than verified.
 - **Not verified anywhere in this document:** bundle sizes (none measured), runtime performance,
   benchmark numbers, and the InstantDB/Jazz/Triplit service models.
 

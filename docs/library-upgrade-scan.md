@@ -19,12 +19,13 @@ conclusions below (§7, §8) are the ones a falsification pass should attack fir
 
 The honest answer has three parts, and they do not all point the same way.
 
-**1. The single biggest gap is offline packaging, and no library in this document matters more.**
-StickerLab's core promise is editing, saving and exporting without cloud credentials. That promise
-holds for the *data* — IndexedDB documents, immutable blobs, local reopen — and fails for the *app*.
-There is no service worker, no manifest, no `theme-color` and no PWA tooling anywhere in the repo, so
-with no network a reload cannot load the application at all. `vite-plugin-pwa` closes that gap at
-build time.
+**1. The single biggest available enhancement is offline packaging** — and it is an enhancement, not a
+missed promise. The documented promise is that core editing, saving, reopening and PNG export work
+without cloud credentials, and the app keeps it: documents, media and export are all local. What the
+repo has never had is a service worker, a manifest, `theme-color` or any PWA tooling, so with no
+network a *reload* cannot load the application itself. `vite-plugin-pwa` closes that gap at build
+time, which matters for a school deployment on unreliable wifi and tablets — but it goes beyond what
+was promised, and it must not be described to users as work being backed up.
 
 **2. The engine and persistence layers should keep their hand-rolled code.** The repo already
 implements the hard part of local-first sync — a bounded replay-safe outbox, content-addressed
@@ -57,9 +58,9 @@ situation is, and why the stale line is itself a defect worth fixing.
 ## How to read the recommendations
 
 Items are ranked on **one axis: expected value per unit of effort**. Each row states the kind of value
-it delivers, because the kinds are not interchangeable — a capability item and a dev-tooling item
-cannot be compared directly, and where they compete the capability item wins. Rank 1 is the offline
-shell for that reason, not because it is the smallest change.
+it delivers, because the kinds are not interchangeable — an enhancement to what users can do, a quality
+guard, and developer tooling cannot be compared directly, and where they compete the user-visible
+value wins. Rank 1 is the offline app shell for that reason, not because it is the smallest change.
 
 Every row carries a licence and a version read from the registry on 2026-09-12. Bundle sizes were
 **not** measured, so none is quoted — with one exception in §8 that is explicitly attributed to the
@@ -71,7 +72,7 @@ repo's own recorded baseline.
 
 | # | Kind | Recommendation | Licence | Version (last release) | React 18 | Buys | Effort |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Capability | Offline app shell: `vite-plugin-pwa` | MIT | 1.3.0 (2026-05-05) | n/a — build-time plugin, peer `vite ^3.1.0 \|\| ^4 \|\| ^5 \|\| ^6 \|\| ^7` | The app cannot load at all without a network today; this is the gap between the offline promise and the behaviour | S–M |
+| 1 | Enhancement | Offline app shell: `vite-plugin-pwa` | MIT | 1.3.0 (2026-05-05) | n/a — build-time plugin, peer `vite ^3.1.0 \|\| ^4 \|\| ^5 \|\| ^6 \|\| ^7` | The app cannot load at all without a network today. The documented offline promise (core editing, saving, reopening, export without credentials) is already kept, so this is a valuable addition for unreliable-wifi schools rather than a fix for a broken promise | S–M |
 | 2 | Quality | `eslint-plugin-jsx-a11y` + `@axe-core/playwright` | MIT / MPL-2.0 | 6.10.2 (2024-10-26) / 4.13.0 (2026-08-11) | n/a | Automated a11y checks inside commands that already run; closes a verified tooling gap | S |
 | 3 | Quality | Playwright snapshot assertions + traces | **Apache-2.0** (already a dependency) | `@playwright/test` ^1.63.0 | n/a | Records the visual contract; the audit's screenshot evidence lives in uncommitted `/tmp/**` and 12 desktop-width checks are already failing per `proofs/baseline.md` | S |
 | 4 | Capability | `@dnd-kit/core` + `@dnd-kit/sortable` | MIT | 6.3.1 (2024-12-05) / 10.0.0 (2024-12-04) | `react: >=16.8.0` ✅ | Drag reorder with screen-reader announcements at P23 (slide rail) and P30 (element list) only | M |
@@ -93,21 +94,28 @@ repo's own recorded baseline.
 
 ---
 
-## 1. An offline app shell — the promise the app does not yet keep
+## 1. An offline app shell (an enhancement, not a broken promise)
 
-Offline-first here extends to the data but **not to the application**:
+Offline-first extends to the data but **not to the application**, and the distinction matters for how
+this is described:
 
-- a repo-wide search for `serviceworker`, `service-worker`, `vite-plugin-pwa`, `workbox`,
-  `registerSW`, `webmanifest` and `navigator.serviceWorker` across `src/`, `scripts/`,
-  `vite.config.ts`, `package.json` and `vercel.json` returns **nothing**;
-- no `sw.*`, `*service-worker*`, `*.webmanifest` or `manifest.json` exists outside `node_modules`;
-- `public/` holds `apple-touch-icon.png`, `favicon.png`, `art/`, `fonts/`, `samples/` — and no manifest;
-- `index.html` carries only `<meta name="viewport" …>`: no `theme-color`, no manifest link, no
-  `apple-mobile-web-app-*` tags.
+- What is documented and delivered: core editing, saving, reopening and PNG export work without cloud
+  credentials. Documents, media and export are local, and that promise is kept.
+- What was never promised and does not exist: the *application* loading with no network. There is no
+  service worker, no manifest, no `theme-color` and no PWA tooling anywhere in the repo, so a reload
+  offline cannot start the app. IndexedDB documents survive; the code that opens them does not.
 
-For a product whose stated core is that editing, saving, reopening and PNG export must work without
-cloud credentials, deployed to schools on unreliable wifi and tablets, this is the gap between the
-promise and the behaviour. IndexedDB documents survive offline; the app that opens them does not.
+Evidence for the absence, since the claim carries the recommendation: a repo-wide search for
+`serviceworker`, `service-worker`, `vite-plugin-pwa`, `workbox`, `registerSW`, `webmanifest` and
+`navigator.serviceWorker` across `src/`, `scripts/`, `vite.config.ts`, `package.json` and
+`vercel.json` returns nothing; no `sw.*`, `*service-worker*`, `*.webmanifest` or `manifest.json`
+exists outside `node_modules`; `public/` holds icons, `art/`, `fonts/` and `samples/` but no manifest;
+and `index.html` carries only `<meta name="viewport">` with no `theme-color`, manifest link or
+`apple-mobile-web-app-*` tags.
+
+For a school deployment on unreliable wifi and tablets, an installable offline shell is the most
+valuable single addition available in this research. It should be presented as an enhancement to an
+already-working offline story, not as repairing something broken.
 
 **`vite-plugin-pwa`** 1.3.0 — MIT, 2026-05-05, ~3.4M weekly downloads, peer
 `vite ^3.1.0 || ^4 || ^5 || ^6 || ^7` (the repo is on Vite 6 ✅). It is build-time only: it generates
