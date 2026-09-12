@@ -2,7 +2,7 @@
 
 Mint-green local sticker editor. Create a sticker, upload a photo, edit, save, reopen, and export a transparent PNG — no cloud credentials required.
 
-The [university presentations implementation plan](docs/slides-implementation-plan.md) is in progress, with [architecture](docs/slides-architecture.md) and an admin dashboard design concept. The current app can create, list, reopen, and preview local 16:9 presentations, edit slide text, and insert personal PNG/JPEG/static-WebP images with autosave, an explicit Save, conflict recovery, and a guarded editor exit; text formatting, presentation export, templates, and catalog administration remain planned increments.
+The [university presentations implementation plan](docs/slides-implementation-plan.md) is in progress, with [architecture](docs/slides-architecture.md) and an admin dashboard design concept. The current app can create, list, rename, duplicate, delete, and reopen local 16:9 presentations with real first-slide thumbnails, edit slide text, and insert personal PNG/JPEG/static-WebP images with autosave, an explicit Save, conflict recovery, and a guarded editor exit; text formatting, presentation export, templates, and catalog administration remain planned increments.
 
 ![StickerLab overview of Dashboard, Create Sticker, and Templates](readme-included.png)
 
@@ -93,7 +93,8 @@ Fonts and cutouts are served locally, with no extra credentials or dependencies.
 - [x] Atomic compare-and-set concurrency revision checks with automatic conflict copies for stickers and packs
 - [x] Local presentation library (`/presentations`), blank creation/reopen, recoverable load states, and a fixed 1280×720 slide preview with view-only fit/zoom/pan
 - [x] Slide text boxes: insert, select on the canvas, and edit English/Vietnamese through the proven DOM text bridge, with one undo entry per text session
-- [x] Presentation image insertion (atomic: the document and its bytes are written in one transaction, with a 200 MB media budget per presentation) and autosave/explicit Save with truthful state, conflict copies, and a guarded editor exit
+- [x] Presentation image insertion (atomic: the document and its bytes are written in one transaction, with a 200 MB media budget per presentation), autosave/explicit Save with truthful state, conflict copies, and a guarded editor exit
+- [x] Presentation library operations: rename, duplicate, safe delete, and real first-slide thumbnails
 - [ ] Presentation PDF/PPTX/backup UI, templates, and administrator catalog workflows
 - [ ] Public/read-only cloud sharing and native WhatsApp/Telegram installation
 
