@@ -8,3 +8,6 @@ playwright-report/
 .env
 .env.*
 !.env.example
+
+# Interactive browser-session artifacts (chrome-devtools / playwright-mcp)
+.playwright-mcp/

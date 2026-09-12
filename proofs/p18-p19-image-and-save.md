@@ -100,6 +100,28 @@ tests actually bite. Both verdicts and every finding are accounted for:
 The correctness reviewer's earlier BLOCK rested on P19 not existing and no user path persisting media;
 both were already closed before this round and are covered by the browser evidence above.
 
+## Manual interactive verification (real browser, driven by hand)
+
+Beyond the scripted specs, the four guarantees were driven manually in Chromium against the dev
+server. For the two guard runs the **page clock was frozen**, so the 750 ms autosave timer could not
+fire: the exit guard is then the only code that can write, which makes the check deterministic rather
+than a race with the debounce.
+
+| Flow | What was done | What was observed |
+| --- | --- | --- |
+| Exit guard, inside the debounce | timers frozen, text typed into an open session, Back clicked | landed on `/presentations`, and the **stored row held the exact text** although the debounce could not have written it |
+| Shell nav guard | same technique, leaving via the shell's "Home" link | landed on `/`, exactly one row held the text, no save-failure note |
+| Image insertion | a real PNG uploaded through the file input | asset `sha256` equals the file's independently computed SHA-256; stored bytes (33166) equal the file's; one image element; `dirty: false` with `savedRevision === documentRevision`; status "Saved locally"; the canvas visibly paints it |
+| Conflict recovery | two tabs on one document; tab B saved a newer revision; tab A saved its own edit | the conflict message named the other tab and stated the work was not written over it; "Keep my copy" created an **independent row** (revision 0) holding tab A's work while the newer row kept tab B's, and the editor reopened the newer revision clean |
+| Guard refusal | two tabs again, then Back clicked in the stale tab | **stayed in the editor**, showed the actionable note, kept both texts with `dirty: true`, and left the newer stored row untouched |
+
+Console output across the entire session: **zero errors, zero warnings**.
+
+Observation, recorded rather than fixed: revisions advance per keystroke (48 keystrokes → revision 48)
+because `TextEditOverlay` commits each input inside one history group. Undo remains one entry per
+session and writes stay debounced, so this is not a defect — but revision numbers grow faster than
+"user actions", which is worth knowing when reading stored revisions.
+
 ## Known gaps and deliberate ceilings
 
 - **Unguarded exits, stated plainly.** The browser Back/Forward buttons and programmatic `navigate()`
