@@ -1,0 +1,14 @@
+Use case: ui-mockup
+Asset type: high-fidelity desktop web page concept for the StickerLab “My Sticker Packs” route
+Input images: Image 1 is a composition reference only; do not copy its branding, people, photographs, names, counts, or subscription content
+Primary request: redesign a sticker-pack library so it feels original, cute, vivid, scrapbook-like, and consistent with a playful mint-green sticker editor
+Scene/backdrop: near-white application shell with an existing top navigation and slim left sidebar; the main content is the focus
+Style/medium: realistic shippable product UI, not concept art; tactile layered paper, gingham tape, soft grain, hand-drawn accent marks, transparent die-cut sticker collages, polished responsive card system
+Color palette: mint and emerald, warm cream, dark navy, sunny yellow, blush pink, lavender, small sky-blue accents
+Composition/framing: 16:9 desktop product screenshot at roughly 1440×900. At the top of the content area, a full-width scrapbook hero with large editorial headline and concise copy on the left, two clear buttons, and a lively original collage of illustrated cats, hearts, stars, polaroids, tape, and sticker lettering on the right. Under it, a rounded control bar with five compact tab pills, a real search field, and a Recent/Name sort control. Main area uses a two-column composition: roomy pack gallery on the left and a selected-pack detail card on the right.
+Pack gallery: three or four distinctive rounded pack cards with actual collage-style cover art, readable title, description, sticker count, and Local or Private badge. Selected card has a clear emerald outline.
+Selected-pack detail: large collage cover, title “Good Vibes”, short description, Local badge, a compact grid of sticker thumbnails, primary “Download ZIP” action, “Add Stickers”, and quieter edit/duplicate/delete controls.
+Text (verbatim where visible): “Your little world.”, “In sticker packs.”, “New Pack”, “Import Photos”, “All Packs”, “My Packs”, “Favorites”, “Shared with Me”, “Export History”, “Search packs”, “Recent”, “Good Vibes”, “Download ZIP”, “Add Stickers”
+Lighting/mood: bright, welcoming, energetic, handcrafted, clean enough for productivity
+Constraints: preserve strong information hierarchy and accessible contrast; essential actions must remain obvious; use original illustrated sticker subjects rather than photos; no paid plan, no fake cloud success, no fake sharing success, no WhatsApp or Telegram success, no watermark, no browser chrome
+Avoid: generic SaaS dashboard, glassmorphism, dark mode, oversized empty whitespace, dense tiny controls, copied faces or photos from the reference, excessive gradients, illegible decorative typography

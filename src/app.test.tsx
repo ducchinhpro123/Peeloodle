@@ -186,6 +186,45 @@ describe('foundation interactions', () => {
     expect(await repo.listPacks()).toHaveLength(1)
   })
 
+  it('searches pack titles and descriptions, sorts by name, and clears no results', async () => {
+    const repo = createMemoryRepository()
+    await repo.savePack({
+      id: 'beta-pack',
+      title: 'Beta Cats',
+      description: 'Sleepy afternoon friends',
+      visibility: 'local',
+      projectIds: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    })
+    await repo.savePack({
+      id: 'alpha-pack',
+      title: 'Alpha Days',
+      description: 'Sunny little reactions',
+      visibility: 'local',
+      projectIds: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-02T00:00:00.000Z',
+    })
+    render(<MemoryRouter initialEntries={['/my-stickers']}><App repository={repo} /></MemoryRouter>)
+
+    expect(await screen.findByRole('button', { name: /Beta Cats/ })).toBeInTheDocument()
+    const search = screen.getByRole('searchbox', { name: 'Search packs' })
+    fireEvent.change(search, { target: { value: 'sunny little' } })
+    expect(screen.getByRole('button', { name: /Alpha Days/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Beta Cats/ })).not.toBeInTheDocument()
+
+    fireEvent.change(search, { target: { value: '' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort packs' }), { target: { value: 'name' } })
+    expect([...document.querySelectorAll('.pack-card-title b')].map((node) => node.textContent)).toEqual(['Alpha Days', 'Beta Cats'])
+
+    fireEvent.change(search, { target: { value: 'nowhere' } })
+    expect(screen.getByRole('heading', { name: 'No packs found' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }))
+    expect(search).toHaveValue('')
+    expect(screen.getByRole('button', { name: /Beta Cats/ })).toBeInTheDocument()
+  })
+
   it('creates, inspects, adds stickers to, duplicates, and deletes a pack', async () => {
     const repo = createMemoryRepository()
     const p1 = createProjectDocument({ id: 'proj-1', title: 'Happy Cat' })

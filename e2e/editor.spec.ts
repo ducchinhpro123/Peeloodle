@@ -335,7 +335,8 @@ test('pack creation, adding sticker, and ZIP export', async ({ page }) => {
   await addDialog.getByRole('checkbox').click()
   await page.keyboard.press('Escape')
 
-  await expect(page.locator('.pack-detail')).toContainText('1 stickers · Local')
+  await expect(page.locator('.pack-detail')).toContainText('1 sticker')
+  await expect(page.locator('.pack-detail')).toContainText('Local')
 
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download ZIP' }).click()

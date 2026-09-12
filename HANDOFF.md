@@ -43,6 +43,14 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
 
 ## Start here: P22 — Milestone 2 (make multi-slide editing useful)
 
+**The `/my-stickers` pack library was redesigned** in a separate concurrent session (pack cards with real collage
+covers from the pack's own stickers, a sticky detail panel with a thumbnail gallery and reorder/remove controls,
+working pack search and Recent/Name sort, mobile stacking) and is recorded in `docs/ui-audit.md`. It also fixed
+the pre-existing wide-width header overflow, so `e2e/ui-polish.spec.ts` now passes in full (28 tests). Verified
+here: 453 unit tests, the pack journey in `e2e/editor.spec.ts`, all 28 ui-polish tests, and the 14 presentation
+browser tests — the shell and stylesheet changed under the presentation routes, so those were re-run rather than
+assumed.
+
 **P20 and P21 are done.** P20 added rename, duplicate and safe delete (shared dialog, safe action focused
 first, focus restored to a surviving control) plus real first-slide thumbnails rendered through the same
 `renderSlide` the editor uses, cached by `documentId:revision` and drawn two at a time
@@ -118,9 +126,11 @@ npx vite-node proofs/pptx/generateStress.ts           # only when export code ch
 ```
 
 Known pre-existing failures (do not "fix" as part of presentation work):
-`e2e/ui-polish.spec.ts` overflow checks at ≥1440 px, one
-`e2e/fonts-stickers.spec.ts` 1440 px case, and
+one `e2e/fonts-stickers.spec.ts` 1440 px case and
 `e2e/foundation.spec.ts` "Dashboard composition at 1440x900" (horizontal
 overflow) — recorded in `proofs/baseline.md`. The foundation failure was
 re-confirmed as unrelated to the editor work by reproducing it with a pristine
-`src/main.tsx`.
+`src/main.tsx`. The `e2e/ui-polish.spec.ts` wide-width overflow checks that used
+to appear in this list are fixed: the overflow came from the shell header and is
+resolved by `.header { overflow-x: clip }` (see `docs/ui-audit.md`, packs library
+redesign).

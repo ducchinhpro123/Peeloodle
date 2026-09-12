@@ -108,3 +108,9 @@ These faces cover the full Vietnamese extended range (U+1EA0–U+1EF9) and are u
 The 24 PNGs under `public/art/presentation-stickers/` were generated with the built-in image generation tool on 2026-09-12 as original reusable artwork for future presentation templates. The complete shared prompt, subject variations, and suggested template uses are recorded in `docs/design/presentation-stickers-prompts.md`.
 
 Each sticker was generated separately with a genuine transparent background, then trimmed and constrained within 1024×1024 without upscaling. ImageMagick stripped metadata and applied lossless PNG compression. All 24 served files were checked for an alpha channel and transparent pixels. They are presentation decoration—not user uploads, editable vector artwork, or evidence that an automatic background-removal operation occurred.
+
+## My Sticker Packs redesign concept
+
+`docs/design/my-sticker-packs-redesign-concept.png` was generated with the built-in image generation tool on 2026-09-12 as a composition reference for the `/my-stickers` redesign. Its exact prompt is stored in `docs/design/my-sticker-packs-redesign-prompt.txt`. The supplied My Sticker Packs screenshot was used only as a layout reference; the prompt explicitly excluded its people, photographs, names, counts, subscription content, and branding.
+
+The concept is not served by the application and does not stand in for a working page. The implemented route uses real React controls, real local pack/project state, existing locally served StickerLab artwork, and actual generated project thumbnails.

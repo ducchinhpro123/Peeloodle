@@ -6,10 +6,12 @@ import { PresentationRepositoryProvider } from './app/presentationRepository'
 import { WorkspaceProvider, useCloudStatus, useWorkspace } from './features/auth/Workspace'
 import { Account, AuthCallback, CloudBanner } from './features/auth/Account'
 import { LocalProjectList } from './features/editor/LocalProjectList'
+import { ProjectThumb } from './features/editor/ProjectThumb'
 import { downloadBlob } from './features/exports/download'
 import type { StickerLabRepository } from './lib/persistence/repository'
 import type { PresentationRepository } from './lib/persistence/presentations/repository'
 import {
+  ArrowUpDown,
   Bell,
   ChevronRight,
   Clock,
@@ -20,7 +22,10 @@ import {
   ImagePlus,
   Layers3,
   LayoutGrid,
+  LockKeyhole,
   Menu,
+  PackageOpen,
+  Pencil,
   Play,
   Presentation as PresentationIcon,
   Plus,
@@ -457,6 +462,54 @@ function EditorLayout({ children, fallback = editorFallback }: { children: React
   return <Shell editor><Suspense fallback={fallback}>{children}</Suspense></Shell>
 }
 
+const packViews = ['All Packs', 'My Packs', 'Favorites', 'Shared with Me', 'Export History'] as const
+type PackView = typeof packViews[number]
+type PackSort = 'recent' | 'name'
+
+function PackArtwork({
+  pack,
+  projectById,
+  repo,
+  tone = 0,
+  large = false,
+}: {
+  pack: PackRecord
+  projectById: Map<string, ProjectDocument>
+  repo: StickerLabRepository
+  tone?: number
+  large?: boolean
+}) {
+  const previews: ProjectDocument[] = []
+  for (const projectId of pack.projectIds) {
+    const project = projectById.get(projectId)
+    if (project) previews.push(project)
+    if (previews.length === 3) break
+  }
+
+  return (
+    <div className={`pack-cover pack-cover-tone-${tone % 3}${large ? ' pack-cover-large' : ''}`} aria-hidden="true">
+      <span className="pack-cover-tape" />
+      <span className="pack-cover-spark pack-cover-spark-left">✦</span>
+      <span className="pack-cover-spark pack-cover-spark-right">♡</span>
+      {previews.length > 0 ? (
+        <div className={`pack-cover-stack pack-cover-stack-${previews.length}`}>
+          {previews.map((project, index) => (
+            <span className={`pack-cover-sticker pack-cover-sticker-${index + 1}`} key={project.id}>
+              <ProjectThumb project={project} repo={repo} />
+            </span>
+          ))}
+        </div>
+      ) : (
+        <span className="pack-cover-empty">
+          <PackageOpen size={large ? 46 : 34} />
+          <b>{pack.projectIds.length === 0 ? 'Ready for stickers' : 'Preview unavailable'}</b>
+        </span>
+      )}
+      <span className="pack-cover-count">{pack.projectIds.length} {pack.projectIds.length === 1 ? 'sticker' : 'stickers'}</span>
+    </div>
+  )
+}
+
 function Packs() {
   const repo = useRepository()
   const location = useLocation()
@@ -477,6 +530,8 @@ function Packs() {
   const [newTitle, setNewTitle] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [addStickerOpen, setAddStickerOpen] = useState(false)
+  const [packQuery, setPackQuery] = useState('')
+  const [packSort, setPackSort] = useState<PackSort>('recent')
   const [exportingZip, setExportingZip] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -518,7 +573,7 @@ function Packs() {
   }
 
   const viewParam = params.get('view')
-  const view =
+  const view: PackView =
     viewParam === 'mine'
       ? 'My Packs'
       : viewParam === 'favorites'
@@ -528,7 +583,7 @@ function Packs() {
       : viewParam === 'export-history'
       ? 'Export History'
       : 'All Packs'
-  const selectView = (next: string) => {
+  const selectView = (next: PackView) => {
     if (next === 'My Packs') setParams({ view: 'mine' })
     else if (next === 'Favorites') setParams({ view: 'favorites' })
     else if (next === 'Shared with Me') setParams({ view: 'shared' })
@@ -536,7 +591,15 @@ function Packs() {
     else setParams({})
   }
 
-  const selectedPack = packs.find((p) => p.id === selectedPackId) || packs[0] || null
+  const normalizedPackQuery = packQuery.trim().toLocaleLowerCase()
+  const visiblePacks = packs
+    .filter((pack) => !normalizedPackQuery || `${pack.title} ${pack.description}`.toLocaleLowerCase().includes(normalizedPackQuery))
+    .slice()
+    .sort((left, right) => packSort === 'name'
+      ? left.title.localeCompare(right.title, undefined, { sensitivity: 'base' })
+      : right.updatedAt.localeCompare(left.updatedAt))
+  const selectedPack = visiblePacks.find((pack) => pack.id === selectedPackId) || visiblePacks[0] || null
+  const projectById = new Map(projects.map((project) => [project.id, project]))
 
   const handleCreatePack = async () => {
     const trimmed = newTitle.trim()
@@ -624,6 +687,7 @@ function Packs() {
   return (
     <Shell>
       <Hero
+        className="hero-packs"
         title={<>Your little world.<br /><em>In sticker packs.</em></>}
         kicker={<p className="hero-kicker"><Layers3 size={14} /> COLLECT THE GOOD STUFF</p>}
         art={<StickerCollage variant="packs" />}
@@ -637,20 +701,41 @@ function Packs() {
             </Link>
           </div>
         }
+        points={<ul className="hero-points"><li>Private by default</li><li>ZIP ready</li><li>Made from your stickers</li></ul>}
       >
         Organize saved stickers into packs and export transparent PNG ZIP bundles.
       </Hero>
       {error ? <p role="alert">{error}</p> : null}
-      <div className="packs-controls">
+      <section className="packs-controls" aria-label="Pack library controls">
         <div className="pills">
-          {['All Packs', 'My Packs', 'Favorites', 'Shared with Me', 'Export History'].map((item) => (
-            <button aria-pressed={view === item} disabled={!['All Packs', 'My Packs', 'Favorites', 'Shared with Me', 'Export History'].includes(item)} onClick={() => selectView(item)} key={item}>
+          {packViews.map((item) => (
+            <button aria-pressed={view === item} onClick={() => selectView(item)} key={item}>
               {item}
             </button>
           ))}
         </div>
-        <span className="muted">{cloud ? 'Private account · local-first cloud saving' : 'Pack collections stay private on this device.'}</span>
-      </div>
+        <div className="pack-library-tools">
+          <label className="pack-search">
+            <Search size={17} aria-hidden="true" />
+            <span className="sr-only">Search packs</span>
+            <input
+              type="search"
+              value={packQuery}
+              onChange={(event) => setPackQuery(event.target.value)}
+              placeholder="Search packs…"
+            />
+          </label>
+          <label className="pack-sort">
+            <ArrowUpDown size={16} aria-hidden="true" />
+            <span>Sort</span>
+            <select value={packSort} onChange={(event) => setPackSort(event.target.value as PackSort)} aria-label="Sort packs">
+              <option value="recent">Recent</option>
+              <option value="name">Name</option>
+            </select>
+          </label>
+        </div>
+        <p className="pack-privacy-note"><LockKeyhole size={15} aria-hidden="true" />{cloud ? 'Private account · local-first cloud saving' : 'Pack collections stay private on this device.'}</p>
+      </section>
 
       {view === 'Favorites' && favoriteTemplates.length > 0 ? (
         <TemplateRail title="Favorite Templates" items={favoriteTemplates} />
@@ -658,49 +743,81 @@ function Packs() {
 
       {view === 'Shared with Me' ? (
         <section className="empty packs-empty">
-          <Layers3 size={36} />
+          <span className="packs-empty-art"><Layers3 size={38} /><i>♡</i><b>✦</b></span>
+          <p className="packs-empty-kicker">A space for future collaborations</p>
           <h2>Sharing is not available yet</h2>
           <p>{emptyDetail}</p>
         </section>
       ) : view === 'Export History' ? (
         <section className="empty packs-empty">
-          <Download size={36} />
+          <span className="packs-empty-art"><Download size={38} /><i>↓</i><b>✦</b></span>
+          <p className="packs-empty-kicker">Downloads stay in your browser</p>
           <h2>Export History</h2>
           <p>Export history is not recorded yet. PNG and ZIP exports start a browser download; your browser controls where files are saved.</p>
         </section>
       ) : packs.length === 0 ? (
         <section className="empty packs-empty">
-          <Layers3 size={36} />
+          <span className="packs-empty-art"><PackageOpen size={42} /><i>♡</i><b>✦</b></span>
+          <p className="packs-empty-kicker">Your first collection starts here</p>
           <h2>{emptyHeading}</h2>
           <p>{emptyDetail}</p>
           <Button className="primary" onClick={(event) => { createOpener.current = event.currentTarget; setEditingPack(null); setNewTitle(''); setNewDesc(''); setCreateOpen(true) }}>
             <Plus size={16} />Create a Pack
           </Button>
         </section>
+      ) : visiblePacks.length === 0 ? (
+        <section className="empty packs-empty packs-no-results">
+          <span className="packs-empty-art"><Search size={38} /><i>?</i><b>✦</b></span>
+          <p className="packs-empty-kicker">That title is playing hide-and-seek</p>
+          <h2>No packs found</h2>
+          <p>Nothing matches “{packQuery.trim()}”. Try another name or description.</p>
+          <Button onClick={() => setPackQuery('')}>Clear search</Button>
+        </section>
       ) : (
         <div className="packs-layout">
-          <div className="pack-grid">
-            {packs.map((pack) => (
-              <button
-                type="button"
-                key={pack.id}
-                className={`pack-card ${selectedPack?.id === pack.id ? 'active' : ''}`}
-                onClick={() => setSelectedPackId(pack.id)}
-              >
-                <div className="pack-thumb">📦</div>
-                <b>{pack.title}</b>
-                <small>{pack.description || 'No description'}</small>
-                <span className="pack-badge">{pack.projectIds.length} stickers · {cloud ? 'Private' : 'Local'}</span>
-              </button>
-            ))}
-          </div>
+          <section className="pack-library" aria-labelledby="pack-library-title">
+            <div className="pack-library-heading">
+              <div>
+                <p>YOUR COLLECTION SHELF</p>
+                <h2 id="pack-library-title">{view === 'Favorites' ? 'Your packs' : view}</h2>
+              </div>
+              <span>{visiblePacks.length} {visiblePacks.length === 1 ? 'pack' : 'packs'}</span>
+            </div>
+            <div className="pack-grid">
+              {visiblePacks.map((pack, index) => (
+                <button
+                  type="button"
+                  key={pack.id}
+                  className={`pack-card ${selectedPack?.id === pack.id ? 'active' : ''}`}
+                  aria-pressed={selectedPack?.id === pack.id}
+                  onClick={() => setSelectedPackId(pack.id)}
+                >
+                  <PackArtwork pack={pack} projectById={projectById} repo={repo} tone={index} />
+                  <span className="pack-card-copy">
+                    <span className="pack-card-title"><b>{pack.title}</b><ChevronRight size={17} aria-hidden="true" /></span>
+                    <small>{pack.description || 'A fresh pack ready for your favorite stickers.'}</small>
+                    <span className="pack-card-meta">
+                      <span>{pack.projectIds.length} {pack.projectIds.length === 1 ? 'sticker' : 'stickers'}</span>
+                      <span className="pack-badge">{cloud ? 'Private' : 'Local'}</span>
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
           {selectedPack ? (
-            <aside className="pack-detail">
-              <h2>{selectedPack.title}</h2>
-              <p className="muted">{selectedPack.description || 'No description'}</p>
-              <span className="pack-badge">{selectedPack.projectIds.length} stickers · {cloud ? 'Private' : 'Local'}</span>
+            <aside className="pack-detail" aria-label={`${selectedPack.title} pack details`}>
+              <PackArtwork pack={selectedPack} projectById={projectById} repo={repo} tone={visiblePacks.indexOf(selectedPack)} large />
+              <div className="pack-detail-heading">
+                <div>
+                  <p>SELECTED PACK</p>
+                  <h2>{selectedPack.title}</h2>
+                </div>
+                <span className="pack-badge">{cloud ? 'Private' : 'Local'}</span>
+              </div>
+              <p className="muted">{selectedPack.description || 'A fresh pack ready for your favorite stickers.'}</p>
 
-              <div className="button-row">
+              <div className="pack-detail-primary-actions">
                 <Button
                   className="primary"
                   disabled={busy || exportingZip || selectedPack.projectIds.length === 0}
@@ -712,8 +829,8 @@ function Packs() {
                   <Plus size={16} />Add Stickers
                 </Button>
               </div>
-              <div className="button-row">
-                <Button disabled={busy} onClick={(event) => { createOpener.current = event.currentTarget; setEditingPack(selectedPack); setNewTitle(selectedPack.title); setNewDesc(selectedPack.description); setCreateOpen(true) }}>Edit pack</Button>
+              <div className="pack-detail-secondary-actions">
+                <Button disabled={busy} onClick={(event) => { createOpener.current = event.currentTarget; setEditingPack(selectedPack); setNewTitle(selectedPack.title); setNewDesc(selectedPack.description); setCreateOpen(true) }}><Pencil size={15} />Edit pack</Button>
                 <Button disabled={busy} onClick={() => void runPackAction(() => handleDuplicatePack(selectedPack))} title="Duplicate pack">
                   <Copy size={16} />Duplicate
                 </Button>
@@ -725,18 +842,25 @@ function Packs() {
                 </NoticeDialog>
               </div>
 
-              <h3>Stickers in Pack ({selectedPack.projectIds.length})</h3>
+              <div className="pack-detail-section-heading">
+                <div><p>PACK CONTENTS</p><h3>Stickers ({selectedPack.projectIds.length})</h3></div>
+                <Button className="pack-detail-add-shortcut" onClick={(event) => { addOpener.current = event.currentTarget; setAddStickerOpen(true) }}><Plus size={15} />Add</Button>
+              </div>
               {selectedPack.projectIds.length === 0 ? (
-                <p className="muted">No stickers in this pack. Click Add Stickers to include saved stickers.</p>
+                <div className="pack-detail-empty">
+                  <PackageOpen size={30} />
+                  <p>No stickers here yet. Add a saved sticker to start the collage.</p>
+                </div>
               ) : (
-                <div className="pack-stickers-list">
+                <div className="pack-sticker-gallery">
                   {selectedPack.projectIds.map((pId, idx) => {
-                    const prj = projects.find((p) => p.id === pId)
+                    const prj = projectById.get(pId)
                     const title = prj?.title || `Sticker (${pId.slice(0, 6)})`
                     return (
-                      <div key={pId} className="pack-sticker-row">
-                        <span>{title}</span>
-                        <div className="layer-actions">
+                      <article key={pId} className="pack-sticker-tile">
+                        {prj ? <ProjectThumb project={prj} repo={repo} /> : <div className="project-thumb"><span className="project-preview-placeholder">Preview unavailable</span></div>}
+                        <strong title={title}>{title}</strong>
+                        <div className="layer-actions" aria-label={`Arrange ${title}`}>
                           <button
                             type="button"
                             className="layer-action-btn"
@@ -765,9 +889,12 @@ function Packs() {
                             <X size={14} />
                           </button>
                         </div>
-                      </div>
+                      </article>
                     )
                   })}
+                  <button className="pack-add-sticker-tile" type="button" onClick={(event) => { addOpener.current = event.currentTarget; setAddStickerOpen(true) }}>
+                    <Plus size={22} /><span>Add sticker</span>
+                  </button>
                 </div>
               )}
             </aside>
@@ -782,7 +909,7 @@ function Packs() {
       )}
 
       <section className="local-stickers-section" id="local-stickers">
-        <div className="section-title"><h2>{cloud ? 'All Private Stickers' : 'All Local Stickers'}</h2><Link to="/create">Create</Link></div>
+        <div className="section-title"><div><p className="section-eyebrow">YOUR STICKER DRAWER</p><h2>{cloud ? 'All Private Stickers' : 'All Local Stickers'}</h2></div><Link to="/create">Create a sticker <ChevronRight size={15} /></Link></div>
         <LocalProjectList emptyTitle="No local stickers yet" emptyDetail="Save a sticker from the editor to reopen it here." />
       </section>
 

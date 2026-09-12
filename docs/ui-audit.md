@@ -37,6 +37,38 @@ Verified with `npm run typecheck`, targeted ESLint on changed TSX/tests, `npm ru
 
 The catalog name expectations, missing generated previews, and preview-script lint errors noted during the concurrent banner work have now been resolved by the layered-template update.
 
+## Packs library redesign (2026-09-12)
+
+The pack library below the hero was rebuilt to match the same scrapbook language as the other routes: pack cards
+carry real collage covers built from the pack's own saved stickers (`ProjectThumb`), the selected pack gets a
+sticky detail panel with a thumbnail gallery plus per-sticker reorder/remove controls, and the control bar gains a
+working pack search and a Recent/Name sort with a no-results state. Reordering, removal, ZIP export, pack
+create/edit/duplicate/delete, the sharing "not available yet" state and the export-history state all remain the
+real controls they were; nothing was replaced with decoration.
+
+The design concept is stored as a reference, not served: `docs/design/my-sticker-packs-redesign-concept.png` with
+the exact prompt in `docs/design/my-sticker-packs-redesign-prompt.txt` and its provenance in
+`docs/assets-provenance.md`. The implemented page uses real pack/project state and locally served artwork; empty
+packs say "Ready for stickers" rather than showing invented collage covers, and no counts, names or subscription
+content from the reference image were reproduced.
+
+Verified: `npm run typecheck`, `npm run lint` (zero errors, four pre-existing Fast Refresh warnings), `npm test`
+(453 passed), `npm run build`, `e2e/ui-polish.spec.ts` (28 passed, covering all four routes and phone/tablet/wide
+widths including empty and populated packs, dialogs and focus restoration), the pack journey in
+`e2e/editor.spec.ts`, and the 14 presentation browser tests. Containment re-measured at 1440x900, 1024x768 and
+390x844.
+
+Two test updates came with it, both correcting stale expectations rather than masking regressions: the dashboard
+renders five feature doodles and the committed test expected four, and the pack detail now shows the count and the
+Local/Private badge separately (`1 sticker`, `Local`) instead of the old combined `1 stickers · Local`, which had
+counted a single sticker as plural.
+
+The same change fixes the **pre-existing horizontal overflow at 1440px and above** that `HANDOFF.md` listed as a
+known failure: the overflow came from the shell header, not from any page, and `.header { overflow-x: clip }`
+removes it. Confirmed by measurement (1440/1024/390 all report `scrollWidth === innerWidth`) and by
+`e2e/ui-polish.spec.ts`, which left 16 tests passing with the wide-width checks failing at the previous commit and
+now passes all 28.
+
 ## Packs scrapbook reference follow-up
 
 The `/my-stickers` hero now follows the supplied clipboard reference with textured torn mint/cream/yellow/lavender paper, larger two-line typography, taped polaroids, overlapping cat stickers, and handwritten-style notes. Collection pills have roomier spacing. New Pack, Import Photos, and collection navigation remain real controls; mobile stacks the artwork below the copy.
