@@ -8,7 +8,9 @@ library, blank creation/editor routes, fixed slide renderer (P15–P16) and basi
 editing (P17) are implemented and recorded in `proofs/p15-p16-basic-presentations.md` and
 `proofs/p17-text-editing.md`. Personal image insertion (P18) and truthful save/autosave (P19) are
 implemented and recorded in `proofs/p18-p19-image-and-save.md`, which includes browser pixel and
-IndexedDB evidence. P20 onward is not started. Review-driven
+IndexedDB evidence plus the review-driven hardening that followed (atomic insertion, the 200 MB media
+budget, conflict recovery and the guarded editor exit — with the unguarded browser Back/Forward
+limitation stated there). P20 onward is not started. Review-driven
 corrections are recorded in `proofs/correction-pass.md`. Start the next session from
 [`HANDOFF.md`](../HANDOFF.md).
 
@@ -79,8 +81,8 @@ The first coding task is **P01**, then the **export/text proof P02–P05**. Do n
 | [x] | P15 | Add presentation list, blank creation and editor routes using shared shell/components. | P11, P14 | Create and reopen from real local state; empty/long-title states usable. |
 | [x] | P16 | Render one fixed 16:9 slide, background and selected elements; fit/zoom/pan. | P15 | View transforms never alter stored coordinates; page bounds remain fixed. |
 | [x] | P17 | Add a basic wrapped text box using the proven text bridge and model. | P04, P05, P16 | Edit English/Vietnamese, blur/save/reopen without losing content or position. Save/reopen is proven through the repository contract in P17; the Save/autosave UI is P19. |
-| [x] | P18 | Add personal PNG/JPEG/static WebP image upload and stored media insertion. | P14, P16 | Existing size/format validation reused where valid; failed upload leaves no broken layer. Verified in a real browser, including that the media bytes reach IndexedDB (`proofs/p18-p19-image-and-save.md`). |
-| [x] | P19 | Add autosave and explicit Save with truthful state and edit/media flushing. | P17, P18 | Dirty → saving → saved locally; induced quota/write failure retains editable work. Failure and conflict paths are unit-tested with the memory adapter's injected write failure; the autosave path is browser-verified. |
+| [x] | P18 | Add personal PNG/JPEG/static WebP image upload and stored media insertion. | P14, P16 | Existing size/format validation reused where valid; failed upload leaves no broken layer. Verified in a real browser, including that the media bytes reach IndexedDB (`proofs/p18-p19-image-and-save.md`). Insertion is atomic (document + bytes in one repository transaction, decode only after the commit) and the 200 MB media budget is refused before any mutation, charged once per unique asset. |
+| [x] | P19 | Add autosave and explicit Save with truthful state and edit/media flushing. | P17, P18 | Dirty → saving → saved locally; induced quota/write failure retains editable work. Failure and conflict paths are unit-tested with the memory adapter's injected write failure; the autosave path is browser-verified. A stale revision now has a recovery path ("Keep my copy" writes an independent copy, then reopens the newer revision), leaving the editor flushes and awaits the write, and one command landing during an insert write is no longer dropped. |
 | [ ] | P20 | Add thumbnails, rename, duplicate and safe delete in presentation library. | P19 | Duplicate independent; delete cancels safely and restores focus; sticker projects untouched. |
 | [ ] | P21 | Verify the milestone's create/edit/save/reload/reopen browser journey. | P20 | Composition and media survive reload at desktop/tablet widths; inspect persisted output. |
 

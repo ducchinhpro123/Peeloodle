@@ -40,6 +40,11 @@ export type PresentationStoreState = {
   lastHistoryGroup: string | null
   /** Bytes for media that is not persisted yet. Never part of the document JSON. */
   pendingMedia: PresentationMediaRecord[]
+  /** Byte size per unique asset id, for the document's media budget. */
+  mediaBytes: Record<string, number>
+
+  /** Replaces the known stored byte sizes, once media has been loaded. */
+  setMediaBytes(mediaBytes: Record<string, number>): void
 
   loadDocument(document: PresentationDocument, options?: { saved?: boolean }): void
   closeDocument(): void
@@ -67,7 +72,14 @@ export type PresentationStoreState = {
   setSlideBackground(slideId: string, background: string): void
 
   addElement(element: Element): string | null
+  /** In-memory command for tests: it does not persist. The editor inserts through
+   * the atomic persist-then-adopt path, so nothing is ever shown as added before
+   * its bytes are stored. */
   insertImage(image: PreparedPresentationImage, options?: { slideId?: string }): string | null
+  /** The refusal an insert would hit, resolved before anything is mutated. */
+  checkImageInsert(image: PreparedPresentationImage, options?: { slideId?: string }): ImageInsertCheck
+  /** Adopts a document that is already persisted, as exactly one undo entry. */
+  adoptPersistedInsert(plan: ImageInsertPlan, mediaAssetId: string, image: PreparedPresentationImage): void
   updateElement(elementId: string, patch: Partial<Element>, options?: { historyGroup?: string }): void
   transformElement(elementId: string, patch: Partial<Pick<Element, 'x' | 'y' | 'width' | 'height' | 'rotation'>>, options?: { historyGroup?: string }): void
   removeElement(elementId: string): void
@@ -98,6 +110,15 @@ function withRevision(current: PresentationDocument, next: PresentationDocument)
   return next
 }
 
+/** One place that bounds undo history, so every push trims identically. */
+function boundedHistory(past: HistoryEntry[], entry: HistoryEntry): HistoryEntry[] {
+  let next = [...past, entry]
+  while (next.length > PRESENTATION_LIMITS.historyEntries || (next.length > 1 && next.reduce((sum, item) => sum + item.bytes, 0) > PRESENTATION_LIMITS.historySoftBytes)) {
+    next = next.slice(1)
+  }
+  return next
+}
+
 function cloneElementWithNewId(element: Element): Element {
   const copy = structuredClone(element)
   copy.id = crypto.randomUUID()
@@ -115,6 +136,98 @@ function sameValue(a: unknown, b: unknown): boolean {
   }
 }
 
+export type ImageInsertRefusalReason = 'media-limit' | 'no-slide' | 'slide-element-cap' | 'slide-full' | 'asset-cap'
+export type ImageInsertRefusal = { reason: ImageInsertRefusalReason; message: string }
+export type ImageInsertCheck = { ok: true } | ({ ok: false } & ImageInsertRefusal)
+export type ImageInsertPlan = { document: PresentationDocument; elementId: string; mediaBytes: number }
+
+function formatMediaSize(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+/** Stored bytes for the assets the document currently references. */
+function totalMediaBytes(document: PresentationDocument, mediaBytes: Record<string, number>): number {
+  let total = 0
+  for (const asset of document.assets) total += mediaBytes[asset.id] ?? 0
+  return total
+}
+
+/**
+ * Why an insert would be refused. Pure, so the UI can explain the refusal and the
+ * store can refuse for the same reason without either path guessing, and always
+ * resolved before anything is mutated.
+ */
+export function imageInsertRefusal(
+  document: PresentationDocument,
+  mediaBytes: Record<string, number>,
+  image: PreparedPresentationImage,
+  slideId: string | null,
+): ImageInsertRefusal | null {
+  const resolvedSlideId = slideId ?? document.slides[0]?.id ?? null
+  const slide = document.slides.find((candidate) => candidate.id === resolvedSlideId)
+  if (!slide) return { reason: 'no-slide', message: 'There is no slide to add this image to.' }
+  if (slide.elements.length >= PRESENTATION_LIMITS.maxElementsPerSlide) {
+    return { reason: 'slide-element-cap', message: `This slide already holds the maximum of ${PRESENTATION_LIMITS.maxElementsPerSlide} elements. Remove one before adding an image.` }
+  }
+  const elementCount = document.slides.reduce((sum, candidate) => sum + candidate.elements.length, 0)
+  if (elementCount >= PRESENTATION_LIMITS.maxElements) {
+    return { reason: 'slide-full', message: `This presentation already holds the maximum of ${PRESENTATION_LIMITS.maxElements} elements. Remove one before adding an image.` }
+  }
+  // Re-inserting identical bytes reuses the asset record, so neither the asset cap
+  // nor the byte budget is charged twice for the same content.
+  const knownAsset = document.assets.some((asset) => asset.id === image.asset.id)
+  if (!knownAsset && document.assets.length >= PRESENTATION_LIMITS.maxAssets) {
+    return { reason: 'asset-cap', message: `This presentation already holds the maximum of ${PRESENTATION_LIMITS.maxAssets} images. Remove one before adding another.` }
+  }
+  if (!knownAsset) {
+    const size = image.media.bytes.length
+    const stored = totalMediaBytes(document, mediaBytes)
+    if (stored + size > PRESENTATION_LIMITS.maxMediaBytes) {
+      return {
+        reason: 'media-limit',
+        message: `Adding "${image.asset.provenance.label}" would take this presentation's artwork past the ${formatMediaSize(PRESENTATION_LIMITS.maxMediaBytes)} limit — ${formatMediaSize(stored)} is already stored and this image is ${formatMediaSize(size)}. Remove some artwork, or add it to a new presentation.`,
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Builds the next document for an insert without touching the store or a
+ * repository, so the same plan can be persisted first and adopted afterwards.
+ * The plan carries the revision it will be written with.
+ */
+export function planImageInsert(
+  document: PresentationDocument,
+  image: PreparedPresentationImage,
+  options: { slideId?: string | null } = {},
+): ImageInsertPlan | null {
+  const resolvedSlideId = options.slideId ?? document.slides[0]?.id ?? null
+  const slide = document.slides.find((candidate) => candidate.id === resolvedSlideId)
+  if (!slide) return null
+  const draft = structuredClone(document)
+  const target = draft.slides.find((candidate) => candidate.id === slide.id)!
+  const placement = fitImageWithinSlide(image.asset, draft.pageSize)
+  const imageCount = target.elements.filter((element) => element.kind === 'image').length
+  const element = createImageElement({
+    assetId: image.asset.id,
+    name: imageCount === 0 ? 'Image' : `Image ${imageCount + 1}`,
+    alt: image.asset.provenance.label,
+    x: placement.x,
+    y: placement.y,
+    width: placement.width,
+    height: placement.height,
+  })
+  const knownAsset = draft.assets.some((asset) => asset.id === image.asset.id)
+  if (!knownAsset) draft.assets.push(structuredClone(image.asset))
+  target.elements.push(structuredClone(element))
+  return {
+    document: serializePresentationDocument(withRevision(document, draft)),
+    elementId: element.id,
+    mediaBytes: knownAsset ? 0 : image.media.bytes.length,
+  }
+}
+
 export const usePresentationStore = create<PresentationStoreState>()((set, get) => {
   /** Validates, bumps the revision and records one undo entry. Updaters return
    * `false` for a no-op so redo history and the revision are left untouched. */
@@ -129,10 +242,7 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     const merge = group !== undefined && group === get().lastHistoryGroup
     let past = get().past
     if (!merge) {
-      past = [...past, { document: current, bytes: estimateBytes(current) }]
-      while (past.length > PRESENTATION_LIMITS.historyEntries || (past.length > 1 && past.reduce((sum, entry) => sum + entry.bytes, 0) > PRESENTATION_LIMITS.historySoftBytes)) {
-        past = past.slice(1)
-      }
+      past = boundedHistory(past, { document: current, bytes: estimateBytes(current) })
     }
     set({
       document: next,
@@ -142,6 +252,33 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       dirty: next.revision !== get().savedRevision,
     })
     return true
+  }
+
+  /**
+   * Records an insert that is already planned. `persisted` means the document was
+   * written before it is exposed, so the revision it carries is the saved one and
+   * the editor must not look dirty — or schedule a redundant write for it.
+   */
+  const applyInsert = (input: { plan: ImageInsertPlan; mediaAssetId: string; heldMedia: PresentationMediaRecord | null; persisted: boolean }): void => {
+    const current = get().document
+    if (!current || current.id !== input.plan.document.id) return
+    const held = input.persisted ? get().pendingMedia.filter((record) => record.assetId !== input.mediaAssetId) : get().pendingMedia
+    const pendingMedia = input.heldMedia !== null && !held.some((record) => record.assetId === input.heldMedia!.assetId)
+      ? [...held, input.heldMedia]
+      : held
+    set({
+      document: input.plan.document,
+      past: boundedHistory(get().past, { document: current, bytes: estimateBytes(current) }),
+      future: [],
+      lastHistoryGroup: null,
+      view: { ...get().view, selectedElementIds: [input.plan.elementId], editingElementId: null },
+      mediaBytes: input.plan.mediaBytes > 0 ? { ...get().mediaBytes, [input.mediaAssetId]: input.plan.mediaBytes } : get().mediaBytes,
+      pendingMedia,
+      savedRevision: input.persisted ? input.plan.document.revision : get().savedRevision,
+      dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision,
+      saving: input.persisted ? false : get().saving,
+      saveError: input.persisted ? null : get().saveError,
+    })
   }
 
   const activeSlide = (): Slide | undefined => {
@@ -167,6 +304,7 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     future: [],
     lastHistoryGroup: null,
     pendingMedia: [],
+    mediaBytes: {},
 
     loadDocument(document, options) {
       const clean = serializePresentationDocument(document)
@@ -183,11 +321,12 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         lastHistoryGroup: null,
         // Media held for the previous document must never leak into this one.
         pendingMedia: [],
+        mediaBytes: {},
       })
     },
 
     closeDocument() {
-      set({ document: null, view: initialView, savedRevision: -1, dirty: false, saving: false, saveError: null, past: [], future: [], lastHistoryGroup: null, pendingMedia: [] })
+      set({ document: null, view: initialView, savedRevision: -1, dirty: false, saving: false, saveError: null, past: [], future: [], lastHistoryGroup: null, pendingMedia: [], mediaBytes: {} })
     },
 
     markSaving() {
@@ -201,6 +340,10 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
 
     markSaveFailed(message) {
       set({ saving: false, saveError: message })
+    },
+
+    setMediaBytes(mediaBytes) {
+      set({ mediaBytes: { ...mediaBytes } })
     },
 
     clearPendingMedia(assetIds) {
@@ -361,51 +504,44 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       return element.id
     },
 
+    checkImageInsert(image, options) {
+      const document = get().document
+      if (!document) return { ok: false, reason: 'no-slide', message: 'Open a presentation before adding an image.' }
+      const refusal = imageInsertRefusal(document, get().mediaBytes, image, options?.slideId ?? activeSlide()?.id ?? null)
+      return refusal ? { ok: false, ...refusal } : { ok: true }
+    },
+
+    adoptPersistedInsert(plan, mediaAssetId, image) {
+      const current = get().document
+      // A command can land while the write is in flight (the write includes the media
+      // put). The stored revision then holds the insert, and the live document holds
+      // that command; both are real. Adopting the plan over the live document would
+      // silently drop the command while reporting the document saved, so instead the
+      // stored revision becomes the new base and the insert is replayed on top of what
+      // the user is looking at. `dirty` is forced true: the live document and the stored
+      // row can carry the same revision number while differing in content.
+      if (current && current.id === plan.document.id && current.revision !== plan.document.revision - 1) {
+        set({ saving: false, saveError: null, savedRevision: plan.document.revision, dirty: true })
+        // Re-checks and re-plans against the live document. If it is refused now (a cap
+        // was reached in the meantime) nothing is lost: the next write reconciles the
+        // stored insert with the live document.
+        get().insertImage(image)
+        return
+      }
+      applyInsert({ plan, mediaAssetId, heldMedia: null, persisted: true })
+    },
+
     insertImage(image, options) {
       const document = get().document
       if (!document) return null
-      const slide = options?.slideId
-        ? document.slides.find((candidate) => candidate.id === options.slideId)
-        : activeSlide()
-      if (!slide) return null
-      if (slide.elements.length >= PRESENTATION_LIMITS.maxElementsPerSlide) return null
-      // Re-inserting identical bytes reuses the asset record, so it only has to
-      // respect the asset limit when this content is new to the document.
-      const knownAsset = document.assets.some((asset) => asset.id === image.asset.id)
-      if (!knownAsset && document.assets.length >= PRESENTATION_LIMITS.maxAssets) return null
-
-      const placement = fitImageWithinSlide(image.asset, document.pageSize)
-      const imageCount = slide.elements.filter((element) => element.kind === 'image').length
-      const element = createImageElement({
-        assetId: image.asset.id,
-        name: imageCount === 0 ? 'Image' : `Image ${imageCount + 1}`,
-        alt: image.asset.provenance.label,
-        x: placement.x,
-        y: placement.y,
-        width: placement.width,
-        height: placement.height,
-      })
-
-      const applied = commit((draft) => {
-        const target = draft.slides.find((candidate) => candidate.id === slide.id)
-        if (!target) return false
-        if (!draft.assets.some((asset) => asset.id === image.asset.id)) draft.assets.push(structuredClone(image.asset))
-        target.elements.push(structuredClone(element))
-        return true
-      })
-      // The commit can refuse (no-op updater). Returning an element id would then
-      // claim an insertion that never happened, and the caller's null check is the
-      // only thing standing between a refused insert and a broken element.
-      if (!applied) return null
-
+      if (!get().checkImageInsert(image, options).ok) return null
+      const plan = planImageInsert(document, image, { slideId: options?.slideId ?? activeSlide()?.id ?? null })
+      if (!plan) return null
       // The bytes stay outside the document and are attached to the next save.
       // ponytail: an undone insert keeps its asset record and bytes until the
       // document is closed; P25 owns bounded media retention.
-      if (!get().pendingMedia.some((record) => record.assetId === image.media.assetId)) {
-        set({ pendingMedia: [...get().pendingMedia, image.media] })
-      }
-      set({ view: { ...get().view, selectedElementIds: [element.id] } })
-      return element.id
+      applyInsert({ plan, mediaAssetId: image.media.assetId, heldMedia: image.media, persisted: false })
+      return plan.elementId
     },
 
     updateElement(elementId, patch, options) {

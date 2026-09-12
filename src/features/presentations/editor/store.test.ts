@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { usePresentationStore } from './store'
+import { planImageInsert, usePresentationStore } from './store'
 import { createPresentationDocument, createShapeElement, createTextElement } from '../model/factories'
 import { PRESENTATION_LIMITS } from '../model/limits'
 import type { PreparedPresentationImage } from './insertImageAsset'
@@ -468,6 +468,108 @@ describe('presentation image insertion', () => {
 
     state().insertImage(preparedImage('9'.repeat(64)))
     state().closeDocument()
+    expect(state().pendingMedia).toEqual([])
+  })
+
+  it('refuses an image that would exceed the media budget, before mutating anything', () => {
+    state().insertImage(preparedImage('1'.repeat(64)))
+    const assetId = `asset-${'1'.repeat(64)}`
+    // The artwork already stored fills almost the whole budget.
+    state().setMediaBytes({ [assetId]: PRESENTATION_LIMITS.maxMediaBytes - 1 })
+
+    const document = state().document!
+    const history = state().past.length
+    const pending = state().pendingMedia.length
+
+    const check = state().checkImageInsert(preparedImage('2'.repeat(64)))
+    expect(check.ok).toBe(false)
+    if (check.ok) throw new Error('expected a refusal')
+    expect(check.reason).toBe('media-limit')
+    // The message has to be actionable: the limit, what is stored, and the file.
+    expect(check.message).toContain(`${PRESENTATION_LIMITS.maxMediaBytes / (1024 * 1024)}.0 MB`)
+    expect(check.message).toContain('photo.png')
+
+    // The command refuses for the same reason, and nothing moved.
+    expect(state().insertImage(preparedImage('2'.repeat(64)))).toBeNull()
+    expect(state().document).toBe(document)
+    expect(state().past).toHaveLength(history)
+    expect(state().pendingMedia).toHaveLength(pending)
+  })
+
+  it('still accepts re-inserting artwork the presentation already holds when the budget is full', () => {
+    state().insertImage(preparedImage('5'.repeat(64)))
+    const assetId = `asset-${'5'.repeat(64)}`
+    // The whole budget is accounted for by that one stored asset.
+    state().setMediaBytes({ [assetId]: PRESENTATION_LIMITS.maxMediaBytes })
+
+    // A genuinely new asset has no room.
+    const refused = state().checkImageInsert(preparedImage('6'.repeat(64)))
+    expect(refused.ok).toBe(false)
+    if (refused.ok) throw new Error('expected a refusal')
+    expect(refused.reason).toBe('media-limit')
+
+    // The same bytes again add no storage, so refusing it would be wrong: this is
+    // what the known-asset exemption in the byte budget exists for.
+    expect(state().checkImageInsert(preparedImage('5'.repeat(64))).ok).toBe(true)
+    expect(state().insertImage(preparedImage('5'.repeat(64)))).not.toBeNull()
+    expect(state().document!.assets).toHaveLength(1)
+  })
+
+  it('never charges the media budget twice for identical content', () => {
+    state().insertImage(preparedImage('3'.repeat(64)))
+    const assetId = `asset-${'3'.repeat(64)}`
+    expect(state().mediaBytes).toEqual({ [assetId]: 4 })
+
+    state().insertImage(preparedImage('3'.repeat(64)))
+
+    expect(state().mediaBytes).toEqual({ [assetId]: 4 })
+    expect(state().document!.assets).toHaveLength(1)
+    expect(state().pendingMedia).toHaveLength(1)
+  })
+
+  it('clears the media budget with the document', () => {
+    state().insertImage(preparedImage('4'.repeat(64)))
+    expect(Object.keys(state().mediaBytes)).toHaveLength(1)
+
+    reset(createPresentationDocument({ id: 'doc-2', now: '2026-09-10T00:00:00.000Z' }))
+
+    expect(state().mediaBytes).toEqual({})
+  })
+
+  it('plans an insert without mutating the document or the store', () => {
+    const before = state().document!
+
+    const plan = planImageInsert(before, preparedImage('5'.repeat(64)))
+
+    expect(plan).not.toBeNull()
+    expect(plan!.document.revision).toBe(before.revision + 1)
+    expect(plan!.mediaBytes).toBe(4)
+    // The plan is what gets persisted first, so building it must change nothing.
+    expect(before.slides[0]!.elements).toHaveLength(0)
+    expect(before.assets).toHaveLength(0)
+    expect(state().document).toBe(before)
+    expect(state().pendingMedia).toEqual([])
+    expect(state().past).toHaveLength(0)
+  })
+
+  it('adopts an already-persisted insert without leaving the editor dirty', () => {
+    const document = state().document!
+    const image = preparedImage('6'.repeat(64))
+    const plan = planImageInsert(document, image)!
+    const history = state().past.length
+
+    state().adoptPersistedInsert(plan, image.media.assetId, image)
+
+    // The revision the plan carries is the one that was written.
+    expect(state().document!.revision).toBe(plan.document.revision)
+    expect(state().savedRevision).toBe(plan.document.revision)
+    expect(state().dirty).toBe(false)
+    expect(state().saving).toBe(false)
+    expect(state().saveError).toBeNull()
+    expect(state().past).toHaveLength(history + 1)
+    expect(state().view.selectedElementIds).toEqual([plan.elementId])
+    expect(state().mediaBytes[image.media.assetId]).toBe(4)
+    // The bytes are already stored, so nothing is held as pending.
     expect(state().pendingMedia).toEqual([])
   })
 })

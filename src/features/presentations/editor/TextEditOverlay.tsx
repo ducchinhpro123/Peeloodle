@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Theme, TextElement } from '../model/types'
 import { fontStackFor } from '../rendering/fonts'
 import { usePresentationStore } from './store'
-import { bridgeDefaultsFor, textHistoryGroup } from './textEditSession'
+import { bridgeDefaultsFor, registerActiveTextEditFlush, textHistoryGroup } from './textEditSession'
 import {
   htmlToParagraphs,
   paragraphsToHtml,
@@ -97,6 +97,14 @@ export function TextEditOverlay({ element, scale, offsetX, offsetY, theme }: Tex
       setCommitError('This text is too long to save. Shorten it to keep editing.')
     }
   }, [])
+
+  // A save must commit what is only on screen, and the DOM field belongs to this
+  // component. The registry entry lives exactly as long as a session is open, so
+  // nothing else has to reach into the markup to find it.
+  useEffect(() => {
+    registerActiveTextEditFlush(() => commit())
+    return () => registerActiveTextEditFlush(null)
+  }, [commit])
 
   const finish = useCallback((host: HTMLElement | null = hostRef.current) => {
     finished.current = true

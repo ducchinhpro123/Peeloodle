@@ -24,6 +24,17 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
   `proofs/p17-text-editing.md` and `proofs/p18-p19-image-and-save.md` (including
   committed captures in `proofs/out/`) plus the earlier foundation and
   correction proofs.
+- **Review-driven hardening landed on top of P19** (details and the review
+  findings in `proofs/p18-p19-image-and-save.md`): image insertion is now atomic
+  (document + bytes in one repository transaction, adopt then decode, nothing
+  partial on failure); the 200 MB media budget is enforced before mutation and
+  charged once per unique asset; a revision conflict has a real recovery path
+  ("Keep my copy" writes an independent copy, then reopens the newer revision);
+  and leaving the editor flushes text and awaits the write. Leaving is guarded on
+  the header Back link and every shell link (`editor/leaveGuard.ts` +
+  `GuardedLink`). **The browser Back/Forward buttons and programmatic
+  `navigate()` calls remain unguarded** because the app renders a plain
+  `BrowserRouter`; closing that means a data-router migration, not a patch.
 
 ## Start here: P20, then P21
 
@@ -36,8 +47,9 @@ delete cancels safely and restores focus; sticker projects untouched):
   document/slide/element/asset IDs and copies media. Do not clone JSON by hand.
 - Destructive delete uses the shared dialog system, focuses the safe action
   first, and restores focus to the opener or a surviving control afterwards.
-- Guardrail: that page currently carries uncommitted, unrequested hero-artwork
-  changes from another writer. Preserve them; do not fold them into P20.
+- That page and its artwork are the owner's committed work (`c136845`, the
+  library redesign and the generated sticker pack) and the owner has confirmed
+  the assets are ready. Build P20 on top of it; do not revert it.
 
 **P21 — milestone browser journey** (acceptance: composition and media survive
 reload at desktop and tablet widths; inspect persisted output):
@@ -59,8 +71,10 @@ reload at desktop and tablet widths; inspect persisted output):
 | Persistence | `lib/persistence/presentations/repository.ts` (memory) and `.../idb.ts` |
 | Text | `rendering/textLayout.ts` + `editor/textBridge.ts` + `rendering/fonts.ts` (`ensurePresentationFonts()` before measuring) |
 | Text editing | `editor/TextEditOverlay.tsx` + `editor/textEditSession.ts`; commits go through `store.updateText` with `textHistoryGroup`, one entry per session |
-| Image insertion | `editor/insertImageAsset.ts` (`preparePresentationImage`) + `store.insertImage`; held bytes live in `store.pendingMedia` and reach a repository only via `store.mediaForSave()` |
-| Saving | `editor/usePresentationSave.ts` (750 ms autosave + explicit Save); always pass `baseRevision`, and clear media using the ids from the persisted snapshot |
+| Image insertion | `editor/insertImageAsset.ts` (`preparePresentationImage`), then `usePresentationSave.persistInsert` (check → plan → persist document + bytes → adopt → decode). `store.insertImage` is the local-only command and is **not** the UI path. Caps and the 200 MB budget live in `model/limits.ts` + `store.checkImageInsert`; held bytes live in `store.pendingMedia` and reach a repository only via `store.mediaForSave()` |
+| Saving | `editor/usePresentationSave.ts` (750 ms autosave + explicit Save, plus `saveBeforeLeave` and `keepMineAsCopy`); `baseRevision` is read inside the serialized task, and media is cleared using the ids from the persisted snapshot |
+| Leaving the editor | `editor/leaveGuard.ts`, consumed by `GuardedLink` in `src/main.tsx`; browser Back/Forward and `navigate()` stay unguarded while the app uses a plain `BrowserRouter` |
+| Revision rules | `lib/persistence/presentations/revision.ts` (`assertRevisionWritable`) — both adapters must call it; never re-implement the checks in one adapter only |
 | Page rendering | `rendering/renderSlide.ts` + `editor/PresentationCanvas.tsx`; stage transforms are view-only |
 | Canvas view controls | `editor/PresentationCanvasControls.tsx` + `editor/viewGeometry.ts` (shared 0.25–4 clamp) |
 | Current routes | `library/PresentationsPage.tsx` and `editor/PresentationEditorPage.tsx` |
@@ -81,13 +95,15 @@ reload at desktop and tablet widths; inspect persisted output):
   `viewGeometry.ts`; do not add a second zoom implementation or clamp.
 - Text edits go through `TextEditOverlay` + `textBridge` and commit with
   `store.updateText` inside `textHistoryGroup(id)`; never persist the DOM tree.
-  `view.editingElementId` is view state, and nothing may save yet (P19).
+  `view.editingElementId` is view state. `TextEditOverlay` registers its own
+  flush via `registerActiveTextEditFlush` so a save includes on-screen text —
+  keep that registration when touching the overlay, or saves silently stop
+  flushing.
 - The P15/P16 browser spec writes its captures into `proofs/out/`; keep that
   evidence current when the presentation UI changes.
 - Presentation text uses Be Vietnam Pro / Spectral only (Vietnamese coverage);
   the sticker fonts are Latin-only and must not be used for presentation text.
-- `docs/editor-library-research.md` is unrelated untracked work: preserve it,
-  do not delete or commit it.
+- `docs/editor-library-research.md` is committed owner work (part of `c136845`).
 - Keep `proofs/` evidence current; update the plan checkboxes when a task's
   acceptance check really passes.
 
@@ -97,10 +113,15 @@ reload at desktop and tablet widths; inspect persisted output):
 npm run typecheck && npm run lint && npm test && npm run build
 npx playwright test e2e/proofs --workers=1            # P04/P06 proofs
 npx playwright test e2e/presentations.spec.ts --workers=1
+npx playwright test e2e/presentations-image.spec.ts e2e/presentations-save-guard.spec.ts e2e/presentations-shell-guard.spec.ts --reporter=line   # insert/save/leave evidence
 npx playwright test e2e/editor.spec.ts --workers=1    # sticker regression
 npx vite-node proofs/pptx/generateStress.ts           # only when export code changes
 ```
 
 Known pre-existing failures (do not "fix" as part of presentation work):
-`e2e/ui-polish.spec.ts` overflow checks at ≥1440 px and one
-`e2e/fonts-stickers.spec.ts` 1440 px case — recorded in `proofs/baseline.md`.
+`e2e/ui-polish.spec.ts` overflow checks at ≥1440 px, one
+`e2e/fonts-stickers.spec.ts` 1440 px case, and
+`e2e/foundation.spec.ts` "Dashboard composition at 1440x900" (horizontal
+overflow) — recorded in `proofs/baseline.md`. The foundation failure was
+re-confirmed as unrelated to the editor work by reproducing it with a pristine
+`src/main.tsx`.

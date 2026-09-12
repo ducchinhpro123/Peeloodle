@@ -16,6 +16,12 @@ export const PRESENTATION_LIMITS = {
   maxElements: 2000,
   /** Assets per document. */
   maxAssets: 200,
+  /**
+   * Total bytes of one document's unique artwork. A byte budget cannot be
+   * enforced by the parser, because asset byte sizes are not part of the
+   * serialized document; insertion is the only place the bytes are known.
+   */
+  maxMediaBytes: 200 * 1024 * 1024,
   /** Characters across one text element's runs. */
   maxTextLength: 20_000,
   /** Runs in one paragraph. */

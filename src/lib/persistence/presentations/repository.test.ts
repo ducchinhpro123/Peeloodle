@@ -113,6 +113,17 @@ describe('presentation repository contract (memory)', () => {
     expect((await repo.getPresentation('deck-1'))).toMatchObject({ revision: 5, title: 'Newer work' })
   })
 
+  it('refuses to overwrite an unreadable stored row, treating it as newer work', async () => {
+    const repo = createMemoryPresentationRepository()
+    const document = createPresentationDocument({ id: 'deck-1', title: 'First', now: '2026-09-10T00:00:00.000Z' })
+    await repo.savePresentation({ ...document, revision: 5, title: 'Newer work' })
+
+    // A row that cannot be parsed must count as newer, never as overwritable,
+    // or the memory adapter would drift from the IndexedDB adapter here.
+    repo.seedRawDocument('deck-1', { not: 'a presentation document' })
+    await expect(repo.savePresentation({ ...document, revision: 1, title: 'Older work' })).rejects.toMatchObject({ code: 'revision_conflict' })
+  })
+
   it('refuses to recreate a presentation that was deleted after the caller read it', async () => {
     const repo = createMemoryPresentationRepository()
     const document = createPresentationDocument({ id: 'deck-1', title: 'First', now: '2026-09-10T00:00:00.000Z' })

@@ -12,6 +12,27 @@ export function textHistoryGroup(elementId: string): string {
   return `text:${elementId}`
 }
 
+/**
+ * The DOM field being edited belongs to `TextEditOverlay`, so a save must ask the
+ * overlay to commit rather than reaching into the document by test id. Renaming
+ * the overlay's markup can then never silently turn the flush into a no-op.
+ */
+let activeFlush: (() => void) | null = null
+
+export function registerActiveTextEditFlush(flush: (() => void) | null): void {
+  activeFlush = flush
+}
+
+export function flushActiveTextEdit(): void {
+  if (activeFlush === null) return
+  try {
+    activeFlush()
+  } catch {
+    // A rejected command (an over-long box) keeps the last committed text: the
+    // overlay owns that error, and a save must not fail because of it.
+  }
+}
+
 /** Fallback style for text that carries no run of its own, preferring the document theme. */
 export function bridgeDefaultsFor(element: TextElement, theme?: Pick<Theme, 'bodyFontId' | 'colors'>): BridgeDefaults {
   const run = element.paragraphs.flatMap((paragraph) => paragraph.runs)[0]

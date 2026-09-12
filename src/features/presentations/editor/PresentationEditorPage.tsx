@@ -1,20 +1,22 @@
 import { ArrowLeft, ImagePlus, MonitorUp, PenLine, Save, ShieldAlert, Type } from 'lucide-react'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { usePresentationRepository } from '@/app/presentationRepositoryContext'
 import { isPersistenceError } from '@/lib/persistence/repository'
 import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
+import { isUnmodifiedPrimaryClick } from '../../editor/toolIntent'
 import { isPresentationParseError } from '../model/parse'
 import { createTextElement } from '../model/factories'
-import { PRESENTATION_LIMITS } from '../model/limits'
+import type { PresentationDocument } from '../model/types'
 import { ensurePresentationFonts } from '../rendering/fonts'
 import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
 import { PresentationCanvasControls } from './PresentationCanvasControls'
 import { PrepareImageError, preparePresentationImage } from './insertImageAsset'
 import { TextEditOverlay } from './TextEditOverlay'
-import { usePresentationSave } from './usePresentationSave'
+import { usePresentationSave, type PersistInsertOutcome } from './usePresentationSave'
+import { registerLeaveGuard } from './leaveGuard'
 import { usePresentationStore } from './store'
 
 const PresentationCanvas = lazy(() => import('./PresentationCanvas').then((module) => ({ default: module.PresentationCanvas })))
@@ -69,36 +71,56 @@ type DecodedMedia = {
 
 async function decodeMedia(records: PresentationMediaRecord[]): Promise<DecodedMedia> {
   const images = new Map<string, PresentationImageSource>()
-  const disposers: Array<() => void> = []
+  const disposers = new Map<string, () => void>()
+
+  const decodeInto = async (record: PresentationMediaRecord) => {
+    const decoded = await decodeImageSource(new Blob([record.bytes], { type: record.mimeType }))
+    // Keyed by asset id so the decoded source for the SAME id can be released
+    // immediately: an image inserted again under an existing asset id would
+    // otherwise keep its previous bitmap (or object URL) alive until close.
+    disposers.get(record.assetId)?.()
+    disposers.set(record.assetId, decoded.dispose)
+    images.set(record.assetId, decoded.source)
+  }
 
   try {
-    for (const record of records) {
-      const decoded = await decodeImageSource(new Blob([record.bytes], { type: record.mimeType }))
-      disposers.push(decoded.dispose)
-      images.set(record.assetId, decoded.source)
-    }
+    for (const record of records) await decodeInto(record)
   } catch (error) {
-    for (const dispose of disposers) dispose()
+    for (const dispose of disposers.values()) dispose()
     throw error
   }
 
   return {
     images,
     async add(next) {
-      for (const record of next) {
-        const decoded = await decodeImageSource(new Blob([record.bytes], { type: record.mimeType }))
-        disposers.push(decoded.dispose)
-        images.set(record.assetId, decoded.source)
-      }
+      for (const record of next) await decodeInto(record)
     },
     dispose() {
-      for (const dispose of disposers) dispose()
+      for (const dispose of disposers.values()) dispose()
     },
   }
 }
 
+/** Byte size per asset the document references, from the media loaded with it. */
+function mediaBytesFor(document: PresentationDocument, media: PresentationMediaRecord[]): Record<string, number> {
+  const sizeByAssetId = new Map(media.map((record) => [record.assetId, record.bytes.length]))
+  const bytes: Record<string, number> = {}
+  for (const asset of document.assets) bytes[asset.id] = sizeByAssetId.get(asset.id) ?? 0
+  return bytes
+}
+
+/**
+ * Insert outcomes the status region cannot show on its own: a store refusal never
+ * reaches the write path, so it has no save state to publish in. Write failures
+ * (`failed`, `conflict`) are already reported there with their own message.
+ */
+function insertRefusalMessage(outcome: Extract<PersistInsertOutcome, { ok: false }>): string | null {
+  return outcome.reason === 'failed' || outcome.reason === 'conflict' ? null : outcome.message
+}
+
 export function PresentationEditorPage() {
   const { presentationId = '' } = useParams()
+  const navigate = useNavigate()
   const repository = usePresentationRepository()
   const document = usePresentationStore((state) => state.document)
   const activeSlideId = usePresentationStore((state) => state.view.activeSlideId)
@@ -109,8 +131,21 @@ export function PresentationEditorPage() {
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' })
   const [inserting, setInserting] = useState(false)
   const [insertError, setInsertError] = useState<string | null>(null)
+  const [recovering, setRecovering] = useState(false)
+  const [editorNote, setEditorNote] = useState<string | null>(null)
   const mediaRef = useRef<DecodedMedia | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+
+  /**
+   * Fetches and decodes one document's artwork. This is a callable rather than an
+   * effect body because conflict recovery loads a NEWER revision under the SAME
+   * document id: an effect keyed on the route id alone would never run again and
+   * the canvas would keep showing the pre-recovery artwork.
+   */
+  const decodeDocumentMedia = useCallback(async (loadedDocument: PresentationDocument) => {
+    const media = await Promise.all(loadedDocument.assets.map((asset) => repository.getMedia(asset.id)))
+    return { media, decoded: await decodeMedia(media) }
+  }, [repository])
 
   useEffect(() => {
     let live = true
@@ -124,12 +159,14 @@ export function PresentationEditorPage() {
 
         let media: PresentationMediaRecord[]
         try {
-          media = await Promise.all(loadedDocument.assets.map((asset) => repository.getMedia(asset.id)))
+          const loaded = await decodeDocumentMedia(loadedDocument)
+          media = loaded.media
+          decoded = loaded.decoded
         } catch (mediaError) {
           // The document exists but its artwork does not: do not report the whole
           // presentation as deleted, and keep retry available.
+          void fontsPromise.catch(() => {})
           if (isPersistenceError(mediaError) && mediaError.code === 'not_found') {
-            void fontsPromise.catch(() => {})
             if (live) setLoadState({ status: 'missing-media' })
             return
           }
@@ -137,18 +174,21 @@ export function PresentationEditorPage() {
         }
 
         await fontsPromise
-        decoded = await decodeMedia(media)
         if (!live) {
           decoded.dispose()
           return
         }
         mediaRef.current = decoded
-        usePresentationStore.getState().loadDocument(loadedDocument, { saved: true })
+        const store = usePresentationStore.getState()
+        store.loadDocument(loadedDocument, { saved: true })
+        // Sizes of the artwork that was just fetched. Without them every stored
+        // asset would count as 0 bytes and the media budget would never be enforced.
+        store.setMediaBytes(mediaBytesFor(loadedDocument, media))
         setLoadState({ status: 'ready', images: decoded.images })
       } catch (error) {
-        if (!live) return
         decoded?.dispose()
         decoded = undefined
+        if (!live) return
         if (isPersistenceError(error) && error.code === 'not_found') setLoadState({ status: 'missing' })
         else if ((isPersistenceError(error) && error.code === 'unsupported_schema') || (isPresentationParseError(error) && error.code === 'unsupported_schema')) {
           setLoadState({ status: 'unsupported' })
@@ -160,11 +200,66 @@ export function PresentationEditorPage() {
 
     return () => {
       live = false
+      const owned = mediaRef.current
       mediaRef.current = null
-      decoded?.dispose()
+      owned?.dispose()
       if (usePresentationStore.getState().document?.id === presentationId) usePresentationStore.getState().closeDocument()
     }
-  }, [attempt, presentationId, repository])
+  }, [attempt, decodeDocumentMedia, presentationId, repository])
+
+  /** Re-decodes the artwork of the document the store now holds (after recovery). */
+  const reloadStoredArtwork = useCallback(async (): Promise<void> => {
+    const current = usePresentationStore.getState().document
+    if (!current || current.id !== presentationId) return
+    const { media, decoded } = await decodeDocumentMedia(current)
+    if (usePresentationStore.getState().document?.id !== presentationId) {
+      decoded.dispose()
+      return
+    }
+    const previous = mediaRef.current
+    mediaRef.current = decoded
+    previous?.dispose()
+    const store = usePresentationStore.getState()
+    store.setMediaBytes(mediaBytesFor(current, media))
+    setLoadState({ status: 'ready', images: new Map(decoded.images) })
+  }, [decodeDocumentMedia, presentationId])
+
+  /**
+   * The one leave decision, taken before the route changes: text that is still
+   * only on screen is flushed and its write awaited, so leaving cannot silently
+   * drop an edit. When the write fails the editor stays put and says why. The
+   * header Back link calls this directly and the shell's own nav links reach it
+   * through the leave-guard registry (see leaveGuard.ts).
+   *
+   * ROUTER CONSTRAINT: this app renders <BrowserRouter> with <Routes>, not a data
+   * router, so react-router's `useBlocker` throws here. The in-app links the shell
+   * renders now consult this guard, but a programmatic navigate() and the
+   * browser's Back/Forward buttons still cannot be intercepted, and the
+   * `beforeunload` guard covers reload/close only.
+   */
+  const confirmLeave = async (event: MouseEvent): Promise<boolean> => {
+    // A modified click is a new tab or window: it does not abandon this tab's work.
+    if (!isUnmodifiedPrimaryClick(event)) return true
+    // The decision needs a write, so the click is stopped before it is awaited.
+    event.preventDefault()
+    setEditorNote(null)
+    if (await save.saveBeforeLeave()) return true
+    setEditorNote('This presentation could not be saved, so it is still open. Press Save to try again — or press Keep my copy if another tab or window has a newer version.')
+    return false
+  }
+
+  useEffect(() => {
+    registerLeaveGuard(confirmLeave)
+    return () => registerLeaveGuard(null)
+    // Re-registered after every render, so the registered guard always uses the
+    // current save path and note setter rather than an earlier render's closure.
+  })
+
+  /** The header Back link: the same decision, with its own destination. */
+  const leaveEditor = async (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!isUnmodifiedPrimaryClick(event)) return
+    if (await confirmLeave(event)) navigate('/presentations')
+  }
 
   if (loadState.status === 'loading') {
     return <Card className="presentation-route-state"><p role="status">Opening presentation…</p></Card>
@@ -227,51 +322,86 @@ export function PresentationEditorPage() {
   }
 
   /**
-   * Order matters: validate, hash, then decode the artwork, and only then ask the
-   * store to insert. A rejected or undecodable file therefore leaves no element
-   * behind, and an accepted one can never be drawn without its image.
+   * Persist, then adopt: the repository writes the document and this image's
+   * bytes in one transaction, and only then does the editor add the element and
+   * decode the artwork. A refused or failed insert therefore leaves both the
+   * document and the screen exactly as they were, and no success is ever shown
+   * for it.
    */
   const addImage = async (file: File) => {
     const store = usePresentationStore.getState()
-    const current = store.document
-    const media = mediaRef.current
-    if (!current || !media) return
-    setInsertError(null)
-
-    const slide = current.slides.find((candidate) => candidate.id === store.view.activeSlideId) ?? current.slides[0]
-    if (slide && slide.elements.length >= PRESENTATION_LIMITS.maxElementsPerSlide) {
-      setInsertError(`This slide is full (${PRESENTATION_LIMITS.maxElementsPerSlide} elements). Add a slide or remove something first.`)
+    if (!store.document) return
+    if (!mediaRef.current) {
+      setInsertError('This presentation is still opening its artwork, so the image was not added. Try again once the slide appears.')
       return
     }
+    setInsertError(null)
 
     setInserting(true)
+    // Past the write the element, its asset and its bytes are stored, so a later
+    // display failure must not be reported as a failed insert.
+    let persisted = false
     try {
       const prepared = await preparePresentationImage(file)
-      const knownAsset = current.assets.some((asset) => asset.id === prepared.asset.id)
-      if (!knownAsset && current.assets.length >= PRESENTATION_LIMITS.maxAssets) {
-        setInsertError(`This presentation already holds the maximum ${PRESENTATION_LIMITS.maxAssets} images.`)
+      const outcome = await save.persistInsert(prepared)
+      if (!outcome.ok) {
+        setInsertError(insertRefusalMessage(outcome))
         return
       }
-
+      persisted = true
+      const media = mediaRef.current
+      if (!media) {
+        setInsertError('This image was saved, but this editor can no longer display it. Reopen the presentation to see it.')
+        return
+      }
       await media.add([prepared.media])
-      const id = store.insertImage(prepared)
-      if (!id) {
-        setInsertError('This image could not be added to the slide.')
-        return
-      }
       // A fresh Map so the canvas re-renders with the new artwork.
       setLoadState({ status: 'ready', images: new Map(media.images) })
     } catch (error) {
-      setInsertError(error instanceof PrepareImageError ? error.message : 'This image could not be added.')
+      if (error instanceof PrepareImageError) setInsertError(error.message)
+      else if (persisted) setInsertError('This image was saved, but it cannot be displayed here yet. Reopen the presentation to see it.')
+      else setInsertError('This image could not be added.')
     } finally {
       setInserting(false)
+    }
+  }
+
+  const requestSave = () => {
+    setEditorNote(null)
+    save.requestSave()
+  }
+
+  /**
+   * The way out of a stale revision: keep the local work as a copy, then re-open
+   * the newer stored revision so Save is no longer dead.
+   */
+  const recoverFromConflict = async () => {
+    setRecovering(true)
+    setEditorNote(null)
+    let reopened = false
+    try {
+      const outcome = await save.keepMineAsCopy()
+      if (!outcome.ok) {
+        setEditorNote(outcome.message)
+        return
+      }
+      // The store holds the newer revision from here on; only its artwork is left.
+      reopened = true
+      await reloadStoredArtwork()
+      setEditorNote('Your work was saved as a separate conflict copy. The newer saved version is open now.')
+    } catch {
+      setEditorNote(reopened
+        ? 'Your work was saved as a separate conflict copy, and the newer saved version is open — but its artwork could not be shown yet. Reload this page to see it.'
+        : 'The newer version could not be reopened. Reload this page to continue.')
+    } finally {
+      setRecovering(false)
     }
   }
 
   return (
     <div className="presentation-editor">
       <header className="presentation-editor-bar">
-        <Link className="button icon" aria-label="Back to presentations" to="/presentations"><ArrowLeft size={19} /></Link>
+        <Link className="button icon" aria-label="Back to presentations" to="/presentations" onClick={(event) => void leaveEditor(event)}><ArrowLeft size={19} /></Link>
         <div className="presentation-editor-title">
           <p>Presentation</p>
           <h1 title={document.title}>{document.title}</h1>
@@ -299,8 +429,13 @@ export function PresentationEditorPage() {
               <PenLine size={16} aria-hidden="true" /> Edit text
             </Button>
           ) : null}
-          <Button onClick={save.requestSave}><Save size={16} aria-hidden="true" /> Save</Button>
-          <p className="presentation-local-status" role="status" title={save.state.message ?? undefined}>{saveStatus}</p>
+          <Button onClick={requestSave}><Save size={16} aria-hidden="true" /> Save</Button>
+          {save.state.status === 'conflict' ? (
+            <Button disabled={recovering} onClick={() => void recoverFromConflict()}>
+              {recovering ? 'Keeping your copy…' : 'Keep my copy'}
+            </Button>
+          ) : null}
+          <p className="presentation-local-status" role="status" title={save.state.message ?? undefined}>{editorNote ?? saveStatus}</p>
         </div>
       </header>
       {insertError ? <p className="asset-error" role="alert">{insertError}</p> : null}

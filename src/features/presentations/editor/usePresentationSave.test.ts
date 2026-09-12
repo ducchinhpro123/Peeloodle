@@ -22,9 +22,16 @@ import { createPresentationDocument, createTextElement } from '../model/factorie
 import { FIXTURE_IMAGE_SHA256, fixtureImagePng } from '../model/fixtures/fixture'
 import type { PreparedPresentationImage } from './insertImageAsset'
 import { PresentationEditorPage } from './PresentationEditorPage'
-import { textHistoryGroup } from './textEditSession'
+import { bridgeDefaultsFor, registerActiveTextEditFlush, textHistoryGroup } from './textEditSession'
+import { PRESENTATION_LIMITS } from '../model/limits'
+import { readParagraphsFromDom } from './textBridge'
 import { usePresentationStore } from './store'
-import { AUTOSAVE_DELAY_MS, usePresentationSave } from './usePresentationSave'
+import {
+  AUTOSAVE_DELAY_MS,
+  usePresentationSave,
+  type ConflictRecoveryOutcome,
+  type PersistInsertOutcome,
+} from './usePresentationSave'
 
 type Write = { revision: number; baseRevision: number | undefined; saving: boolean; dirty: boolean; assetIds: string[] }
 
@@ -92,9 +99,34 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  registerActiveTextEditFlush(null)
   usePresentationStore.getState().closeDocument()
   vi.useRealTimers()
 })
+
+/**
+ * Stands in for `TextEditOverlay`: the overlay registers its own commit function,
+ * so the save path never reaches into the DOM itself.
+ */
+function registerFieldFlush(field: HTMLElement, elementId: string): void {
+  registerActiveTextEditFlush(() => {
+    const store = usePresentationStore.getState()
+    const element = store.document?.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
+    if (element?.kind !== 'text') return
+    store.updateText(elementId, readParagraphsFromDom(field, bridgeDefaultsFor(element, store.document?.theme)), {
+      historyGroup: textHistoryGroup(elementId),
+    })
+  })
+}
+
+/** A field that looks like the overlay's own. */
+function fieldWith(html: string): HTMLElement {
+  const field = globalThis.document.createElement('div')
+  field.setAttribute('data-testid', 'text-edit-field')
+  field.innerHTML = html
+  globalThis.document.body.appendChild(field)
+  return field
+}
 
 async function openEditor(repository: MemoryPresentationRepository): Promise<PresentationDocument> {
   const created = createPresentationDocument({ id: PRESENTATION_ID, title: 'P19' })
@@ -288,10 +320,8 @@ describe('presentation save flushing', () => {
     })
 
     // The overlay's field, holding text the document has not seen yet.
-    const field = globalThis.document.createElement('div')
-    field.setAttribute('data-testid', 'text-edit-field')
-    field.innerHTML = '<p>Typed on screen</p>'
-    globalThis.document.body.appendChild(field)
+    const field = fieldWith('<p>Typed on screen</p>')
+    registerFieldFlush(field, element.id)
 
     await act(async () => { await view.result.current.saveNow() })
 
@@ -380,6 +410,42 @@ describe('presentation save flushing', () => {
     expect(store().dirty).toBe(false)
   })
 
+  it('keeps a command that lands while an insert is being written instead of dropping it', async () => {
+    const repository = new GatedPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+
+    const image = preparedImage('asset-race')
+    repository.pause = true
+    let inserting!: Promise<PersistInsertOutcome>
+    act(() => { inserting = view.result.current.persistInsert(image) })
+    await act(async () => { await repository.entered })
+
+    // A different command lands while the insert's own write is in flight. The
+    // write includes the media put, so this window is real and reachable.
+    act(() => { store().addSlide() })
+    expect(store().document!.slides).toHaveLength(2)
+
+    await act(async () => {
+      repository.release()
+      await inserting
+    })
+
+    // The insert was stored. Adopting the plan over the live document would have
+    // thrown the new slide away and then reported the document saved.
+    expect(store().document!.slides).toHaveLength(2)
+    expect(store().document!.assets.map((asset) => asset.id)).toContain('asset-race')
+    expect(store().dirty).toBe(true)
+
+    // One more write reconciles the stored insert with the command into one row.
+    await act(async () => { await view.result.current.saveNow() })
+    const stored = await repository.getPresentation(PRESENTATION_ID)
+    expect(stored.slides).toHaveLength(2)
+    expect(stored.assets.map((asset) => asset.id)).toContain('asset-race')
+    expect(await repository.hasMedia('asset-race')).toBe(true)
+    expect(store().dirty).toBe(false)
+  })
+
   it('writes text that is only on screen when the debounce fires, without closing the session', async () => {
     const repository = new RecordingPresentationRepository()
     await openEditor(repository)
@@ -391,10 +457,8 @@ describe('presentation save flushing', () => {
       store().startTextEdit(element.id)
     })
 
-    const field = globalThis.document.createElement('div')
-    field.setAttribute('data-testid', 'text-edit-field')
-    field.innerHTML = '<p>Typed before the debounce</p>'
-    globalThis.document.body.appendChild(field)
+    const field = fieldWith('<p>Typed before the debounce</p>')
+    registerFieldFlush(field, element.id)
 
     await advanceAutosave()
 
@@ -573,5 +637,281 @@ describe('presentation editor save wiring', () => {
     expect(usePresentationStore.getState().dirty).toBe(true)
     expect(usePresentationStore.getState().document!.slides[0]!.name).toBe('My local rename')
     expect((await repository.getPresentation(PRESENTATION_ID)).slides[0]!.name).toBe('Saved in another tab')
+  })
+})
+
+describe('presentation text flush wiring', () => {
+  it('flushes through the registered editor instead of reading the DOM itself', async () => {
+    const repository = new RecordingPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+
+    const element = createTextElement({ name: 'Text', x: 40, y: 60, width: 300, height: 120, paragraphs: [] })
+    act(() => {
+      store().addElement(element)
+      store().startTextEdit(element.id)
+    })
+
+    // A field that looks exactly like the overlay's, but nothing registered on it.
+    const orphan = fieldWith('<p>Must never be read</p>')
+    const flush = vi.fn()
+    registerActiveTextEditFlush(flush)
+
+    await act(async () => { await view.result.current.saveNow() })
+
+    expect(flush).toHaveBeenCalledTimes(1)
+    // Proof the save path is no longer coupled to the overlay's markup: a rename
+    // of that test id could not turn the flush into a silent no-op any more.
+    const written = (await repository.getPresentation(PRESENTATION_ID)).slides[0]!.elements.find((candidate) => candidate.id === element.id)
+    const writtenText = written?.kind === 'text'
+      ? written.paragraphs.flatMap((paragraph) => paragraph.runs).map((run) => run.text).join('')
+      : 'not text'
+    expect(writtenText).toBe('')
+    expect(writtenText).not.toContain('Must never be read')
+
+    orphan.remove()
+  })
+})
+
+describe('atomic image insertion', () => {
+  it('persists the document and its bytes together, then adopts them', async () => {
+    const repository = new RecordingPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+    const image = preparedImage('asset-atomic')
+
+    let outcome: PersistInsertOutcome | undefined
+    await act(async () => { outcome = await view.result.current.persistInsert(image) })
+
+    expect(outcome?.ok).toBe(true)
+    expect(outcome?.ok === true && typeof outcome.elementId).toBe('string')
+    // One write, carrying the bytes and the revision the editor had read.
+    expect(repository.writes).toHaveLength(1)
+    expect(repository.writes[0]).toMatchObject({ assetIds: [image.media.assetId], baseRevision: 0 })
+
+    const stored = await repository.getPresentation(PRESENTATION_ID)
+    expect(stored.assets).toMatchObject([{ id: image.media.assetId }])
+    expect(stored.slides[0]!.elements.at(-1)).toMatchObject({ kind: 'image', assetId: image.media.assetId })
+    expect(Array.from((await repository.getMedia(image.media.assetId)).bytes)).toEqual(Array.from(image.media.bytes))
+
+    // Written, so the editor is clean, holds nothing pending, and made one entry.
+    expect(store().dirty).toBe(false)
+    expect(store().saving).toBe(false)
+    expect(store().savedRevision).toBe(stored.revision)
+    expect(store().document!.revision).toBe(stored.revision)
+    expect(store().pendingMedia).toEqual([])
+    expect(store().past).toHaveLength(1)
+    expect(store().view.selectedElementIds).toEqual([outcome?.ok === true ? outcome.elementId : ''])
+    expect(view.result.current.state).toEqual({ status: 'saved', message: null })
+  })
+
+  it('leaves nothing behind when the write fails', async () => {
+    const repository = new RecordingPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+    const image = preparedImage('asset-fails')
+
+    const document = store().document!
+    const history = store().past.length
+    repository.injectWriteFailure()
+
+    let outcome: PersistInsertOutcome | undefined
+    await act(async () => { outcome = await view.result.current.persistInsert(image) })
+
+    expect(outcome?.ok).toBe(false)
+    expect(outcome?.ok === false && outcome.reason).toBe('failed')
+    // No half-inserted element, no asset record, no orphaned media, no history entry.
+    expect(store().document).toBe(document)
+    expect(store().document!.assets).toEqual([])
+    expect(store().document!.slides[0]!.elements).toEqual([])
+    expect(store().pendingMedia).toEqual([])
+    expect(store().past).toHaveLength(history)
+    expect(store().dirty).toBe(false)
+    expect(view.result.current.state.status).toBe('failed')
+
+    const stored = await repository.getPresentation(PRESENTATION_ID)
+    expect(stored.assets).toEqual([])
+    expect(stored.slides[0]!.elements).toEqual([])
+  })
+
+  it('refuses an image past the media budget without touching the document', async () => {
+    const repository = new RecordingPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+    const first = preparedImage('asset-budget-first')
+    await act(async () => { await view.result.current.persistInsert(first) })
+    act(() => { store().setMediaBytes({ [first.media.assetId]: PRESENTATION_LIMITS.maxMediaBytes - 1 }) })
+
+    const document = store().document!
+    let outcome: PersistInsertOutcome | undefined
+    await act(async () => { outcome = await view.result.current.persistInsert(preparedImage('asset-budget-second')) })
+
+    expect(outcome?.ok).toBe(false)
+    expect(outcome?.ok === false && outcome.reason).toBe('media-limit')
+    expect(outcome?.ok === false && outcome.message).toContain(`${PRESENTATION_LIMITS.maxMediaBytes / (1024 * 1024)}.0 MB`)
+    expect(store().document).toBe(document)
+    expect(store().pendingMedia).toEqual([])
+    // The refused insert never reached the repository.
+    expect(repository.writes).toHaveLength(1)
+  })
+})
+
+describe('conflict recovery', () => {
+  it('keeps local work as an independent copy and reopens the newer revision', async () => {
+    const repository = new MemoryPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+
+    // Another tab saved newer work for the same presentation.
+    const newer = await repository.getPresentation(PRESENTATION_ID)
+    newer.revision = 7
+    newer.slides[0]!.name = 'Saved in another tab'
+    await repository.savePresentation(newer)
+
+    const localSlideId = slideId()
+    act(() => { store().renameSlide(localSlideId, 'My local rename') })
+    await advanceAutosave()
+    expect(view.result.current.state.status).toBe('conflict')
+
+    let outcome: ConflictRecoveryOutcome | undefined
+    await act(async () => { outcome = await view.result.current.keepMineAsCopy() })
+
+    expect(outcome?.ok).toBe(true)
+    const copyId = outcome?.ok === true ? outcome.copyId : ''
+    const copy = await repository.getPresentation(copyId)
+    expect(copy.id).not.toBe(PRESENTATION_ID)
+    expect(copy.title).toContain('conflict copy')
+    expect(copy.title.length).toBeLessThanOrEqual(PRESENTATION_LIMITS.maxTitleLength)
+    // The local work survives, with its own ids.
+    expect(copy.slides[0]!.name).toBe('My local rename')
+    expect(copy.slides[0]!.id).not.toBe(localSlideId)
+
+    // The editor now holds the newer stored revision, so Save is no longer dead.
+    expect(store().document!.revision).toBe(7)
+    expect(store().document!.slides[0]!.name).toBe('Saved in another tab')
+    expect(store().dirty).toBe(false)
+    expect(view.result.current.state).toEqual({ status: 'clean', message: null })
+  })
+
+  it('carries the artwork into the copy under the copy-owned asset ids', async () => {
+    const repository = new MemoryPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+    const image = preparedImage('asset-art')
+    await act(async () => { await view.result.current.persistInsert(image) })
+    // Persisted, so the editor holds no bytes at all: the copy has to read them back.
+    expect(store().pendingMedia).toEqual([])
+
+    let outcome: ConflictRecoveryOutcome | undefined
+    await act(async () => { outcome = await view.result.current.keepMineAsCopy() })
+
+    const copy = await repository.getPresentation(outcome?.ok === true ? outcome.copyId : '')
+    expect(copy.assets).toHaveLength(1)
+    expect(copy.assets[0]!.id).not.toBe(image.media.assetId)
+    expect(copy.assets[0]!.sha256).toBe(image.asset.sha256)
+    expect(copy.slides[0]!.elements.at(-1)).toMatchObject({ kind: 'image', assetId: copy.assets[0]!.id })
+    // The bytes were re-keyed to the copy's asset id and are really stored.
+    const media = await repository.getMedia(copy.assets[0]!.id)
+    expect(Array.from(media.bytes)).toEqual(Array.from(image.media.bytes))
+  })
+
+  it('carries artwork that was never persisted into the copy as well', async () => {
+    const repository = new MemoryPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+
+    // Artwork inserted but not written yet, so its bytes live only in the store:
+    // the editor must re-key those too, not just the stored ones.
+    const image = preparedImage('asset-held')
+    act(() => { store().insertImage(image) })
+    expect(store().pendingMedia).toHaveLength(1)
+
+    let outcome: ConflictRecoveryOutcome | undefined
+    await act(async () => { outcome = await view.result.current.keepMineAsCopy() })
+
+    const copy = await repository.getPresentation(outcome?.ok === true ? outcome.copyId : '')
+    expect(copy.assets).toHaveLength(1)
+    expect(copy.assets[0]!.id).not.toBe(image.media.assetId)
+    const media = await repository.getMedia(copy.assets[0]!.id)
+    expect(Array.from(media.bytes)).toEqual(Array.from(image.media.bytes))
+  })
+})
+
+describe('leaving the editor', () => {
+  it('writes a pending edit before reporting that it is safe to leave', async () => {
+    const repository = new RecordingPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+    act(() => { store().renameSlide(slideId(), 'Typed just before leaving') })
+
+    let safe: boolean | undefined
+    await act(async () => { safe = await view.result.current.saveBeforeLeave() })
+
+    expect(safe).toBe(true)
+    expect(repository.writes).toHaveLength(1)
+    expect((await repository.getPresentation(PRESENTATION_ID)).slides[0]!.name).toBe('Typed just before leaving')
+    expect(store().dirty).toBe(false)
+  })
+
+  it('refuses to leave when the work could not be written', async () => {
+    const repository = new RecordingPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+    repository.injectWriteFailure()
+    act(() => { store().renameSlide(slideId(), 'Must not be lost') })
+
+    let safe: boolean | undefined
+    await act(async () => { safe = await view.result.current.saveBeforeLeave() })
+
+    expect(safe).toBe(false)
+    expect(view.result.current.state.status).toBe('failed')
+    // The work is still here and still editable.
+    expect(store().dirty).toBe(true)
+    expect(store().document!.slides[0]!.name).toBe('Must not be lost')
+  })
+
+  it('reports a clean document as safe to leave without writing', async () => {
+    const repository = new RecordingPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+
+    let safe: boolean | undefined
+    await act(async () => { safe = await view.result.current.saveBeforeLeave() })
+
+    expect(safe).toBe(true)
+    expect(repository.writes).toHaveLength(0)
+  })
+
+  it('commits text that is only on screen even when the document looks clean', async () => {
+    const repository = new RecordingPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+
+    const element = createTextElement({ name: 'Text', x: 40, y: 60, width: 300, height: 120, paragraphs: [] })
+    act(() => {
+      store().addElement(element)
+      store().startTextEdit(element.id)
+    })
+    // Write the element itself first, so the document is saved and not dirty while
+    // the session still holds text the document has never seen.
+    await act(async () => { await view.result.current.saveNow() })
+    expect(store().dirty).toBe(false)
+
+    const field = fieldWith('<p>Typed but never committed</p>')
+    registerFieldFlush(field, element.id)
+
+    let safe: boolean | undefined
+    await act(async () => { safe = await view.result.current.saveBeforeLeave() })
+
+    expect(safe).toBe(true)
+    // A save path that skipped the flush on a clean revision would leave this empty.
+    const stored = await repository.getPresentation(PRESENTATION_ID)
+    const written = stored.slides[0]!.elements.find((candidate) => candidate.id === element.id)
+    const writtenText = written?.kind === 'text'
+      ? written.paragraphs.flatMap((paragraph) => paragraph.runs).map((run) => run.text).join('')
+      : 'not text'
+    expect(writtenText).toBe('Typed but never committed')
+
+    field.remove()
   })
 })

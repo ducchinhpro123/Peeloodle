@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { StrictMode } from 'react'
 import { App } from '../../main'
 import { createMemoryRepository } from '../../lib/persistence/repository'
-import { createMemoryPresentationRepository } from '../../lib/persistence/presentations/repository'
+import { MemoryPresentationRepository, createMemoryPresentationRepository, type PresentationMediaRecord, type SavePresentationOptions } from '../../lib/persistence/presentations/repository'
+import type { PresentationDocument } from './model/types'
 import { createPresentationDocument, createTextElement } from './model/factories'
 import { PRESENTATION_LIMITS } from './model/limits'
 import { createFixturePresentation, FIXTURE_ID, FIXTURE_IMAGE_ASSET_ID, FIXTURE_IMAGE_SHA256, fixtureImagePng } from './model/fixtures/fixture'
@@ -68,6 +69,29 @@ async function openBlankEditor(repository = createMemoryPresentationRepository()
 
 function editorElements() {
   return usePresentationStore.getState().document!.slides[0]!.elements
+}
+
+/** A write that can be held open, so "not yet committed" is observable. */
+class GatedPresentationRepository extends MemoryPresentationRepository {
+  /** Off by default, so creating or seeding a presentation cannot hang. */
+  hold = false
+  private releaseWrite: (() => void) | null = null
+  private writeEntered: (() => void) | null = null
+  private gate: Promise<void> = new Promise((resolve) => { this.releaseWrite = resolve })
+  /** Resolves as soon as a held write has been entered. */
+  readonly entered: Promise<void> = new Promise((resolve) => { this.writeEntered = resolve })
+
+  override async savePresentation(document: PresentationDocument, media: PresentationMediaRecord[] = [], options: SavePresentationOptions = {}): Promise<void> {
+    if (this.hold) {
+      this.writeEntered?.()
+      await this.gate
+    }
+    return super.savePresentation(document, media, options)
+  }
+
+  release(): void {
+    this.releaseWrite?.()
+  }
 }
 
 describe('presentation routes', () => {
@@ -429,8 +453,9 @@ describe('presentation routes', () => {
 })
 
 describe('presentation image insertion', () => {
-  it('inserts an uploaded photo and stores its media with the document', async () => {
+  it('commits the document and its bytes together when a photo is inserted', async () => {
     const { repository, input } = await openBlankEditor()
+    const presentationId = usePresentationStore.getState().document!.id
     const assetId = `asset-${FIXTURE_IMAGE_SHA256}`
 
     fireEvent.change(input, { target: { files: [photoFile()] } })
@@ -447,19 +472,40 @@ describe('presentation image insertion', () => {
       width: 64,
       height: 64,
     })
-    expect(usePresentationStore.getState().document!.assets).toMatchObject([{ id: assetId, sha256: FIXTURE_IMAGE_SHA256 }])
-    expect(usePresentationStore.getState().mediaForSave()).toHaveLength(1)
-    expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
 
-    // The held bytes are exactly what a save persists: prove the seam end to end.
-    const document = usePresentationStore.getState().document!
-    await repository.savePresentation(document, usePresentationStore.getState().mediaForSave())
+    // Read the stored rows back: the insert is reported as added only once both the
+    // document and its artwork are committed, so nothing is left for a later save.
+    const stored = await repository.getPresentation(presentationId)
+    expect(stored.assets).toMatchObject([{ id: assetId, sha256: FIXTURE_IMAGE_SHA256, width: 64, height: 64 }])
+    expect(stored.slides[0]!.elements[0]!).toMatchObject({ kind: 'image', assetId })
+    expect(Array.from((await repository.getMedia(assetId)).bytes)).toEqual(Array.from(fixtureImagePng()))
+    expect(usePresentationStore.getState().mediaForSave()).toHaveLength(0)
+    expect(usePresentationStore.getState().dirty).toBe(false)
+    expect(screen.getByText('Saved locally')).toBeInTheDocument()
+  })
 
-    const reopened = await repository.getPresentation(document.id)
-    expect(reopened.assets).toMatchObject([{ id: assetId, sha256: FIXTURE_IMAGE_SHA256, width: 64, height: 64 }])
-    expect(reopened.slides[0]!.elements[0]!).toMatchObject({ kind: 'image', assetId })
-    const media = await repository.getMedia(assetId)
-    expect(Array.from(media.bytes)).toEqual(Array.from(fixtureImagePng()))
+  it('reports an image as added only after the write completes', async () => {
+    const repository = new GatedPresentationRepository()
+    const { input } = await openBlankEditor(repository)
+    const presentationId = usePresentationStore.getState().document!.id
+    const assetId = `asset-${FIXTURE_IMAGE_SHA256}`
+
+    repository.hold = true
+    fireEvent.change(input, { target: { files: [photoFile()] } })
+    await act(async () => { await repository.entered })
+
+    // The write is in flight: nothing is on the slide, nothing is stored, and no
+    // success is shown for an insert that has not committed.
+    expect(editorElements()).toHaveLength(0)
+    expect((await repository.getPresentation(presentationId)).assets).toEqual([])
+    expect(await repository.hasMedia(assetId)).toBe(false)
+    expect(screen.queryByText('Saved locally')).not.toBeInTheDocument()
+
+    repository.release()
+
+    await waitFor(() => expect(editorElements()).toHaveLength(1))
+    expect((await repository.getPresentation(presentationId)).assets).toMatchObject([{ id: assetId }])
+    expect(Array.from((await repository.getMedia(assetId)).bytes)).toEqual(Array.from(fixtureImagePng()))
   })
 
   it('leaves no element, asset, or media behind when a file is refused', async () => {
@@ -481,7 +527,8 @@ describe('presentation image insertion', () => {
   })
 
   it('reuses one asset record when the same photo is inserted twice', async () => {
-    const { input } = await openBlankEditor()
+    const { repository, input } = await openBlankEditor()
+    const presentationId = usePresentationStore.getState().document!.id
 
     fireEvent.change(input, { target: { files: [photoFile()] } })
     await waitFor(() => expect(editorElements()).toHaveLength(1))
@@ -489,14 +536,38 @@ describe('presentation image insertion', () => {
     await waitFor(() => expect(editorElements()).toHaveLength(2))
 
     expect(usePresentationStore.getState().document!.assets).toHaveLength(1)
-    expect(usePresentationStore.getState().mediaForSave()).toHaveLength(1)
+    // Both insertions are already stored, so nothing is held for a later save.
+    expect(usePresentationStore.getState().mediaForSave()).toHaveLength(0)
     // One history entry per insertion.
     expect(usePresentationStore.getState().past).toHaveLength(2)
     expect(editorElements().map((element) => element.name)).toEqual(['Image', 'Image 2'])
+    const stored = await repository.getPresentation(presentationId)
+    expect(stored.slides[0]!.elements).toHaveLength(2)
+    expect(stored.assets).toHaveLength(1)
+  })
+
+  it('releases the decoded source it replaces when an asset is inserted again', async () => {
+    const { input } = await openBlankEditor()
+    const closes = trackDecodedBitmaps()
+    // validateUpload closes its own probe bitmap, so anything still open belongs to
+    // the editor's decoded media map.
+    const liveBitmaps = () => closes.filter((close) => close.mock.calls.length === 0)
+
+    fireEvent.change(input, { target: { files: [photoFile()] } })
+    await waitFor(() => expect(editorElements()).toHaveLength(1))
+    expect(liveBitmaps()).toHaveLength(1)
+
+    fireEvent.change(input, { target: { files: [photoFile('photo-again.png')] } })
+    await waitFor(() => expect(editorElements()).toHaveLength(2))
+
+    // The replaced source was disposed immediately rather than at document close.
+    expect(liveBitmaps()).toHaveLength(1)
+    expect(closes.at(-1)).not.toHaveBeenCalled()
   })
 
   it('says a full slide is full instead of silently refusing the image', async () => {
-    const { input } = await openBlankEditor()
+    const { repository, input } = await openBlankEditor()
+    const presentationId = usePresentationStore.getState().document!.id
     act(() => {
       const store = usePresentationStore.getState()
       for (let index = 0; index < PRESENTATION_LIMITS.maxElementsPerSlide; index += 1) {
@@ -507,9 +578,32 @@ describe('presentation image insertion', () => {
 
     fireEvent.change(input, { target: { files: [photoFile()] } })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(`This slide is full (${PRESENTATION_LIMITS.maxElementsPerSlide} elements)`)
+    expect(await screen.findByRole('alert')).toHaveTextContent(`This slide already holds the maximum of ${PRESENTATION_LIMITS.maxElementsPerSlide} elements`)
     expect(editorElements()).toHaveLength(PRESENTATION_LIMITS.maxElementsPerSlide)
     expect(usePresentationStore.getState().document!.assets).toHaveLength(0)
+    // Refused before any write: the stored row never saw the insert.
+    expect((await repository.getPresentation(presentationId)).slides[0]!.elements).toHaveLength(0)
+  })
+
+  it('says the artwork budget is spent instead of silently refusing the image', async () => {
+    const { input } = await openBlankEditor()
+    const storedAssetId = 'asset-already-stored'
+    act(() => {
+      const store = usePresentationStore.getState()
+      store.insertImage({
+        asset: { id: storedAssetId, blobKey: 'uploads/stored', mimeType: 'image/png', width: 8, height: 8, sha256: 'c'.repeat(64), provenance: { source: 'upload', label: 'stored.png' } },
+        media: { assetId: storedAssetId, bytes: new Uint8Array([1]), mimeType: 'image/png' },
+      })
+      // What a load would hydrate: the stored artwork's own byte count.
+      store.setMediaBytes({ [storedAssetId]: PRESENTATION_LIMITS.maxMediaBytes - 1 })
+    })
+
+    fireEvent.change(input, { target: { files: [photoFile()] } })
+
+    const limit = PRESENTATION_LIMITS.maxMediaBytes / (1024 * 1024)
+    expect(await screen.findByRole('alert')).toHaveTextContent(`past the ${limit.toFixed(1)} MB limit`)
+    expect(editorElements()).toHaveLength(1)
+    expect(usePresentationStore.getState().document!.assets).toHaveLength(1)
   })
 
   it('says the image cap is reached instead of silently refusing the image', async () => {
@@ -529,12 +623,200 @@ describe('presentation image insertion', () => {
       }
     })
     expect(usePresentationStore.getState().document!.assets).toHaveLength(PRESENTATION_LIMITS.maxAssets)
+    const elementsBefore = editorElements().length
     // The active slide still has room, so only the asset cap can refuse the upload.
-    expect(editorElements().length).toBeLessThan(PRESENTATION_LIMITS.maxElementsPerSlide)
+    expect(elementsBefore).toBeLessThan(PRESENTATION_LIMITS.maxElementsPerSlide)
 
     fireEvent.change(input, { target: { files: [photoFile()] } })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(`This presentation already holds the maximum ${PRESENTATION_LIMITS.maxAssets} images.`)
+    expect(await screen.findByRole('alert')).toHaveTextContent(`This presentation already holds the maximum of ${PRESENTATION_LIMITS.maxAssets} images`)
     expect(usePresentationStore.getState().document!.assets).toHaveLength(PRESENTATION_LIMITS.maxAssets)
+    expect(editorElements()).toHaveLength(elementsBefore)
+  })
+
+  it('says a failed write in the status region and adds no element', async () => {
+    const { repository, input } = await openBlankEditor()
+    const presentationId = usePresentationStore.getState().document!.id
+    const document = usePresentationStore.getState().document
+
+    repository.injectWriteFailure()
+    fireEvent.change(input, { target: { files: [photoFile()] } })
+
+    // The failure is readable, not a silent no-op, and it never claims success.
+    expect(await screen.findByText(/^Save failed — /)).toBeInTheDocument()
+    expect(editorElements()).toHaveLength(0)
+    expect(usePresentationStore.getState().document).toBe(document)
+    expect(usePresentationStore.getState().dirty).toBe(false)
+    const stored = await repository.getPresentation(presentationId)
+    expect(stored.assets).toEqual([])
+    expect(stored.slides[0]!.elements).toEqual([])
+  })
+
+  it('says a saved image is saved but not yet displayable instead of claiming the insert failed', async () => {
+    const { repository, input } = await openBlankEditor()
+    const presentationId = usePresentationStore.getState().document!.id
+    const assetId = `asset-${FIXTURE_IMAGE_SHA256}`
+
+    // The upload boundary decodes once to size the image; the second decode is the
+    // editor's own, and it fails. The write has already committed by then.
+    let decodes = 0
+    globalThis.createImageBitmap = (async () => {
+      decodes += 1
+      if (decodes > 1) throw new Error('decode failed')
+      return { width: 64, height: 64, close() {} } as ImageBitmap
+    }) as typeof createImageBitmap
+
+    fireEvent.change(input, { target: { files: [photoFile()] } })
+
+    // Honest and without an invitation to retry: nothing is left to add.
+    expect(await screen.findByRole('alert')).toHaveTextContent(/was saved, but it cannot be displayed/i)
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/could not be added/i)
+    const stored = await repository.getPresentation(presentationId)
+    expect(stored.assets).toMatchObject([{ id: assetId }])
+    expect(stored.slides[0]!.elements[0]!).toMatchObject({ kind: 'image', assetId })
+    expect(Array.from((await repository.getMedia(assetId)).bytes)).toEqual(Array.from(fixtureImagePng()))
+  })
+})
+
+describe('presentation media budget and stored artwork', () => {
+  it('hydrates the media budget from the artwork the load fetches', async () => {
+    const repository = createMemoryPresentationRepository()
+    await saveFixture(repository)
+    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
+
+    // Without this the stored asset would count as 0 bytes and the 200 MB budget
+    // would never be enforced for media that is already on disk.
+    expect(usePresentationStore.getState().mediaBytes).toEqual({ [FIXTURE_IMAGE_ASSET_ID]: fixtureImagePng().length })
+  })
+
+  it('re-opens the newer revision and decodes its artwork after a conflict recovery', async () => {
+    const repository = createMemoryPresentationRepository()
+    await saveFixture(repository)
+    const closes = trackDecodedBitmaps()
+    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
+    expect(closes).toHaveLength(1)
+
+    // Another tab saved a newer revision of the same presentation.
+    const newer = await repository.getPresentation(FIXTURE_ID)
+    newer.revision = 7
+    newer.title = 'Saved in another tab'
+    await repository.savePresentation(newer)
+
+    const slideId = usePresentationStore.getState().view.activeSlideId!
+    act(() => { usePresentationStore.getState().renameSlide(slideId, 'My local rename') })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('button', { name: 'Keep my copy' })).toBeInTheDocument()
+    expect(screen.getByText(/^Save conflict — /)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Keep my copy' }))
+
+    await waitFor(() => expect(usePresentationStore.getState().document!.title).toBe('Saved in another tab'))
+    // The newer revision was decoded from stored bytes: a load keyed on the route id
+    // alone would have kept the canvas on the pre-recovery artwork.
+    expect(closes).toHaveLength(2)
+    expect(closes[1]).not.toHaveBeenCalled()
+    expect(usePresentationStore.getState().document!.revision).toBe(7)
+    expect(usePresentationStore.getState().mediaBytes).toEqual({ [FIXTURE_IMAGE_ASSET_ID]: fixtureImagePng().length })
+    expect(await screen.findByText(/saved as a separate conflict copy/i)).toBeInTheDocument()
+
+    // The local work survives as its own stored row, and the newer work is intact.
+    const rows = await repository.listPresentations()
+    expect(rows).toHaveLength(2)
+    expect(rows.map((row) => row.title)).toContain('Saved in another tab')
+    const copy = rows.find((row) => row.title.includes('conflict copy'))!
+    expect((await repository.getPresentation(copy.id)).slides[0]!.name).toBe('My local rename')
+  })
+})
+
+describe('leaving the presentation editor', () => {
+  it('writes text that is only on screen before the Back link leaves', async () => {
+    const { repository } = await openBlankEditor()
+    const presentationId = usePresentationStore.getState().document!.id
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+
+    // A composition commits once at compositionend, so this text exists only in the
+    // editor: the leave path has to flush it through the overlay's registered commit.
+    fireEvent.compositionStart(field)
+    field.innerHTML = '<p>Chưa lưu</p>'
+    fireEvent.input(field)
+
+    fireEvent.click(screen.getByRole('link', { name: 'Back to presentations' }))
+
+    expect(await screen.findByRole('link', { name: 'Open Untitled presentation' })).toBeInTheDocument()
+    const stored = await repository.getPresentation(presentationId)
+    const element = stored.slides[0]!.elements.find((candidate) => candidate.kind === 'text')
+    if (element?.kind !== 'text') throw new Error('expected a stored text element')
+    expect(element.paragraphs.flatMap((paragraph) => paragraph.runs).map((run) => run.text).join('')).toBe('Chưa lưu')
+  })
+
+  it('keeps the editor open with a visible reason when the work cannot be saved', async () => {
+    const repository = createMemoryPresentationRepository()
+    renderPresentations('/presentations', repository)
+    await screen.findByRole('heading', { name: 'No presentations yet' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create your first presentation' }))
+    await screen.findByRole('heading', { name: 'Untitled presentation' })
+
+    act(() => { usePresentationStore.getState().renameSlide(usePresentationStore.getState().view.activeSlideId!, 'Must not be lost') })
+    repository.injectWriteFailure()
+    fireEvent.click(screen.getByRole('link', { name: 'Back to presentations' }))
+
+    expect(await screen.findByText(/could not be saved, so it is still open/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Untitled presentation' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'No presentations yet' })).not.toBeInTheDocument()
+    expect(usePresentationStore.getState().dirty).toBe(true)
+    expect(usePresentationStore.getState().document!.slides[0]!.name).toBe('Must not be lost')
+  })
+
+  it('flushes an edit that only exists on screen before a shell nav link leaves', async () => {
+    const { repository } = await openBlankEditor()
+    const presentationId = usePresentationStore.getState().document!.id
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+
+    // The shell's own Home link is reachable from inside the editor, and this text
+    // is only in the open text session: the guard has to flush and write it first.
+    fireEvent.compositionStart(field)
+    field.innerHTML = '<p>Survives the shell</p>'
+    fireEvent.input(field)
+
+    fireEvent.click(screen.getByRole('link', { name: 'Home' }))
+
+    expect(await screen.findByRole('heading', { name: /Small stickers/ })).toBeInTheDocument()
+    const stored = await repository.getPresentation(presentationId)
+    const element = stored.slides[0]!.elements.find((candidate) => candidate.kind === 'text')
+    if (element?.kind !== 'text') throw new Error('expected a stored text element')
+    expect(element.paragraphs.flatMap((paragraph) => paragraph.runs).map((run) => run.text).join('')).toBe('Survives the shell')
+  })
+
+  it('keeps a dirty editor open when a shell nav link cannot be saved', async () => {
+    const repository = createMemoryPresentationRepository()
+    renderPresentations('/presentations', repository)
+    await screen.findByRole('heading', { name: 'No presentations yet' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create your first presentation' }))
+    await screen.findByRole('heading', { name: 'Untitled presentation' })
+
+    act(() => { usePresentationStore.getState().renameSlide(usePresentationStore.getState().view.activeSlideId!, 'Still here') })
+    repository.injectWriteFailure()
+    fireEvent.click(screen.getByRole('link', { name: 'Home' }))
+
+    expect(await screen.findByText(/could not be saved, so it is still open/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Untitled presentation' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Small stickers/ })).not.toBeInTheDocument()
+    expect(usePresentationStore.getState().dirty).toBe(true)
+    expect(usePresentationStore.getState().document!.slides[0]!.name).toBe('Still here')
+  })
+
+  it('a clean editor leaves through a shell nav link without being held back', async () => {
+    await openBlankEditor()
+
+    fireEvent.click(screen.getByRole('link', { name: 'Home' }))
+
+    expect(await screen.findByRole('heading', { name: /Small stickers/ })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Untitled presentation' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/could not be saved/i)).not.toBeInTheDocument()
   })
 })

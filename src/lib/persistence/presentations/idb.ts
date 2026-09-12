@@ -12,6 +12,7 @@
  */
 
 import { PersistenceError } from '../document'
+import { assertRevisionWritable } from './revision'
 import { arrayBufferToBytes, bytesEqual, idbRequest, openStickerLabDatabase, runTransaction, STICKERLAB_DB_NAME, STORE_NAMES } from '../idb'
 import { clonePresentationDocumentWithNewIds } from '../../../features/presentations/model/factories'
 import { serializePresentationDocument } from '../../../features/presentations/model/parse'
@@ -66,23 +67,15 @@ export class IdbPresentationRepository implements PresentationRepository {
       const mediaStore = tx.objectStore(STORE_NAMES.presentationMedia)
 
       const existingRaw = await idbRequest<unknown>(documents.get(clean.id))
+      let storedRevision: number | undefined
       if (existingRaw !== undefined) {
-        let stored: PresentationDocument
         try {
-          stored = serializePresentationDocument(existingRaw)
+          storedRevision = serializePresentationDocument(existingRaw).revision
         } catch {
           throw new PersistenceError('invalid_document', `Stored presentation ${clean.id} is unreadable`)
         }
-        if (stored.revision > clean.revision) {
-          throw new PersistenceError('revision_conflict', `Presentation ${clean.id} is newer than this save`)
-        }
-        if (options.baseRevision !== undefined && stored.revision > options.baseRevision) {
-          throw new PersistenceError('revision_conflict', `Presentation ${clean.id} changed after revision ${options.baseRevision}`)
-        }
-      } else if (options.baseRevision !== undefined && options.baseRevision >= 0) {
-        // The row the caller loaded was deleted elsewhere; recreating it silently would hide that.
-        throw new PersistenceError('revision_conflict', `Presentation ${clean.id} no longer exists`)
       }
+      assertRevisionWritable({ id: clean.id, incomingRevision: clean.revision, storedRevision, baseRevision: options.baseRevision })
 
       const storedMedia = new Map<string, StoredPresentationMedia>()
       for (const asset of clean.assets) {

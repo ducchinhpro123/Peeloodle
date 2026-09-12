@@ -88,13 +88,16 @@ test('uploads a personal image, paints it, stores its bytes, and reopens it', as
   expect(inserted.image.y).toBeGreaterThanOrEqual(0)
   expect(inserted.image.x + inserted.image.width).toBeLessThanOrEqual(1280)
   expect(inserted.image.y + inserted.image.height).toBeLessThanOrEqual(720)
-  expect(inserted.dirty).toBe(true)
+  // Insertion is atomic: the document and the image bytes were committed in one
+  // repository transaction before the element was adopted, so the editor is
+  // already clean here. It must NOT be dirty, or the insert was not persisted.
+  expect(inserted.dirty).toBe(false)
 
   // It is actually drawn, and nothing failed to draw.
   await expect(page.locator('.presentation-canvas-error')).toHaveCount(0)
   await expect.poll(async () => (await artworkPixels(page)) - blankArtwork).toBeGreaterThan(500)
 
-  // The completed insert is autosaved, and the status only says so once it is true.
+  // The status agrees with the persisted state rather than merely claiming it.
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({ timeout: 10_000 })
 
   const assetId = inserted.assets[0]!.id

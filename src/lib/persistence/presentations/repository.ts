@@ -9,6 +9,7 @@
  */
 
 import { PersistenceError } from '../document'
+import { assertRevisionWritable } from './revision'
 import { clonePresentationDocumentWithNewIds } from '../../../features/presentations/model/factories'
 import { serializePresentationDocument } from '../../../features/presentations/model/parse'
 import type { PresentationAsset, PresentationDocument, PresentationSummary } from '../../../features/presentations/model/types'
@@ -79,25 +80,15 @@ export class MemoryPresentationRepository implements PresentationRepository {
     this.guardWrite()
     const clean = serializePresentationDocument(document)
     const existing = this.documents.get(clean.id)
+    let storedRevision: number | undefined
     if (existing) {
-      let storedRevision: number
       try {
         storedRevision = serializePresentationDocument(existing).revision
       } catch {
         storedRevision = Number.POSITIVE_INFINITY
       }
-      // Same two guards as the IndexedDB adapter, deliberately duplicated: without
-      // them a unit test can pass here while the browser rejects the same write.
-      if (storedRevision > clean.revision) {
-        throw new PersistenceError('revision_conflict', `Presentation ${clean.id} is newer than this save`)
-      }
-      if (options.baseRevision !== undefined && storedRevision > options.baseRevision) {
-        throw new PersistenceError('revision_conflict', `Presentation ${clean.id} changed after revision ${options.baseRevision}`)
-      }
-    } else if (options.baseRevision !== undefined && options.baseRevision >= 0) {
-      // The row the caller loaded was removed; silently recreating it would hide that.
-      throw new PersistenceError('revision_conflict', `Presentation ${clean.id} no longer exists`)
     }
+    assertRevisionWritable({ id: clean.id, incomingRevision: clean.revision, storedRevision, baseRevision: options.baseRevision })
     const nextMedia = new Map(this.media)
     for (const record of media) {
       const asset = clean.assets.find((candidate) => candidate.id === record.assetId)

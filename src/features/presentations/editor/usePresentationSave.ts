@@ -9,17 +9,29 @@
  * Autosave waits for a *completed* command: a new document revision with the
  * history group closed. A drag, a slider gesture, or an open text session holds
  * one history group, so nothing is written mid-gesture.
+ *
+ * Insertion and conflict recovery go through the same single write path
+ * (`serialize`), so there is never a second, concurrent writer.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { isPersistenceError } from '@/lib/persistence/repository'
-import type { PresentationRepository } from '@/lib/persistence/presentations/repository'
-import { readParagraphsFromDom } from './textBridge'
-import { bridgeDefaultsFor, textHistoryGroup } from './textEditSession'
-import { usePresentationStore } from './store'
+import type { PresentationMediaRecord, PresentationRepository } from '@/lib/persistence/presentations/repository'
+import { clonePresentationDocumentWithNewIds } from '../model/factories'
+import { PRESENTATION_LIMITS } from '../model/limits'
+import type { PresentationDocument } from '../model/types'
+import type { PreparedPresentationImage } from './insertImageAsset'
+import { flushActiveTextEdit } from './textEditSession'
+import { planImageInsert, usePresentationStore, type ImageInsertRefusalReason } from './store'
 
 export type PresentationSaveStatus = 'clean' | 'saving' | 'saved' | 'failed' | 'conflict'
 export type PresentationSaveState = { status: PresentationSaveStatus; message: string | null }
+
+export type PersistOutcome = { ok: true } | { ok: false; reason: 'failed' | 'conflict'; message: string }
+export type PersistInsertOutcome =
+  | { ok: true; elementId: string }
+  | { ok: false; reason: ImageInsertRefusalReason | 'failed' | 'conflict'; message: string }
+export type ConflictRecoveryOutcome = { ok: true; copyId: string } | { ok: false; message: string }
 
 /** Quiet time after the last completed command before an automatic save. */
 export const AUTOSAVE_DELAY_MS = 750
@@ -27,8 +39,9 @@ export const AUTOSAVE_DELAY_MS = 750
 const SAVE_FAILED_MESSAGE = 'This presentation could not be written to local storage. Your changes are still here and stay editable — press Save to try again.'
 const SAVE_CONFLICT_MESSAGE = 'A newer version of this presentation was saved in another tab or window after you opened it. Your changes are still here and were not written over it.'
 
-/** The DOM editing field owned by `TextEditOverlay`. */
-const TEXT_EDIT_FIELD_SELECTOR = '[data-testid="text-edit-field"]'
+const CONFLICT_COPY_SUFFIX = ' (conflict copy)'
+/** Bound on repeated flush+save attempts before the editor refuses to navigate. */
+const LEAVE_ATTEMPTS = 3
 
 type SaveResult = 'saved' | 'skipped' | 'failed' | 'conflict'
 
@@ -36,18 +49,43 @@ export function usePresentationSave(input: { repository: PresentationRepository;
   state: PresentationSaveState
   saveNow: () => Promise<void>
   requestSave: () => void
+  saveBeforeLeave: () => Promise<boolean>
+  persistDocument: (next: PresentationDocument, media: PresentationMediaRecord[], baseRevision: number) => Promise<PersistOutcome>
+  persistInsert: (image: PreparedPresentationImage, options?: { slideId?: string }) => Promise<PersistInsertOutcome>
+  keepMineAsCopy: () => Promise<ConflictRecoveryOutcome>
 } {
   const { repository, documentId } = input
   const [state, setState] = useState<PresentationSaveState>({ status: 'clean', message: null })
-  const inFlight = useRef(false)
-  const queued = useRef(false)
+  const pendingRef = useRef(0)
+  const chain = useRef<Promise<unknown>>(Promise.resolve())
 
   const publish = useCallback((next: PresentationSaveState) => {
     setState((current) => (current.status === next.status && current.message === next.message ? current : next))
   }, [])
 
+  /**
+   * One serialization point for every write. A write starts immediately when
+   * nothing is in flight, so the visible 'saving' state is not deferred, and is
+   * queued behind the current one otherwise: two writers can never overlap.
+   */
+  const serialize = useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
+    pendingRef.current += 1
+    const start = () => task().finally(() => { pendingRef.current -= 1 })
+    if (pendingRef.current === 1) {
+      const run = start()
+      chain.current = run.then(() => undefined, () => undefined)
+      return run
+    }
+    const run = chain.current.then(start, start)
+    chain.current = run.then(() => undefined, () => undefined)
+    return run
+  }, [])
+
   const performSave = useCallback(async (): Promise<SaveResult> => {
     const stillCurrent = () => documentId !== null && usePresentationStore.getState().document?.id === documentId
+    // Commit anything still on screen before the clean check, so an explicit Save can
+    // never report "saved" for text the user can see but that was never written.
+    flushActiveTextEdit()
     const start = usePresentationStore.getState()
     if (documentId === null || start.document?.id !== documentId) return 'skipped'
     // An unchanged revision is never re-submitted, so a clean document is not re-written.
@@ -55,8 +93,6 @@ export function usePresentationSave(input: { repository: PresentationRepository;
       publish({ status: 'saved', message: null })
       return 'skipped'
     }
-
-    flushActiveTextSession()
 
     const pending = usePresentationStore.getState()
     const document = pending.document
@@ -102,27 +138,152 @@ export function usePresentationSave(input: { repository: PresentationRepository;
     return 'saved'
   }, [documentId, publish, repository])
 
+  const runSave = useCallback((): Promise<SaveResult> => serialize(performSave), [performSave, serialize])
+
   const saveNow = useCallback(async (): Promise<void> => {
-    if (inFlight.current) {
-      // Never two writes at once. The request is served after the current one.
-      queued.current = true
-      return
-    }
-    inFlight.current = true
-    try {
-      let result: SaveResult
-      do {
-        queued.current = false
-        result = await performSave()
-      } while (queued.current && (result === 'saved' || result === 'skipped'))
-    } finally {
-      inFlight.current = false
-    }
-  }, [performSave])
+    await runSave()
+  }, [runSave])
 
   const requestSave = useCallback(() => {
     void saveNow()
   }, [saveNow])
+
+  /**
+   * Writes an explicit document through the same single write path. Store
+   * bookkeeping belongs to the caller: a caller that is adopting a persisted
+   * document owns the saved revision, and one that is only probing must not
+   * clear `dirty` for work that was not part of this revision.
+   */
+  const persistDocument = useCallback(
+    (next: PresentationDocument, media: PresentationMediaRecord[]): Promise<PersistOutcome> =>
+      serialize(async () => {
+        if (documentId === null || next.id !== documentId) {
+          return { ok: false as const, reason: 'failed' as const, message: SAVE_FAILED_MESSAGE }
+        }
+        // Read the base revision here, inside the serialized task, not at click time:
+        // a save that completes while this task waits in the queue advances the stored
+        // revision, and a stale base would then report a conflict for our own write.
+        const baseRevision = usePresentationStore.getState().savedRevision
+        usePresentationStore.getState().markSaving()
+        publish({ status: 'saving', message: null })
+        try {
+          await repository.savePresentation(next, media, { baseRevision })
+          return { ok: true as const }
+        } catch (error) {
+          if (isPersistenceError(error) && error.code === 'revision_conflict') {
+            usePresentationStore.getState().markSaveFailed(SAVE_CONFLICT_MESSAGE)
+            publish({ status: 'conflict', message: SAVE_CONFLICT_MESSAGE })
+            return { ok: false as const, reason: 'conflict' as const, message: SAVE_CONFLICT_MESSAGE }
+          }
+          const message = describeSaveFailure(error)
+          usePresentationStore.getState().markSaveFailed(message)
+          publish({ status: 'failed', message })
+          return { ok: false as const, reason: 'failed' as const, message }
+        }
+      }),
+    [documentId, publish, repository, serialize],
+  )
+
+  /**
+   * Persist first, then adopt: an inserted image is never presented as added
+   * before the document and its bytes are committed together. On any failure the
+   * document, its assets, held media and history are all left untouched, so there
+   * is no half-inserted element and no orphaned media to clean up.
+   */
+  const persistInsert = useCallback(
+    async (image: PreparedPresentationImage, options?: { slideId?: string }): Promise<PersistInsertOutcome> => {
+      const store = usePresentationStore.getState()
+      const document = store.document
+      if (!document || document.id !== documentId) {
+        return { ok: false, reason: 'no-slide', message: 'Open a presentation before adding an image.' }
+      }
+      const check = store.checkImageInsert(image, options)
+      if (!check.ok) return { ok: false, reason: check.reason, message: check.message }
+
+      const plan = planImageInsert(document, image, {
+        slideId: options?.slideId ?? usePresentationStore.getState().view.activeSlideId,
+      })
+      if (!plan) return { ok: false, reason: 'no-slide', message: 'There is no slide to add this image to.' }
+
+      const media = pendingMediaFor(image)
+      const outcome = await persistDocument(plan.document, media)
+      if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message }
+
+      usePresentationStore.getState().adoptPersistedInsert(plan, image.media.assetId, image)
+      publish({ status: 'saved', message: null })
+      return { ok: true, elementId: plan.elementId }
+    },
+    [documentId, persistDocument, publish],
+  )
+
+  /**
+   * A stale revision must not dead-end the editor. Keep the local work as an
+   * independent copy, then load the newer stored revision so the user is no
+   * longer editing something that can never be written.
+   */
+  const keepMineAsCopy = useCallback(async (): Promise<ConflictRecoveryOutcome> => {
+    const source = usePresentationStore.getState().document
+    if (!source || source.id !== documentId) return { ok: false, message: 'There is no open presentation to copy.' }
+    flushActiveTextEdit()
+
+    const local = usePresentationStore.getState().document
+    if (!local || local.id !== documentId) return { ok: false, message: 'There is no open presentation to copy.' }
+    const copy = clonePresentationDocumentWithNewIds(local, { title: conflictCopyTitle(local.title) })
+
+    const outcome = await serialize(async (): Promise<ConflictRecoveryOutcome> => {
+      // The copy uses new asset ids, so its media must be re-keyed by content.
+      const held = usePresentationStore.getState().mediaForSave()
+      const media = await mediaForCopy(repository, local, copy, held)
+      if (!media.ok) return { ok: false, message: media.message }
+      try {
+        await repository.savePresentation(copy, media.records)
+      } catch (error) {
+        return { ok: false, message: describeSaveFailure(error) }
+      }
+      return { ok: true, copyId: copy.id }
+    })
+
+    if (!outcome.ok) {
+      usePresentationStore.getState().markSaveFailed(outcome.message)
+      publish({ status: 'failed', message: outcome.message })
+      return outcome
+    }
+
+    // Reopen the newer stored revision; the user's own work is safe in the copy.
+    try {
+      const newer = await repository.getPresentation(documentId!)
+      if (usePresentationStore.getState().document?.id === documentId) {
+        usePresentationStore.getState().loadDocument(newer, { saved: true })
+        publish({ status: 'clean', message: null })
+      }
+    } catch (error) {
+      const message = describeSaveFailure(error)
+      usePresentationStore.getState().markSaveFailed(message)
+      publish({ status: 'failed', message })
+      return { ok: false, message }
+    }
+    return outcome
+  }, [documentId, publish, repository, serialize])
+
+  /**
+   * Used by the editor's own exit link: commit anything still on screen, wait for
+   * the write rather than scheduling one, and report whether it is safe to leave.
+   * A clean document reports true without writing anything.
+   */
+  const saveBeforeLeave = useCallback(async (): Promise<boolean> => {
+    flushActiveTextEdit()
+    for (let attempt = 0; attempt < LEAVE_ATTEMPTS; attempt += 1) {
+      const result = await runSave()
+      if (result === 'failed' || result === 'conflict') return false
+      const store = usePresentationStore.getState()
+      // Nothing open: leaving cannot lose this document's work.
+      if (documentId === null || store.document?.id !== documentId) return true
+      // An edit that landed while the write was in flight keeps this dirty; one
+      // more pass writes it instead of refusing to leave with unsaved work.
+      if (!store.dirty) return true
+    }
+    return false
+  }, [documentId, runSave])
 
   useEffect(() => {
     setState({ status: 'clean', message: null })
@@ -171,30 +332,53 @@ export function usePresentationSave(input: { repository: PresentationRepository;
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [documentId])
 
-  return { state, saveNow, requestSave }
+  return { state, saveNow, requestSave, saveBeforeLeave, persistDocument, persistInsert, keepMineAsCopy }
+}
+
+/** The bytes for a just-prepared image, unless the document already holds them. */
+function pendingMediaFor(image: PreparedPresentationImage): PresentationMediaRecord[] {
+  const store = usePresentationStore.getState()
+  const document = store.document
+  const stored = document?.assets.some((asset) => asset.id === image.media.assetId) ?? false
+  if (stored) return []
+  if (store.pendingMedia.some((record) => record.assetId === image.media.assetId)) return []
+  return [image.media]
 }
 
 /**
- * Commits the text currently on screen before a write, through the same history
- * group the overlay uses, so flushing never adds an undo entry and never closes
- * the session. A rejected command (an over-long box) keeps the last committed
- * text: the overlay owns that error and a save must not fail because of it.
+ * Media for the conflict copy. The clone gets new asset ids, so every record has
+ * to be re-keyed by content: held bytes where the editor still has them, and the
+ * already-stored bytes fetched back for everything else.
  */
-function flushActiveTextSession(): void {
-  const store = usePresentationStore.getState()
-  const elementId = store.view.editingElementId
-  if (elementId === null) return
-  const host = document.querySelector<HTMLElement>(TEXT_EDIT_FIELD_SELECTOR)
-  if (!host) return
-  const element = store.document?.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
-  if (element?.kind !== 'text') return
-  try {
-    store.updateText(elementId, readParagraphsFromDom(host, bridgeDefaultsFor(element, store.document?.theme)), {
-      historyGroup: textHistoryGroup(elementId),
-    })
-  } catch {
-    // Keep the committed text; the session stays open with its own alert.
+async function mediaForCopy(
+  repository: PresentationRepository,
+  source: PresentationDocument,
+  copy: PresentationDocument,
+  held: PresentationMediaRecord[],
+): Promise<{ ok: true; records: PresentationMediaRecord[] } | { ok: false; message: string }> {
+  const heldByAssetId = new Map(held.map((record) => [record.assetId, record]))
+  const records: PresentationMediaRecord[] = []
+  for (const asset of copy.assets) {
+    const original = source.assets.find((candidate) => candidate.sha256 === asset.sha256)
+    if (!original) return { ok: false, message: 'The copy could not be prepared because its artwork no longer matches the original.' }
+    const existing = heldByAssetId.get(original.id)
+    if (existing) {
+      records.push({ ...existing, assetId: asset.id })
+      continue
+    }
+    try {
+      const stored = await repository.getMedia(original.id)
+      records.push({ assetId: asset.id, bytes: stored.bytes, mimeType: stored.mimeType })
+    } catch {
+      return { ok: false, message: 'The copy could not be prepared because some of its artwork could not be read back.' }
+    }
   }
+  return { ok: true, records }
+}
+
+function conflictCopyTitle(title: string): string {
+  const room = PRESENTATION_LIMITS.maxTitleLength - CONFLICT_COPY_SUFFIX.length
+  return `${title.slice(0, Math.max(0, room))}${CONFLICT_COPY_SUFFIX}`
 }
 
 function describeSaveFailure(error: unknown): string {

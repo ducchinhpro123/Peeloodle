@@ -1,4 +1,4 @@
-import { StrictMode, Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { StrictMode, Suspense, lazy, useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useRepository } from './app/repository'
@@ -64,6 +64,7 @@ import {
 import { StickerCollage } from './components/StickerCollage'
 import { GlobalSearch } from './components/GlobalSearch'
 import { isUnmodifiedPrimaryClick, parseToolIntent, requestToolIntent, shouldReuseCurrentToolRoute, toolIntentHref, type ToolIntent } from './features/editor/toolIntent'
+import { hasLeaveGuard, invokeLeaveGuards } from './features/presentations/editor/leaveGuard'
 import './styles.css'
 import './features/presentations/rendering/presentation-fonts.css'
 
@@ -85,6 +86,34 @@ const topNavigation = [
   { to: '/templates?view=explore', label: 'Explore', active: (pathname: string, search: string) => pathname === '/templates' && getView(search) === 'explore' },
 ]
 
+/**
+ * A shell link that lets an open editor hold the click back: navigations rendered
+ * by the app shell (the ones visible inside the editor route) consult the
+ * leave-guard registry before the route changes, so a dirty editor keeps its work.
+ *
+ * Nothing registered - or a modified click - leaves the link completely native.
+ * The guard's decision is asynchronous, so the default click has to be taken over
+ * BEFORE awaiting it: a preventDefault after an await would already be too late.
+ */
+function GuardedLink({ to, replace, onClick, ...rest }: ComponentProps<typeof Link>) {
+  const navigate = useNavigate()
+  return (
+    <Link
+      {...rest}
+      to={to}
+      replace={replace}
+      onClick={(event) => {
+        onClick?.(event)
+        if (event.defaultPrevented || !isUnmodifiedPrimaryClick(event) || !hasLeaveGuard()) return
+        event.preventDefault()
+        void invokeLeaveGuards(event).then((mayNavigate) => {
+          if (mayNavigate) navigate(to, { replace })
+        })
+      }}
+    />
+  )
+}
+
 function Header() {
   const { pathname, search } = useLocation()
 
@@ -100,10 +129,10 @@ function Header() {
           <Sidebar mobile />
         </SheetContent>
       </Sheet>
-      <Link to="/" className="brand"><img src="/art/logo-wordmark.webp" width={500} height={224} alt="StickerLab" /></Link>
+      <GuardedLink to="/" className="brand"><img src="/art/logo-wordmark.webp" width={500} height={224} alt="StickerLab" /></GuardedLink>
       <nav className="topnav" aria-label="Primary navigation">
         {topNavigation.map((item) => (
-          <Link key={item.label} to={item.to} className={item.active(pathname, search) ? 'active' : undefined} aria-current={item.active(pathname, search) ? 'page' : undefined} onMouseEnter={item.to === '/create' ? preloadEditor : undefined} onFocus={item.to === '/create' ? preloadEditor : undefined}>{item.label}</Link>
+          <GuardedLink key={item.label} to={item.to} className={item.active(pathname, search) ? 'active' : undefined} aria-current={item.active(pathname, search) ? 'page' : undefined} onMouseEnter={item.to === '/create' ? preloadEditor : undefined} onFocus={item.to === '/create' ? preloadEditor : undefined}>{item.label}</GuardedLink>
         ))}
       </nav>
       <GlobalSearch />
@@ -138,7 +167,7 @@ function Sidebar({ mobile = false }: { mobile?: boolean }) {
   ]
 
   const itemLink = ({ to, label, icon: Icon, active }: typeof items[number]) => {
-    const link = <Link className={active ? 'active' : undefined} to={to} onMouseEnter={to === '/create' ? preloadEditor : undefined} onFocus={to === '/create' ? preloadEditor : undefined}><Icon size={18} />{label}</Link>
+    const link = <GuardedLink className={active ? 'active' : undefined} to={to} onMouseEnter={to === '/create' ? preloadEditor : undefined} onFocus={to === '/create' ? preloadEditor : undefined}><Icon size={18} />{label}</GuardedLink>
     return mobile ? <SheetClose asChild key={label}>{link}</SheetClose> : <span key={label}>{link}</span>
   }
 
@@ -151,7 +180,7 @@ function Sidebar({ mobile = false }: { mobile?: boolean }) {
           const to = toolIntentHref(intent, pathname)
           const active = currentIntent === intent && (pathname === '/create' || pathname.startsWith('/editor/'))
           const link = (
-            <Link
+            <GuardedLink
               className={active ? 'active' : undefined}
               to={to}
               replace={shouldReuseCurrentToolRoute(pathname, search, intent)}
@@ -164,12 +193,12 @@ function Sidebar({ mobile = false }: { mobile?: boolean }) {
               }}
             >
               <Icon size={18} />{label}
-            </Link>
+            </GuardedLink>
           )
           return mobile ? <SheetClose asChild key={label}>{link}</SheetClose> : <span key={label}>{link}</span>
         })}
       </div>
-      <Card className="studio-note"><img src="/art/stickers/04-winking-smiley.webp" alt="" width={64} height={64} /><b>Good ideas stick.</b><p>Create. Customize.<br />Share. Repeat.</p><Link to="/create">Make something fun <ChevronRight size={14} /></Link></Card>
+      <Card className="studio-note"><img src="/art/stickers/04-winking-smiley.webp" alt="" width={64} height={64} /><b>Good ideas stick.</b><p>Create. Customize.<br />Share. Repeat.</p><GuardedLink to="/create">Make something fun <ChevronRight size={14} /></GuardedLink></Card>
     </aside>
   )
 }
