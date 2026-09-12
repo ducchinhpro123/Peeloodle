@@ -10,10 +10,15 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
 - **P08 blocked** — no authorized preview deployment. A unit-tested harness is
   ready at `server/processing/probe.ts`; see `proofs/p08-deployment-blocked.md`.
   Do not add catalog/admin ingestion before preview evidence exists.
-- **Milestone 1 through P19 complete** — model, parser, command store,
-  repository contract (memory + IndexedDB at schema v5), local library/blank
-  creation/editor routes, fixed 16:9 rendering, basic wrapped text editing,
-  personal image insertion, and truthful save/autosave are implemented with tests.
+- **Milestone 1 is complete (P01–P21)** — model, parser, command store, repository
+  contract (memory + IndexedDB at schema v5), local library/blank creation/editor
+  routes, fixed 16:9 rendering, basic wrapped text editing, personal image
+  insertion, truthful save/autosave, library rename/duplicate/safe delete with real
+  first-slide thumbnails, and the milestone journey verified at desktop and tablet
+  widths with the persisted output inspected. Evidence:
+  `proofs/p15-p16-basic-presentations.md`, `proofs/p17-text-editing.md`,
+  `proofs/p18-p19-image-and-save.md`, `proofs/p20-library-operations.md`,
+  `proofs/p21-milestone-journey.md`.
 - `/presentations` creates and reopens real local documents (blank documents are
   saved at creation). The editor renders the active slide, lists the document's
   slides, switches between them, edits text boxes through the DOM bridge, inserts
@@ -36,24 +41,23 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
   `navigate()` calls remain unguarded** because the app renders a plain
   `BrowserRouter`; closing that means a data-router migration, not a patch.
 
-## Start here: P21, which closes Milestone 1
+## Start here: P22 — Milestone 2 (make multi-slide editing useful)
 
-**P20 — presentation library operations — is done** (`f56695b` plus the thumbnails commit): rename,
-duplicate and safe delete (shared dialog, safe action focused first, focus restored to a surviving
-control), real first-slide thumbnails rendered through the same `renderSlide` the editor uses, cached by
-`documentId:revision` and lazily drawn two at a time. Evidence, including what was *not* measured, is in
-`proofs/p20-library-operations.md`.
+**P20 and P21 are done.** P20 added rename, duplicate and safe delete (shared dialog, safe action focused
+first, focus restored to a surviving control) plus real first-slide thumbnails rendered through the same
+`renderSlide` the editor uses, cached by `documentId:revision` and drawn two at a time
+(`proofs/p20-library-operations.md`). P21 verified the whole milestone journey at 1440×900 and 1024×768 —
+text and media through autosave, a library rename, a reload and a reopen, with the stored row and media
+bytes read back and hashed against the uploaded file (`proofs/p21-milestone-journey.md`).
 
-**P21 — milestone browser journey** (acceptance: composition and media survive
-reload at desktop and tablet widths; inspect persisted output):
+**P22 — slide rail with selection and add/duplicate actions** (acceptance: new IDs on duplicate; copied
+media remains valid; current slide clearly indicated). The milestone-journey spec already gives you pixel
+and geometry assertions to reuse, including `paintedPixelsInRect` and `elementRectInCanvas` in
+`e2e/presentations.ts`.
 
-- Extend `e2e/presentations-image.spec.ts`, which already proves
-  insert → paint → IndexedDB → reload → reopen for a single image, into the full
-  create → edit → save → reload → reopen journey at 1440×900 and 1024×768,
-  including the library operations landing in the same journey.
-- This is the check that closes Milestone 1. Regenerate the committed P15–P17
-  captures when the presentation UI changes (they are current as of the P20
-  commit) and never commit a capture that raced a loading state.
+**P21 note, kept for the next increment:** run browser specs from a clean worktree when another writer is
+editing the shared checkout, and stop any dev server on 4173 first — `reuseExistingServer: true` will
+otherwise serve the shared tree through HMR module URLs.
 
 ## Interfaces to build on
 

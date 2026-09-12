@@ -28,7 +28,16 @@ export async function readDocument(page: Page) {
       .flatMap((paragraph) => paragraph.runs)
       .map((run) => run.text)
       .join('')
-    return { id: documentModel.id, revision: documentModel.revision, text, dirty: state.dirty }
+    const image = documentModel.slides
+      .flatMap((slide) => slide.elements)
+      .find((element) => element.kind === 'image')
+    return {
+      id: documentModel.id,
+      revision: documentModel.revision,
+      text,
+      dirty: state.dirty,
+      image: image ? { x: image.x, y: image.y, width: image.width, height: image.height } : null,
+    }
   })
 }
 
@@ -44,8 +53,60 @@ export async function readStoredDocument(page: Page, id: string) {
       .flatMap((paragraph) => paragraph.runs)
       .map((run) => run.text)
       .join('')
-    return { revision: stored.revision, text }
+    return { title: stored.title, revision: stored.revision, text }
   }, id)
+}
+
+/**
+ * Pixels that are really artwork inside a client-pixel region of the canvas
+ * host: opaque pixels differing from that region's dominant colour. A blank
+ * slide is one flat colour, so a blank region reads 0 and any real value means
+ * something was painted there.
+ */
+export async function paintedPixelsInRect(page: Page, area: { x: number; y: number; width: number; height: number }): Promise<number> {
+  return page.locator('canvas').first().evaluate((canvas, rect) => {
+    const context = canvas.getContext('2d')
+    if (!context) return -1
+    const scaleX = canvas.width / canvas.clientWidth
+    const scaleY = canvas.height / canvas.clientHeight
+    const left = Math.max(0, Math.floor(rect.x * scaleX))
+    const top = Math.max(0, Math.floor(rect.y * scaleY))
+    const width = Math.max(1, Math.min(canvas.width - left, Math.floor(rect.width * scaleX)))
+    const height = Math.max(1, Math.min(canvas.height - top, Math.floor(rect.height * scaleY)))
+    const pixels = context.getImageData(left, top, width, height).data
+    const counts = new Map<string, number>()
+    let opaque = 0
+    for (let index = 0; index < pixels.length; index += 4) {
+      if (pixels[index + 3]! <= 150) continue
+      opaque += 1
+      const key = `${pixels[index]},${pixels[index + 1]},${pixels[index + 2]}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    let modal = 0
+    for (const count of counts.values()) {
+      if (count > modal) modal = count
+    }
+    return opaque - modal
+  }, area)
+}
+
+/**
+ * Client-pixel rect of one element, using the same fit/zoom/pan mapping the
+ * canvas uses (document units stay independent of the viewport).
+ */
+export async function elementRectInCanvas(page: Page, element: { x: number; y: number; width: number; height: number }) {
+  const host = page.getByTestId('presentation-canvas')
+  const box = await host.boundingBox()
+  if (!box) throw new Error('canvas host has no box')
+  const zoom = Number(await host.getAttribute('data-view-zoom'))
+  const panX = Number(await host.getAttribute('data-view-pan-x'))
+  const panY = Number(await host.getAttribute('data-view-pan-y'))
+  const pageWidth = Number(await host.getAttribute('data-document-width'))
+  const pageHeight = Number(await host.getAttribute('data-document-height'))
+  const scale = Math.min(box.width / pageWidth, box.height / pageHeight) * zoom
+  const offsetX = (box.width - pageWidth * scale) / 2 + panX
+  const offsetY = (box.height - pageHeight * scale) / 2 + panY
+  return { x: offsetX + element.x * scale, y: offsetY + element.y * scale, width: element.width * scale, height: element.height * scale }
 }
 
 /** Creates a blank presentation from the library and returns its id. */

@@ -11,8 +11,9 @@ implemented and recorded in `proofs/p18-p19-image-and-save.md`, which includes b
 IndexedDB evidence plus the review-driven hardening that followed (atomic insertion, the 200 MB media
 budget, conflict recovery and the guarded editor exit — with the unguarded browser Back/Forward
 limitation stated there). P20 (library rename, duplicate, safe delete and real first-slide thumbnails) is
-implemented and recorded in `proofs/p20-library-operations.md`; P21, the milestone journey, is next.
-Review-driven
+recorded in `proofs/p20-library-operations.md`, and P21 verified the full create → edit → save → reload →
+reopen journey in `proofs/p21-milestone-journey.md`, which completes Milestone 1. Milestone 2 starts at
+P22. Review-driven
 corrections are recorded in `proofs/correction-pass.md`. Start the next session from
 [`HANDOFF.md`](../HANDOFF.md).
 
@@ -86,7 +87,7 @@ The first coding task is **P01**, then the **export/text proof P02–P05**. Do n
 | [x] | P18 | Add personal PNG/JPEG/static WebP image upload and stored media insertion. | P14, P16 | Existing size/format validation reused where valid; failed upload leaves no broken layer. Verified in a real browser, including that the media bytes reach IndexedDB (`proofs/p18-p19-image-and-save.md`). Insertion is atomic (document + bytes in one repository transaction, decode only after the commit) and the 200 MB media budget is refused before any mutation, charged once per unique asset. |
 | [x] | P19 | Add autosave and explicit Save with truthful state and edit/media flushing. | P17, P18 | Dirty → saving → saved locally; induced quota/write failure retains editable work. Failure and conflict paths are unit-tested with the memory adapter's injected write failure; the autosave path is browser-verified. A stale revision now has a recovery path ("Keep my copy" writes an independent copy, then reopens the newer revision), leaving the editor flushes and awaits the write, and one command landing during an insert write is no longer dropped. |
 | [x] | P20 | Add thumbnails, rename, duplicate and safe delete in presentation library. | P19 | Duplicate independent; delete cancels safely and restores focus; sticker projects untouched. Verified in a real browser, every claim read back from IndexedDB, plus real first-slide thumbnails and containment at 1024×768 and 390×844 (`proofs/p20-library-operations.md`). |
-| [ ] | P21 | Verify the milestone's create/edit/save/reload/reopen browser journey. | P20 | Composition and media survive reload at desktop/tablet widths; inspect persisted output. |
+| [x] | P21 | Verify the milestone's create/edit/save/reload/reopen browser journey. | P20 | Composition and media survive reload at desktop/tablet widths; inspect persisted output. Verified at 1440×900 and 1024×768 in one journey carrying text **and** media through autosave, a library rename, a page reload and a reopen, with the persisted row plus media bytes read back and hashed against the uploaded file, and pixel evidence that includes an empty-region control (`proofs/p21-milestone-journey.md`). |
 
 ## Milestone 2 — Make multi-slide editing useful
 
