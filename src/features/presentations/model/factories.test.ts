@@ -19,7 +19,7 @@ describe('presentation factories', () => {
     const text = createTextElement({ text: 'Xin chào', name: 'Greeting' })
     const shape = createShapeElement({ shape: 'rounded-rectangle', fill: '#ffd166' })
     const image = createImageElement({ assetId: 'asset-1', alt: 'A sample' })
-    document.assets.push({ id: 'asset-1', blobKey: 'media/asset-1.png', mimeType: 'image/png', width: 10, height: 10, sha256: 'a'.repeat(64), provenance: { source: 'upload', label: 'test' } })
+    document.assets.push({ id: 'asset-1', blobKey: 'media/asset-1.png', mimeType: 'image/png', width: 10, height: 10, sha256: 'a'.repeat(64), byteLength: 10, provenance: { source: 'upload', label: 'test' } })
     document.slides[0]!.elements.push(text, shape, image)
     expect(() => parsePresentationDocument(document)).not.toThrow()
   })
@@ -33,6 +33,7 @@ describe('presentation factories', () => {
       width: 10,
       height: 10,
       sha256: 'a'.repeat(64),
+      byteLength: 10,
       provenance: { source: 'upload', label: 'test' },
     })
     const sourceImage = createImageElement({ assetId: 'asset-1' })

@@ -38,6 +38,9 @@ export function fixtureImagePng(): Uint8Array {
 /** SHA-256 of `fixtureImagePng()`, asserted in fixture.test.ts. */
 export const FIXTURE_IMAGE_SHA256 = 'c407a0727ad50b0530208e17052eafe2f7eb7a658bb1a9d6bbea5c1e1619c58e'
 
+/** Size of `fixtureImagePng()`, asserted in fixture.test.ts. Encoded once, not per document. */
+export const FIXTURE_IMAGE_BYTE_LENGTH = fixtureImagePng().length
+
 const FIXTURE_CREATED_AT = '2026-09-10T08:00:00.000Z'
 
 function fixtureTitleText(): TextElement {
@@ -242,6 +245,7 @@ export function createFixturePresentation(): PresentationDocument {
         width: 256,
         height: 256,
         sha256: FIXTURE_IMAGE_SHA256,
+        byteLength: FIXTURE_IMAGE_BYTE_LENGTH,
         provenance: { source: 'upload', label: 'Generated fixture artwork (test only)' },
       },
     ],

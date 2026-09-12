@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { openBlankEditor, readStoredDocument } from './presentations'
 
 /**
  * The app shell's own links stay mounted around the editor route, so they have to
@@ -10,53 +11,6 @@ import { expect, test, type Page } from '@playwright/test'
  *
  * No screenshots: proofs/out belongs to other specs.
  */
-
-async function settleDevServer(page: Page) {
-  await page.waitForLoadState('load')
-  await page.waitForTimeout(900)
-}
-
-async function readDocument(page: Page) {
-  return page.evaluate(async () => {
-    const store = await import('/src/features/presentations/editor/store.ts')
-    const state = store.usePresentationStore.getState()
-    const documentModel = state.document
-    if (!documentModel) return null
-    const text = documentModel.slides
-      .flatMap((slide) => slide.elements)
-      .filter((element) => element.kind === 'text')
-      .flatMap((element) => element.paragraphs)
-      .flatMap((paragraph) => paragraph.runs)
-      .map((run) => run.text)
-      .join('')
-    return { id: documentModel.id, revision: documentModel.revision, text, dirty: state.dirty }
-  })
-}
-
-async function readStoredDocument(page: Page, id: string) {
-  return page.evaluate(async (presentationId) => {
-    const persistence = await import('/src/lib/persistence/presentations/idb.ts')
-    const stored = await persistence.createIdbPresentationRepository().getPresentation(presentationId)
-    const text = stored.slides
-      .flatMap((slide) => slide.elements)
-      .filter((element) => element.kind === 'text')
-      .flatMap((element) => element.paragraphs)
-      .flatMap((paragraph) => paragraph.runs)
-      .map((run) => run.text)
-      .join('')
-    return { revision: stored.revision, text }
-  }, id)
-}
-
-async function openBlankEditor(page: Page) {
-  await page.setViewportSize({ width: 1280, height: 768 })
-  await page.goto('/presentations')
-  await settleDevServer(page)
-  await page.getByRole('button', { name: /Create (your first|a blank) presentation/ }).click()
-  await expect(page).toHaveURL(/\/presentations\/[^/]+$/)
-  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
-  return (await readDocument(page))!.id
-}
 
 test('a shell nav link writes the pending edit before it leaves the editor', async ({ page }) => {
   const presentationId = await openBlankEditor(page)

@@ -16,11 +16,11 @@ The hardening round is the part that changed guarantees, so it is not folded awa
 | --- | --- |
 | `src/features/presentations/editor/insertImageAsset.ts` | `preparePresentationImage(file)` → `{ asset, media }`; reuses `validateUpload` as the trust boundary and `sha256Hex` for a content-addressed `blobKey`. |
 | `src/features/presentations/model/limits.ts` | One `PRESENTATION_LIMITS` home for the caps, including the **200 MB per-presentation media budget**. |
-| `src/features/presentations/editor/store.ts` | Insert planning and refusal (`imageInsertRefusal`, `planImageInsert`, `checkImageInsert`), byte accounting (`mediaBytes`, `setMediaBytes`), `pendingMedia`/`mediaForSave`/`clearPendingMedia`, and persist-then-adopt (`adoptPersistedInsert`). |
+| `src/features/presentations/editor/store.ts` | Insert planning and refusal (`imageInsertRefusal`, `planImageInsert`, `checkImageInsert`), `pendingMedia`/`mediaForSave`/`clearPendingMedia`, and persist-then-adopt (`adoptPersistedInsert`). The media budget is summed from the document's own asset records. |
 | `src/features/presentations/editor/usePresentationSave.ts` | 750 ms autosave + explicit Save, flush-before-save, coalescing, distinct conflict state, **atomic `persistInsert`**, **`keepMineAsCopy`** conflict recovery, **`saveBeforeLeave`**. |
 | `src/features/presentations/editor/textEditSession.ts` | `registerActiveTextEditFlush`/`flushActiveTextEdit`: an explicit flush API, replacing a `data-testid` DOM query. |
 | `src/features/presentations/editor/leaveGuard.ts` | One in-app navigation guard registry (`registerLeaveGuard`/`hasLeaveGuard`/`invokeLeaveGuards`). |
-| `src/features/presentations/editor/PresentationEditorPage.tsx` | Add-image affordance, real save status, conflict-recovery action, media-budget hydration, decode-on-replace, guarded exit; the decode-failure and recovery-failure copy now describes what actually happened. |
+| `src/features/presentations/editor/PresentationEditorPage.tsx` | Add-image affordance, real save status, conflict-recovery action, decode-on-replace, guarded exit; the decode-failure and recovery-failure copy now describes what actually happened. |
 | `src/features/presentations/editor/TextEditOverlay.tsx` | Registers its own flush while a session is open, so the flush is not coupled to markup. |
 | `src/main.tsx` | `GuardedLink`: the brand logo, all five topnav links, the sidebar, the mobile sheet and the studio note consult the guard. Identical to `Link` when no editor is open. |
 | `src/lib/persistence/presentations/revision.ts` | `assertRevisionWritable`: the revision rules both adapters share, so they cannot diverge again. |
@@ -122,15 +122,41 @@ because `TextEditOverlay` commits each input inside one history group. Undo rema
 session and writes stay debounced, so this is not a defect — but revision numbers grow faster than
 "user actions", which is worth knowing when reading stored revisions.
 
+## Simplification pass (over-engineering review, applied)
+
+A follow-up over-engineering review of this change set found six things to cut. All were applied; no
+behaviour changed except the one noted:
+
+| Cut | What replaced it |
+| --- | --- |
+| The `mediaBytes` side map, `setMediaBytes` and the load-time hydration step | `byteLength` on the asset record: the budget is summed from the document, so it survives reload, duplication and backup restore. **This also closed the gap that a restored document's artwork was not counted**, and removed the failure mode where a missed hydration silently under-reported the budget. One obsolete test went with it. |
+| `adoptPersistedInsert(plan, mediaAssetId, image)` | `adoptPersistedInsert(plan, image)` - the id was always `image.media.assetId`. |
+| `clearPendingMedia(assetIds?)` optional argument | Required argument: production only ever passed ids, and the no-argument form existed for one test. |
+| `persistDocument` on the hook's public return | Dropped from the interface; it has one caller and no consumer outside the hook. |
+| `LEAVE_ATTEMPTS = 3` tunable | Two inline passes: the second writes an edit that landed during the first. |
+| Three copies of the browser-spec helpers | `e2e/presentations.ts` (`settleDevServer`, `readDocument`, `readStoredDocument`, `openBlankEditor`); two of the copies were byte-identical. |
+
+Recorded as deliberate non-findings: `insertRefusalMessage` (suppresses the two reasons the hook
+already publishes, passing the store's message through - not duplicated copy), and the cross-feature
+decode pair `decodeImageSource` / `backup.ts` (they share two lines of orientation options but differ
+in ownership: a live source with `dispose` versus an immediate close and domain error).
+
+**Trap found while verifying:** the browser specs import app modules inside `page.evaluate`, so they
+must run against a **fresh dev server**. A dev server that has been running through edits serves those
+modules with Vite HMR version queries (`store.ts?t=...`), and the bare import then resolves to a
+second module instance with an empty store - five specs failed with `Cannot read properties of null`
+until the server was restarted. Stop any dev server before running these specs.
+
 ## Known gaps and deliberate ceilings
 
 - **Unguarded exits, stated plainly.** The browser Back/Forward buttons and programmatic `navigate()`
   calls (search results, in-editor save flows) cannot be intercepted: the app renders `<BrowserRouter>`
   + `<Routes>`, not a data router, so react-router's `useBlocker` throws. `beforeunload` covers close
   and reload only. Closing this properly means migrating to a data router — deliberately not done here.
-- **The media budget is enforced at insertion only.** Byte sizes are not serialized into the document,
-  so the parser cannot enforce it; a document that is already over budget (e.g. restored from a backup)
-  is not refused at open time.
+- **The media budget is enforced at insertion.** It is summed from the document, so a restored,
+  duplicated or backup-recovered presentation counts its artwork correctly; a document that is already
+  over budget is still not refused at open time. A document written before the `byteLength` field
+  existed counts its artwork as unknown (0 bytes) until it is re-saved.
 - **Untested branches, each named:** the object-URL fallback of `decodeImageSource` (every test
   provides `createImageBitmap`, so only the bitmap branch of dispose-on-replace runs); the
   conflict-recovery test asserts the *new* bitmap is live but not that the pre-recovery one was

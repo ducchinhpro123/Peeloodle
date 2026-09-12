@@ -40,11 +40,6 @@ export type PresentationStoreState = {
   lastHistoryGroup: string | null
   /** Bytes for media that is not persisted yet. Never part of the document JSON. */
   pendingMedia: PresentationMediaRecord[]
-  /** Byte size per unique asset id, for the document's media budget. */
-  mediaBytes: Record<string, number>
-
-  /** Replaces the known stored byte sizes, once media has been loaded. */
-  setMediaBytes(mediaBytes: Record<string, number>): void
 
   loadDocument(document: PresentationDocument, options?: { saved?: boolean }): void
   closeDocument(): void
@@ -52,7 +47,7 @@ export type PresentationStoreState = {
   markSaved(revision: number): void
   markSaveFailed(message: string): void
   /** Drops held media once it is stored (or all of it when called without ids). */
-  clearPendingMedia(assetIds?: string[]): void
+  clearPendingMedia(assetIds: string[]): void
   /** The held media a save may submit: only what the current document references. */
   mediaForSave(): PresentationMediaRecord[]
 
@@ -79,7 +74,7 @@ export type PresentationStoreState = {
   /** The refusal an insert would hit, resolved before anything is mutated. */
   checkImageInsert(image: PreparedPresentationImage, options?: { slideId?: string }): ImageInsertCheck
   /** Adopts a document that is already persisted, as exactly one undo entry. */
-  adoptPersistedInsert(plan: ImageInsertPlan, mediaAssetId: string, image: PreparedPresentationImage): void
+  adoptPersistedInsert(plan: ImageInsertPlan, image: PreparedPresentationImage): void
   updateElement(elementId: string, patch: Partial<Element>, options?: { historyGroup?: string }): void
   transformElement(elementId: string, patch: Partial<Pick<Element, 'x' | 'y' | 'width' | 'height' | 'rotation'>>, options?: { historyGroup?: string }): void
   removeElement(elementId: string): void
@@ -139,16 +134,16 @@ function sameValue(a: unknown, b: unknown): boolean {
 export type ImageInsertRefusalReason = 'media-limit' | 'no-slide' | 'slide-element-cap' | 'slide-full' | 'asset-cap'
 export type ImageInsertRefusal = { reason: ImageInsertRefusalReason; message: string }
 export type ImageInsertCheck = { ok: true } | ({ ok: false } & ImageInsertRefusal)
-export type ImageInsertPlan = { document: PresentationDocument; elementId: string; mediaBytes: number }
+export type ImageInsertPlan = { document: PresentationDocument; elementId: string }
 
 function formatMediaSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 /** Stored bytes for the assets the document currently references. */
-function totalMediaBytes(document: PresentationDocument, mediaBytes: Record<string, number>): number {
+function totalMediaBytes(document: PresentationDocument): number {
   let total = 0
-  for (const asset of document.assets) total += mediaBytes[asset.id] ?? 0
+  for (const asset of document.assets) total += asset.byteLength
   return total
 }
 
@@ -159,7 +154,6 @@ function totalMediaBytes(document: PresentationDocument, mediaBytes: Record<stri
  */
 export function imageInsertRefusal(
   document: PresentationDocument,
-  mediaBytes: Record<string, number>,
   image: PreparedPresentationImage,
   slideId: string | null,
 ): ImageInsertRefusal | null {
@@ -181,7 +175,7 @@ export function imageInsertRefusal(
   }
   if (!knownAsset) {
     const size = image.media.bytes.length
-    const stored = totalMediaBytes(document, mediaBytes)
+    const stored = totalMediaBytes(document)
     if (stored + size > PRESENTATION_LIMITS.maxMediaBytes) {
       return {
         reason: 'media-limit',
@@ -224,7 +218,6 @@ export function planImageInsert(
   return {
     document: serializePresentationDocument(withRevision(document, draft)),
     elementId: element.id,
-    mediaBytes: knownAsset ? 0 : image.media.bytes.length,
   }
 }
 
@@ -272,7 +265,6 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       future: [],
       lastHistoryGroup: null,
       view: { ...get().view, selectedElementIds: [input.plan.elementId], editingElementId: null },
-      mediaBytes: input.plan.mediaBytes > 0 ? { ...get().mediaBytes, [input.mediaAssetId]: input.plan.mediaBytes } : get().mediaBytes,
       pendingMedia,
       savedRevision: input.persisted ? input.plan.document.revision : get().savedRevision,
       dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision,
@@ -304,7 +296,6 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     future: [],
     lastHistoryGroup: null,
     pendingMedia: [],
-    mediaBytes: {},
 
     loadDocument(document, options) {
       const clean = serializePresentationDocument(document)
@@ -321,12 +312,11 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         lastHistoryGroup: null,
         // Media held for the previous document must never leak into this one.
         pendingMedia: [],
-        mediaBytes: {},
       })
     },
 
     closeDocument() {
-      set({ document: null, view: initialView, savedRevision: -1, dirty: false, saving: false, saveError: null, past: [], future: [], lastHistoryGroup: null, pendingMedia: [], mediaBytes: {} })
+      set({ document: null, view: initialView, savedRevision: -1, dirty: false, saving: false, saveError: null, past: [], future: [], lastHistoryGroup: null, pendingMedia: [] })
     },
 
     markSaving() {
@@ -342,16 +332,8 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       set({ saving: false, saveError: message })
     },
 
-    setMediaBytes(mediaBytes) {
-      set({ mediaBytes: { ...mediaBytes } })
-    },
-
     clearPendingMedia(assetIds) {
       const pending = get().pendingMedia
-      if (!assetIds) {
-        if (pending.length > 0) set({ pendingMedia: [] })
-        return
-      }
       const keep = pending.filter((record) => !assetIds.includes(record.assetId))
       if (keep.length !== pending.length) set({ pendingMedia: keep })
     },
@@ -507,11 +489,11 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     checkImageInsert(image, options) {
       const document = get().document
       if (!document) return { ok: false, reason: 'no-slide', message: 'Open a presentation before adding an image.' }
-      const refusal = imageInsertRefusal(document, get().mediaBytes, image, options?.slideId ?? activeSlide()?.id ?? null)
+      const refusal = imageInsertRefusal(document, image, options?.slideId ?? activeSlide()?.id ?? null)
       return refusal ? { ok: false, ...refusal } : { ok: true }
     },
 
-    adoptPersistedInsert(plan, mediaAssetId, image) {
+    adoptPersistedInsert(plan, image) {
       const current = get().document
       // A command can land while the write is in flight (the write includes the media
       // put). The stored revision then holds the insert, and the live document holds
@@ -528,7 +510,7 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         get().insertImage(image)
         return
       }
-      applyInsert({ plan, mediaAssetId, heldMedia: null, persisted: true })
+      applyInsert({ plan, mediaAssetId: image.media.assetId, heldMedia: null, persisted: true })
     },
 
     insertImage(image, options) {

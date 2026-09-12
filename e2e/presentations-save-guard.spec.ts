@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { readDocument, readStoredDocument, settleDevServer } from './presentations'
 
 /**
  * The required journey for the leave guard: an edit made moments before leaving
@@ -8,43 +9,6 @@ import { expect, test, type Page } from '@playwright/test'
  *
  * No screenshots: proofs/out belongs to other specs.
  */
-
-async function settleDevServer(page: Page) {
-  await page.waitForLoadState('load')
-  await page.waitForTimeout(900)
-}
-
-async function readDocument(page: Page) {
-  return page.evaluate(async () => {
-    const store = await import('/src/features/presentations/editor/store.ts')
-    const state = store.usePresentationStore.getState()
-    const documentModel = state.document
-    if (!documentModel) return null
-    const text = documentModel.slides
-      .flatMap((slide) => slide.elements)
-      .filter((element) => element.kind === 'text')
-      .flatMap((element) => element.paragraphs)
-      .flatMap((paragraph) => paragraph.runs)
-      .map((run) => run.text)
-      .join('')
-    return { id: documentModel.id, revision: documentModel.revision, text, dirty: state.dirty }
-  })
-}
-
-async function readStoredDocument(page: Page, id: string) {
-  return page.evaluate(async (presentationId) => {
-    const persistence = await import('/src/lib/persistence/presentations/idb.ts')
-    const stored = await persistence.createIdbPresentationRepository().getPresentation(presentationId)
-    const text = stored.slides
-      .flatMap((slide) => slide.elements)
-      .filter((element) => element.kind === 'text')
-      .flatMap((element) => element.paragraphs)
-      .flatMap((paragraph) => paragraph.runs)
-      .map((run) => run.text)
-      .join('')
-    return { revision: stored.revision, text }
-  }, id)
-}
 
 test('leaving mid-edit persists the on-screen text before navigating', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 768 })

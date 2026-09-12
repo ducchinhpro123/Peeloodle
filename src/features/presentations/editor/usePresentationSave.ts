@@ -40,8 +40,6 @@ const SAVE_FAILED_MESSAGE = 'This presentation could not be written to local sto
 const SAVE_CONFLICT_MESSAGE = 'A newer version of this presentation was saved in another tab or window after you opened it. Your changes are still here and were not written over it.'
 
 const CONFLICT_COPY_SUFFIX = ' (conflict copy)'
-/** Bound on repeated flush+save attempts before the editor refuses to navigate. */
-const LEAVE_ATTEMPTS = 3
 
 type SaveResult = 'saved' | 'skipped' | 'failed' | 'conflict'
 
@@ -50,7 +48,6 @@ export function usePresentationSave(input: { repository: PresentationRepository;
   saveNow: () => Promise<void>
   requestSave: () => void
   saveBeforeLeave: () => Promise<boolean>
-  persistDocument: (next: PresentationDocument, media: PresentationMediaRecord[], baseRevision: number) => Promise<PersistOutcome>
   persistInsert: (image: PreparedPresentationImage, options?: { slideId?: string }) => Promise<PersistInsertOutcome>
   keepMineAsCopy: () => Promise<ConflictRecoveryOutcome>
 } {
@@ -209,7 +206,7 @@ export function usePresentationSave(input: { repository: PresentationRepository;
       const outcome = await persistDocument(plan.document, media)
       if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message }
 
-      usePresentationStore.getState().adoptPersistedInsert(plan, image.media.assetId, image)
+      usePresentationStore.getState().adoptPersistedInsert(plan, image)
       publish({ status: 'saved', message: null })
       return { ok: true, elementId: plan.elementId }
     },
@@ -272,7 +269,9 @@ export function usePresentationSave(input: { repository: PresentationRepository;
    */
   const saveBeforeLeave = useCallback(async (): Promise<boolean> => {
     flushActiveTextEdit()
-    for (let attempt = 0; attempt < LEAVE_ATTEMPTS; attempt += 1) {
+    // At most two passes: the first writes what is committed, the second writes an
+    // edit that landed while the first was in flight. A clean document writes nothing.
+    for (let pass = 0; pass < 2; pass += 1) {
       const result = await runSave()
       if (result === 'failed' || result === 'conflict') return false
       const store = usePresentationStore.getState()
@@ -332,7 +331,7 @@ export function usePresentationSave(input: { repository: PresentationRepository;
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [documentId])
 
-  return { state, saveNow, requestSave, saveBeforeLeave, persistDocument, persistInsert, keepMineAsCopy }
+  return { state, saveNow, requestSave, saveBeforeLeave, persistInsert, keepMineAsCopy }
 }
 
 /** The bytes for a just-prepared image, unless the document already holds them. */

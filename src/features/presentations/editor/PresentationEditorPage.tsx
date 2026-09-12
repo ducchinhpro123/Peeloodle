@@ -101,14 +101,6 @@ async function decodeMedia(records: PresentationMediaRecord[]): Promise<DecodedM
   }
 }
 
-/** Byte size per asset the document references, from the media loaded with it. */
-function mediaBytesFor(document: PresentationDocument, media: PresentationMediaRecord[]): Record<string, number> {
-  const sizeByAssetId = new Map(media.map((record) => [record.assetId, record.bytes.length]))
-  const bytes: Record<string, number> = {}
-  for (const asset of document.assets) bytes[asset.id] = sizeByAssetId.get(asset.id) ?? 0
-  return bytes
-}
-
 /**
  * Insert outcomes the status region cannot show on its own: a store refusal never
  * reaches the write path, so it has no save state to publish in. Write failures
@@ -157,11 +149,8 @@ export function PresentationEditorPage() {
         const fontsPromise = ensurePresentationFonts()
         const loadedDocument = await repository.getPresentation(presentationId)
 
-        let media: PresentationMediaRecord[]
         try {
-          const loaded = await decodeDocumentMedia(loadedDocument)
-          media = loaded.media
-          decoded = loaded.decoded
+          decoded = (await decodeDocumentMedia(loadedDocument)).decoded
         } catch (mediaError) {
           // The document exists but its artwork does not: do not report the whole
           // presentation as deleted, and keep retry available.
@@ -181,9 +170,6 @@ export function PresentationEditorPage() {
         mediaRef.current = decoded
         const store = usePresentationStore.getState()
         store.loadDocument(loadedDocument, { saved: true })
-        // Sizes of the artwork that was just fetched. Without them every stored
-        // asset would count as 0 bytes and the media budget would never be enforced.
-        store.setMediaBytes(mediaBytesFor(loadedDocument, media))
         setLoadState({ status: 'ready', images: decoded.images })
       } catch (error) {
         decoded?.dispose()
@@ -211,7 +197,7 @@ export function PresentationEditorPage() {
   const reloadStoredArtwork = useCallback(async (): Promise<void> => {
     const current = usePresentationStore.getState().document
     if (!current || current.id !== presentationId) return
-    const { media, decoded } = await decodeDocumentMedia(current)
+    const { decoded } = await decodeDocumentMedia(current)
     if (usePresentationStore.getState().document?.id !== presentationId) {
       decoded.dispose()
       return
@@ -219,8 +205,6 @@ export function PresentationEditorPage() {
     const previous = mediaRef.current
     mediaRef.current = decoded
     previous?.dispose()
-    const store = usePresentationStore.getState()
-    store.setMediaBytes(mediaBytesFor(current, media))
     setLoadState({ status: 'ready', images: new Map(decoded.images) })
   }, [decodeDocumentMedia, presentationId])
 

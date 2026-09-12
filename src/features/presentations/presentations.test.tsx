@@ -9,7 +9,7 @@ import { MemoryPresentationRepository, createMemoryPresentationRepository, type 
 import type { PresentationDocument } from './model/types'
 import { createPresentationDocument, createTextElement } from './model/factories'
 import { PRESENTATION_LIMITS } from './model/limits'
-import { createFixturePresentation, FIXTURE_ID, FIXTURE_IMAGE_ASSET_ID, FIXTURE_IMAGE_SHA256, fixtureImagePng } from './model/fixtures/fixture'
+import { createFixturePresentation, FIXTURE_ID, FIXTURE_IMAGE_ASSET_ID, FIXTURE_IMAGE_BYTE_LENGTH, FIXTURE_IMAGE_SHA256, fixtureImagePng } from './model/fixtures/fixture'
 import { usePresentationStore } from './editor/store'
 
 class ResizeObserverStub {
@@ -590,12 +590,11 @@ describe('presentation image insertion', () => {
     const storedAssetId = 'asset-already-stored'
     act(() => {
       const store = usePresentationStore.getState()
+      // A stored asset whose recorded size already fills almost the whole budget.
       store.insertImage({
-        asset: { id: storedAssetId, blobKey: 'uploads/stored', mimeType: 'image/png', width: 8, height: 8, sha256: 'c'.repeat(64), provenance: { source: 'upload', label: 'stored.png' } },
+        asset: { id: storedAssetId, blobKey: 'uploads/stored', mimeType: 'image/png', width: 8, height: 8, sha256: 'c'.repeat(64), byteLength: PRESENTATION_LIMITS.maxMediaBytes - 1, provenance: { source: 'upload', label: 'stored.png' } },
         media: { assetId: storedAssetId, bytes: new Uint8Array([1]), mimeType: 'image/png' },
       })
-      // What a load would hydrate: the stored artwork's own byte count.
-      store.setMediaBytes({ [storedAssetId]: PRESENTATION_LIMITS.maxMediaBytes - 1 })
     })
 
     fireEvent.change(input, { target: { files: [photoFile()] } })
@@ -617,7 +616,7 @@ describe('presentation image insertion', () => {
         }
         const id = `cap-asset-${index}`
         store.insertImage({
-          asset: { id, blobKey: `uploads/${id}`, mimeType: 'image/png', width: 8, height: 8, sha256: 'b'.repeat(64), provenance: { source: 'upload', label: `${id}.png` } },
+          asset: { id, blobKey: `uploads/${id}`, mimeType: 'image/png', width: 8, height: 8, sha256: 'b'.repeat(64), byteLength: 1, provenance: { source: 'upload', label: `${id}.png` } },
           media: { assetId: id, bytes: new Uint8Array([index % 251]), mimeType: 'image/png' },
         })
       }
@@ -685,9 +684,9 @@ describe('presentation media budget and stored artwork', () => {
     renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
     await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
 
-    // Without this the stored asset would count as 0 bytes and the 200 MB budget
-    // would never be enforced for media that is already on disk.
-    expect(usePresentationStore.getState().mediaBytes).toEqual({ [FIXTURE_IMAGE_ASSET_ID]: fixtureImagePng().length })
+    // The budget is summed from the document, so a loaded document already knows
+    // how much of the 200 MB its stored artwork accounts for.
+    expect(usePresentationStore.getState().document!.assets[0]!.byteLength).toBe(FIXTURE_IMAGE_BYTE_LENGTH)
   })
 
   it('re-opens the newer revision and decodes its artwork after a conflict recovery', async () => {
@@ -719,7 +718,7 @@ describe('presentation media budget and stored artwork', () => {
     expect(closes).toHaveLength(2)
     expect(closes[1]).not.toHaveBeenCalled()
     expect(usePresentationStore.getState().document!.revision).toBe(7)
-    expect(usePresentationStore.getState().mediaBytes).toEqual({ [FIXTURE_IMAGE_ASSET_ID]: fixtureImagePng().length })
+    expect(usePresentationStore.getState().document!.assets[0]!.byteLength).toBe(FIXTURE_IMAGE_BYTE_LENGTH)
     expect(await screen.findByText(/saved as a separate conflict copy/i)).toBeInTheDocument()
 
     // The local work survives as its own stored row, and the newer work is intact.

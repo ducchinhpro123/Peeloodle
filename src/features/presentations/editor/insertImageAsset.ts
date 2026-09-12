@@ -78,6 +78,7 @@ export async function preparePresentationImage(file: File): Promise<PreparedPres
     width: validated.width,
     height: validated.height,
     sha256,
+    byteLength: bytes.length,
     provenance: { source: 'upload', label: file.name.slice(0, 500) },
   }
 

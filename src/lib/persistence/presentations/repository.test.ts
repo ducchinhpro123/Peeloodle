@@ -5,7 +5,7 @@ import { fixtureImagePng } from '../../../features/presentations/model/fixtures/
 import type { PresentationAsset } from '../../../features/presentations/model/types'
 
 function asset(id: string): PresentationAsset {
-  return { id, blobKey: `media/${id}.png`, mimeType: 'image/png', width: 256, height: 256, sha256: 'a'.repeat(64), provenance: { source: 'upload', label: 'test fixture' } }
+  return { id, blobKey: `media/${id}.png`, mimeType: 'image/png', width: 256, height: 256, sha256: 'a'.repeat(64), byteLength: fixtureImagePng().length, provenance: { source: 'upload', label: 'test fixture' } }
 }
 
 function deckWithImage(id: string, title: string, now: string) {

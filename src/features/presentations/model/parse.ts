@@ -205,6 +205,10 @@ function parseAssets(value: unknown): PresentationAsset[] {
       width: requiredPositiveInteger(asset.width, `assets[${index}].width`),
       height: requiredPositiveInteger(asset.height, `assets[${index}].height`),
       sha256,
+      // A document written before this field existed has no recorded size; treat it
+      // as unknown (0) instead of rejecting a readable document. Every new write
+      // records it, so the budget is exact for anything created now.
+      byteLength: asset.byteLength === undefined ? 0 : requiredNonNegativeInteger(asset.byteLength, `assets[${index}].byteLength`),
       provenance: parseProvenance(asset.provenance, `assets[${index}].provenance`),
     }
   })

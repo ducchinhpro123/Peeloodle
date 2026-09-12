@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
+import { settleDevServer } from './presentations'
 
 /**
  * P18/P19 browser evidence: a real personal image is uploaded, actually painted by
@@ -8,12 +9,6 @@ import { expect, test, type Page } from '@playwright/test'
  * Deliberately takes no screenshots: this spec is pixel evidence, and the committed
  * p15/p17 captures belong to other specs.
  */
-
-async function settleDevServer(page: Page) {
-  // The Vite dev client performs one dep-optimizer reload shortly after first load.
-  await page.waitForLoadState('load')
-  await page.waitForTimeout(900)
-}
 
 /**
  * Counts opaque pixels that differ from the canvas's dominant colour, i.e. the

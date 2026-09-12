@@ -128,6 +128,12 @@ export type PresentationAsset = {
   height: number
   /** Hex SHA-256 of the stored bytes. */
   sha256: string
+  /**
+   * Size of the stored bytes. Kept in the document so the media budget can be
+   * summed from the document alone - it survives reload, duplication and backup
+   * restore, and needs no separate hydration step.
+   */
+  byteLength: number
   provenance: AssetProvenance
 }
 

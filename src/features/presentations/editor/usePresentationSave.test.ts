@@ -76,7 +76,7 @@ class GatedPresentationRepository extends RecordingPresentationRepository {
 }
 
 /** A held image: real asset shape, fabricated bytes (the repository only checks they exist). */
-function preparedImage(id: string): PreparedPresentationImage {
+function preparedImage(id: string, byteLength = 2): PreparedPresentationImage {
   return {
     asset: {
       id,
@@ -85,6 +85,7 @@ function preparedImage(id: string): PreparedPresentationImage {
       width: 8,
       height: 8,
       sha256: 'a'.repeat(64),
+      byteLength,
       provenance: { source: 'upload', label: `${id}.png` },
     },
     media: { assetId: id, bytes: new Uint8Array([id.length, id.charCodeAt(id.length - 1)]), mimeType: 'image/png' },
@@ -353,6 +354,7 @@ describe('presentation save flushing', () => {
           width: 256,
           height: 256,
           sha256: FIXTURE_IMAGE_SHA256,
+          byteLength: bytes.length,
           provenance: { source: 'upload', label: 'photo.png' },
         },
         media: { assetId, bytes, mimeType: 'image/png' },
@@ -486,6 +488,7 @@ describe('presentation save flushing', () => {
       width: 8,
       height: 8,
       sha256: 'a'.repeat(64),
+      byteLength: 4,
       provenance: { source: 'upload' as const, label: 'photo.png' },
     }
     act(() => {
@@ -738,9 +741,9 @@ describe('atomic image insertion', () => {
     const repository = new RecordingPresentationRepository()
     await openEditor(repository)
     const view = editor(repository)
-    const first = preparedImage('asset-budget-first')
+    // The first image's recorded size fills almost the whole budget.
+    const first = preparedImage('asset-budget-first', PRESENTATION_LIMITS.maxMediaBytes - 1)
     await act(async () => { await view.result.current.persistInsert(first) })
-    act(() => { store().setMediaBytes({ [first.media.assetId]: PRESENTATION_LIMITS.maxMediaBytes - 1 }) })
 
     const document = store().document!
     let outcome: PersistInsertOutcome | undefined
