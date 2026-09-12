@@ -483,7 +483,7 @@ function PackArtwork({
   for (const projectId of pack.projectIds) {
     const project = projectById.get(projectId)
     if (project) previews.push(project)
-    if (previews.length === 3) break
+    if (previews.length === 5) break
   }
 
   return (
@@ -505,7 +505,7 @@ function PackArtwork({
           <b>{pack.projectIds.length === 0 ? 'Ready for stickers' : 'Preview unavailable'}</b>
         </span>
       )}
-      <span className="pack-cover-count">{pack.projectIds.length} {pack.projectIds.length === 1 ? 'sticker' : 'stickers'}</span>
+      <span className="pack-cover-title">{pack.title}</span>
     </div>
   )
 }
@@ -521,6 +521,7 @@ function Packs() {
   const [packs, setPacks] = useState<PackRecord[]>([])
   const [projects, setProjects] = useState<ProjectDocument[]>([])
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null)
+  const [detailClosed, setDetailClosed] = useState(false)
   const requestedPack = params.get('pack')
   useEffect(() => { if (requestedPack) setSelectedPackId(requestedPack) }, [requestedPack])
   const [createOpen, setCreateOpen] = useState(false)
@@ -598,7 +599,7 @@ function Packs() {
     .sort((left, right) => packSort === 'name'
       ? left.title.localeCompare(right.title, undefined, { sensitivity: 'base' })
       : right.updatedAt.localeCompare(left.updatedAt))
-  const selectedPack = visiblePacks.find((pack) => pack.id === selectedPackId) || visiblePacks[0] || null
+  const selectedPack = detailClosed ? null : visiblePacks.find((pack) => pack.id === selectedPackId) || visiblePacks[0] || null
   const projectById = new Map(projects.map((project) => [project.id, project]))
 
   const handleCreatePack = async () => {
@@ -734,7 +735,7 @@ function Packs() {
             </select>
           </label>
         </div>
-        <p className="pack-privacy-note"><LockKeyhole size={15} aria-hidden="true" />{cloud ? 'Private account · local-first cloud saving' : 'Pack collections stay private on this device.'}</p>
+        {cloud ? <p className="pack-privacy-note"><LockKeyhole size={15} aria-hidden="true" />Private account · local-first cloud saving</p> : null}
       </section>
 
       {view === 'Favorites' && favoriteTemplates.length > 0 ? (
@@ -790,14 +791,14 @@ function Packs() {
                   key={pack.id}
                   className={`pack-card ${selectedPack?.id === pack.id ? 'active' : ''}`}
                   aria-pressed={selectedPack?.id === pack.id}
-                  onClick={() => setSelectedPackId(pack.id)}
+                  onClick={() => { setSelectedPackId(pack.id); setDetailClosed(false) }}
                 >
                   <PackArtwork pack={pack} projectById={projectById} repo={repo} tone={index} />
                   <span className="pack-card-copy">
                     <span className="pack-card-title"><b>{pack.title}</b><ChevronRight size={17} aria-hidden="true" /></span>
                     <small>{pack.description || 'A fresh pack ready for your favorite stickers.'}</small>
                     <span className="pack-card-meta">
-                      <span>{pack.projectIds.length} {pack.projectIds.length === 1 ? 'sticker' : 'stickers'}</span>
+                      <span><PackageOpen size={13} aria-hidden="true" />{pack.projectIds.length} {pack.projectIds.length === 1 ? 'sticker' : 'stickers'}</span>
                       <span className="pack-badge">{cloud ? 'Private' : 'Local'}</span>
                     </span>
                   </span>
@@ -807,6 +808,7 @@ function Packs() {
           </section>
           {selectedPack ? (
             <aside className="pack-detail" aria-label={`${selectedPack.title} pack details`}>
+              <button type="button" className="pack-detail-close" aria-label="Close pack details" onClick={() => setDetailClosed(true)}><X size={16} aria-hidden="true" /></button>
               <PackArtwork pack={selectedPack} projectById={projectById} repo={repo} tone={visiblePacks.indexOf(selectedPack)} large />
               <div className="pack-detail-heading">
                 <div>

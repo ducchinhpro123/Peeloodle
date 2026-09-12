@@ -69,6 +69,29 @@ removes it. Confirmed by measurement (1440/1024/390 all report `scrollWidth === 
 `e2e/ui-polish.spec.ts`, which left 16 tests passing with the wide-width checks failing at the previous commit and
 now passes all 28.
 
+### Cover fidelity pass (follow-up against the stored concept)
+
+Comparing the first implementation with `docs/design/my-sticker-packs-redesign-concept.png` showed four
+differences, all addressed: pack covers now carry the pack's name **lettered onto the cover** in the script
+face (the count badge that used to sit there is gone — the reference keeps the count on the card meta row and
+in the detail panel heading); the transparency checkerboard no longer shows through the cover tiles, which are
+white polaroid cards like the reference; the gallery was two columns wide at 1440px and the grid minimum is now
+208px so 1440px shows three, as the reference does; and the card meta row gained the package icon while the
+detail panel gained a **working** close control that collapses to the placeholder instead of sitting inert.
+
+Deliberately not matched, with reasons: the cover tiles keep their white polaroid frame, because StickerLab
+stickers are photo/text artwork and frameless tiles turn text stickers into floating words (tried, looked
+worse, reverted); the hero keeps its taller art-backed proportion, because it is a container-query design
+(`cqw` units, `packs-paper.svg` stretched to the container) that a shorter band would squash; and the
+reference's per-card kebab menu is omitted because the app has no dropdown primitive and those actions live in
+the detail panel.
+
+Tests were updated where the reference genuinely moved information rather than to silence a failure: the pack
+journey now asserts the count on the card's meta row and `Stickers (1)` in the detail panel, because the count
+left the cover art. Verified with `npm run typecheck`, `npm run lint` (0 errors), `npm test` (453), `npm run
+build`, and `e2e/ui-polish.spec.ts` (28 passed) plus the pack journey in `e2e/editor.spec.ts`; containment
+re-checked at 1440/1024/390.
+
 ## Packs scrapbook reference follow-up
 
 The `/my-stickers` hero now follows the supplied clipboard reference with textured torn mint/cream/yellow/lavender paper, larger two-line typography, taped polaroids, overlapping cat stickers, and handwritten-style notes. Collection pills have roomier spacing. New Pack, Import Photos, and collection navigation remain real controls; mobile stacks the artwork below the copy.

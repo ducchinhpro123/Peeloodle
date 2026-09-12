@@ -335,7 +335,10 @@ test('pack creation, adding sticker, and ZIP export', async ({ page }) => {
   await addDialog.getByRole('checkbox').click()
   await page.keyboard.press('Escape')
 
-  await expect(page.locator('.pack-detail')).toContainText('1 sticker')
+  // The concept keeps the count out of the cover art: it lives on the card's meta row and
+  // in the detail panel's contents heading, so assert where the count actually is now.
+  await expect(page.locator('.pack-card-meta')).toContainText('1 sticker')
+  await expect(page.locator('.pack-detail')).toContainText('Stickers (1)')
   await expect(page.locator('.pack-detail')).toContainText('Local')
 
   const downloadPromise = page.waitForEvent('download')
