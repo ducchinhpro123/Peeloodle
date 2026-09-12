@@ -120,7 +120,6 @@ button { cursor: pointer; }
 .search { margin-left: auto; }
 .search-button { border: 0; }
 .search input, .filter-search input { min-width: 220px; border: 0; outline: 0; background: transparent; }
-.search kbd { color: #7d8ba2; font-size: 11px; }
 .icon { padding: 8px; border: 0; border-radius: 9px; background: transparent; color: var(--ink); }
 .profile { display: flex; align-items: center; gap: var(--space-2); min-width: 44px; min-height: 44px; font-size: 13px; font-weight: 600; }
 .cloud-banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--pale); font-size: 13px; overflow-wrap: anywhere; }
@@ -1369,7 +1368,7 @@ main > section, main > div { min-width: 0; }
   .header > .mobile-only { grid-area: 1 / 1; background: #fff9; }
   .brand { grid-area: 1 / 2; justify-content: center; }
   .brand img { height: 40px; }
-  .topnav, .search kbd, .header .profile b, .header .profile > svg { display: none; }
+  .topnav, .header .profile b, .header .profile > svg { display: none; }
   .header .button.profile { grid-area: 1 / 3; width: 44px; min-height: 44px; padding: 6px; }
   .header .profile::before { width: 22px; height: 12px; right: -3px; }
   .header .button.search { grid-area: 2 / 1 / 3 / 3; width: 100%; min-height: 44px; font-size: 12px; }
