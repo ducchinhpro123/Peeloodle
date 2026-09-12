@@ -103,6 +103,26 @@ describe('presentation routes', () => {
     expect(await screen.findByRole('heading', { name: title })).toHaveAttribute('title', title)
   })
 
+  it('filters saved presentations by title and recovers from no results', async () => {
+    const repository = createMemoryPresentationRepository()
+    await repository.savePresentation(createPresentationDocument({ id: 'biology', title: 'Biology field notes' }))
+    await repository.savePresentation(createPresentationDocument({ id: 'history', title: 'History of Hà Nội' }))
+    renderPresentations('/presentations', repository)
+
+    expect(await screen.findByRole('link', { name: 'Open Biology field notes' })).toBeInTheDocument()
+    const search = screen.getByRole('searchbox', { name: 'Search presentations' })
+    fireEvent.change(search, { target: { value: 'hà nội' } })
+
+    expect(screen.queryByRole('link', { name: 'Open Biology field notes' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open History of Hà Nội' })).toBeInTheDocument()
+
+    fireEvent.change(search, { target: { value: 'astronomy' } })
+    expect(screen.getByRole('heading', { name: 'No presentation found' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }))
+    expect(screen.getByRole('link', { name: 'Open Biology field notes' })).toBeInTheDocument()
+    expect(search).toHaveValue('')
+  })
+
   it('shows a recoverable missing presentation state', async () => {
     renderPresentations('/presentations/missing')
     expect(await screen.findByRole('heading', { name: 'Presentation not found' })).toBeInTheDocument()

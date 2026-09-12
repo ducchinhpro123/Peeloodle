@@ -85,6 +85,14 @@ The presentation editor bar now carries the two text actions — “Add text” 
 
 Evidence: `e2e/presentations.spec.ts` (`inserts, edits, saves, and reopens a text box without moving it`) drives real canvas hit testing, typing, wheel zoom with a mid-word caret, Escape, an empty box that stays selectable, and the save/reopen round trip; captures are committed as `proofs/out/p17-editor-editing-1280x768.png` and `proofs/out/p17-editor-reopened-1280x768.png`. Known limits: the hit region is the element box but selection is pointer-only (no keyboard path until the P30 element list), `locked` elements are still editable, text overflowing the slide edge is visible while editing and clipped after blur, and there is still no Save control — the status pill honestly reports `Unsaved changes` until P19.
 
+## Presentation library scrapbook redesign
+
+The `/presentations` library now matches the visual language of Templates and My Stickers more closely: a full-width layered paper hero, a generated transparent cat-presenter cutout, real HTML copy and controls, device-local feature notes, a rounded collection/search bar, richer 16:9 project cards, and a composed empty state. Title search filters actual local presentation summaries and has a recoverable no-results state. The create and reopen flows are unchanged.
+
+The hero artwork was created with the built-in imagegen tool specifically for this route; its prompt and provenance are recorded in `docs/design/presentation-library-hero-prompt.txt` and `docs/assets-provenance.md`. It remains decorative and does not stand in for a real slide preview.
+
+Chromium captures were inspected at 1440×900, 1024×768, and 390×844 in `proofs/out/p15-library-*.png`; a 320–1920px containment sweep also confirmed the route itself stays within the viewport. The focused presentation route suite passed (23 tests), as did the three library-focused Playwright journeys, targeted ESLint, `npm run typecheck`, and `npm run build`. Repository-wide lint remains blocked only by an untracked `.p18p19-workflow.js` script outside this visual change; the changed presentation library and browser spec pass targeted lint.
+
 ## Boundaries
 
 No new dependencies, cloud setup, or database migrations. Source PNGs and the source ZIP are preserved. The UI refresh uses nine optimized WebP derivatives for decoration; the editor catalog now offers all 25 supplied cutouts plus eight new illustrated graphics for explicit insertion. Decoration does not replace editable template data or pretend to be saved user stickers. Artwork rights still need owner review before public distribution; a new layout is not legal clearance.

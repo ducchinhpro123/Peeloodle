@@ -23,6 +23,8 @@ The raster samples are modest-resolution source art (roughly 100–600px). Inser
 
 `public/art/scrapbook-paper.svg` is original code-drawn decorative artwork inspired by the user-supplied scrapbook panel: paper polygons, procedural grain, print-like lines, and gingham. It contains no embedded screenshot, external images, or fonts. The Templates hero reuses the existing supplied cat/star cutouts under their existing rights limitations; its headline and description remain HTML.
 
+`public/art/presentation-cat-hero.webp` was generated with the built-in imagegen tool on 2026-09-12 for the `/presentations` library hero. The exact prompt is stored in `docs/design/presentation-library-hero-prompt.txt`. The generated 1536×1024 PNG was trimmed, resized within 1200×760, and converted to a 1200×744 WebP with alpha preserved. It is decorative only; the presentation board is intentionally blank, and all page copy and controls remain accessible HTML.
+
 `public/art/dashboard-paper.svg`, `public/art/polaroid-field.svg`, and `public/art/polaroid-daisy.svg` are original code-drawn decorations for the Dashboard hero and feature cards (torn cream/mint paper, a hillside, and a daisy). They are not photographs, user uploads, or background-removal stand-ins. The Dashboard collage still uses the supplied cat/star/heart cutouts plus HTML “Meow!” / “STAY COOL” lettering.
 
 `public/art/packs-paper.svg` is original procedural grain and displaced torn-paper artwork inspired by the supplied packs-page reference. The packs collage reuses the local illustrated daisy/field polaroids and supplied cat cutouts; no screenshot is embedded. Notes and controls remain HTML. The illustrated scenery and bundled Chewy font are approximations, not the reference’s photographs/handwriting.
@@ -100,3 +102,9 @@ Unmodified static TTFs from the official Google Fonts repository, bundled locall
 | `public/fonts/presentations/Spectral-BoldItalic.ttf` | Spectral (Bold Italic) | SIL OFL 1.1, `spectral-OFL.txt` |
 
 These faces cover the full Vietnamese extended range (U+1EA0–U+1EF9) and are used only by presentation documents, which store the stable font IDs `be-vietnam-pro` and `spectral`. Serve them on demand; do not substitute the Latin-only sticker fonts for Vietnamese presentation text.
+
+## Presentation template stickers
+
+The 24 PNGs under `public/art/presentation-stickers/` were generated with the built-in image generation tool on 2026-09-12 as original reusable artwork for future presentation templates. The complete shared prompt, subject variations, and suggested template uses are recorded in `docs/design/presentation-stickers-prompts.md`.
+
+Each sticker was generated separately with a genuine transparent background, then trimmed and constrained within 1024×1024 without upscaling. ImageMagick stripped metadata and applied lossless PNG compression. All 24 served files were checked for an alpha channel and transparent pixels. They are presentation decoration—not user uploads, editable vector artwork, or evidence that an automatic background-removal operation occurred.

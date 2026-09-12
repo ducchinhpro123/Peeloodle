@@ -1,0 +1,10 @@
+Use case: illustration-story
+Asset type: transparent website hero cutout for StickerLab's presentations library
+Primary request: create one lively scrapbook sticker collage centered on a cheerful orange-and-cream cat presenting an idea beside a small blank presentation board, holding a dark navy pointer; surround it with a chunky mint pencil, a small lavender notebook, one yellow star, one pink heart, and two tiny sparkle doodles
+Scene/backdrop: genuinely transparent background with clean alpha; no rectangular backdrop
+Style/medium: original playful hand-drawn editorial sticker illustration, crisp raster, bold dark navy outlines, thick irregular white sticker borders, subtle paper grain and cut-paper texture, slightly imperfect handmade shapes
+Composition/framing: wide horizontal cluster, cat slightly right of center, blank board angled behind the cat, accessories balanced around it, strong silhouette, no cropped objects, generous transparent padding
+Color palette: StickerLab mint and emerald, warm cream, sunny yellow, blush pink, lavender, dark navy outlines
+Lighting/mood: bright, cheerful, smart, inventive, friendly for students
+Constraints: board must be completely blank; no words, letters, numbers, logos, UI, screenshots, watermark, or extra characters; preserve genuine transparency around the entire collage; no photographic realism
+Avoid: beige background, square canvas visible as a colored block, gradients behind the cluster, corporate stock illustration, thin outlines

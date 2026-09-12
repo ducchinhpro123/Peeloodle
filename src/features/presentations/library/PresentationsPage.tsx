@@ -1,4 +1,12 @@
-import { ArrowRight, Clock3, FilePlus2, MonitorUp, Presentation as PresentationIcon } from 'lucide-react'
+import {
+  ArrowRight,
+  Clock3,
+  FilePlus2,
+  MonitorUp,
+  Presentation as PresentationIcon,
+  Search,
+  Sparkles,
+} from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { usePresentationRepository } from '@/app/presentationRepositoryContext'
@@ -22,6 +30,12 @@ export function PresentationsPage() {
   const [loading, setLoading] = useState(true)
   const [creatingBlank, setCreatingBlank] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const visibleItems = normalizedQuery
+    ? items.filter((item) => item.title.toLocaleLowerCase().includes(normalizedQuery))
+    : items
 
   useEffect(() => {
     live.current = true
@@ -63,27 +77,49 @@ export function PresentationsPage() {
   return (
     <div className="presentations-library">
       <section className="presentations-hero">
-        <div>
-          <p className="hero-kicker"><PresentationIcon size={15} /> PRESENT YOUR NEXT BIG IDEA</p>
-          <h1>Make the lesson <em>stick.</em></h1>
-          <p>Build a clear 16:9 presentation with StickerLab’s playful visual language. Your work stays private in this browser.</p>
-          <Button className="primary" onClick={() => void createBlank()} disabled={creatingBlank}>
-            <FilePlus2 size={18} />{creatingBlank ? 'Creating…' : 'Start a blank presentation'}
-          </Button>
+        <div className="presentation-hero-copy">
+          <p className="hero-kicker"><PresentationIcon size={15} /> YOUR IDEAS, ON THE BIG SCREEN</p>
+          <h1>Tell your story.<br /><em>Make it stick.</em></h1>
+          <p>Turn a blank 16:9 slide into something clear, colorful, and completely yours. Your work stays private in this browser.</p>
+          <div className="presentation-hero-actions">
+            <Button className="primary" onClick={() => void createBlank()} disabled={creatingBlank}>
+              <FilePlus2 size={18} />{creatingBlank ? 'Creating…' : 'Start a blank presentation'}
+            </Button>
+            {items[0] ? <Link className="button" to={`/presentations/${items[0].id}`}>Open latest <ArrowRight size={16} /></Link> : null}
+          </div>
+          <ul className="presentation-hero-points" aria-label="Presentation features">
+            <li>16:9 slide canvas</li>
+            <li>Saved on your device</li>
+            <li>No account needed</li>
+          </ul>
         </div>
         <div className="presentation-hero-art" aria-hidden="true">
-          <div className="presentation-paper presentation-paper-back"><span>research</span><i /></div>
-          <div className="presentation-paper presentation-paper-front"><strong>IDEAS<br />THAT STICK</strong><span>✦</span><i /></div>
-          <img src="/art/stickers/04-winking-smiley.webp" alt="" width={128} height={128} />
+          <span className="presentation-art-note">big idea energy ✦</span>
+          <img src="/art/presentation-cat-hero.webp" alt="" width={1200} height={744} />
+          <span className="presentation-art-tape" />
+          <span className="presentation-art-caption">Made to explain.<br />Styled to remember.</span>
         </div>
       </section>
 
-      <div className="presentation-library-heading">
+      <div className="presentation-library-controls">
         <div>
+          <p className="presentation-library-eyebrow"><Sparkles size={15} /> YOUR CREATIVE DESK</p>
           <h2>Your presentations</h2>
-          <p>{items.length === 0 ? 'Start with a blank page.' : `${items.length} saved ${items.length === 1 ? 'presentation' : 'presentations'}`}</p>
+          <p>{items.length === 0 ? 'Start fresh with a blank page.' : `${items.length} saved ${items.length === 1 ? 'presentation' : 'presentations'} in this browser`}</p>
         </div>
-        <p className="presentation-device-note"><MonitorUp size={16} /> Editing is designed for laptop and desktop screens.</p>
+        <div className="presentation-library-tools">
+          <label className="presentation-library-search">
+            <Search size={17} aria-hidden="true" />
+            <span className="sr-only">Search presentations</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search your presentations…"
+            />
+          </label>
+          <p className="presentation-device-note"><MonitorUp size={16} /> Best edited on a larger screen</p>
+        </div>
       </div>
 
       {error ? (
@@ -98,26 +134,43 @@ export function PresentationsPage() {
         <Card className="presentation-library-state"><p role="status">Loading local presentations…</p></Card>
       ) : items.length === 0 ? (
         <Card className="presentation-library-state presentation-library-empty">
-          <PresentationIcon size={36} aria-hidden="true" />
-          <h2>No presentations yet</h2>
-          <p>Create a blank presentation now. Templates and backup restore arrive in later increments.</p>
-          <Button className="primary" onClick={() => void createBlank()} disabled={creatingBlank}>
-            <FilePlus2 size={18} />{creatingBlank ? 'Creating…' : 'Create your first presentation'}
-          </Button>
+          <div className="presentation-empty-art" aria-hidden="true">
+            <span className="presentation-empty-slide"><i /><b>YOUR<br />STORY</b><i /></span>
+            <span className="presentation-empty-spark">✦</span>
+          </div>
+          <div className="presentation-empty-copy">
+            <p className="presentation-empty-kicker">A fresh canvas is waiting</p>
+            <h2>No presentations yet</h2>
+            <p>Create a blank presentation and shape it one idea at a time. Templates and backup restore arrive in later increments.</p>
+            <Button className="primary" onClick={() => void createBlank()} disabled={creatingBlank}>
+              <FilePlus2 size={18} />{creatingBlank ? 'Creating…' : 'Create your first presentation'}
+            </Button>
+          </div>
+        </Card>
+      ) : visibleItems.length === 0 ? (
+        <Card className="presentation-library-state presentation-library-no-results">
+          <Search size={32} aria-hidden="true" />
+          <h2>No presentation found</h2>
+          <p>Nothing matches “{query.trim()}”. Try another title or clear the search.</p>
+          <Button onClick={() => setQuery('')}>Clear search</Button>
         </Card>
       ) : (
         <ul className="presentation-grid">
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <li key={item.id}>
               <Link className="presentation-card" to={`/presentations/${item.id}`} aria-label={`Open ${item.title}`}>
                 <span className="presentation-card-preview" aria-hidden="true">
-                  <span>{item.title}</span>
-                  <i>16:9</i>
+                  <span className="presentation-card-paper">
+                    <PresentationIcon size={17} />
+                    <b>{item.title}</b>
+                    <em />
+                  </span>
+                  <i>16:9 SLIDES</i>
                 </span>
                 <span className="presentation-card-body">
-                  <strong title={item.title}>{item.title}</strong>
+                  <span className="presentation-card-title"><strong title={item.title}>{item.title}</strong><ArrowRight size={17} /></span>
                   <small><Clock3 size={13} /> Updated {formattedDate(item.updatedAt)}</small>
-                  <small>{item.slideCount} {item.slideCount === 1 ? 'slide' : 'slides'} <ArrowRight size={14} /></small>
+                  <small>{item.slideCount} {item.slideCount === 1 ? 'slide' : 'slides'} · Local</small>
                 </span>
               </Link>
             </li>
