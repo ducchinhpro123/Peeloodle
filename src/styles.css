@@ -1169,7 +1169,7 @@ main > section, main > div { min-width: 0; }
 .presentation-library-no-results > svg { width: 58px; height: 58px; padding: 14px; border-radius: 18px; background: var(--pale); color: var(--scrapbook-green); transform: rotate(-7deg); }
 .presentation-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 245px), 1fr)); gap: var(--space-5); margin: 0; padding: 0; list-style: none; }
 .presentation-grid li { min-width: 0; }
-.presentation-card { display: block; height: 100%; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); color: var(--ink); text-decoration: none; transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.presentation-card { display: flex; flex-direction: column; height: 100%; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); color: var(--ink); transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
 .presentation-card:hover { border-color: #9ddaca; box-shadow: var(--shadow-hover); transform: translateY(-3px); }
 .presentation-card-preview { position: relative; display: grid; aspect-ratio: 16 / 9; place-items: center; overflow: hidden; padding: var(--space-5); border-radius: var(--radius-sm); background: linear-gradient(145deg, #d9f4e9, #fff0b9); }
 .presentation-grid li:nth-child(3n + 2) .presentation-card-preview { background: linear-gradient(145deg, #e9defa, #ffdbe9); }
@@ -1180,6 +1180,10 @@ main > section, main > div { min-width: 0; }
 .presentation-card-paper b { position: relative; z-index: 1; display: -webkit-box; max-width: 100%; overflow: hidden; font: 400 17px/1.05 Chewy, cursive; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .presentation-card-paper em { width: 54%; height: 7px; background: var(--scrapbook-yellow); transform: rotate(-4deg); }
 .presentation-card-preview > i { position: absolute; right: var(--space-2); bottom: var(--space-2); padding: 4px 8px; border-radius: 999px; background: #ffffffdc; color: var(--muted); font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: .05em; }
+.presentation-card-link { display: block; border-radius: var(--radius-sm); color: inherit; text-decoration: none; }
+.presentation-card-actions { display: flex; margin-top: auto; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); padding: var(--space-2) var(--space-2) 0; }
+/* Always visible, never hover-only, and big enough to tap at 390px. */
+.presentation-card-actions .button.icon { width: 44px; min-height: 44px; }
 .presentation-card-body { display: grid; gap: var(--space-2); padding: var(--space-4) var(--space-2) var(--space-2); }
 .presentation-card-title { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .presentation-card-title strong { min-width: 0; overflow-wrap: anywhere; }

@@ -1,19 +1,38 @@
 import {
   ArrowRight,
   Clock3,
+  Copy,
   FilePlus2,
   MonitorUp,
+  Pencil,
   Presentation as PresentationIcon,
   Search,
   Sparkles,
+  Trash2,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { usePresentationRepository } from '@/app/presentationRepositoryContext'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'
 import { createPresentationDocument } from '../model/factories'
+import { PRESENTATION_LIMITS } from '../model/limits'
 import type { PresentationSummary } from '../model/types'
+import { RENAME_EMPTY_TITLE_MESSAGE, describeLibraryFailure, renamedDocument } from './libraryActions'
+
+/**
+ * Where focus goes when one of these dialogs closes: the opener while it still
+ * exists, otherwise the first action of a remaining card, otherwise the search
+ * field. Deleting a row removes its opener, so "focus the opener" alone would
+ * drop focus on the document body.
+ */
+function focusAfterLibraryChange(opener: HTMLButtonElement | null): void {
+  const target = (opener?.isConnected ? opener : null)
+    ?? document.querySelector<HTMLButtonElement>('.presentation-card-actions button')
+    ?? document.getElementById('presentation-library-search')
+  target?.focus()
+}
 
 function formattedDate(value: string): string {
   const date = new Date(value)
@@ -27,10 +46,21 @@ export function PresentationsPage() {
   const live = useRef(true)
   const creating = useRef(false)
   const [items, setItems] = useState<PresentationSummary[]>([])
+  // Only the first fetch shows the loading card; a refresh keeps the grid (and
+  // the button that opened a dialog) in place.
   const [loading, setLoading] = useState(true)
   const [creatingBlank, setCreatingBlank] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [renaming, setRenaming] = useState<PresentationSummary | null>(null)
+  const [renameTitle, setRenameTitle] = useState('')
+  const [renameError, setRenameError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<PresentationSummary | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const renameOpener = useRef<HTMLButtonElement | null>(null)
+  const deleteOpener = useRef<HTMLButtonElement | null>(null)
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const visibleItems = normalizedQuery
@@ -43,7 +73,6 @@ export function PresentationsPage() {
   }, [])
 
   const load = useCallback(async () => {
-    setLoading(true)
     setError(null)
     try {
       const presentations = await repository.listPresentations()
@@ -71,6 +100,74 @@ export function PresentationsPage() {
     } finally {
       creating.current = false
       if (live.current) setCreatingBlank(false)
+    }
+  }
+
+  const openRename = (item: PresentationSummary, event: MouseEvent<HTMLButtonElement>) => {
+    renameOpener.current = event.currentTarget
+    setRenameTitle(item.title)
+    setRenameError(null)
+    setRenaming(item)
+  }
+
+  const closeRename = () => {
+    setRenaming(null)
+    setRenameError(null)
+  }
+
+  const submitRename = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!renaming) return
+    setRenameError(null)
+    setBusyId(renaming.id)
+    try {
+      // Read first, then write: the revision just read is the base, so work saved
+      // elsewhere is reported as a conflict instead of being overwritten.
+      const stored = await repository.getPresentation(renaming.id)
+      const renamed = renamedDocument(stored, renameTitle)
+      if (!renamed) {
+        setRenameError(RENAME_EMPTY_TITLE_MESSAGE)
+        return
+      }
+      await repository.savePresentation(renamed, undefined, { baseRevision: stored.revision })
+      setRenaming(null)
+    } catch (cause) {
+      setRenameError(describeLibraryFailure(cause, 'rename'))
+    } finally {
+      setBusyId(null)
+      await load()
+    }
+  }
+
+  const duplicate = async (item: PresentationSummary) => {
+    setBusyId(item.id)
+    setActionError(null)
+    try {
+      // The repository assigns fresh document/slide/element/asset IDs and copies the artwork.
+      await repository.duplicatePresentation(item.id, { title: `${item.title} copy` })
+    } catch (cause) {
+      setActionError(describeLibraryFailure(cause, 'duplicate'))
+    } finally {
+      setBusyId(null)
+      await load()
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setBusyId(pendingDelete.id)
+    setDeleteError(null)
+    try {
+      await repository.deletePresentation(pendingDelete.id)
+      // Refresh before closing, so the dialog's focus restore sees the row gone and
+      // moves focus to a survivor instead of a button that is about to be removed.
+      await load()
+      setPendingDelete(null)
+    } catch (cause) {
+      // The row stays: the write failed, so nothing was removed.
+      setDeleteError(describeLibraryFailure(cause, 'delete'))
+    } finally {
+      setBusyId(null)
     }
   }
 
@@ -112,6 +209,7 @@ export function PresentationsPage() {
             <Search size={17} aria-hidden="true" />
             <span className="sr-only">Search presentations</span>
             <input
+              id="presentation-library-search"
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -121,6 +219,8 @@ export function PresentationsPage() {
           <p className="presentation-device-note"><MonitorUp size={16} /> Best edited on a larger screen</p>
         </div>
       </div>
+
+      {actionError ? <p role="alert">{actionError}</p> : null}
 
       {error ? (
         <Card className="presentation-library-state">
@@ -158,25 +258,103 @@ export function PresentationsPage() {
         <ul className="presentation-grid">
           {visibleItems.map((item) => (
             <li key={item.id}>
-              <Link className="presentation-card" to={`/presentations/${item.id}`} aria-label={`Open ${item.title}`}>
-                <span className="presentation-card-preview" aria-hidden="true">
-                  <span className="presentation-card-paper">
-                    <PresentationIcon size={17} />
-                    <b>{item.title}</b>
-                    <em />
+              <article className="presentation-card">
+                <Link className="presentation-card-link" to={`/presentations/${item.id}`} aria-label={`Open ${item.title}`}>
+                  <span className="presentation-card-preview" aria-hidden="true">
+                    <span className="presentation-card-paper">
+                      <PresentationIcon size={17} />
+                      <b>{item.title}</b>
+                      <em />
+                    </span>
+                    <i>16:9 SLIDES</i>
                   </span>
-                  <i>16:9 SLIDES</i>
-                </span>
-                <span className="presentation-card-body">
-                  <span className="presentation-card-title"><strong title={item.title}>{item.title}</strong><ArrowRight size={17} /></span>
-                  <small><Clock3 size={13} /> Updated {formattedDate(item.updatedAt)}</small>
-                  <small>{item.slideCount} {item.slideCount === 1 ? 'slide' : 'slides'} · Local</small>
-                </span>
-              </Link>
+                  <span className="presentation-card-body">
+                    <span className="presentation-card-title"><strong title={item.title}>{item.title}</strong><ArrowRight size={17} /></span>
+                    <small><Clock3 size={13} /> Updated {formattedDate(item.updatedAt)}</small>
+                    <small>{item.slideCount} {item.slideCount === 1 ? 'slide' : 'slides'} · Local</small>
+                  </span>
+                </Link>
+                <div className="presentation-card-actions">
+                  <Button
+                    className="icon"
+                    aria-label={`Rename ${item.title}`}
+                    disabled={busyId === item.id}
+                    onClick={(event) => openRename(item, event)}
+                  >
+                    <Pencil size={16} />
+                  </Button>
+                  <Button
+                    className="icon"
+                    aria-label={`Duplicate ${item.title}`}
+                    disabled={busyId === item.id}
+                    onClick={() => void duplicate(item)}
+                  >
+                    <Copy size={16} />
+                  </Button>
+                  <Button
+                    className="icon"
+                    aria-label={`Delete ${item.title}`}
+                    disabled={busyId === item.id}
+                    onClick={(event) => {
+                      deleteOpener.current = event.currentTarget
+                      setDeleteError(null)
+                      setPendingDelete(item)
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              </article>
             </li>
           ))}
         </ul>
       )}
+
+      <Dialog open={renaming !== null} onOpenChange={(open) => { if (!open) closeRename() }}>
+        <DialogContent
+          onOpenAutoFocus={(event) => { event.preventDefault(); document.getElementById('rename-presentation-title')?.focus() }}
+          onCloseAutoFocus={(event) => { event.preventDefault(); focusAfterLibraryChange(renameOpener.current) }}
+        >
+          <DialogTitle>Rename this presentation</DialogTitle>
+          <DialogDescription>
+            Give “{renaming?.title}” a new name. Its slides and artwork are not changed.
+          </DialogDescription>
+          <form onSubmit={(event) => void submitRename(event)}>
+            <div className="dialog-field">
+              <label htmlFor="rename-presentation-title">Presentation name</label>
+              <input
+                id="rename-presentation-title"
+                value={renameTitle}
+                maxLength={PRESENTATION_LIMITS.maxTitleLength}
+                autoComplete="off"
+                onChange={(event) => setRenameTitle(event.target.value)}
+              />
+            </div>
+            {renameError ? <p role="alert">{renameError}</p> : null}
+            <DialogFooter>
+              <Button id="cancel-rename-presentation" onClick={closeRename}>Keep the current name</Button>
+              <Button className="primary" type="submit" disabled={busyId === renaming?.id}>Save name</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pendingDelete !== null} onOpenChange={(open) => { if (!open) setPendingDelete(null) }}>
+        <DialogContent
+          onOpenAutoFocus={(event) => { event.preventDefault(); document.getElementById('cancel-delete-presentation')?.focus() }}
+          onCloseAutoFocus={(event) => { event.preventDefault(); focusAfterLibraryChange(deleteOpener.current) }}
+        >
+          <DialogTitle>Delete this presentation?</DialogTitle>
+          <DialogDescription>
+            “{pendingDelete?.title}” and its slides will be removed from this browser. Your stickers and sticker packs are not affected.
+          </DialogDescription>
+          {deleteError ? <p role="alert">{deleteError}</p> : null}
+          <DialogFooter>
+            <Button id="cancel-delete-presentation" onClick={() => setPendingDelete(null)}>Keep presentation</Button>
+            <Button className="danger" disabled={busyId === pendingDelete?.id} onClick={() => void confirmDelete()}>Delete presentation</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

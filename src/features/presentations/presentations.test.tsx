@@ -1,10 +1,10 @@
 import '@testing-library/jest-dom/vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { StrictMode } from 'react'
 import { App } from '../../main'
-import { createMemoryRepository } from '../../lib/persistence/repository'
+import { createMemoryRepository, createProjectDocument } from '../../lib/persistence/repository'
 import { MemoryPresentationRepository, createMemoryPresentationRepository, type PresentationMediaRecord, type SavePresentationOptions } from '../../lib/persistence/presentations/repository'
 import type { PresentationDocument } from './model/types'
 import { createPresentationDocument, createTextElement } from './model/factories'
@@ -817,5 +817,176 @@ describe('leaving the presentation editor', () => {
     expect(await screen.findByRole('heading', { name: /Small stickers/ })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Untitled presentation' })).not.toBeInTheDocument()
     expect(screen.queryByText(/could not be saved/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('presentation library actions', () => {
+  /**
+   * Simulates another tab writing a newer revision of the same presentation after
+   * the library read it and before the rename is saved.
+   */
+  class StaleRevisionRepository extends MemoryPresentationRepository {
+    override async savePresentation(document: PresentationDocument, media: PresentationMediaRecord[] = [], options: SavePresentationOptions = {}): Promise<void> {
+      if (options.baseRevision !== undefined) {
+        const stored = await this.getPresentation(document.id)
+        await super.savePresentation({ ...stored, revision: stored.revision + 5, title: 'Renamed in another window' })
+      }
+      return super.savePresentation(document, media, options)
+    }
+  }
+
+  /** Renders the library with a sticker repository the test can inspect. */
+  function renderLibrary(repository: MemoryPresentationRepository) {
+    const stickerRepository = createMemoryRepository()
+    render(
+      <MemoryRouter initialEntries={['/presentations']}>
+        <App repository={stickerRepository} presentationRepository={repository} />
+      </MemoryRouter>,
+    )
+    return { stickerRepository }
+  }
+
+  async function openRenameDialog(title: string) {
+    fireEvent.click(await screen.findByRole('button', { name: `Rename ${title}` }))
+    const dialog = await screen.findByRole('dialog', { name: 'Rename this presentation' })
+    return { dialog, field: within(dialog).getByRole('textbox', { name: 'Presentation name' }) }
+  }
+
+  it('renames a presentation and stores the trimmed title at the next revision', async () => {
+    const repository = createMemoryPresentationRepository()
+    await repository.savePresentation(createPresentationDocument({ id: 'draft', title: 'First draft' }))
+    renderLibrary(repository)
+
+    const { dialog, field } = await openRenameDialog('First draft')
+    expect(field).toHaveValue('First draft')
+    fireEvent.change(field, { target: { value: '  Bài học về Hà Nội  ' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save name' }))
+
+    await waitFor(async () => expect((await repository.getPresentation('draft')).title).toBe('Bài học về Hà Nội'))
+    expect((await repository.getPresentation('draft')).revision).toBe(1)
+    expect(await screen.findByRole('link', { name: 'Open Bài học về Hà Nội' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('refuses an empty rename without writing', async () => {
+    const repository = createMemoryPresentationRepository()
+    await repository.savePresentation(createPresentationDocument({ id: 'draft', title: 'First draft' }))
+    renderLibrary(repository)
+    const write = vi.spyOn(repository, 'savePresentation')
+
+    const { dialog, field } = await openRenameDialog('First draft')
+    fireEvent.change(field, { target: { value: '   ' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save name' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Enter a name/)
+    expect(write).not.toHaveBeenCalled()
+    expect((await repository.getPresentation('draft')).title).toBe('First draft')
+    expect((await repository.getPresentation('draft')).revision).toBe(0)
+  })
+
+  it('reports a rename that lost a revision race instead of overwriting the newer title', async () => {
+    const repository = new StaleRevisionRepository()
+    await repository.savePresentation(createPresentationDocument({ id: 'draft', title: 'First draft' }))
+    renderLibrary(repository)
+
+    const { dialog, field } = await openRenameDialog('First draft')
+    fireEvent.change(field, { target: { value: 'My new name' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save name' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/another tab or window/)
+    // Nothing was written over the newer revision.
+    expect((await repository.getPresentation('draft')).title).toBe('Renamed in another window')
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Keep the current name' }))
+
+    // The library was reloaded, so the title saved elsewhere is the one on screen.
+    expect(await screen.findByRole('link', { name: 'Open Renamed in another window' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Open My new name' })).not.toBeInTheDocument()
+  })
+
+  it('duplicates a presentation into an independent row with its own artwork', async () => {
+    const repository = createMemoryPresentationRepository()
+    await saveFixture(repository)
+    renderLibrary(repository)
+    const source = await repository.getPresentation(FIXTURE_ID)
+
+    fireEvent.click(await screen.findByRole('button', { name: `Duplicate ${source.title}` }))
+
+    const rows = await waitFor(async () => {
+      const list = await repository.listPresentations()
+      expect(list).toHaveLength(2)
+      return list
+    })
+    const copySummary = rows.find((row) => row.id !== FIXTURE_ID)!
+    expect(copySummary.title).toBe(`${source.title} copy`)
+
+    const copy = await repository.getPresentation(copySummary.id)
+    expect(copy.id).not.toBe(FIXTURE_ID)
+    expect(copy.slides[0]!.id).not.toBe(source.slides[0]!.id)
+    expect(copy.assets[0]!.id).not.toBe(source.assets[0]!.id)
+    const copiedImage = copy.slides.flatMap((slide) => slide.elements).find((element) => element.kind === 'image')!
+    expect(copiedImage).toMatchObject({ assetId: copy.assets[0]!.id })
+    // The copy owns its media: identical bytes under a different asset id.
+    expect(Array.from((await repository.getMedia(copy.assets[0]!.id)).bytes)).toEqual(Array.from(fixtureImagePng()))
+    expect(await screen.findByRole('link', { name: `Open ${copySummary.title}` })).toBeInTheDocument()
+  })
+
+  it('cancels a delete safely, keeps the row, and restores focus to the opener', async () => {
+    const repository = createMemoryPresentationRepository()
+    await repository.savePresentation(createPresentationDocument({ id: 'keep-me', title: 'Keep me' }))
+    renderLibrary(repository)
+
+    const opener = await screen.findByRole('button', { name: 'Delete Keep me' })
+    fireEvent.click(opener)
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this presentation?' })
+    expect(within(dialog).getByRole('button', { name: 'Keep presentation' })).toHaveFocus()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Keep presentation' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(opener).toHaveFocus()
+    expect(screen.getByRole('link', { name: 'Open Keep me' })).toBeInTheDocument()
+    expect(await repository.listPresentations()).toHaveLength(1)
+  })
+
+  it('deletes only the confirmed presentation and leaves sticker projects alone', async () => {
+    const repository = createMemoryPresentationRepository()
+    await repository.savePresentation(createPresentationDocument({ id: 'delete-me', title: 'Delete me' }))
+    await repository.savePresentation(createPresentationDocument({ id: 'keep-me', title: 'Keep me' }))
+    const { stickerRepository } = renderLibrary(repository)
+    await stickerRepository.saveProject(createProjectDocument({ id: 'sticker-1', title: 'Happy Cat' }))
+    const projectsBefore = await stickerRepository.listProjects()
+    const packsBefore = await stickerRepository.listPacks()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Delete me' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this presentation?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete presentation' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await repository.listPresentations()).toHaveLength(1)
+    expect(screen.queryByRole('link', { name: 'Open Delete me' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open Keep me' })).toBeInTheDocument()
+    // Focus lands on a surviving control, not the button that just disappeared.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Rename Keep me' })).toHaveFocus())
+
+    expect(await stickerRepository.listProjects()).toEqual(projectsBefore)
+    expect(await stickerRepository.listPacks()).toEqual(packsBefore)
+  })
+
+  it('keeps the row and says why when a delete fails', async () => {
+    const repository = createMemoryPresentationRepository()
+    await repository.savePresentation(createPresentationDocument({ id: 'stuck', title: 'Stuck' }))
+    renderLibrary(repository)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Stuck' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this presentation?' })
+    repository.injectWriteFailure()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete presentation' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Could not delete this presentation/)
+    expect(await repository.listPresentations()).toHaveLength(1)
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Keep presentation' }))
+    expect(await screen.findByRole('link', { name: 'Open Stuck' })).toBeInTheDocument()
   })
 })
