@@ -1,0 +1,78 @@
+**LABEL: this pass was cross-checked against the lead's stored retrieved data (`outputs/.evidence/registry-facts.tsv`, `outputs/.evidence/fetched-quotes.md`) — NOT independently re-fetched. I have no network tool in this run, so nothing below is my own verification of registry/HF/docs content.** The one exception is marked *(local read)*, where I read the installed package manifest myself.
+
+## Claim-by-claim cross-check
+
+| Claim | Verdict | Source actually read | Exact value read |
+|---|---|---|---|
+| `@playwright/test` licence | **MATCH now** (was MISMATCH) | `node_modules/@playwright/test/package.json` *(local read)*; evidence §8 | `"license": "Apache-2.0"` |
+| `@axe-core/playwright` MPL-2.0; 4.13.0 (2026-08-11); peer `playwright-core >= 1.0.0` | MATCH | registry-facts.tsv | `MPL-2.0`; `2026-08-11`; `{"playwright-core":">= 1.0.0"}` |
+| `@dnd-kit/core` 6.3.1 (2024-12-05) MIT, peer react `>=16.8`; sortable 10.0.0 (2024-12-04) MIT | MATCH | registry-facts.tsv | MIT / `2024-12-05` / `{"react":">=16.8.0"}`; `10.0.0` / `2024-12-04` |
+| `@atlaskit/pragmatic-drag-and-drop` 3.1.0 Apache-2.0 (2026-08-29) | MATCH | registry-facts.tsv | `3.1.0` `Apache-2.0` `2026-08-29` |
+| `sonner` 2.0.8 MIT (2026-08-09), peer `^18 \|\| ^19` | MATCH (peer abbreviated) | registry-facts.tsv | `MIT` `2026-08-09`; `"react":"^18.0.0 \|\| ^19.0.0 \|\| ^19.0.0-rc"` |
+| `rollup-plugin-visualizer` 7.1.1 MIT (2026-08-14); `knip` 6.35.1 ISC (2026-09-09) | MATCH | registry-facts.tsv | `MIT` `2026-08-14`; `ISC` `2026-09-09` |
+| `@tanstack/react-virtual` 3.14.12 MIT (2026-09-11), peer `^16.8\|17\|18\|19` | MATCH (peer abbreviated) | registry-facts.tsv | `MIT` `2026-09-11`; `"react":"^16.8.0 \|\| ^17.0.0 \|\| ^18.0.0 \|\| ^19.0.0"` |
+| `chart.js` 4.5.1 MIT (2025-10-13); `echarts` 6.1.0 Apache-2.0 | MATCH | registry-facts.tsv | `MIT` `2025-10-13`; `Apache-2.0` |
+| `msw` 2.15.0 MIT (2026-07-08) | MATCH | registry-facts.tsv | `2.15.0` `MIT` `2026-07-08` |
+| `intro.js` 8.5.0 AGPL-3.0; `@triplit/client` 1.0.50 AGPL-3.0-only | MATCH | registry-facts.tsv | `AGPL-3.0`; `AGPL-3.0-only` |
+| `@imgly/background-removal` 1.7.0 AGPL-3.0, registry field is `SEE LICENSE IN LICENSE.md` | MATCH | fetched-quotes §2–3 | `# GNU Affero General Public License` + "free for use under the AGPL License"; registry `SEE LICENSE IN LICENSE.md` |
+| RMBG-1.4 non-commercial (agreement required); RMBG-2.0 CC BY-NC 4.0 | MATCH | fetched-quotes §3–4 | "source-available model for non-commercial use"; "CC BY-NC 4.0 license for non-commercial use" |
+| `Xenova/modnet` Apache-2.0, ~105 MB, 103,619 downloads, last mod 2025-10-26 | MATCH (size derived) | fetched-quotes §5 | `cardData.license: apache-2.0`; `103619`; `2025-10-26`; summed `.onnx` = 110,159,000 B ≈ **105 MiB** |
+| `onnx-community/BiRefNet_lite-ONNX` MIT, ~322 MB | MATCH (size derived) | fetched-quotes §5 | `cardData.license: mit`; summed ≈ **322 MiB** |
+| `wa-sqlite` 1.0.0, no licence, last release 2024-01-05 | MATCH for licence+date; **no-repository half unsupported** | registry-facts.tsv | `MISSING` / `2024-01-05` (ledger has no repository column) |
+| `@sqlite.org/sqlite-wasm` 3.53.4-build1 Apache-2.0 (2026-09-08) | MATCH | registry-facts.tsv | `3.53.4-build1` `Apache-2.0` `2026-09-08` |
+| `@vitest/browser` 5.0.0 MIT, peer `vitest: 5.0.0` | MATCH | registry-facts.tsv | `5.0.0` `MIT`; `{"vitest":"5.0.0"}` |
+| Repo pins `vitest ^2.1.8` | MATCH | `package.json` *(local read)*; lock resolves `@vitest/expect 2.1.9` | `"vitest": "^2.1.8"` |
+| ~35 further licences (satori MPL-2.0; web-vitals Apache-2.0; @react-aria/dnd Apache-2.0; hypher BSD-3-Clause; @mediapipe Apache-2.0; mermaid/katex/pdfmake/fontkit/harfbuzzjs/opentype.js/wasm-vips/glfx/exifr/onnxruntime-web MIT etc.) | MATCH | registry-facts.tsv | each row matches the draft's licence column |
+| `glfx` 0.0.4 (2016-12-08); `exifr` 7.1.3 (2021-08-05); `hypher` 0.2.5 (2016-12-19); `linebreak` 1.1.0 (2022-05-20) | MATCH | registry-facts.tsv | all four version+date pairs match |
+| PowerSync "made up of the PowerSync Service and a set of client SDKs" | MATCH | fetched-quotes §6 | verbatim sentence present |
+| Electric "read-path sync engine for Postgres", Cloud or self-host | MATCH | fetched-quotes §6 | both verbatim sentences present |
+| Zero quickstart runs a server process | MATCH | fetched-quotes §6 | starters listed; "the page does not state that a server is optional" |
+| No COOP/COEP on the deploy → `crossOriginIsolated` false | MATCH | fetched-quotes §7 | `HTTP/2 200`, no `cross-origin-opener-policy`, no `cross-origin-embedder-policy` |
+| `cache-control: public, max-age=0, must-revalidate` (§1) | MATCH | fetched-quotes §7 | header list includes it |
+| "the repo's own audit called it 'legal but product-unfit' for pets and objects" (MediaPipe) | MATCH | `docs/core-tools-plan.md` *(local read)* | table row: "Selfie/person, not pets/objects … **Legal but product-unfit**" |
+| `eslint-plugin-jsx-a11y` MIT; `cmdk` 1.1.1 (2025-03-14) MIT peer `^18 \|\| ^19`; `fuse.js` 7.5.0 (2026-07-13) Apache-2.0; `vite-plugin-pwa` 1.3.0 (2026-05-05) MIT peer `vite ^3.1–^7`; `workbox-window` 7.4.1 MIT; `idb` 8.0.3 ISC (2025-05-07); `dexie` 4.4.6 Apache-2.0 (2026-09-10); `zundo` 2.3.0 MIT (2024-11-17) peer `zustand ^4.3 \|\| ^5`; `immer` 11.1.18 MIT (2026-08-19) | **NO STORED EVIDENCE** | registry-facts.tsv | no row exists for any of these nine packages (ledger has `dexie-react-hooks`, not `dexie`) |
+| "~3.4M weekly downloads" (`vite-plugin-pwa`) | **NO STORED EVIDENCE** | registry-facts.tsv | downloads column is `n/a` on **all 87 rows**; no download figure is stored anywhere |
+| Sources §8: "weekly download counts … for every package named in this document" | **CONTRADICTED** | registry-facts.tsv | zero download values stored |
+| §8: "a bundle whose largest chunk is currently 314 kB" | **NO STORED EVIDENCE** | registry-facts.tsv / fetched-quotes | no bundle measurement stored; the document itself says three times "Bundle sizes were not measured; none is quoted" |
+| Supabase Realtime "a notification channel, never storage"; RxDB/Liveblocks/Yjs-Loro-Automerge/Jazz-Triplit service rows; `zero-cache` | **NO STORED EVIDENCE** | fetched-quotes §6 | §6 stores only PowerSync, Electric, Zero starters, and the InstantDB failure note |
+| InstantDB service model | **UNVERIFIED — and honestly flagged** | fetched-quotes §6 | "returned no retrievable readable content… rests on inference" |
+| mattmdjaga/segformer_b2_clothes ambiguous `other` licence | **NO LONGER IN THE DRAFT** | fetched-quotes §5 vs draft §8 | evidence file flags it "not recommended"; the current draft contains no such row |
+
+## CORRECTIONS
+
+1. **`@playwright/test` licence** — draft row 4 previously said `MIT (already a dep)`; correct value is **Apache-2.0**. Already fixed in the current draft and now matching its own citation. *(This was the only wrong licence value I could confirm by any means.)*
+2. **§8 cross-origin prose** — "returns HTTP/2 200 with `strict-transport-security` and nothing else in the cross-origin family" is wrong as worded: the captured headers include `access-control-allow-origin: *`, which is a cross-origin-family header. Sources §9 lists it; §8's sentence drops it. Say "no COOP and no COEP" and stop there.
+3. **§8 "largest chunk is currently 314 kB"** — this is a quoted bundle size, contradicting the document's own three separate "Bundle sizes were not measured; none is quoted" statements. Cite the build that produced it or delete the number.
+4. **Row 4 "12 known-failing overflow checks"** — `docs/ui-audit.md` says "12 of its desktop-width checks already fail in `proofs/baseline.md`". The count matches; "overflow" is an added qualifier the source does not use.
+5. **§3 opening quotation** — the draft quotes `docs/ui-audit.md` as search "honestly explains that it is not implemented"; the source reads "**Search and notifications** still honestly explain that they are not implemented". Not verbatim, and the source sentence covers notifications too, which matters for the implement-or-remove argument.
+6. **Peer ranges rendered non-verbatim** — `^18 || ^19` (sonner; registry: `^18.0.0 || ^19.0.0 || ^19.0.0-rc`) and `^16.8 || 17 || 18 || 19` (@tanstack/react-virtual; registry: `^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0`). Meaning preserved; the caret is dropped on majors 17–19.
+7. **ONNX sizes are MiB, not MB** — 110,159,000 B and the BiRefNet sum are **derived by summing sibling files**, not stated on any card; the draft presents them as measured facts.
+
+## FATAL
+
+**No remaining fatal licence defect that I can evidence.** Every licence value the draft states that has a stored row matches it, and the one wrong licence (Playwright: MIT→Apache-2.0) has been corrected and never changed a recommendation, since both licences are permissive.
+
+Load-bearing claims that are **unbacked rather than disproven** — these are where a recommendation could be silently wrong:
+- **`cmdk`** (rank 3, plus a whole section and an executive-summary bullet): no ledger row for its version, date, MIT licence or `^18 || ^19` peer. Sources §8 nevertheless cites cmdk as an example of registry data read that day. Its React-18 compatibility claim is therefore unsupported.
+- **`vite-plugin-pwa`** (rank 1, the new top recommendation): the entire row — version, date, MIT, peer range, and the "~3.4M weekly downloads" figure — has no stored support. The highest-ranked recommendation in the document is its least evidenced.
+- **`eslint-plugin-jsx-a11y`** and **`fuse.js`**: same pattern.
+- **`dexie` 4.4.6 Apache-2.0 (2026-09-10)** and **`idb` 8.0.3 ISC (2025-05-07)**: no rows; the ledger stores `dexie-react-hooks` instead, which is a different package.
+- **`zundo`** and **`immer`**: both cited with exact version+date+peer and neither has a row.
+
+No AGPL/MPL/CC-BY-NC trap is mis-stated: `intro.js`, `@triplit/client`, `@imgly/background-removal`, `satori`, the two BRIA models and `wa-sqlite` all match their stored evidence exactly. The brief's licence-trap section is sound.
+
+## UNVERIFIED (even by stored data)
+
+- InstantDB service model (lead's own annotated gap; draft's Open question 7 is honest).
+- Derived ONNX byte totals for MODNet and BiRefNet-lite (summation, not model-card text).
+- `zero-cache` as the Zero service's name (not in the stored quote).
+- Supabase Realtime "notification channel, never storage" — an inference with no stored first-party statement; the repo-side fact that `@supabase/realtime-js` 2.115.0 is installed is confirmed in the lockfile.
+- Service-model rows for RxDB, Liveblocks, Yjs/Loro/Automerge, Jazz, Triplit — no stored quotes.
+- `wa-sqlite` "no repository field" — the ledger records only the missing licence.
+- **Not audited at all:** the `@supabase/storage-js` method list in Sources §10 (would require a word-boundary search over a 3,191-line `index.d.mts`; I have no grep). Treat that claim as unaudited, not confirmed.
+- Repo-only claims I could not check without grep/shell: PWA absence (service worker/manifest/`webmanifest`), the `<kbd>` search control and `.global-search-result`, `KonvaCanvas` being `React.lazy`, the 19k-LOC count, and the 314 kB chunk.
+- mattmdjaga/segformer_b2_clothes: flagged in the evidence file but absent from the current draft — nothing to audit, and no row to cross-check.
+
+## Implications
+
+The document's licence conclusions stand on stored evidence and its one licence error is fixed. Its weak flank is now the opposite of a licence trap: the two highest-ranked recommendations (a PWA shell, a command palette) and every "when the trigger arrives" candidate that lacks a ledger row rest on values with no stored support. The cheapest fix is to add rows for `vite-plugin-pwa`, `cmdk`, `fuse.js`, `eslint-plugin-jsx-a11y`, `idb`, `dexie`, `zundo`, `immer` — and to make Sources §8 stop claiming download counts the ledger does not contain.
