@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { usePresentationStore } from './store'
 import { createPresentationDocument, createShapeElement, createTextElement } from '../model/factories'
 import { PRESENTATION_LIMITS } from '../model/limits'
-import type { PresentationDocument } from '../model/types'
+import type { PreparedPresentationImage } from './insertImageAsset'
+import type { PresentationAsset, PresentationDocument } from '../model/types'
 
 function reset(document: PresentationDocument = createPresentationDocument({ id: 'doc-1', title: 'Deck', now: '2026-09-10T00:00:00.000Z' })): PresentationDocument {
   usePresentationStore.getState().loadDocument(document, { saved: true })
@@ -334,5 +335,139 @@ describe('presentation command store', () => {
     expect(state().document!.slides[0]!.elements[0]!.id).toBe('keep')
     // Undo restores content; selection is allowed to stay empty rather than resurrecting stale ids.
     expect(state().view.selectedElementIds).toEqual([])
+  })
+})
+
+describe('presentation image insertion', () => {
+  function preparedImage(imageSha = 'a'.repeat(64), width = 400, height = 300): PreparedPresentationImage {
+    const asset: PresentationAsset = {
+      id: `asset-${imageSha}`,
+      blobKey: `uploads/${imageSha}`,
+      mimeType: 'image/png',
+      width,
+      height,
+      sha256: imageSha,
+      provenance: { source: 'upload', label: 'photo.png' },
+    }
+    return { asset, media: { assetId: asset.id, bytes: new Uint8Array([137, 80, 78, 71]), mimeType: 'image/png' } }
+  }
+
+  beforeEach(() => {
+    reset()
+  })
+
+  it('inserts a stored image as one history entry and keeps its bytes out of the document', () => {
+    const prepared = preparedImage()
+    const before = state().past.length
+
+    const id = state().insertImage(prepared)
+
+    expect(id).toBeTruthy()
+    expect(state().past).toHaveLength(before + 1)
+    expect(state().dirty).toBe(true)
+    expect(state().view.selectedElementIds).toEqual([id])
+    expect(state().document!.slides[0]!.elements[0]!).toMatchObject({
+      kind: 'image',
+      assetId: prepared.asset.id,
+      name: 'Image',
+      // 400×300 at its own size, centred on the 1280×720 page.
+      x: 440,
+      y: 210,
+      width: 400,
+      height: 300,
+      crop: { x: 0, y: 0, width: 1, height: 1 },
+    })
+    expect(state().document!.assets).toEqual([prepared.asset])
+
+    // The bytes are held for the save and never enter the document JSON.
+    expect(state().pendingMedia).toHaveLength(1)
+    expect(state().pendingMedia[0]!.assetId).toBe(prepared.asset.id)
+    expect(JSON.stringify(state().document)).not.toContain('bytes')
+  })
+
+  it('removes the inserted element with undo', () => {
+    const id = state().insertImage(preparedImage())!
+    expect(state().mediaForSave()).toHaveLength(1)
+
+    state().undo()
+    expect(state().document!.slides[0]!.elements).toHaveLength(0)
+    // Undo restores the pre-insert snapshot, so the asset record goes with it.
+    expect(state().document!.assets).toHaveLength(0)
+    // ponytail: the bytes stay held so redo can still save, but a save may only
+    // submit what the document references.
+    expect(state().pendingMedia).toHaveLength(1)
+    expect(state().mediaForSave()).toEqual([])
+
+    state().redo()
+    expect(state().document!.slides[0]!.elements[0]!.id).toBe(id)
+    expect(state().mediaForSave()).toHaveLength(1)
+  })
+
+  it('reuses one asset record and one media record for identical bytes', () => {
+    const prepared = preparedImage()
+    const first = state().insertImage(prepared)!
+    const second = state().insertImage(prepared)!
+
+    expect(first).not.toBe(second)
+    expect(state().document!.assets).toHaveLength(1)
+    expect(state().document!.slides[0]!.elements).toHaveLength(2)
+    expect(state().pendingMedia).toHaveLength(1)
+    expect(state().past).toHaveLength(2)
+  })
+
+  it('names each further image on the slide', () => {
+    state().insertImage(preparedImage('b'.repeat(64)))
+    state().insertImage(preparedImage('c'.repeat(64)))
+
+    expect(state().document!.slides[0]!.elements.map((element) => element.name)).toEqual(['Image', 'Image 2'])
+  })
+
+  it('refuses to insert without an open document', () => {
+    state().closeDocument()
+
+    expect(state().insertImage(preparedImage())).toBeNull()
+  })
+
+  it('refuses a new asset at the asset limit but still allows one the document holds', () => {
+    const full = createPresentationDocument({ id: 'full', now: '2026-09-10T00:00:00.000Z' })
+    full.assets = Array.from({ length: PRESENTATION_LIMITS.maxAssets }, (_, index) => ({
+      id: `asset-${index.toString(16).padStart(64, '0')}`,
+      blobKey: `uploads/${index}`,
+      mimeType: 'image/png' as const,
+      width: 4,
+      height: 4,
+      sha256: index.toString(16).padStart(64, '0'),
+      provenance: { source: 'upload' as const, label: 'seeded' },
+    }))
+    reset(full)
+
+    expect(state().insertImage(preparedImage('d'.repeat(64)))).toBeNull()
+    expect(state().document!.assets).toHaveLength(PRESENTATION_LIMITS.maxAssets)
+    expect(state().insertImage(preparedImage('0'.repeat(64)))).toBeTruthy()
+  })
+
+  it('drops held media for the stored assets only', () => {
+    const first = preparedImage('e'.repeat(64))
+    const second = preparedImage('f'.repeat(64))
+    state().insertImage(first)
+    state().insertImage(second)
+    expect(state().pendingMedia).toHaveLength(2)
+
+    state().clearPendingMedia([first.asset.id])
+    expect(state().pendingMedia.map((record) => record.assetId)).toEqual([second.asset.id])
+
+    state().clearPendingMedia()
+    expect(state().pendingMedia).toEqual([])
+  })
+
+  it('never carries held media into the next document', () => {    state().insertImage(preparedImage())
+    expect(state().pendingMedia).toHaveLength(1)
+
+    reset(createPresentationDocument({ id: 'doc-2', now: '2026-09-10T00:00:00.000Z' }))
+    expect(state().pendingMedia).toEqual([])
+
+    state().insertImage(preparedImage('9'.repeat(64)))
+    state().closeDocument()
+    expect(state().pendingMedia).toEqual([])
   })
 })

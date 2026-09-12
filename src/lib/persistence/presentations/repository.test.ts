@@ -103,6 +103,27 @@ describe('presentation repository contract (memory)', () => {
     expect((await repo.getPresentation('deck-1')).title).toBe('Fresh')
   })
 
+  it('refuses an older revision written over newer stored work without a baseRevision', async () => {
+    const repo = createMemoryPresentationRepository()
+    const document = createPresentationDocument({ id: 'deck-1', title: 'First', now: '2026-09-10T00:00:00.000Z' })
+    await repo.savePresentation({ ...document, revision: 5, title: 'Newer work' })
+
+    // No baseRevision is supplied, so the revision comparison is the only guard.
+    await expect(repo.savePresentation({ ...document, revision: 3, title: 'Older work' })).rejects.toMatchObject({ code: 'revision_conflict' })
+    expect((await repo.getPresentation('deck-1'))).toMatchObject({ revision: 5, title: 'Newer work' })
+  })
+
+  it('refuses to recreate a presentation that was deleted after the caller read it', async () => {
+    const repo = createMemoryPresentationRepository()
+    const document = createPresentationDocument({ id: 'deck-1', title: 'First', now: '2026-09-10T00:00:00.000Z' })
+    await repo.savePresentation(document)
+    await repo.deletePresentation('deck-1')
+
+    await expect(repo.savePresentation(document, [], { baseRevision: 0 })).rejects.toMatchObject({ code: 'revision_conflict' })
+    // The deleted row is not silently resurrected by the failed save.
+    await expect(repo.getPresentation('deck-1')).rejects.toMatchObject({ code: 'not_found' })
+  })
+
   it('duplicates independently, copying media and remapping references', async () => {
     const repo = createMemoryPresentationRepository()
     await repo.savePresentation(deckWithImage('deck-1', 'Original', '2026-09-10T00:00:00.000Z'), [{ assetId: 'media-1', bytes: fixtureImagePng(), mimeType: 'image/png' }])

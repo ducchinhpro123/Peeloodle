@@ -359,3 +359,35 @@ test('inserts, edits, saves, and reopens a text box without moving it', async ({
   expect(await countDarkPixels(page, offBox)).toBe(0)
   await page.screenshot({ path: `${OUT}/p17-editor-reopened-1280x768.png`, fullPage: false })
 })
+
+test('autosaves a typed edit and keeps it after a reload and reopen', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 768 })
+  await page.goto('/presentations')
+  await page.getByRole('button', { name: /Create (your first|a blank) presentation/ }).click()
+  await expect(page).toHaveURL(/\/presentations\/[^/]+$/)
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+
+  // Type into a new text box, then close the session so the completed command is
+  // what the debounce waits for.
+  await page.getByRole('button', { name: 'Add text' }).click()
+  const field = page.getByRole('textbox', { name: 'Text content' })
+  await expect(field).toBeFocused()
+  await page.keyboard.type('Autosave keeps this line')
+  await page.keyboard.press('Escape')
+  await expect(field).toHaveCount(0)
+  await expect(page.getByText('Unsaved changes')).toBeVisible()
+
+  // No Save click anywhere in this test: the autosave debounce writes it, and the
+  // status only reads saved once the document really is clean.
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({ timeout: 10_000 })
+
+  await page.reload()
+  await expect(page.getByTestId('presentation-canvas')).toBeVisible()
+  await page.goto('/presentations')
+  await page.getByRole('link', { name: 'Open Untitled presentation' }).click()
+  await expect(page.getByTestId('presentation-canvas')).toBeVisible()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+
+  const reopened = await readFirstElement(page)
+  expect(reopened).toMatchObject({ kind: 'text', text: 'Autosave keeps this line', dirty: false, history: 0 })
+})

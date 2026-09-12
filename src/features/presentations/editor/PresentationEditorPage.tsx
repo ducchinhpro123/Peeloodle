@@ -1,5 +1,5 @@
-import { ArrowLeft, MonitorUp, PenLine, ShieldAlert, Type } from 'lucide-react'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { ArrowLeft, ImagePlus, MonitorUp, PenLine, Save, ShieldAlert, Type } from 'lucide-react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -8,10 +8,13 @@ import { isPersistenceError } from '@/lib/persistence/repository'
 import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
 import { isPresentationParseError } from '../model/parse'
 import { createTextElement } from '../model/factories'
+import { PRESENTATION_LIMITS } from '../model/limits'
 import { ensurePresentationFonts } from '../rendering/fonts'
 import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
 import { PresentationCanvasControls } from './PresentationCanvasControls'
+import { PrepareImageError, preparePresentationImage } from './insertImageAsset'
 import { TextEditOverlay } from './TextEditOverlay'
+import { usePresentationSave } from './usePresentationSave'
 import { usePresentationStore } from './store'
 
 const PresentationCanvas = lazy(() => import('./PresentationCanvas').then((module) => ({ default: module.PresentationCanvas })))
@@ -24,44 +27,72 @@ type LoadState =
   | { status: 'unsupported' }
   | { status: 'error'; message: string }
 
+type DecodedSource = {
+  source: PresentationImageSource
+  dispose(): void
+}
+
+/** One decode path for stored and just-inserted media; the caller owns disposal. */
+async function decodeImageSource(blob: Blob): Promise<DecodedSource> {
+  if (typeof createImageBitmap === 'function') {
+    // Same orientation policy as every other decode site (validateUpload, backup,
+    // renderDocument): a rotated phone JPEG must not draw with swapped axes against
+    // the asset width/height that fitImageWithinSlide already used. The bare call
+    // stays as the fallback for engines that reject the option.
+    try {
+      const oriented = await createImageBitmap(blob, { imageOrientation: 'from-image' })
+      return { source: oriented, dispose: () => oriented.close() }
+    } catch {
+      const bitmap = await createImageBitmap(blob)
+      return { source: bitmap, dispose: () => bitmap.close() }
+    }
+  }
+
+  const url = URL.createObjectURL(blob)
+  try {
+    const image = new Image()
+    image.src = url
+    await image.decode()
+    return { source: image, dispose: () => URL.revokeObjectURL(url) }
+  } catch (error) {
+    URL.revokeObjectURL(url)
+    throw error
+  }
+}
+
 type DecodedMedia = {
   images: Map<string, PresentationImageSource>
+  /** Decodes media held for a new asset so it can never render without artwork. */
+  add(records: PresentationMediaRecord[]): Promise<void>
   dispose(): void
 }
 
 async function decodeMedia(records: PresentationMediaRecord[]): Promise<DecodedMedia> {
   const images = new Map<string, PresentationImageSource>()
-  const bitmaps: ImageBitmap[] = []
-  const objectUrls: string[] = []
+  const disposers: Array<() => void> = []
 
   try {
     for (const record of records) {
-      const blob = new Blob([record.bytes], { type: record.mimeType })
-      if (typeof createImageBitmap === 'function') {
-        const bitmap = await createImageBitmap(blob)
-        bitmaps.push(bitmap)
-        images.set(record.assetId, bitmap)
-        continue
-      }
-
-      const url = URL.createObjectURL(blob)
-      objectUrls.push(url)
-      const image = new Image()
-      image.src = url
-      await image.decode()
-      images.set(record.assetId, image)
+      const decoded = await decodeImageSource(new Blob([record.bytes], { type: record.mimeType }))
+      disposers.push(decoded.dispose)
+      images.set(record.assetId, decoded.source)
     }
   } catch (error) {
-    for (const bitmap of bitmaps) bitmap.close()
-    for (const url of objectUrls) URL.revokeObjectURL(url)
+    for (const dispose of disposers) dispose()
     throw error
   }
 
   return {
     images,
+    async add(next) {
+      for (const record of next) {
+        const decoded = await decodeImageSource(new Blob([record.bytes], { type: record.mimeType }))
+        disposers.push(decoded.dispose)
+        images.set(record.assetId, decoded.source)
+      }
+    },
     dispose() {
-      for (const bitmap of bitmaps) bitmap.close()
-      for (const url of objectUrls) URL.revokeObjectURL(url)
+      for (const dispose of disposers) dispose()
     },
   }
 }
@@ -73,10 +104,13 @@ export function PresentationEditorPage() {
   const activeSlideId = usePresentationStore((state) => state.view.activeSlideId)
   const selectedElementIds = usePresentationStore((state) => state.view.selectedElementIds)
   const dirty = usePresentationStore((state) => state.dirty)
-  const saving = usePresentationStore((state) => state.saving)
-  const saveError = usePresentationStore((state) => state.saveError)
+  const save = usePresentationSave({ repository, documentId: presentationId })
   const [attempt, setAttempt] = useState(0)
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' })
+  const [inserting, setInserting] = useState(false)
+  const [insertError, setInsertError] = useState<string | null>(null)
+  const mediaRef = useRef<DecodedMedia | null>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let live = true
@@ -108,6 +142,7 @@ export function PresentationEditorPage() {
           decoded.dispose()
           return
         }
+        mediaRef.current = decoded
         usePresentationStore.getState().loadDocument(loadedDocument, { saved: true })
         setLoadState({ status: 'ready', images: decoded.images })
       } catch (error) {
@@ -125,6 +160,7 @@ export function PresentationEditorPage() {
 
     return () => {
       live = false
+      mediaRef.current = null
       decoded?.dispose()
       if (usePresentationStore.getState().document?.id === presentationId) usePresentationStore.getState().closeDocument()
     }
@@ -158,7 +194,19 @@ export function PresentationEditorPage() {
   }
 
   const activeSlide = document.slides.find((slide) => slide.id === activeSlideId) ?? document.slides[0]
-  const saveStatus = saveError ? 'Save failed' : saving ? 'Saving…' : dirty ? 'Unsaved changes' : 'Saved locally'
+  const saveReported = save.state.status === 'failed' || save.state.status === 'conflict'
+  const saveLabel = save.state.status === 'conflict'
+    ? 'Save conflict'
+    : save.state.status === 'failed'
+      ? 'Save failed'
+      : save.state.status === 'saving'
+        ? 'Saving…'
+        : dirty
+          ? 'Unsaved changes'
+          : 'Saved locally'
+  // A failure is shown in words, not only in a tooltip: what happened and that
+  // the edit is still here with a way to retry it.
+  const saveStatus = saveReported && save.state.message ? `${saveLabel} — ${save.state.message}` : saveLabel
   const selectedElement = activeSlide?.elements.find((element) => element.id === selectedElementIds[0])
   const selectedText = selectedElement?.kind === 'text' ? selectedElement : null
 
@@ -178,6 +226,48 @@ export function PresentationEditorPage() {
     if (id) store.startTextEdit(id)
   }
 
+  /**
+   * Order matters: validate, hash, then decode the artwork, and only then ask the
+   * store to insert. A rejected or undecodable file therefore leaves no element
+   * behind, and an accepted one can never be drawn without its image.
+   */
+  const addImage = async (file: File) => {
+    const store = usePresentationStore.getState()
+    const current = store.document
+    const media = mediaRef.current
+    if (!current || !media) return
+    setInsertError(null)
+
+    const slide = current.slides.find((candidate) => candidate.id === store.view.activeSlideId) ?? current.slides[0]
+    if (slide && slide.elements.length >= PRESENTATION_LIMITS.maxElementsPerSlide) {
+      setInsertError(`This slide is full (${PRESENTATION_LIMITS.maxElementsPerSlide} elements). Add a slide or remove something first.`)
+      return
+    }
+
+    setInserting(true)
+    try {
+      const prepared = await preparePresentationImage(file)
+      const knownAsset = current.assets.some((asset) => asset.id === prepared.asset.id)
+      if (!knownAsset && current.assets.length >= PRESENTATION_LIMITS.maxAssets) {
+        setInsertError(`This presentation already holds the maximum ${PRESENTATION_LIMITS.maxAssets} images.`)
+        return
+      }
+
+      await media.add([prepared.media])
+      const id = store.insertImage(prepared)
+      if (!id) {
+        setInsertError('This image could not be added to the slide.')
+        return
+      }
+      // A fresh Map so the canvas re-renders with the new artwork.
+      setLoadState({ status: 'ready', images: new Map(media.images) })
+    } catch (error) {
+      setInsertError(error instanceof PrepareImageError ? error.message : 'This image could not be added.')
+    } finally {
+      setInserting(false)
+    }
+  }
+
   return (
     <div className="presentation-editor">
       <header className="presentation-editor-bar">
@@ -188,14 +278,32 @@ export function PresentationEditorPage() {
         </div>
         <div className="presentation-editor-actions">
           <Button onClick={addTextBox}><Type size={16} aria-hidden="true" /> Add text</Button>
+          <Button disabled={inserting} onClick={() => imageInputRef.current?.click()}>
+            <ImagePlus size={16} aria-hidden="true" /> {inserting ? 'Adding image…' : 'Add image'}
+          </Button>
+          <input
+            ref={imageInputRef}
+            className="sr-only"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            aria-label="Choose image file"
+            data-testid="presentation-image-input"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file) void addImage(file)
+            }}
+          />
           {selectedText ? (
             <Button aria-label={`Edit text: ${selectedText.name}`} onClick={() => usePresentationStore.getState().startTextEdit(selectedText.id)}>
               <PenLine size={16} aria-hidden="true" /> Edit text
             </Button>
           ) : null}
-          <p className="presentation-local-status" role="status" title={saveError ?? undefined}>{saveStatus}</p>
+          <Button onClick={save.requestSave}><Save size={16} aria-hidden="true" /> Save</Button>
+          <p className="presentation-local-status" role="status" title={save.state.message ?? undefined}>{saveStatus}</p>
         </div>
       </header>
+      {insertError ? <p className="asset-error" role="alert">{insertError}</p> : null}
       <div className="presentation-mobile-note">
         <MonitorUp size={18} aria-hidden="true" />
         <span>Presentation authoring is designed for a laptop or desktop. This preview remains available on your phone.</span>

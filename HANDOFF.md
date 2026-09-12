@@ -10,39 +10,43 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
 - **P08 blocked** — no authorized preview deployment. A unit-tested harness is
   ready at `server/processing/probe.ts`; see `proofs/p08-deployment-blocked.md`.
   Do not add catalog/admin ingestion before preview evidence exists.
-- **Milestone 1 through P17 complete** — model, parser, command store,
+- **Milestone 1 through P19 complete** — model, parser, command store,
   repository contract (memory + IndexedDB at schema v5), local library/blank
-  creation/editor routes, fixed 16:9 rendering, and basic wrapped text editing
-  are implemented with tests.
+  creation/editor routes, fixed 16:9 rendering, basic wrapped text editing,
+  personal image insertion, and truthful save/autosave are implemented with tests.
 - `/presentations` creates and reopens real local documents (blank documents are
   saved at creation). The editor renders the active slide, lists the document's
-  slides, switches between them, and edits text boxes through the DOM bridge.
-  Image insertion arrives in P18 and truthful save/autosave in P19, so edits
-  currently stay in memory and the status pill reports `Unsaved changes`.
-- Evidence: `proofs/p15-p16-basic-presentations.md` and
-  `proofs/p17-text-editing.md` (including committed captures in `proofs/out/`)
-  plus the earlier foundation and correction proofs.
+  slides, switches between them, edits text boxes through the DOM bridge, inserts
+  personal PNG/JPEG/static-WebP images, and autosaves after completed commands.
+  Browser-verified end to end: an inserted image is actually painted, its bytes
+  reach IndexedDB, and both it and a typed edit survive reload and reopen.
+- Evidence: `proofs/p15-p16-basic-presentations.md`,
+  `proofs/p17-text-editing.md` and `proofs/p18-p19-image-and-save.md` (including
+  committed captures in `proofs/out/`) plus the earlier foundation and
+  correction proofs.
 
-## Start here: P18, then P19
+## Start here: P20, then P21
 
-**P18 — personal image insertion** (acceptance: supported upload is stored and
-inserted atomically; failure leaves no broken element):
+**P20 — presentation library operations** (acceptance: duplicate independent;
+delete cancels safely and restores focus; sticker projects untouched):
 
-- Reuse the existing upload byte/format/dimension validation where its contract
-  matches PNG, JPEG, and static WebP. Do not accept SVG or animation.
-- Hash and create a document-local immutable `PresentationAsset`, then save the
-  media and document together before exposing an apparently complete image.
-- Extend the current media decode/dispose path; never persist object URLs.
+- Add thumbnails, rename, duplicate and safe delete in the library
+  (`src/features/presentations/library/PresentationsPage.tsx`).
+- Reuse the repository's `duplicatePresentation`; it already assigns new
+  document/slide/element/asset IDs and copies media. Do not clone JSON by hand.
+- Destructive delete uses the shared dialog system, focuses the safe action
+  first, and restores focus to the opener or a surviving control afterwards.
+- Guardrail: that page currently carries uncommitted, unrequested hero-artwork
+  changes from another writer. Preserve them; do not fold them into P20.
 
-**P19 — truthful save/autosave** (acceptance: dirty → saving → saved locally;
-failed writes retain editable work):
+**P21 — milestone browser journey** (acceptance: composition and media survive
+reload at desktop and tablet widths; inspect persisted output):
 
-- Add explicit Save and ~750 ms autosave after completed text/image commands.
-- Flush active text/gesture/media work before save and route replacement.
-- Use `savedRevision`/`baseRevision`; surface revision conflicts without silently
-  overwriting another tab. Do not reuse sticker `draftSaving` wholesale.
-- Extend `e2e/presentations.spec.ts` from the P17 repository-contract round trip
-  into the real UI save flow (edit → save → reload → reopen).
+- Extend `e2e/presentations-image.spec.ts`, which already proves
+  insert → paint → IndexedDB → reload → reopen for a single image, into the full
+  create → edit → save → reload → reopen journey at 1440×900 and 1024×768.
+- This is the check that closes Milestone 1. Do not re-run the P15–P17 capture
+  specs casually: they rewrite committed files in `proofs/out/`.
 
 ## Interfaces to build on
 
@@ -55,6 +59,8 @@ failed writes retain editable work):
 | Persistence | `lib/persistence/presentations/repository.ts` (memory) and `.../idb.ts` |
 | Text | `rendering/textLayout.ts` + `editor/textBridge.ts` + `rendering/fonts.ts` (`ensurePresentationFonts()` before measuring) |
 | Text editing | `editor/TextEditOverlay.tsx` + `editor/textEditSession.ts`; commits go through `store.updateText` with `textHistoryGroup`, one entry per session |
+| Image insertion | `editor/insertImageAsset.ts` (`preparePresentationImage`) + `store.insertImage`; held bytes live in `store.pendingMedia` and reach a repository only via `store.mediaForSave()` |
+| Saving | `editor/usePresentationSave.ts` (750 ms autosave + explicit Save); always pass `baseRevision`, and clear media using the ids from the persisted snapshot |
 | Page rendering | `rendering/renderSlide.ts` + `editor/PresentationCanvas.tsx`; stage transforms are view-only |
 | Canvas view controls | `editor/PresentationCanvasControls.tsx` + `editor/viewGeometry.ts` (shared 0.25–4 clamp) |
 | Current routes | `library/PresentationsPage.tsx` and `editor/PresentationEditorPage.tsx` |

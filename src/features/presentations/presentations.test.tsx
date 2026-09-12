@@ -6,8 +6,9 @@ import { StrictMode } from 'react'
 import { App } from '../../main'
 import { createMemoryRepository } from '../../lib/persistence/repository'
 import { createMemoryPresentationRepository } from '../../lib/persistence/presentations/repository'
-import { createPresentationDocument } from './model/factories'
-import { createFixturePresentation, FIXTURE_ID, FIXTURE_IMAGE_ASSET_ID, fixtureImagePng } from './model/fixtures/fixture'
+import { createPresentationDocument, createTextElement } from './model/factories'
+import { PRESENTATION_LIMITS } from './model/limits'
+import { createFixturePresentation, FIXTURE_ID, FIXTURE_IMAGE_ASSET_ID, FIXTURE_IMAGE_SHA256, fixtureImagePng } from './model/fixtures/fixture'
 import { usePresentationStore } from './editor/store'
 
 class ResizeObserverStub {
@@ -50,6 +51,23 @@ async function saveFixture( repository = createMemoryPresentationRepository()) {
   const document = createFixturePresentation()
   await repository.savePresentation(document, [{ assetId: FIXTURE_IMAGE_ASSET_ID, bytes: fixtureImagePng(), mimeType: 'image/png' }])
   return document
+}
+
+function photoFile(name = 'photo.png', bytes: Uint8Array = fixtureImagePng()): File {
+  return new File([bytes], name, { type: 'image/png' })
+}
+
+/** Opens a fresh blank presentation and returns the editor's image input. */
+async function openBlankEditor(repository = createMemoryPresentationRepository()) {
+  const view = renderPresentations('/presentations', repository)
+  await screen.findByRole('heading', { name: 'No presentations yet' })
+  fireEvent.click(screen.getByRole('button', { name: 'Create your first presentation' }))
+  await screen.findByRole('heading', { name: 'Untitled presentation' })
+  return { repository, input: screen.getByTestId('presentation-image-input'), unmount: view.unmount }
+}
+
+function editorElements() {
+  return usePresentationStore.getState().document!.slides[0]!.elements
 }
 
 describe('presentation routes', () => {
@@ -387,5 +405,116 @@ describe('presentation routes', () => {
     fireEvent.blur(field)
     expect(usePresentationStore.getState().view.editingElementId).toBeNull()
     expect(usePresentationStore.getState().past).toHaveLength(1)
+  })
+})
+
+describe('presentation image insertion', () => {
+  it('inserts an uploaded photo and stores its media with the document', async () => {
+    const { repository, input } = await openBlankEditor()
+    const assetId = `asset-${FIXTURE_IMAGE_SHA256}`
+
+    fireEvent.change(input, { target: { files: [photoFile()] } })
+
+    await waitFor(() => expect(editorElements()).toHaveLength(1))
+    expect(editorElements()[0]!).toMatchObject({
+      kind: 'image',
+      assetId,
+      name: 'Image',
+      alt: 'photo.png',
+      // The stubbed decode reports 64×64, so the photo keeps its own size, centred.
+      x: 608,
+      y: 328,
+      width: 64,
+      height: 64,
+    })
+    expect(usePresentationStore.getState().document!.assets).toMatchObject([{ id: assetId, sha256: FIXTURE_IMAGE_SHA256 }])
+    expect(usePresentationStore.getState().mediaForSave()).toHaveLength(1)
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+
+    // The held bytes are exactly what a save persists: prove the seam end to end.
+    const document = usePresentationStore.getState().document!
+    await repository.savePresentation(document, usePresentationStore.getState().mediaForSave())
+
+    const reopened = await repository.getPresentation(document.id)
+    expect(reopened.assets).toMatchObject([{ id: assetId, sha256: FIXTURE_IMAGE_SHA256, width: 64, height: 64 }])
+    expect(reopened.slides[0]!.elements[0]!).toMatchObject({ kind: 'image', assetId })
+    const media = await repository.getMedia(assetId)
+    expect(Array.from(media.bytes)).toEqual(Array.from(fixtureImagePng()))
+  })
+
+  it('leaves no element, asset, or media behind when a file is refused', async () => {
+    const { input } = await openBlankEditor()
+
+    fireEvent.change(input, { target: { files: [new File([new Uint8Array([0x42, 0x4d, 0x00, 0x00])], 'scan.bmp', { type: 'image/bmp' })] } })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/PNG, JPEG, or static WebP/)
+    expect(editorElements()).toHaveLength(0)
+    expect(usePresentationStore.getState().document!.assets).toHaveLength(0)
+    expect(usePresentationStore.getState().pendingMedia).toHaveLength(0)
+    expect(usePresentationStore.getState().dirty).toBe(false)
+
+    // The refusal keeps the upload boundary's specific reason.
+    fireEvent.change(input, { target: { files: [new File([fixtureImagePng()], 'logo.svg', { type: 'image/svg+xml' })] } })
+    expect(await screen.findByRole('alert')).toHaveTextContent(/SVG uploads are not supported/)
+    expect(editorElements()).toHaveLength(0)
+    expect(usePresentationStore.getState().document!.assets).toHaveLength(0)
+  })
+
+  it('reuses one asset record when the same photo is inserted twice', async () => {
+    const { input } = await openBlankEditor()
+
+    fireEvent.change(input, { target: { files: [photoFile()] } })
+    await waitFor(() => expect(editorElements()).toHaveLength(1))
+    fireEvent.change(input, { target: { files: [photoFile('photo-again.png')] } })
+    await waitFor(() => expect(editorElements()).toHaveLength(2))
+
+    expect(usePresentationStore.getState().document!.assets).toHaveLength(1)
+    expect(usePresentationStore.getState().mediaForSave()).toHaveLength(1)
+    // One history entry per insertion.
+    expect(usePresentationStore.getState().past).toHaveLength(2)
+    expect(editorElements().map((element) => element.name)).toEqual(['Image', 'Image 2'])
+  })
+
+  it('says a full slide is full instead of silently refusing the image', async () => {
+    const { input } = await openBlankEditor()
+    act(() => {
+      const store = usePresentationStore.getState()
+      for (let index = 0; index < PRESENTATION_LIMITS.maxElementsPerSlide; index += 1) {
+        store.addElement(createTextElement({ id: `filler-${index}`, name: `Filler ${index}` }))
+      }
+    })
+    expect(editorElements()).toHaveLength(PRESENTATION_LIMITS.maxElementsPerSlide)
+
+    fireEvent.change(input, { target: { files: [photoFile()] } })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(`This slide is full (${PRESENTATION_LIMITS.maxElementsPerSlide} elements)`)
+    expect(editorElements()).toHaveLength(PRESENTATION_LIMITS.maxElementsPerSlide)
+    expect(usePresentationStore.getState().document!.assets).toHaveLength(0)
+  })
+
+  it('says the image cap is reached instead of silently refusing the image', async () => {
+    const { input } = await openBlankEditor()
+    act(() => {
+      const store = usePresentationStore.getState()
+      for (let index = 0; index < PRESENTATION_LIMITS.maxAssets; index += 1) {
+        if (index === PRESENTATION_LIMITS.maxElementsPerSlide / 2) {
+          const second = store.addSlide()
+          if (second) store.selectSlide(second)
+        }
+        const id = `cap-asset-${index}`
+        store.insertImage({
+          asset: { id, blobKey: `uploads/${id}`, mimeType: 'image/png', width: 8, height: 8, sha256: 'b'.repeat(64), provenance: { source: 'upload', label: `${id}.png` } },
+          media: { assetId: id, bytes: new Uint8Array([index % 251]), mimeType: 'image/png' },
+        })
+      }
+    })
+    expect(usePresentationStore.getState().document!.assets).toHaveLength(PRESENTATION_LIMITS.maxAssets)
+    // The active slide still has room, so only the asset cap can refuse the upload.
+    expect(editorElements().length).toBeLessThan(PRESENTATION_LIMITS.maxElementsPerSlide)
+
+    fireEvent.change(input, { target: { files: [photoFile()] } })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(`This presentation already holds the maximum ${PRESENTATION_LIMITS.maxAssets} images.`)
+    expect(usePresentationStore.getState().document!.assets).toHaveLength(PRESENTATION_LIMITS.maxAssets)
   })
 })

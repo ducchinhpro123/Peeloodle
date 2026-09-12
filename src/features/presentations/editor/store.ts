@@ -9,9 +9,11 @@
  */
 
 import { create } from 'zustand'
+import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
 import { PRESENTATION_LIMITS } from '../model/limits'
 import { serializePresentationDocument } from '../model/parse'
-import { createSlide, nextSlideName } from '../model/factories'
+import { createImageElement, createSlide, nextSlideName } from '../model/factories'
+import { fitImageWithinSlide, type PreparedPresentationImage } from './insertImageAsset'
 import type { Element, PresentationDocument, Slide, TextParagraph, Theme } from '../model/types'
 
 export type PresentationViewState = {
@@ -36,12 +38,18 @@ export type PresentationStoreState = {
   past: HistoryEntry[]
   future: HistoryEntry[]
   lastHistoryGroup: string | null
+  /** Bytes for media that is not persisted yet. Never part of the document JSON. */
+  pendingMedia: PresentationMediaRecord[]
 
   loadDocument(document: PresentationDocument, options?: { saved?: boolean }): void
   closeDocument(): void
   markSaving(): void
   markSaved(revision: number): void
   markSaveFailed(message: string): void
+  /** Drops held media once it is stored (or all of it when called without ids). */
+  clearPendingMedia(assetIds?: string[]): void
+  /** The held media a save may submit: only what the current document references. */
+  mediaForSave(): PresentationMediaRecord[]
 
   selectSlide(slideId: string): void
   selectElements(ids: string[]): void
@@ -59,6 +67,7 @@ export type PresentationStoreState = {
   setSlideBackground(slideId: string, background: string): void
 
   addElement(element: Element): string | null
+  insertImage(image: PreparedPresentationImage, options?: { slideId?: string }): string | null
   updateElement(elementId: string, patch: Partial<Element>, options?: { historyGroup?: string }): void
   transformElement(elementId: string, patch: Partial<Pick<Element, 'x' | 'y' | 'width' | 'height' | 'rotation'>>, options?: { historyGroup?: string }): void
   removeElement(elementId: string): void
@@ -109,12 +118,12 @@ function sameValue(a: unknown, b: unknown): boolean {
 export const usePresentationStore = create<PresentationStoreState>()((set, get) => {
   /** Validates, bumps the revision and records one undo entry. Updaters return
    * `false` for a no-op so redo history and the revision are left untouched. */
-  const commit = (updater: (draft: PresentationDocument) => boolean | void, options: { historyGroup?: string } = {}): void => {
+  const commit = (updater: (draft: PresentationDocument) => boolean | void, options: { historyGroup?: string } = {}): boolean => {
     const current = get().document
-    if (!current) return
+    if (!current) return false
     const draft = structuredClone(current)
     const changed = updater(draft)
-    if (changed === false) return
+    if (changed === false) return false
     const next = serializePresentationDocument(withRevision(current, draft))
     const group = options.historyGroup
     const merge = group !== undefined && group === get().lastHistoryGroup
@@ -132,6 +141,7 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       lastHistoryGroup: group ?? null,
       dirty: next.revision !== get().savedRevision,
     })
+    return true
   }
 
   const activeSlide = (): Slide | undefined => {
@@ -156,6 +166,7 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     past: [],
     future: [],
     lastHistoryGroup: null,
+    pendingMedia: [],
 
     loadDocument(document, options) {
       const clean = serializePresentationDocument(document)
@@ -170,11 +181,13 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         past: [],
         future: [],
         lastHistoryGroup: null,
+        // Media held for the previous document must never leak into this one.
+        pendingMedia: [],
       })
     },
 
     closeDocument() {
-      set({ document: null, view: initialView, savedRevision: -1, dirty: false, saving: false, saveError: null, past: [], future: [], lastHistoryGroup: null })
+      set({ document: null, view: initialView, savedRevision: -1, dirty: false, saving: false, saveError: null, past: [], future: [], lastHistoryGroup: null, pendingMedia: [] })
     },
 
     markSaving() {
@@ -188,6 +201,27 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
 
     markSaveFailed(message) {
       set({ saving: false, saveError: message })
+    },
+
+    clearPendingMedia(assetIds) {
+      const pending = get().pendingMedia
+      if (!assetIds) {
+        if (pending.length > 0) set({ pendingMedia: [] })
+        return
+      }
+      const keep = pending.filter((record) => !assetIds.includes(record.assetId))
+      if (keep.length !== pending.length) set({ pendingMedia: keep })
+    },
+
+    mediaForSave() {
+      const document = get().document
+      if (!document) return []
+      const referenced = new Set(document.assets.map((asset) => asset.id))
+      // Held bytes are a superset of what the document needs: undoing an insert
+      // removes the asset from the document but keeps its bytes available for redo.
+      // Submitting an unreferenced record makes a save fail (`invalid_asset`), so
+      // the save path must always come through here.
+      return get().pendingMedia.filter((record) => referenced.has(record.assetId))
     },
 
     selectSlide(slideId) {
@@ -323,6 +357,53 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         target.elements.push(structuredClone(element))
         return true
       })
+      set({ view: { ...get().view, selectedElementIds: [element.id] } })
+      return element.id
+    },
+
+    insertImage(image, options) {
+      const document = get().document
+      if (!document) return null
+      const slide = options?.slideId
+        ? document.slides.find((candidate) => candidate.id === options.slideId)
+        : activeSlide()
+      if (!slide) return null
+      if (slide.elements.length >= PRESENTATION_LIMITS.maxElementsPerSlide) return null
+      // Re-inserting identical bytes reuses the asset record, so it only has to
+      // respect the asset limit when this content is new to the document.
+      const knownAsset = document.assets.some((asset) => asset.id === image.asset.id)
+      if (!knownAsset && document.assets.length >= PRESENTATION_LIMITS.maxAssets) return null
+
+      const placement = fitImageWithinSlide(image.asset, document.pageSize)
+      const imageCount = slide.elements.filter((element) => element.kind === 'image').length
+      const element = createImageElement({
+        assetId: image.asset.id,
+        name: imageCount === 0 ? 'Image' : `Image ${imageCount + 1}`,
+        alt: image.asset.provenance.label,
+        x: placement.x,
+        y: placement.y,
+        width: placement.width,
+        height: placement.height,
+      })
+
+      const applied = commit((draft) => {
+        const target = draft.slides.find((candidate) => candidate.id === slide.id)
+        if (!target) return false
+        if (!draft.assets.some((asset) => asset.id === image.asset.id)) draft.assets.push(structuredClone(image.asset))
+        target.elements.push(structuredClone(element))
+        return true
+      })
+      // The commit can refuse (no-op updater). Returning an element id would then
+      // claim an insertion that never happened, and the caller's null check is the
+      // only thing standing between a refused insert and a broken element.
+      if (!applied) return null
+
+      // The bytes stay outside the document and are attached to the next save.
+      // ponytail: an undone insert keeps its asset record and bytes until the
+      // document is closed; P25 owns bounded media retention.
+      if (!get().pendingMedia.some((record) => record.assetId === image.media.assetId)) {
+        set({ pendingMedia: [...get().pendingMedia, image.media] })
+      }
       set({ view: { ...get().view, selectedElementIds: [element.id] } })
       return element.id
     },

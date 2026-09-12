@@ -79,16 +79,24 @@ export class MemoryPresentationRepository implements PresentationRepository {
     this.guardWrite()
     const clean = serializePresentationDocument(document)
     const existing = this.documents.get(clean.id)
-    if (options.baseRevision !== undefined && existing) {
+    if (existing) {
       let storedRevision: number
       try {
         storedRevision = serializePresentationDocument(existing).revision
       } catch {
         storedRevision = Number.POSITIVE_INFINITY
       }
-      if (storedRevision > options.baseRevision) {
+      // Same two guards as the IndexedDB adapter, deliberately duplicated: without
+      // them a unit test can pass here while the browser rejects the same write.
+      if (storedRevision > clean.revision) {
+        throw new PersistenceError('revision_conflict', `Presentation ${clean.id} is newer than this save`)
+      }
+      if (options.baseRevision !== undefined && storedRevision > options.baseRevision) {
         throw new PersistenceError('revision_conflict', `Presentation ${clean.id} changed after revision ${options.baseRevision}`)
       }
+    } else if (options.baseRevision !== undefined && options.baseRevision >= 0) {
+      // The row the caller loaded was removed; silently recreating it would hide that.
+      throw new PersistenceError('revision_conflict', `Presentation ${clean.id} no longer exists`)
     }
     const nextMedia = new Map(this.media)
     for (const record of media) {
