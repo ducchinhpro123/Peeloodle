@@ -1179,7 +1179,11 @@ main > section, main > div { min-width: 0; }
 .presentation-card-paper::after { position: absolute; right: -8%; bottom: -30%; width: 52%; height: 58%; border-radius: 50%; background: var(--mint); opacity: .18; content: ''; }
 .presentation-card-paper b { position: relative; z-index: 1; display: -webkit-box; max-width: 100%; overflow: hidden; font: 400 17px/1.05 Chewy, cursive; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .presentation-card-paper em { width: 54%; height: 7px; background: var(--scrapbook-yellow); transform: rotate(-4deg); }
-.presentation-card-preview > i { position: absolute; right: var(--space-2); bottom: var(--space-2); padding: 4px 8px; border-radius: 999px; background: #ffffffdc; color: var(--muted); font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: .05em; }
+/* The real slide render sits over the paper preview (z-index 1) and its tape: absolute and opaque, so
+   it can neither move the card's layout nor leave the paper showing through it. */
+.presentation-card-thumb { position: absolute; z-index: 2; inset: 0; }
+.presentation-card-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.presentation-card-preview > i { position: absolute; z-index: 3; right: var(--space-2); bottom: var(--space-2); padding: 4px 8px; border-radius: 999px; background: #ffffffdc; color: var(--muted); font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: .05em; }
 .presentation-card-link { display: block; border-radius: var(--radius-sm); color: inherit; text-decoration: none; }
 .presentation-card-actions { display: flex; margin-top: auto; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); padding: var(--space-2) var(--space-2) 0; }
 /* Always visible, never hover-only, and big enough to tap at 390px. */

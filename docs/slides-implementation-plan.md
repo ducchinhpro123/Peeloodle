@@ -10,7 +10,9 @@ editing (P17) are implemented and recorded in `proofs/p15-p16-basic-presentation
 implemented and recorded in `proofs/p18-p19-image-and-save.md`, which includes browser pixel and
 IndexedDB evidence plus the review-driven hardening that followed (atomic insertion, the 200 MB media
 budget, conflict recovery and the guarded editor exit — with the unguarded browser Back/Forward
-limitation stated there). P20 onward is not started. Review-driven
+limitation stated there). P20 (library rename, duplicate, safe delete and real first-slide thumbnails) is
+implemented and recorded in `proofs/p20-library-operations.md`; P21, the milestone journey, is next.
+Review-driven
 corrections are recorded in `proofs/correction-pass.md`. Start the next session from
 [`HANDOFF.md`](../HANDOFF.md).
 
@@ -83,7 +85,7 @@ The first coding task is **P01**, then the **export/text proof P02–P05**. Do n
 | [x] | P17 | Add a basic wrapped text box using the proven text bridge and model. | P04, P05, P16 | Edit English/Vietnamese, blur/save/reopen without losing content or position. Save/reopen is proven through the repository contract in P17; the Save/autosave UI is P19. |
 | [x] | P18 | Add personal PNG/JPEG/static WebP image upload and stored media insertion. | P14, P16 | Existing size/format validation reused where valid; failed upload leaves no broken layer. Verified in a real browser, including that the media bytes reach IndexedDB (`proofs/p18-p19-image-and-save.md`). Insertion is atomic (document + bytes in one repository transaction, decode only after the commit) and the 200 MB media budget is refused before any mutation, charged once per unique asset. |
 | [x] | P19 | Add autosave and explicit Save with truthful state and edit/media flushing. | P17, P18 | Dirty → saving → saved locally; induced quota/write failure retains editable work. Failure and conflict paths are unit-tested with the memory adapter's injected write failure; the autosave path is browser-verified. A stale revision now has a recovery path ("Keep my copy" writes an independent copy, then reopens the newer revision), leaving the editor flushes and awaits the write, and one command landing during an insert write is no longer dropped. |
-| [ ] | P20 | Add thumbnails, rename, duplicate and safe delete in presentation library. | P19 | Duplicate independent; delete cancels safely and restores focus; sticker projects untouched. |
+| [x] | P20 | Add thumbnails, rename, duplicate and safe delete in presentation library. | P19 | Duplicate independent; delete cancels safely and restores focus; sticker projects untouched. Verified in a real browser, every claim read back from IndexedDB, plus real first-slide thumbnails and containment at 1024×768 and 390×844 (`proofs/p20-library-operations.md`). |
 | [ ] | P21 | Verify the milestone's create/edit/save/reload/reopen browser journey. | P20 | Composition and media survive reload at desktop/tablet widths; inspect persisted output. |
 
 ## Milestone 2 — Make multi-slide editing useful

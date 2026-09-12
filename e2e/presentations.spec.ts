@@ -101,6 +101,9 @@ test('creates, lists, and reopens a local 16:9 presentation', async ({ page }) =
 test('presentation library and preview remain contained on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/presentations')
+  // Wait for the lazily-loaded library route itself: without this the capture raced the route's
+  // Suspense fallback and once committed "Opening presentations..." as the phone-width evidence.
+  await expect(page.getByRole('heading', { name: /Tell your story/ })).toBeVisible()
   await page.screenshot({ path: `${OUT}/p15-library-390x844.png`, fullPage: false })
   await page.getByRole('button', { name: /Create (your first|a blank) presentation/ }).click()
   await expect(page.getByText(/Presentation authoring is designed for a laptop/)).toBeVisible()

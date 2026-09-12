@@ -36,29 +36,24 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
   `navigate()` calls remain unguarded** because the app renders a plain
   `BrowserRouter`; closing that means a data-router migration, not a patch.
 
-## Start here: P20, then P21
+## Start here: P21, which closes Milestone 1
 
-**P20 — presentation library operations** (acceptance: duplicate independent;
-delete cancels safely and restores focus; sticker projects untouched):
-
-- Add thumbnails, rename, duplicate and safe delete in the library
-  (`src/features/presentations/library/PresentationsPage.tsx`).
-- Reuse the repository's `duplicatePresentation`; it already assigns new
-  document/slide/element/asset IDs and copies media. Do not clone JSON by hand.
-- Destructive delete uses the shared dialog system, focuses the safe action
-  first, and restores focus to the opener or a surviving control afterwards.
-- That page and its artwork are the owner's committed work (`c136845`, the
-  library redesign and the generated sticker pack) and the owner has confirmed
-  the assets are ready. Build P20 on top of it; do not revert it.
+**P20 — presentation library operations — is done** (`f56695b` plus the thumbnails commit): rename,
+duplicate and safe delete (shared dialog, safe action focused first, focus restored to a surviving
+control), real first-slide thumbnails rendered through the same `renderSlide` the editor uses, cached by
+`documentId:revision` and lazily drawn two at a time. Evidence, including what was *not* measured, is in
+`proofs/p20-library-operations.md`.
 
 **P21 — milestone browser journey** (acceptance: composition and media survive
 reload at desktop and tablet widths; inspect persisted output):
 
 - Extend `e2e/presentations-image.spec.ts`, which already proves
   insert → paint → IndexedDB → reload → reopen for a single image, into the full
-  create → edit → save → reload → reopen journey at 1440×900 and 1024×768.
-- This is the check that closes Milestone 1. Do not re-run the P15–P17 capture
-  specs casually: they rewrite committed files in `proofs/out/`.
+  create → edit → save → reload → reopen journey at 1440×900 and 1024×768,
+  including the library operations landing in the same journey.
+- This is the check that closes Milestone 1. Regenerate the committed P15–P17
+  captures when the presentation UI changes (they are current as of the P20
+  commit) and never commit a capture that raced a loading state.
 
 ## Interfaces to build on
 

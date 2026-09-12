@@ -20,6 +20,7 @@ import { createPresentationDocument } from '../model/factories'
 import { PRESENTATION_LIMITS } from '../model/limits'
 import type { PresentationSummary } from '../model/types'
 import { RENAME_EMPTY_TITLE_MESSAGE, describeLibraryFailure, renamedDocument } from './libraryActions'
+import { PresentationThumb } from './PresentationThumb'
 
 /**
  * Where focus goes when one of these dialogs closes: the opener while it still
@@ -266,6 +267,7 @@ export function PresentationsPage() {
                       <b>{item.title}</b>
                       <em />
                     </span>
+                    <PresentationThumb documentId={item.id} revision={item.revision} />
                     <i>16:9 SLIDES</i>
                   </span>
                   <span className="presentation-card-body">
