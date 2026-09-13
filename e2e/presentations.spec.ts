@@ -393,12 +393,14 @@ test('adds, duplicates, reorders, and deletes slides through the accessible rail
       copyId: copy.id,
       sourceElementIds: source.elements.map((element) => element.id),
       copyElementIds: copy.elements.map((element) => element.id),
+      copyElements: copy.elements,
       copyImageAssetId: copy.elements.find((element) => element.kind === 'image')?.assetId,
     }
   })
   expect(duplicate.sourceId).toBe(sourceId)
   expect(duplicate.copyId).not.toBe(sourceId)
-  expect(duplicate.copyElementIds).not.toEqual(duplicate.sourceElementIds)
+  // Disjoint element-ID sets: every copied element got a fresh ID, not just one.
+  expect(duplicate.copyElementIds.filter((id) => duplicate.sourceElementIds.includes(id))).toEqual([])
   expect(duplicate.copyImageAssetId).toBe('fixture-asset-transparent')
   await expect.poll(async () => (await sampleCanvas(page)).mint).toBeGreaterThan(500)
 
@@ -416,6 +418,40 @@ test('adds, duplicates, reorders, and deletes slides through the accessible rail
   await page.getByRole('button', { name: 'Move slide 3 up' }).click()
   const movedOrder = [sourceId, addedId.id, duplicate.copyId, 'fixture-slide-2']
   await expect.poll(async () => JSON.parse(await readPresentationJson(page, presentationId)).slides.map((slide: { id: string }) => slide.id)).toEqual(movedOrder)
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+
+  // Reload and reopen: slide order, duplicated content, the reused asset, and the
+  // painted artwork must all come back from storage, not from in-memory state.
+  await page.reload()
+  await expect(page.getByTestId('presentation-canvas')).toBeVisible()
+  await page.goto('/presentations')
+  await page.getByRole('link', { name: 'Open Bài trình bày mẫu — Fixture' }).click()
+  await expect(page.getByTestId('presentation-canvas')).toBeVisible()
+
+  const reopened = await page.evaluate(async (copyId) => {
+    const { usePresentationStore } = await import('/src/features/presentations/editor/store.ts')
+    const state = usePresentationStore.getState()
+    const source = state.document!.slides[0]!
+    const copy = state.document!.slides.find((slide) => slide.id === copyId)!
+    return {
+      order: state.document!.slides.map((slide) => slide.id),
+      sourceElementIds: source.elements.map((element) => element.id),
+      copyElementIds: copy.elements.map((element) => element.id),
+      copyElements: copy.elements,
+      copyImageAssetId: copy.elements.find((element) => element.kind === 'image')?.assetId,
+      assetIds: state.document!.assets.map((asset) => asset.id),
+    }
+  }, duplicate.copyId)
+  expect(reopened.order).toEqual(movedOrder)
+  expect(reopened.copyElementIds.filter((id) => reopened.sourceElementIds.includes(id))).toEqual([])
+  expect(reopened.copyElements).toEqual(duplicate.copyElements)
+  expect(reopened.copyImageAssetId).toBe('fixture-asset-transparent')
+  expect(reopened.assetIds).toEqual(['fixture-asset-transparent'])
+
+  // The reopened duplicate really paints its reused transparent PNG.
+  await page.getByRole('button', { name: 'Show slide 3: Title slide copy' }).click()
+  await expect(page.getByRole('button', { name: 'Show slide 3: Title slide copy' })).toHaveAttribute('aria-current', 'true')
+  await expect.poll(async () => (await sampleCanvas(page)).mint).toBeGreaterThan(500)
 
   await page.getByRole('button', { name: /Show slide 2:/ }).click()
   await page.getByRole('button', { name: 'Delete slide 2' }).click()

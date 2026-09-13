@@ -229,21 +229,26 @@ describe('presentation routes', () => {
     expect(usePresentationStore.getState().dirty).toBe(false)
   })
 
-  it('adds and duplicates the active slide, reuses media, and autosaves the new order', async () => {
+  it('duplicates with fresh element IDs, autosaves, and reopens the copied content and media', async () => {
     const repository = createMemoryPresentationRepository()
     await saveFixture(repository)
-    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    const closes = trackDecodedBitmaps()
+    const { unmount } = renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
     await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
+    expect(closes).toHaveLength(1)
 
     const source = usePresentationStore.getState().document!.slides[0]!
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate active slide' }))
 
-    const afterDuplicate = usePresentationStore.getState().document!
-    const duplicate = afterDuplicate.slides.find((slide) => slide.id === usePresentationStore.getState().view.activeSlideId)!
+    const afterDuplicate = usePresentationStore.getState()
+    const duplicate = afterDuplicate.document!.slides.find((slide) => slide.id === afterDuplicate.view.activeSlideId)!
     expect(duplicate.id).not.toBe(source.id)
-    expect(duplicate.elements.map((element) => element.id)).not.toEqual(source.elements.map((element) => element.id))
+    // Disjoint element-ID sets: every copied element got its own ID, not just one.
+    const sourceElementIds = new Set(source.elements.map((element) => element.id))
+    expect(duplicate.elements.filter((element) => sourceElementIds.has(element.id))).toEqual([])
+    expect(duplicate.elements.map((element) => element.name)).toEqual(source.elements.map((element) => element.name))
     expect(duplicate.elements.find((element) => element.kind === 'image')).toMatchObject({ assetId: FIXTURE_IMAGE_ASSET_ID })
-    expect(usePresentationStore.getState().view.activeSlideId).toBe(duplicate.id)
+    expect(afterDuplicate.view.activeSlideId).toBe(duplicate.id)
 
     fireEvent.click(screen.getByRole('button', { name: 'Add slide' }))
     const afterAdd = usePresentationStore.getState()
@@ -252,12 +257,30 @@ describe('presentation routes', () => {
     expect(afterAdd.document!.slides.find((slide) => slide.id === addedId)?.elements).toEqual([])
     expect(screen.getByRole('button', { name: /Show slide 3:/ })).toHaveAttribute('aria-current', 'true')
 
+    const savedOrder = afterAdd.document!.slides.map((slide) => slide.id)
     await waitFor(async () => {
       const stored = await repository.getPresentation(FIXTURE_ID)
-      expect(stored.slides.map((slide) => slide.id)).toEqual(afterAdd.document!.slides.map((slide) => slide.id))
+      expect(stored.slides.map((slide) => slide.id)).toEqual(savedOrder)
     })
     expect(await repository.hasMedia(FIXTURE_IMAGE_ASSET_ID)).toBe(true)
     expect(Array.from((await repository.getMedia(FIXTURE_IMAGE_ASSET_ID)).bytes)).toEqual(Array.from(fixtureImagePng()))
+
+    // Reload: close the editor and open the stored presentation again.
+    unmount()
+    await waitFor(() => expect(closes[0]).toHaveBeenCalledTimes(1))
+    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    await screen.findByTestId('presentation-canvas')
+
+    const reopened = usePresentationStore.getState().document!
+    expect(reopened.slides.map((slide) => slide.id)).toEqual(savedOrder)
+    const reopenedCopy = reopened.slides.find((slide) => slide.id === duplicate.id)!
+    expect(reopenedCopy.elements).toEqual(duplicate.elements)
+    expect(reopenedCopy.elements.find((element) => element.kind === 'image')).toMatchObject({ assetId: FIXTURE_IMAGE_ASSET_ID })
+    expect(reopened.assets.map((asset) => asset.id)).toEqual([FIXTURE_IMAGE_ASSET_ID])
+    // Rendered media: the reopened editor decoded the reused artwork again and kept
+    // it live for the canvas instead of reporting missing artwork.
+    await waitFor(() => expect(closes).toHaveLength(2))
+    expect(closes[1]).not.toHaveBeenCalled()
   })
 
   it('reorders and deletes through explicit buttons, preserves a survivor, and restores focus', async () => {
