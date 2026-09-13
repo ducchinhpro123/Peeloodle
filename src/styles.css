@@ -1276,8 +1276,16 @@ main > section, main > div { min-width: 0; }
  * corner; only the pointer target grows. The 2px border sits inside the handle's
  * border box, so the pseudo-element resolves against a 10px padding box (12px on
  * the 16px rotate handle): -17px makes a 44px corner target and a 46px rotate one.
+ *
+ * The growth is limited to where a finger can land—the 1150px inspector
+ * breakpoint and below, or any coarse pointer. A fine-pointer mouse keeps the
+ * handle at its visible 14px/16px: the hidden target would otherwise cover text
+ * near the element's top-left corner once the canvas is scaled down inside the
+ * editor's sidebars, stealing the double-click that opens the text editor.
  */
-.presentation-transform-handle::before { position: absolute; inset: -17px; content: ''; }
+@media (max-width: 1150px), (pointer: coarse) {
+  .presentation-transform-handle::before { position: absolute; inset: -17px; content: ''; }
+}
 .presentation-transform-nw, .presentation-transform-se { cursor: nwse-resize; }
 .presentation-transform-ne, .presentation-transform-sw { cursor: nesw-resize; }
 .presentation-transform-nw { left: -2px; top: -2px; transform: translate(-50%, -50%); }

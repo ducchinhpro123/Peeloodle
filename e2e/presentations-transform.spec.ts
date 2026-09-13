@@ -126,9 +126,12 @@ async function pointerTarget(handle: Locator): Promise<{ width: number; height: 
   })
 }
 
-/** Which element a real hit test lands on at one client point. */
+/** Which labelled element a real hit test lands on at one client point. */
 async function hitTest(page: Page, point: { x: number; y: number }): Promise<string | null> {
-  return page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.getAttribute('data-testid') ?? null, point)
+  return page.evaluate(
+    ({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid]')?.getAttribute('data-testid') ?? null,
+    point,
+  )
 }
 
 /** One point on the circle around `centre` through `point`, turned by `degrees`. */
@@ -165,8 +168,14 @@ test('moves, resizes, and rotates in document units at two zoom levels', async (
   await expect(canvasHost).toHaveAttribute('data-selected-element', start.id)
   const handle = page.getByTestId('presentation-handle-se')
   await expect(handle).toBeVisible()
-  // The handle the user grabs sits on the element's own document-space corner.
+  // Fine-pointer desktop: the handle offers no target beyond its own 14px. A point
+  // just outside it belongs to the canvas, so the invisible finger area cannot
+  // cover text under the element's top-left corner when the scaled canvas places
+  // it close to the handle. The expansion is asserted for the narrow and
+  // coarse-pointer contexts below.
   const handleBox = (await handle.boundingBox())!
+  expect(await hitTest(page, { x: handleBox.x - 6, y: handleBox.y + handleBox.height / 2 })).toBe('presentation-canvas')
+  // The handle the user grabs sits on the element's own document-space corner.
   const corner = at(view, start.x + start.width, start.y + start.height)
   expect(Math.abs(handleBox.x + handleBox.width / 2 - corner.x)).toBeLessThanOrEqual(3)
   expect(Math.abs(handleBox.y + handleBox.height / 2 - corner.y)).toBeLessThanOrEqual(3)
@@ -454,6 +463,37 @@ test('gives every handle a 44px pointer target without moving its visual centre'
     expect.soft(await hitTest(page, { x: centre.x + reach, y: centre.y }), `${handle} at ${reach}px from centre`)
       .toBe(`presentation-handle-${handle}`)
   }
+})
+
+test.describe('coarse pointer at a desktop width', () => {
+  // A touch-capable laptop or large tablet: the 1150px inspector breakpoint does
+  // not apply, but the pointer is still a finger, so the target must stay 44px.
+  test.use({ hasTouch: true, viewport: { width: 1280, height: 768 } })
+
+  test('keeps the handle expansion for a coarse pointer', async ({ page }) => {
+    await openBlankEditor(page)
+    await page.getByRole('button', { name: 'Add text' }).click()
+    await expect(page.getByRole('textbox', { name: 'Text content' })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await setField(page, 'X position', '200')
+    await setField(page, 'Y position', '200')
+    await setField(page, 'Width', '320')
+    await setField(page, 'Height', '160')
+
+    const canvasHost = page.getByTestId('presentation-canvas')
+    const element = await readElement(page)
+    const view = await canvasView(page)
+    await clickAt(page, at(view, element.x + element.width / 2, element.y + element.height / 2))
+    await expect(canvasHost).toHaveAttribute('data-selected-element', element.id)
+
+    const handle = page.getByTestId('presentation-handle-se')
+    await expect(handle).toBeVisible()
+    const size = await pointerTarget(handle)
+    expect(size.width).toBeGreaterThanOrEqual(44)
+    expect(size.height).toBeGreaterThanOrEqual(44)
+    const centre = centreOfBox((await handle.boundingBox())!)
+    expect(await hitTest(page, { x: centre.x + 21, y: centre.y })).toBe('presentation-handle-se')
+  })
 })
 
 test('selects every visible element kind and leaves a locked element alone', async ({ page }) => {

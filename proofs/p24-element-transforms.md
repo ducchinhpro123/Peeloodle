@@ -228,6 +228,60 @@ change) and were restored byte-identically. `p24-element-properties-390x844.png`
 (`402`/`213` → `409`/`189`) because the strengthened 1024px gesture now leaves the element a different
 height when the 390px capture is taken, so the refreshed capture is committed.
 
+## Fix round 3 — the expanded targets intercepted desktop text double-clicks
+
+The P24 verification run over the 26 presentation browser tests failed one: “inserts, edits, saves,
+and reopens a text box without moving it” (`e2e/presentations.spec.ts:257`) timed out at its canvas
+double-click. The global `inset: -17px` target is larger than the gap between a text element's
+top-left corner and its first painted line once the canvas is scaled down inside the editor's
+sidebars, so `.presentation-transform-nw` sat over the text and swallowed the double-click that opens
+the DOM text editor.
+
+- **RED** (before any source change): `npx playwright test e2e/presentations.spec.ts --workers=1 -g
+  "inserts, edits, saves, and reopens a text box without moving it"` → `1 failed`, “Test timeout of
+  30000ms exceeded … `<span data-testid="presentation-handle-nw"> from
+  <div data-testid="presentation-selection-frame"> subtree intercepts pointer events`”, pointing at
+  `e2e/presentations.spec.ts:298` (`canvasHost.dblclick`).
+- `styles.css`: the `::before` expansion now lives in `@media (max-width: 1150px), (pointer: coarse)`
+  — the same 1150px breakpoint that hides the inspector pane, or any coarse pointer. The rule itself
+  is unchanged (`inset: -17px`, so 10 + 34 = 44px corners and 12 + 34 = 46px rotate): only its scope
+  changed. A fine-pointer desktop mouse gets no generated pseudo-element, so the handle's own 14px
+  (16px rotate) border box is the target; at 1150px and below, or wherever the pointer is coarse, the
+  expanded finger target is exactly as before.
+- `e2e/presentations-transform.spec.ts`: two assertions pin both boundaries.
+  - The 1280×768 fine-pointer test now hit-tests a real client point 6px outside the SE handle's own
+    box and requires `presentation-canvas`, i.e. no invisible target beyond the visible handle.
+    RED before the CSS change: `Expected: "presentation-canvas", Received: "presentation-handle-se"`.
+  - New test in `test.describe('coarse pointer at a desktop width')` with
+    `test.use({ hasTouch: true, viewport: { width: 1280, height: 768 } })`: at a desktop width whose
+    pointer is coarse, the resolved `::before` is ≥44×44 and a hit test 21px from the SE centre lands
+    on the handle. Mutation evidence: dropping `(pointer: coarse)` from the media list made it RED
+    (`Expected: >= 44, Received: NaN`), so the coarse condition is load-bearing.
+  - The shared `hitTest` helper now reports `closest('[data-testid]')`, because a point over the
+    unpainted canvas host lands on the Konva `<canvas>` element, which carries no test id. The 44px
+    assertions are unaffected: a point over a handle still resolves to the handle itself.
+
+```bash
+npx playwright test e2e/presentations.spec.ts --workers=1 -g "inserts, edits, saves, and reopens a text box without moving it"  # RED 1 failed → GREEN 1 passed
+npx playwright test e2e/presentations-transform.spec.ts --workers=1 -g "moves, resizes, and rotates in document units at two zoom levels"  # RED hit test → GREEN
+npx playwright test e2e/presentations-transform.spec.ts --workers=1 -g "44px|coarse pointer"   # 3 passed
+npx playwright test e2e/presentations-transform.spec.ts --workers=1                            # 6 passed
+npx playwright test e2e/presentations.spec.ts --workers=1                                      # 7 passed
+npx vitest run --environment jsdom src/features/presentations/editor/transformGeometry.test.ts src/features/presentations/editor/store.test.ts  # 51 passed
+npx vitest run --environment jsdom --exclude 'e2e/**'                                          # 473 passed
+npm run typecheck && npm run lint && npm run build && npm run board && git diff --check
+```
+
+Typecheck clean, lint 0 errors / 4 pre-existing warnings, `vite build` clean, `npm run board`
+regenerated `tasks.html` byte-identically (92 tasks, 23 done), `git diff --check` silent.
+
+Capture note: the four captures the presentation specs rewrite were re-render noise and were restored
+byte-identically: `p15-library-empty-1440x900.png` (3 changed channels, delta 1),
+`p17-editor-editing-1280x768.png` (53, delta 2) and `p24-element-rotated-1280x768.png` (42, delta 1).
+The largest, `p24-element-handles-1280x768.png`, differed only in action-bar glyph antialiasing
+(changed pixels confined to x 681–1145, y 90–143 in the action bar above the canvas, max channel
+delta 3), so no capture change was committed.
+
 ## Limits and follow-ups
 
 - Resizing previews by scaling the rendered group (text scales rather than reflows until the commit
@@ -236,8 +290,10 @@ height when the 390px capture is taken, so the refreshed capture is committed.
   the Rotation field stays reachable at every width (the pane above 1150px, the properties dialog
   below it), and P31 alignment/tooling can add a smarter handle.
 - The 44–46px targets of neighbouring handles overlap once an element is smaller than about 45px on
-  screen (roughly 280 document units at the 390px viewport's fit zoom). The shared pixels go to the
-  handle later in the DOM, and the numeric fields remain exact; zooming in separates the targets.
+  screen (roughly 280 document units at the 390px viewport's fit zoom). That applies where the
+  expanded target exists—1150px and below, or a coarse pointer; a fine-pointer desktop handle offers
+  only its own 14px/16px. The shared pixels go to the handle later in the DOM, and the numeric fields
+  remain exact; zooming in separates the targets.
 - Dragging is the only way to pan away from an element when an element covers the whole slide; a
   space/middle-button pan and alignment guides are P31.
 - Text formatting, layers, locks UI, snapping and multi-select remain P25–P31, as planned.
