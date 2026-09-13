@@ -44,7 +44,10 @@ npm run lint
 npm test
 npm run test:browser
 npm run build
+npm run board
 ```
+
+`npm run board` regenerates the static task board at `tasks.html` from `docs/slides-implementation-plan.md` — open the file directly in a browser, no server needed. It is a local planning aid, not part of the app build or deployment (`tasks.html` is in `.vercelignore`). "Done" is read from the plan's checkboxes; the In Progress and Blocked columns are per-browser `localStorage` state and never write back to the plan.
 
 Playwright uses Chromium at `/usr/bin/chromium` via `playwright.config.ts`. Firefox/WebKit are attempted only when those browsers are already available; this project does not download extra browser builds.
 

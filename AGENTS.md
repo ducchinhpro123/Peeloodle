@@ -1,3 +1,5 @@
+- PI HARNESS: FOR ANY FILE SEARCH OR GREP IN THE CURRENT GIT-INDEXED DIRECTORY, USE FFF TOOLS.
+
 # StickerLab — Agent Instructions
 
 ## Project goal
@@ -179,6 +181,10 @@ For editor/persistence/export changes, verify relevant invariants:
 For UI changes, inspect affected routes against their corresponding references at matched desktop dimensions and a mobile viewport. Suggested checks: 1440×900, 1024×768, and 390×844. Check touch interactions and keyboard access where relevant.
 
 Before completing a milestone, run applicable type checks, lint, focused tests, and a production build. Report exact checks run and any failures or unavailable dependencies. Do not claim cloud or browser verification that did not occur.
+
+### Task tracking
+
+`docs/slides-implementation-plan.md` is the task list; `tasks.html` is a board generated from it by `npm run board` (see the README). A completed task means its row is ticked `[x]` **and** `npm run board` has been re-run, so the plan and the board agree before handoff. The board's In Progress and Blocked columns are per-browser scratch state, never progress evidence.
 
 ## Collaboration and change discipline
 

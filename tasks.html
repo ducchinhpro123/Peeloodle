@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StickerLab task board</title>
+<style>
+/* Tokens copied from src/styles.css (a static file cannot import the app stylesheet). */
+:root{
+  --ink:#08152f; --muted:#66758f; --mint:#08b879; --pale:#ddf7ed; --line:#e6ecf3;
+  --cream:#fff5d8; --lav:#f0eafe; --sky:#e8f4ff; --blush:#fceaf3; --surface:#fff;
+  --canvas:#fafbf8; --paper:#fff9ed; --radius:20px; --radius-sm:12px;
+  --shadow:0 4px 16px #08152f08; --shadow-hover:0 8px 24px #08152f12;
+  --space-2:8px; --space-3:12px; --space-4:16px; --space-5:24px; --space-6:32px;
+  color:var(--ink); background:var(--canvas);
+  font-family:"Plus Jakarta Sans",ui-sans-serif,system-ui,sans-serif; font-weight:500;
+}
+*{box-sizing:border-box}
+body{margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+h1,h2,h3,p,ul{margin:0}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--mint);outline-offset:2px}
+
+header.top{padding:var(--space-6) var(--space-6) var(--space-4);background:linear-gradient(180deg,var(--pale),var(--canvas));border-bottom:1px solid var(--line)}
+.top h1{font-size:clamp(22px,3vw,32px);font-weight:800;letter-spacing:-.02em}
+.top .sub{color:var(--muted);font-size:14px;margin-top:6px}
+.top .sub code{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.stats{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center;margin-top:var(--space-5)}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 14px;box-shadow:var(--shadow)}
+.stat b{display:block;font-size:20px;font-weight:800}
+.stat span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.progress{flex:1 1 220px;min-width:180px}
+.bar{height:10px;border-radius:99px;background:#fff;border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--mint),#4fd6a4)}
+.progress small{display:block;margin-top:6px;color:var(--muted);font-size:12px}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center;padding:var(--space-4) var(--space-6);position:sticky;top:0;background:rgba(250,251,248,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);z-index:5}
+input[type=search],select{border:1px solid var(--line);background:var(--surface);border-radius:var(--radius-sm);padding:9px 12px;min-width:0}
+input[type=search]{flex:1 1 240px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--radius-sm);padding:9px 14px;cursor:pointer;font-weight:600;box-shadow:var(--shadow)}
+.btn:hover{box-shadow:var(--shadow-hover)}
+.hint{color:var(--muted);font-size:13px}
+
+.board{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,minmax(260px,1fr));gap:var(--space-4);padding:var(--space-5) var(--space-6) var(--space-7);align-items:stretch}
+@media (max-width:1100px){body{height:auto;overflow:visible}.board{flex:none;grid-template-columns:repeat(2,minmax(240px,1fr));align-items:start}.column{max-height:none}.cards{flex:none;max-height:calc(100vh - 300px)}}
+@media (max-width:640px){.board{grid-template-columns:1fr;padding:var(--space-4)}header.top,.toolbar{padding-left:var(--space-4);padding-right:var(--space-4)}}
+.column{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:var(--space-4);box-shadow:var(--shadow);min-height:120px;display:flex;flex-direction:column}
+.column.over{border-color:var(--mint);background:var(--pale)}
+.column h2{font-size:14px;font-weight:800;display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-2)}
+.column .count{color:var(--muted);font-weight:600;font-size:12px}
+.column .note{color:var(--muted);font-size:12px;margin-top:4px}
+.cards{display:flex;flex-direction:column;gap:var(--space-3);margin-top:var(--space-3);flex:1;min-height:0;overflow-y:auto;padding-right:2px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-sm);padding:var(--space-3);box-shadow:var(--shadow);cursor:grab;text-align:left;display:block;width:100%}
+.card:hover{box-shadow:var(--shadow-hover)}
+.card:active{cursor:grabbing}
+.card[data-done="true"]{background:var(--pale);cursor:default}
+.card.dragging{opacity:.5}
+.card .id{font-size:11px;font-weight:800;letter-spacing:.08em;color:#0a7a56;background:var(--pale);border:1px solid #bff0dd;border-radius:6px;padding:1px 6px}
+.card .mile{font-size:11px;color:var(--muted);float:right}
+.card .title{font-size:14px;line-height:1.35;margin-top:var(--space-2);font-weight:600}
+.card .deps{display:flex;flex-wrap:wrap;gap:6px;margin-top:var(--space-2)}
+.card .dep{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px;background:#fff}
+.card .dep.unmet{color:#9a3412;border-color:#fed7aa;background:#fff7ed}
+.card .ev{font-size:12px;color:var(--muted);margin-top:var(--space-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.empty{color:var(--muted);font-size:13px;padding:var(--space-3) 0}
+
+dialog{border:1px solid var(--line);border-radius:var(--radius);padding:0;max-width:620px;width:calc(100% - 32px);box-shadow:0 24px 60px #08152f2e}
+dialog::backdrop{background:#08152f66}
+dialog .body{padding:var(--space-5)}
+dialog h3{font-size:18px;font-weight:800;margin-top:var(--space-2)}
+dialog dl{margin:var(--space-4) 0 0;display:grid;grid-template-columns:120px 1fr;gap:10px var(--space-3);font-size:13px}
+dialog dt{color:var(--muted);font-weight:700}
+dialog dd{margin:0;line-height:1.5}
+dialog footer{display:flex;justify-content:flex-end;gap:var(--space-3);padding:var(--space-4) var(--space-5);border-top:1px solid var(--line);background:var(--canvas)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>StickerLab task board</h1>
+  <p class="sub">Generated from <code>docs/slides-implementation-plan.md</code> on 2026-09-13. "Done" comes from the plan's checkboxes; the other columns are your own browser state.</p>
+  <div class="stats">
+    <div class="progress">
+      <div class="bar"><i id="bar" style="width:0%"></i></div>
+      <small id="progressText"></small>
+    </div>
+    <div class="stat"><b id="statDone">0</b><span>done</span></div>
+    <div class="stat"><b id="statOpen">0</b><span>open</span></div>
+    <div class="stat"><b id="statDoing">0</b><span>in progress</span></div>
+    <div class="stat"><b id="statBlocked">0</b><span>blocked</span></div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <label class="sr" for="q">Search tasks</label>
+  <input id="q" type="search" placeholder="Search by ID, task or evidence…">
+  <label class="sr" for="mile">Filter by group</label>
+  <select id="mile"><option value="">All groups</option></select>
+  <button class="btn" id="reset" type="button">Reset my columns</button>
+  <span class="hint">Drag a card, or focus it and press ← / → to move it.</span>
+</div>
+
+<main class="board" id="board"></main>
+
+<dialog id="detail">
+  <div class="body">
+    <span class="id" id="dId"></span>
+    <h3 id="dTitle"></h3>
+    <dl>
+      <dt>Group</dt><dd id="dMile"></dd>
+      <dt>Depends on</dt><dd id="dDeps"></dd>
+      <dt>Evidence</dt><dd id="dEv"></dd>
+      <dt>Status</dt><dd id="dStatus"></dd>
+    </dl>
+  </div>
+  <footer><button class="btn" id="dClose" type="button">Close</button></footer>
+</dialog>
+
+<div class="sr" id="live" role="status" aria-live="polite"></div>
+
+<script>
+const DATA = {"generated":"2026-09-13","source":"docs/slides-implementation-plan.md","milestones":[{"key":"M0","title":"Milestone 0 — Prove the risky contracts"},{"key":"M1","title":"Milestone 1 — Create, save and reopen a basic presentation"},{"key":"M2","title":"Milestone 2 — Make multi-slide editing useful"},{"key":"M3","title":"Milestone 3 — Ship trustworthy files and portable work"},{"key":"M4","title":"Milestone 4 — Establish catalog permissions and versioning"},{"key":"M5","title":"Milestone 5 — Upload, review and publish the asset collection"},{"key":"M6","title":"Milestone 6 — Author and publish three complete templates"},{"key":"M7","title":"Milestone 7 — Release quality and student validation"},{"key":"SETUP","title":"Setup and migration checklist"}],"tasks":[{"id":"P01","milestone":"M0","title":"Capture current scripts, routes and sticker regression baseline; identify existing user changes.","deps":[],"evidence":"Record actual checks/failures; preserve the unrelated research file and existing stickers.","done":true},{"id":"P02","milestone":"M0","title":"Create a tiny presentation fixture with English/Vietnamese, bold/italic runs, bullets, a link, a shape and a transparent image; define geometry conversions.","deps":["P01"],"evidence":"Fixture uses a document model; tests confirm document units → inches/points and slide order.","done":true},{"id":"P03","milestone":"M0","title":"Evaluate PptxGenJS with that fixture; inspect PPTX XML/media and open it in an available presentation app.","deps":["P02"],"evidence":"Text/shape remain editable and image separately movable; record app/version and screenshots. No full-slide raster workaround.","done":true},{"id":"P04","milestone":"M0","title":"Prove wrapped rich text with DOM editing and Konva rendering, including Vietnamese IME and paste.","deps":["P02"],"evidence":"Caret, formatting, wrapping and canvas output agree for the fixture; unsupported markup is normalized.","done":true},{"id":"P05","milestone":"M0","title":"Choose and verify two font families; compare a difficult long-title/bullets export fixture.","deps":["P03","P04"],"evidence":"Glyph/weight coverage and provenance documented; no missing text/overflow in tested app. Note unavailable readers.","done":true},{"id":"P06","milestone":"M0","title":"Prove PDF raster-page export and bounded ZIP backup/restore using the fixture.","deps":["P02"],"evidence":"Inspect PDF dimensions/order and backup contents; restore reproduces fixture data/media.","done":true},{"id":"P07","milestone":"M0","title":"Prove Node processing of representative PNG/WebP/SVG with actual decode limits and a hostile SVG fixture.","deps":["P01"],"evidence":"Valid outputs look correct; animation/external resources/oversized inputs fail; measure CPU/memory.","done":true},{"id":"P08","milestone":"M0","title":"Verify native processing packaging in an authorized preview environment, direct-to-Storage upload and one-job invocation.","deps":["P07"],"evidence":"Deployment/runtime evidence; image bytes bypass function request body; configured limits recorded. No production publishing.","done":false},{"id":"P09","milestone":"M1","title":"Define versioned presentation, slide, element, paragraph/run and asset contracts.","deps":["P02","P05"],"evidence":"Distinct from sticker document; IDs, geometry, fonts and media references explicit.","done":true},{"id":"P10","milestone":"M1","title":"Implement parser/serializer and centralized size limits.","deps":["P09"],"evidence":"Reject unsupported versions, duplicate IDs, invalid geometry/runs and missing references; no partial mutation.","done":true},{"id":"P11","milestone":"M1","title":"Add command store for slide and element mutations plus separate view state.","deps":["P10"],"evidence":"Commands mutate serializable data; selection/zoom/slide navigation do not dirty documents.","done":true},{"id":"P12","milestone":"M1","title":"Add presentation repository interface and memory adapter.","deps":["P10"],"evidence":"Contract checks cover save/load/duplicate/remove and complete asset references.","done":true},{"id":"P13","milestone":"M1","title":"Add IndexedDB stores through a safe additive upgrade; keep existing sticker data.","deps":["P12"],"evidence":"Upgrade a populated old DB fixture; reopen old stickers and new presentations. Use actual current DB version at implementation.","done":true},{"id":"P14","milestone":"M1","title":"Add atomic presentation/media saves and revision checks.","deps":["P13"],"evidence":"Failed writes preserve prior save; concurrent tab stale writes cannot silently win.","done":true},{"id":"P15","milestone":"M1","title":"Add presentation list, blank creation and editor routes using shared shell/components.","deps":["P11","P14"],"evidence":"Create and reopen from real local state; empty/long-title states usable.","done":true},{"id":"P16","milestone":"M1","title":"Render one fixed 16:9 slide, background and selected elements; fit/zoom/pan.","deps":["P15"],"evidence":"View transforms never alter stored coordinates; page bounds remain fixed.","done":true},{"id":"P17","milestone":"M1","title":"Add a basic wrapped text box using the proven text bridge and model.","deps":["P04","P05","P16"],"evidence":"Edit English/Vietnamese, blur/save/reopen without losing content or position. Save/reopen is proven through the repository contract in P17; the Save/autosave UI is P19.","done":true},{"id":"P18","milestone":"M1","title":"Add personal PNG/JPEG/static WebP image upload and stored media insertion.","deps":["P14","P16"],"evidence":"Existing size/format validation reused where valid; failed upload leaves no broken layer. Verified in a real browser, including that the media bytes reach IndexedDB (`proofs/p18-p19-image-and-save.md`). Insertion is atomic (document + bytes in one repository transaction, decode only after the commit) and the 200 MB media budget is refused before any mutation, charged once per unique asset.","done":true},{"id":"P19","milestone":"M1","title":"Add autosave and explicit Save with truthful state and edit/media flushing.","deps":["P17","P18"],"evidence":"Dirty → saving → saved locally; induced quota/write failure retains editable work. Failure and conflict paths are unit-tested with the memory adapter's injected write failure; the autosave path is browser-verified. A stale revision now has a recovery path (\"Keep my copy\" writes an independent copy, then reopens the newer revision), leaving the editor flushes and awaits the write, and one command landing during an insert write is no longer dropped.","done":true},{"id":"P20","milestone":"M1","title":"Add thumbnails, rename, duplicate and safe delete in presentation library.","deps":["P19"],"evidence":"Duplicate independent; delete cancels safely and restores focus; sticker projects untouched. Verified in a real browser, every claim read back from IndexedDB, plus real first-slide thumbnails and containment at 1024×768 and 390×844 (`proofs/p20-library-operations.md`).","done":true},{"id":"P21","milestone":"M1","title":"Verify the milestone's create/edit/save/reload/reopen browser journey.","deps":["P20"],"evidence":"Composition and media survive reload at desktop/tablet widths; inspect persisted output. Verified at 1440×900 and 1024×768 in one journey carrying text **and** media through autosave, a library rename, a page reload and a reopen, with the persisted row plus media bytes read back and hashed against the uploaded file, and pixel evidence that includes an empty-region control (`proofs/p21-milestone-journey.md`).","done":true},{"id":"P22","milestone":"M2","title":"Add slide rail with selection and add/duplicate actions.","deps":["P21"],"evidence":"New IDs on duplicate; copied media remains valid; current slide clearly indicated.","done":false},{"id":"P23","milestone":"M2","title":"Add slide reorder and delete with keyboard alternatives.","deps":["P22"],"evidence":"Ordering persists; deleting active slide selects a survivor; at least one slide remains.","done":false},{"id":"P24","milestone":"M2","title":"Add element move/resize/rotate with document-coordinate transforms.","deps":["P16","P21"],"evidence":"Same result at different zoom levels; handles and numeric properties agree.","done":false},{"id":"P25","milestone":"M2","title":"Add meaningful undo/redo, gesture grouping and bounded media retention.","deps":["P23","P24"],"evidence":"One drag/slider/text session = one history entry; undo spans slides; removed media survives while history references it.","done":false},{"id":"P26","milestone":"M2","title":"Add mixed bold/italic selection, font size/color/family controls.","deps":["P17","P25"],"evidence":"Run formatting survives undo/save/reopen; IME typing does not trigger canvas shortcuts.","done":false},{"id":"P27","milestone":"M2","title":"Add bullets, paragraph alignment/spacing, links and visible text-overflow feedback.","deps":["P26"],"evidence":"Long English/Vietnamese paragraphs render correctly; unsafe links rejected; overflow is actionable.","done":false},{"id":"P28","milestone":"M2","title":"Add rectangle, rounded rectangle, ellipse, line and arrow.","deps":["P24","P25"],"evidence":"Fill/stroke/geometry persist and undo correctly; supported kinds match export adapter.","done":false},{"id":"P29","milestone":"M2","title":"Add image crop, replacement and flip with preserved aspect ratio.","deps":["P18","P25"],"evidence":"Replace preserves intended placement; crop data stays non-destructive; undo restores original.","done":false},{"id":"P30","milestone":"M2","title":"Add accessible element/layer list, order controls, duplication, delete and locks.","deps":["P25","P28","P29"],"evidence":"Keyboard can select/reorder/edit properties; locked elements ignore canvas drags.","done":false},{"id":"P31","milestone":"M2","title":"Add alignment guides, snapping and explicit alignment controls.","deps":["P24","P30"],"evidence":"Correct at multiple zoom levels; guides never enter saves/exports.","done":false},{"id":"P32","milestone":"M2","title":"Add slide backgrounds and copied document theme defaults.","deps":["P27","P28"],"evidence":"Changes do not alter another presentation/template; existing element styles remain predictable.","done":false},{"id":"P33","milestone":"M2","title":"Insert saved personal stickers as immutable image snapshots through existing compositor.","deps":["P18","P30"],"evidence":"Editing/deleting source sticker does not break presentation; original sticker remains editable.","done":false},{"id":"P34","milestone":"M2","title":"Verify multi-slide gestures, keyboard access, long content and delayed fonts.","deps":["P23–P33"],"evidence":"Focused tests and desktop/tablet browser evidence; no canvas shortcuts in dialogs/text input.","done":false},{"id":"P35","milestone":"M3","title":"Create export snapshot/preflight service that awaits edits, fonts and media.","deps":["P19","P34"],"evidence":"Concurrent edit cannot mix revisions; missing assets/overflow yield clear actionable messages.","done":false},{"id":"P36","milestone":"M3","title":"Implement fixed-page slide renderer shared by previews and PDF rasterization.","deps":["P35"],"evidence":"Exact aspect/order/background, no artwork trim, viewport transform or handles.","done":false},{"id":"P37","milestone":"M3","title":"Implement ordered PDF generation and inspect actual pages.","deps":["P06","P36"],"evidence":"16:9 page sizes and expected page count; visual content intact; image-based PDF limitation documented.","done":false},{"id":"P38","milestone":"M3","title":"Implement PPTX text paragraphs/runs, bullets and hyperlinks.","deps":["P03","P05","P35"],"evidence":"Native text objects preserve content/styles; edit downloaded text and save successfully.","done":false},{"id":"P39","milestone":"M3","title":"Implement PPTX shapes and image transforms/crops.","deps":["P28","P29","P38"],"evidence":"Shape stays editable; each image separately movable; transparency and placement preserved.","done":false},{"id":"P40","milestone":"M3","title":"Add lazy export loading, progress, cancellation boundaries and cleanup.","deps":["P37","P39"],"evidence":"Failures do not download partial files; repeated export releases URLs/canvases; main editor stays usable.","done":false},{"id":"P41","milestone":"M3","title":"Implement backup writer with schema manifest, hashes, media and font dependencies.","deps":["P06","P35"],"evidence":"Inspect archive; all required bytes/metadata present, no temporary URLs or unrelated documents.","done":false},{"id":"P42","milestone":"M3","title":"Implement bounded backup parser and safe restore to a new presentation.","deps":["P10","P14","P41"],"evidence":"Corrupt/oversized/duplicate-path/future-version archives fail without changing saved work.","done":false},{"id":"P43","milestone":"M3","title":"Add backup/restore UI and recovery guidance on save failure.","deps":["P40","P42"],"evidence":"Restore works in a fresh browser profile; student can download work after a local save failure.","done":false},{"id":"P44","milestone":"M3","title":"Verify full export compatibility fixture across available readers.","deps":["P37–P43"],"evidence":"Record app/version/OS, editability and screenshots; report untested apps, not universal support.","done":false},{"id":"P45","milestone":"M3","title":"Verify large-document limits and network-disabled local editing/export.","deps":["P44"],"evidence":"Sequential export stays within measured bounds; no catalog request needed for saved media.","done":false},{"id":"P46","milestone":"M4","title":"Add catalog collection/item/version, template/version, job and event schema migrations.","deps":["P08","P10"],"evidence":"Fresh and upgrade migrations work; immutable version/dependency constraints tested.","done":false},{"id":"P47","milestone":"M4","title":"Add server-controlled admin membership and document bootstrap/recovery.","deps":["P46"],"evidence":"Ordinary user cannot self-promote via profile, API or SQL grants. No client service credentials.","done":false},{"id":"P48","milestone":"M4","title":"Add private source/derivative buckets and database/Storage policies.","deps":["P47"],"evidence":"Anonymous reads only approved published media; ordinary user cannot read drafts or private sticker uploads.","done":false},{"id":"P49","milestone":"M4","title":"Implement typed catalog read/admin repositories and paged filters.","deps":["P48"],"evidence":"Published-only public queries, stable cursors, real empty/error states; no fetching every full image.","done":false},{"id":"P50","milestone":"M4","title":"Implement guarded publish/archive RPCs with revision and dependency checks.","deps":["P49"],"evidence":"Failed publish keeps prior live version; archived items leave catalog; pinned template dependencies preserved.","done":false},{"id":"P51","milestone":"M4","title":"Add admin route/session guard and shared admin shell.","deps":["P47","P49"],"evidence":"Login return path works; unauthorized UI access rejected and direct backend calls independently denied.","done":false},{"id":"P52","milestone":"M4","title":"Add collection create/edit/order/archive UI.","deps":["P50","P51"],"evidence":"Metadata persists; cancel and revision conflict preserve work; collection archive handles contained items explicitly.","done":false},{"id":"P53","milestone":"M4","title":"Run live catalog isolation checks with anonymous, ordinary and admin clients in a test environment.","deps":["P48–P52"],"evidence":"Reads/writes signed URLs, role revocation and publish races checked; never use service-role to simulate an ordinary user.","done":false},{"id":"P54","milestone":"M5","title":"Add durable batch/job creation, reserved upload paths and direct Storage uploads.","deps":["P48","P53"],"evidence":"Restricted paths; resumable status after reload; failed file doesn't restart successful uploads.","done":false},{"id":"P55","milestone":"M5","title":"Add server job claims, leases, idempotent retries and conditional completion.","deps":["P54"],"evidence":"Duplicate requests don't duplicate versions; stale completion cannot overwrite a new attempt.","done":false},{"id":"P56","milestone":"M5","title":"Implement strict PNG/static WebP processing with metadata and derivatives.","deps":["P07","P55"],"evidence":"Full decode checks types, animation/bytes/pixels; outputs verified visually and by actual MIME/hash.","done":false},{"id":"P57","milestone":"M5","title":"Implement restricted SVG parsing and bounded rasterization.","deps":["P07","P55"],"evidence":"Reject scripts/external resources/entities/unsupported complexity; approved SVG matches preview and exports.","done":false},{"id":"P58","milestone":"M5","title":"Add bulk queue UI: selection, progress, per-file errors, retry and cancel/resume.","deps":["P56","P57"],"evidence":"100-file mixed batch works; close/reopen reports queued work honestly; no fake background completion.","done":false},{"id":"P59","milestone":"M5","title":"Add asset grid, selection inspector, names/tags/provenance and draft preview.","deps":["P49","P58"],"evidence":"Search/filter with actual metadata; unsupported items cannot appear ready to publish.","done":false},{"id":"P60","milestone":"M5","title":"Connect individual publish/archive/update UI to immutable versions.","deps":["P50","P59"],"evidence":"Update doesn't mutate published bytes; archive and replacement show correct availability.","done":false},{"id":"P61","milestone":"M5","title":"Add bounded abandoned-upload cleanup and operation diagnostics.","deps":["P55","P60"],"evidence":"Dry-run shows only unreferenced objects; pinned/live media cannot be deleted.","done":false},{"id":"P62","milestone":"M5","title":"Add student catalog panel with collection/type/search and lazy previews.","deps":["P30","P49","P60"],"evidence":"Only published items; loading/error/empty/offline states and keyboard insertion work.","done":false},{"id":"P63","milestone":"M5","title":"Download/store a catalog snapshot before committing image insertion.","deps":["P14","P62"],"evidence":"Media download failure leaves document intact; catalog archive/replacement does not break inserted copies/backups.","done":false},{"id":"P64","milestone":"M5","title":"Verify admin upload → review → publish → student insert → save → reopen → export.","deps":["P44","P53","P61","P63"],"evidence":"Real PNG/WebP/SVG samples and failed-batch cases inspected; private source URLs never leak.","done":false},{"id":"P65","milestone":"M6","title":"Add save-as-template draft action for admin, copying document and dependencies.","deps":["P34","P46","P53"],"evidence":"All media uploaded before committing draft; personal presentation stays private/independent.","done":false},{"id":"P66","milestone":"M6","title":"Add template list/detail admin screens with metadata, status and edit-draft action.","deps":["P51","P65"],"evidence":"Draft opens in shared editor; save uses expected revision; no second editor implementation.","done":false},{"id":"P67","milestone":"M6","title":"Generate cover and slide previews from immutable draft snapshots.","deps":["P36","P66"],"evidence":"Preview revision/hash matches document; edits invalidate stale previews.","done":false},{"id":"P68","milestone":"M6","title":"Add template schema/media/font validation, publish and archive.","deps":["P50","P67"],"evidence":"Missing dependency blocks publication; archive of a dependency cannot silently break live templates.","done":false},{"id":"P69","milestone":"M6","title":"Add public template browser and all-slide preview.","deps":["P49","P68"],"evidence":"Filters/empty/loading work; display actual template contents and supported editability.","done":false},{"id":"P70","milestone":"M6","title":"Implement atomic clone with new document/slide/element/asset IDs.","deps":["P14","P69"],"evidence":"Two clones independent; offline/incomplete download leaves no half-created presentation.","done":false},{"id":"P71","milestone":"M6","title":"Add template slide-layout insertion into an existing presentation.","deps":["P23","P70"],"evidence":"Copied layout and dependencies insert at chosen position; undo and theme behavior predictable.","done":false},{"id":"P72","milestone":"M6","title":"Build class presentation template with 8–10 varied layouts.","deps":["P68","P70"],"evidence":"Title, agenda, concept/text-image, comparison, example, summary, references and closing covered.","done":false},{"id":"P73","milestone":"M6","title":"Build research-defense template with 8–10 layouts.","deps":["P72"],"evidence":"Problem, question, method, results image area, discussion, limitations, references and Q&A covered.","done":false},{"id":"P74","milestone":"M6","title":"Build club-pitch template with 8–10 layouts.","deps":["P72"],"evidence":"Mission, problem, proposal, activities, timeline, team, impact and call to action covered.","done":false},{"id":"P75","milestone":"M6","title":"Verify clone → replace content → save/reopen → PDF/PPTX for all three templates.","deps":["P44","P70–P74"],"evidence":"Original unaffected; long Vietnamese/English text and sample-image replacements fit or warn clearly.","done":false},{"id":"P76","milestone":"M7","title":"Audit student routes at 1440×900, 1024×768 and 390×844.","deps":["P45","P75"],"evidence":"Desktop/tablet actions reachable; phone messaging does not promise cross-device local access or full editing.","done":false},{"id":"P77","milestone":"M7","title":"Audit admin routes, long metadata, failed jobs and destructive dialogs at the same sizes.","deps":["P64","P68"],"evidence":"Keyboard/focus, scroll containment, status labels and reduced motion verified with shared UI.","done":false},{"id":"P78","milestone":"M7","title":"Run persistence/backup/export failure matrix and old sticker regression journeys.","deps":["P76","P77"],"evidence":"Quota, missing media/font, catalog outage, stale tab, restore corruption and export cancellation preserve work.","done":false},{"id":"P79","milestone":"M7","title":"Run catalog RLS/storage/processing abuse and recovery checks after final migrations.","deps":["P53","P64","P68"],"evidence":"Unauthorized users denied; malformed files, expired leases and retry races fail safely.","done":false},{"id":"P80","milestone":"M7","title":"Complete setup, feature checklist, compatibility matrix and release documentation.","deps":["P78","P79"],"evidence":"README reflects implemented behavior; migrations, admin bootstrap, server env and all verification gaps documented.","done":false},{"id":"P81","milestone":"M7","title":"Run final applicable scripts/build and inspect generated release artifacts.","deps":["P80"],"evidence":"Exact results recorded; no unexplained failures or false browser/cloud claims.","done":false},{"id":"P82","milestone":"M7","title":"Have three university students create, reopen and export a real presentation without guidance.","deps":["P81"],"evidence":"Consent-based session notes capture task, obstacles, completion and whether they'd use it again.","done":false},{"id":"P83","milestone":"M7","title":"Fix blocking findings and prioritize the next small milestone from evidence.","deps":["P82"],"evidence":"Recheck affected flows; expand templates/features only after reviewing observed demand.","done":false},{"id":"C01","milestone":"SETUP","title":"Additive IndexedDB migration preserves sticker documents, packs, assets and history-related retention behavior.","deps":[],"evidence":"","done":false},{"id":"C02","milestone":"SETUP","title":"Additive Supabase catalog schema, policies, immutable version constraints and restricted RPC grants.","deps":[],"evidence":"","done":false},{"id":"C03","milestone":"SETUP","title":"Private staging/source/derivative storage configured; published reads explicitly authorized without exposing student-private buckets.","deps":[],"evidence":"","done":false},{"id":"C04","milestone":"SETUP","title":"Bootstrap the one administrator from a controlled backend operation; test demotion and sign-in recovery.","deps":[],"evidence":"","done":false},{"id":"C05","milestone":"SETUP","title":"Configure server-only credentials for the processing endpoint; no service key in `VITE_*` or browser bundles/logs.","deps":[],"evidence":"","done":false},{"id":"C06","milestone":"SETUP","title":"Verify Node native dependencies in preview, invocation limits, direct uploads, retries and failed-job visibility.","deps":[],"evidence":"","done":false},{"id":"C07","milestone":"SETUP","title":"Record actual artwork sources/permissions and bundled font licenses; import the owner's collection when available.","deps":[],"evidence":"","done":false},{"id":"C08","milestone":"SETUP","title":"Document limits, backup/restore, image-based PDF behavior and PPTX font/app requirements.","deps":[],"evidence":"","done":false},{"id":"C09","milestone":"SETUP","title":"Confirm existing production hosting workflow before any later deployment; this plan does not deploy or purchase services.","deps":[],"evidence":"","done":false}]};
+const COLUMNS = [
+  { key: "backlog", title: "Backlog" },
+  { key: "doing", title: "In Progress" },
+  { key: "blocked", title: "Blocked" },
+  { key: "done", title: "Done", note: "Set by the plan's checkboxes — not draggable." }
+];
+const KEY = "stickerlab.board.v1";
+const byId = Object.fromEntries(DATA.tasks.map(t => [t.id, t]));
+const mileName = Object.fromEntries(DATA.milestones.map(m => [m.key, m.title]));
+
+let manual = load();
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { return {}; }
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(manual)); }
+  catch { announce("This browser blocks local storage; column moves last until you reload."); }
+}
+const column = t => t.done ? "done" : (manual[t.id] || "backlog");
+const announce = msg => { document.getElementById("live").textContent = msg; };
+
+function visible() {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const m = document.getElementById("mile").value;
+  return DATA.tasks.filter(t =>
+    (!m || t.milestone === m) &&
+    (!q || (t.id + " " + t.title + " " + t.evidence + " " + t.deps.join(" ")).toLowerCase().includes(q)));
+}
+
+function render() {
+  const tasks = visible();
+  const board = document.getElementById("board");
+  board.innerHTML = "";
+  for (const col of COLUMNS) {
+    const items = tasks.filter(t => column(t) === col.key);
+    const el = document.createElement("section");
+    el.className = "column";
+    el.dataset.col = col.key;
+    el.innerHTML = '<h2><span>' + col.title + '</span><span class="count"></span></h2>' +
+      (col.note ? '<p class="note">' + col.note + '</p>' : "");
+    el.querySelector(".count").textContent = items.length;
+    const list = document.createElement("div");
+    list.className = "cards";
+    if (!items.length) {
+      const p = document.createElement("p");
+      p.className = "empty";
+      p.textContent = tasks.length ? "Nothing here." : "No matching tasks.";
+      list.append(p);
+    }
+    for (const t of items) list.append(card(t, col));
+    el.append(list);
+    if (col.key !== "done") {
+      el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("over"); });
+      el.addEventListener("dragleave", () => el.classList.remove("over"));
+      el.addEventListener("drop", e => {
+        e.preventDefault();
+        el.classList.remove("over");
+        move(e.dataTransfer.getData("text/plain"), col.key);
+      });
+    }
+    board.append(el);
+  }
+  const done = DATA.tasks.filter(t => t.done).length;
+  const doing = DATA.tasks.filter(t => !t.done && manual[t.id] === "doing").length;
+  const blocked = DATA.tasks.filter(t => !t.done && manual[t.id] === "blocked").length;
+  document.getElementById("statDone").textContent = done;
+  document.getElementById("statOpen").textContent = DATA.tasks.length - done;
+  document.getElementById("statDoing").textContent = doing;
+  document.getElementById("statBlocked").textContent = blocked;
+  const pct = DATA.tasks.length ? Math.round(done / DATA.tasks.length * 100) : 0;
+  document.getElementById("bar").style.width = pct + "%";
+  document.getElementById("progressText").textContent =
+    pct + "% of " + DATA.tasks.length + " tasks complete (" + done + " done, " + (DATA.tasks.length - done) + " open)";
+}
+
+function card(t, col) {
+  const el = document.createElement("article");
+  el.className = "card";
+  el.tabIndex = 0;
+  el.dataset.id = t.id;
+  el.dataset.done = String(t.done);
+  if (!t.done) el.draggable = true;
+  el.setAttribute("role", "button");
+  el.setAttribute("aria-label", t.id + ": " + t.title + " (" + col.title + ")");
+
+  const head = document.createElement("div");
+  head.innerHTML = '<span class="id"></span><span class="mile"></span>';
+  head.querySelector(".id").textContent = t.id;
+  head.querySelector(".mile").textContent = mileName[t.milestone] || t.milestone;
+  el.append(head);
+
+  const h = document.createElement("p");
+  h.className = "title";
+  h.textContent = t.title;
+  el.append(h);
+
+  const unmet = t.deps.filter(d => byId[d] && !byId[d].done);
+  if (t.deps.length) {
+    const deps = document.createElement("div");
+    deps.className = "deps";
+    for (const d of t.deps) {
+      const s = document.createElement("span");
+      s.className = "dep" + (unmet.includes(d) ? " unmet" : "");
+      s.textContent = unmet.includes(d) ? d + " (open)" : d;
+      deps.append(s);
+    }
+    el.append(deps);
+  }
+
+  if (t.evidence) {
+    const ev = document.createElement("p");
+    ev.className = "ev";
+    ev.textContent = t.evidence;
+    el.append(ev);
+  }
+
+  el.addEventListener("dragstart", e => {
+    e.dataTransfer.setData("text/plain", t.id);
+    e.dataTransfer.effectAllowed = "move";
+    el.classList.add("dragging");
+  });
+  el.addEventListener("dragend", () => el.classList.remove("dragging"));
+  el.addEventListener("click", () => openDetail(t));
+  el.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(t); return; }
+    if (t.done || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+    e.preventDefault();
+    const order = ["backlog", "doing", "blocked"];
+    const i = order.indexOf(column(t));
+    const next = order[Math.min(order.length - 1, Math.max(0, i + (e.key === "ArrowRight" ? 1 : -1)))];
+    if (next !== column(t)) move(t.id, next);
+  });
+  return el;
+}
+
+function move(id, to) {
+  const t = byId[id];
+  if (!t || t.done) return;
+  manual[id] = to;
+  save();
+  render();
+  const label = COLUMNS.find(c => c.key === to).title;
+  announce(id + " moved to " + label);
+  const next = document.querySelector('.card[data-id="' + id + '"]');
+  if (next) next.focus();
+}
+
+function openDetail(t) {
+  document.getElementById("dId").textContent = t.id;
+  document.getElementById("dTitle").textContent = t.title;
+  document.getElementById("dMile").textContent = mileName[t.milestone] || t.milestone;
+  document.getElementById("dDeps").textContent = t.deps.length ? t.deps.join(", ") : "None";
+  document.getElementById("dEv").textContent = t.evidence || "None recorded in the plan.";
+  const col = COLUMNS.find(c => c.key === column(t));
+  document.getElementById("dStatus").textContent = t.done ? "Done (per the plan)" : "Manual: " + col.title;
+  const dlg = document.getElementById("detail");
+  dlg.showModal();
+  dlg.addEventListener("close", () => {
+    const back = document.querySelector('.card[data-id="' + t.id + '"]');
+    if (back) back.focus();
+  }, { once: true });
+}
+
+document.getElementById("q").addEventListener("input", render);
+document.getElementById("reset").addEventListener("click", () => {
+  manual = {};
+  save();
+  render();
+  announce("Manual columns reset.");
+});
+document.getElementById("dClose").addEventListener("click", () => document.getElementById("detail").close());
+document.getElementById("detail").addEventListener("click", e => {
+  if (e.target === e.currentTarget) e.currentTarget.close();
+});
+
+const sel = document.getElementById("mile");
+for (const m of DATA.milestones) {
+  const o = document.createElement("option");
+  o.value = m.key;
+  o.textContent = m.title;
+  sel.append(o);
+}
+sel.addEventListener("change", render);
+render();
+</script>
+</body>
+</html>
