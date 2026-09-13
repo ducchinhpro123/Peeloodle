@@ -10,7 +10,7 @@ export type RenderSlideOptions = {
   slide: Slide
   pageSize: PresentationDocument['pageSize']
   images?: PresentationImageSources
-  /** Makes text elements hit-testable for selection; shapes and images stay inert. */
+  /** Makes every visible element hit-testable for selection and transform gestures. */
   listening?: boolean
 }
 
@@ -56,8 +56,9 @@ function elementGroup(element: Element, listening: boolean): Konva.Group {
     y: element.y,
     rotation: element.rotation,
     opacity: element.opacity,
-    // P17 only needs text selection; shapes and images stay inert until P24 adds transforms.
-    listening: listening && element.kind === 'text',
+    // Every visible kind answers hit tests (selection and P24 transforms); the
+    // thumbnails and exports render with `listening` off and stay inert.
+    listening,
   })
 }
 

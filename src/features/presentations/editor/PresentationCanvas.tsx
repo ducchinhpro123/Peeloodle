@@ -1,20 +1,58 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Konva } from '../rendering/konvaText'
 import { renderSlide, type PresentationImageSources } from '../rendering/renderSlide'
 import { TextEditOverlay } from './TextEditOverlay'
 import { usePresentationStore } from './store'
 import { PresentationCanvasControls } from './PresentationCanvasControls'
+import { PresentationSelectionFrame } from './PresentationSelectionFrame'
 import { presentationViewport, clampPresentationZoom } from './viewGeometry'
+import {
+  documentPointFromView,
+  moveTransform,
+  resizeTransform,
+  rotateTransform,
+  rotationDelta,
+  rotationFromPoint,
+  type ResizeHandle,
+  type TransformGeometry,
+  type ViewPoint,
+} from './transformGeometry'
+import type { Element } from '../model/types'
 
 type CanvasSize = { width: number; height: number }
 
 type PanGesture = { pointerId: number; x: number; y: number; capture: HTMLElement | null }
+
+type TransformGesture = {
+  kind: 'move' | 'resize' | 'rotate'
+  pointerId: number
+  elementId: string
+  handle: ResizeHandle | null
+  /** Document point where the gesture started. */
+  origin: ViewPoint
+  /** Element geometry when the gesture started. */
+  start: TransformGeometry
+  /** Latest previewed geometry; null until the pointer actually moves. */
+  current: TransformGeometry | null
+  capture: HTMLElement | null
+}
+
+function geometryOf(element: Element): TransformGeometry {
+  return { x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation }
+}
+
+function centreOf(geometry: TransformGeometry): ViewPoint {
+  return { x: geometry.x + geometry.width / 2, y: geometry.y + geometry.height / 2 }
+}
 
 export function PresentationCanvas({ images }: { images: PresentationImageSources }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage | null>(null)
   const layerRef = useRef<Konva.Layer | null>(null)
   const panGesture = useRef<PanGesture | null>(null)
+  const transformGesture = useRef<TransformGesture | null>(null)
+  /** The group a live preview was applied to, so it can be put back on cancel. */
+  const previewedNodeId = useRef<string | null>(null)
   const wasEditing = useRef(false)
   const [panning, setPanning] = useState(false)
   const [renderError, setRenderError] = useState(false)
@@ -25,10 +63,16 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
   const editingElementId = usePresentationStore((state) => state.view.editingElementId)
   const zoom = usePresentationStore((state) => state.view.zoom)
   const pan = usePresentationStore((state) => state.view.pan)
+  const transformPreview = usePresentationStore((state) => state.view.transformPreview)
   const activeSlide = document?.slides.find((slide) => slide.id === activeSlideId) ?? document?.slides[0]
   const selectedElement = activeSlide?.elements.find((element) => element.id === selectedElementId)
   const editingElement = activeSlide?.elements.find((element) => element.id === editingElementId)
   const viewport = presentationViewport(size, document?.pageSize ?? { width: 0, height: 0 }, zoom, pan)
+  // While a gesture runs, the frame and its handles describe the previewed
+  // geometry; the document only changes when the gesture is committed.
+  const selectedGeometry = selectedElement
+    ? transformPreview?.elementId === selectedElement.id ? transformPreview : geometryOf(selectedElement)
+    : null
 
   useEffect(() => {
     const host = hostRef.current
@@ -88,6 +132,31 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
     stage.position({ x: viewport.x, y: viewport.y })
     stage.batchDraw()
   }, [document, size, viewport.scale, viewport.x, viewport.y])
+
+  // Live gesture feedback on the rendering layer only: the group follows the
+  // pointer, and the committed document redraws it at its real geometry. A
+  // cancelled gesture puts the node back where the document says it is.
+  useEffect(() => {
+    const layer = layerRef.current
+    const id = transformPreview?.elementId ?? previewedNodeId.current
+    if (!layer || !id) return
+    const element = activeSlide?.elements.find((candidate) => candidate.id === id)
+    const node = layer.findOne(`#${id}`) as Konva.Group | undefined
+    if (element && node) {
+      const geometry = transformPreview?.elementId === id ? transformPreview : geometryOf(element)
+      node.setAttrs({
+        x: geometry.x,
+        y: geometry.y,
+        rotation: geometry.rotation,
+        // Preview only: the group is scaled so the drag tracks the pointer. The
+        // stored element keeps its own size and is re-rendered from it.
+        scaleX: geometry.width / element.width,
+        scaleY: geometry.height / element.height,
+      })
+      layer.batchDraw()
+    }
+    previewedNodeId.current = transformPreview?.elementId ?? null
+  }, [transformPreview, activeSlide])
 
   useEffect(() => {
     const stage = stageRef.current
@@ -151,6 +220,74 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
     }
   }
 
+  /** One pointer position in document units, through the shared viewport mapping. */
+  const pointFromClient = (clientX: number, clientY: number): ViewPoint | null => {
+    const host = hostRef.current
+    if (!host) return null
+    const rect = host.getBoundingClientRect()
+    return documentPointFromView({ x: clientX - rect.left, y: clientY - rect.top }, viewport)
+  }
+
+  /** The visible element under the pointer, or null over the slide background. */
+  const elementAtPointer = (clientX: number, clientY: number): Element | null => {
+    const stage = stageRef.current
+    const host = hostRef.current
+    if (!stage || !host || !activeSlide) return null
+    const rect = host.getBoundingClientRect()
+    const hit = stage.getIntersection({ x: clientX - rect.left, y: clientY - rect.top })
+    if (!hit) return null
+    const id = (hit.findAncestor('.presentation-element', true) as Konva.Group | undefined)?.id()
+    return id ? activeSlide.elements.find((element) => element.id === id) ?? null : null
+  }
+
+  const beginTransform = (element: Element, kind: TransformGesture['kind'], handle: ResizeHandle | null, event: ReactPointerEvent<HTMLElement>) => {
+    const origin = pointFromClient(event.clientX, event.clientY)
+    if (!origin) return
+    // Capture on the Konva container for every transform gesture, so move/up
+    // arrive through the same host handlers as panning.
+    const capture = captureTarget()
+    transformGesture.current = { kind, pointerId: event.pointerId, elementId: element.id, handle, origin, start: geometryOf(element), current: null, capture }
+    try { capture?.setPointerCapture(event.pointerId) } catch { /* Window-level pointer events still reach the host. */ }
+  }
+
+  /** Applies pointer movement to the live gesture; returns whether one is running. */
+  const applyGestureMove = (event: ReactPointerEvent<HTMLDivElement>): boolean => {
+    const gesture = transformGesture.current
+    if (!gesture || gesture.pointerId !== event.pointerId) return false
+    // A mouse drag whose button was released outside the window must not keep
+    // transforming on plain hover movement.
+    if (event.pointerType === 'mouse' && (event.buttons & 1) === 0) {
+      endTransform(event.pointerId, false)
+      return true
+    }
+    const point = pointFromClient(event.clientX, event.clientY)
+    if (!point) return true
+    const current = gesture.kind === 'move'
+      ? moveTransform(gesture.start, { x: point.x - gesture.origin.x, y: point.y - gesture.origin.y })
+      : gesture.kind === 'resize'
+        ? resizeTransform(gesture.start, gesture.handle!, point)
+        : rotateTransform(gesture.start, rotationDelta(
+            rotationFromPoint(centreOf(gesture.start), gesture.origin),
+            rotationFromPoint(centreOf(gesture.start), point),
+          ))
+    gesture.current = current
+    usePresentationStore.getState().setTransformPreview({ elementId: gesture.elementId, ...current })
+    return true
+  }
+
+  const endTransform = (pointerId: number, commit: boolean) => {
+    const gesture = transformGesture.current
+    if (gesture?.pointerId !== pointerId) return
+    transformGesture.current = null
+    if (gesture.capture?.hasPointerCapture(pointerId)) {
+      try { gesture.capture.releasePointerCapture(pointerId) } catch { /* Pointer capture already ended. */ }
+    }
+    const store = usePresentationStore.getState()
+    // A click without movement leaves no undo entry and no revision behind.
+    if (commit && gesture.current) store.commitTransform(gesture.elementId, gesture.current)
+    else if (gesture.current) store.setTransformPreview(null)
+  }
+
   if (!document || !activeSlide) return null
 
   return (
@@ -170,6 +307,14 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
         tabIndex={-1}
         onPointerDown={(event) => {
           if (event.button !== 0) return
+          const element = elementAtPointer(event.clientX, event.clientY)
+          if (element) {
+            usePresentationStore.getState().selectElements([element.id])
+            // A locked element stays selectable so its properties are reachable,
+            // but no gesture may move, resize, or rotate it.
+            if (!element.locked) beginTransform(element, 'move', null, event)
+            return
+          }
           // Capture on the Konva container so Konva still sees pointerdown/up and can
           // report click/dblclick for element selection.
           const capture = captureTarget()
@@ -178,6 +323,7 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
           try { capture?.setPointerCapture(event.pointerId) } catch { /* Window-level pointer events still update the view. */ }
         }}
         onPointerMove={(event) => {
+          if (applyGestureMove(event)) return
           const gesture = panGesture.current
           if (!gesture || gesture.pointerId !== event.pointerId) return
           // A mouse drag whose button was released outside the window must not
@@ -193,20 +339,25 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
           const currentPan = usePresentationStore.getState().view.pan
           usePresentationStore.getState().setPan({ x: currentPan.x + dx, y: currentPan.y + dy })
         }}
-        onPointerUp={(event) => endPan(event.pointerId)}
-        onPointerCancel={(event) => endPan(event.pointerId)}
+        onPointerUp={(event) => {
+          endTransform(event.pointerId, true)
+          endPan(event.pointerId)
+        }}
+        onPointerCancel={(event) => {
+          endTransform(event.pointerId, false)
+          endPan(event.pointerId)
+        }}
       />
-      {selectedElement && !editingElement ? (
-        <div
-          className="presentation-selection-outline"
-          aria-hidden="true"
-          style={{
-            left: viewport.x + selectedElement.x * viewport.scale,
-            top: viewport.y + selectedElement.y * viewport.scale,
-            width: selectedElement.width * viewport.scale,
-            height: selectedElement.height * viewport.scale,
-            transform: selectedElement.rotation ? `rotate(${selectedElement.rotation}deg)` : undefined,
-            transformOrigin: 'top left',
+      {selectedElement && selectedGeometry && !editingElement ? (
+        <PresentationSelectionFrame
+          geometry={selectedGeometry}
+          viewport={viewport}
+          locked={selectedElement.locked}
+          onGestureStart={(kind, handle, event) => {
+            // The handle gesture must not also start a pan or a move on the host.
+            event.preventDefault()
+            event.stopPropagation()
+            beginTransform(selectedElement, kind, handle, event)
           }}
         />
       ) : null}

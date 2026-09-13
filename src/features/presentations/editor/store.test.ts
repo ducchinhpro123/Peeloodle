@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { planImageInsert, usePresentationStore } from './store'
 import { createPresentationDocument, createShapeElement, createTextElement } from '../model/factories'
 import { PRESENTATION_LIMITS } from '../model/limits'
+import { MIN_ELEMENT_SIZE } from './transformGeometry'
 import type { PreparedPresentationImage } from './insertImageAsset'
 import type { PresentationAsset, PresentationDocument } from '../model/types'
 
@@ -75,6 +76,63 @@ describe('presentation command store', () => {
     expect(state().past).toHaveLength(0)
     expect(state().view.zoom).toBe(2)
     expect(state().view.pan).toEqual({ x: 10, y: 20 })
+  })
+
+  it('keeps a live transform preview in view state only', () => {
+    state().addElement(createShapeElement({ id: 'preview-me' }))
+    const before = state().document!
+    const history = state().past.length
+    const dirty = state().dirty
+
+    state().setTransformPreview({ elementId: 'preview-me', x: 300, y: 90, width: 600, height: 160, rotation: 30 })
+    expect(state().view.transformPreview).toEqual({ elementId: 'preview-me', x: 300, y: 90, width: 600, height: 160, rotation: 30 })
+    // Nothing is written while the gesture is still in progress.
+    expect(state().document).toBe(before)
+    expect(state().past).toHaveLength(history)
+    expect(state().dirty).toBe(dirty)
+
+    state().setTransformPreview(null)
+    expect(state().view.transformPreview).toBeNull()
+    expect(state().document).toBe(before)
+  })
+
+  it('commits one completed gesture as one history entry and clears the preview', () => {
+    state().addElement(createShapeElement({ id: 'drag-me', x: 80, y: 80, width: 600, height: 160 }))
+    const history = state().past.length
+
+    state().setTransformPreview({ elementId: 'drag-me', x: 300, y: 90, width: 600, height: 160, rotation: 0 })
+    state().commitTransform('drag-me', { x: 300, y: 90, width: 600, height: 160, rotation: 0 })
+    const element = state().document!.slides[0]!.elements[0]!
+    expect({ x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation })
+      .toEqual({ x: 300, y: 90, width: 600, height: 160, rotation: 0 })
+    expect(state().past).toHaveLength(history + 1)
+    expect(state().view.transformPreview).toBeNull()
+    expect(state().dirty).toBe(true)
+
+    // The next gesture is its own entry, and undo restores the pre-gesture state.
+    state().commitTransform('drag-me', { x: 320, y: 90, width: 600, height: 160, rotation: 0 })
+    expect(state().past).toHaveLength(history + 2)
+    state().undo()
+    expect(state().document!.slides[0]!.elements[0]!.x).toBe(300)
+  })
+
+  it('refuses to commit transforms for locked elements or unusable geometry', () => {
+    state().addElement(createShapeElement({ id: 'locked', locked: true, x: 40, y: 40, width: 200, height: 100 }))
+    const history = state().past.length
+
+    state().commitTransform('locked', { x: 500, y: 500, width: 200, height: 100, rotation: 0 })
+    state().commitTransform('missing', { x: 500, y: 500, width: 200, height: 100, rotation: 0 })
+    state().commitTransform('locked', { x: Number.NaN, y: 0, width: 200, height: 100, rotation: 0 })
+    state().toggleElementLocked('locked')
+    // Unlocking is a document command of its own; the refused transforms below add nothing.
+    expect(state().past).toHaveLength(history + 1)
+    state().commitTransform('locked', { x: 500, y: 500, width: Number.POSITIVE_INFINITY, height: 100, rotation: 0 })
+    state().commitTransform('locked', { x: 500, y: 500, width: 2, height: 100, rotation: 0 })
+
+    const element = state().document!.slides[0]!.elements[0]!
+    // Only the last call was a usable transform, and its tiny width was clamped.
+    expect({ x: element.x, y: element.y, width: element.width, height: element.height }).toEqual({ x: 500, y: 500, width: MIN_ELEMENT_SIZE, height: 100 })
+    expect(state().past).toHaveLength(history + 2)
   })
 
   it('opens and closes the text editor as view state only', () => {

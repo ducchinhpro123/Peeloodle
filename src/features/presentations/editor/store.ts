@@ -14,7 +14,11 @@ import { PRESENTATION_LIMITS } from '../model/limits'
 import { serializePresentationDocument } from '../model/parse'
 import { createImageElement, createSlide, nextSlideName } from '../model/factories'
 import { fitImageWithinSlide, type PreparedPresentationImage } from './insertImageAsset'
+import { normalizeTransform, type TransformGeometry } from './transformGeometry'
 import type { Element, PresentationDocument, Slide, TextParagraph, Theme } from '../model/types'
+
+/** Geometry a gesture is previewing for one element; never part of the document. */
+export type TransformPreview = TransformGeometry & { elementId: string }
 
 export type PresentationViewState = {
   activeSlideId: string | null
@@ -23,6 +27,8 @@ export type PresentationViewState = {
   editingElementId: string | null
   zoom: number
   pan: { x: number; y: number }
+  /** In-progress move/resize/rotate; committed once the gesture ends. */
+  transformPreview: TransformPreview | null
 }
 
 type HistoryEntry = { document: PresentationDocument; bytes: number }
@@ -58,6 +64,10 @@ export type PresentationStoreState = {
   endTextEdit(): void
   setZoom(zoom: number): void
   setPan(pan: { x: number; y: number }): void
+  /** Shows one element's in-progress geometry without touching the document. */
+  setTransformPreview(preview: TransformPreview | null): void
+  /** Ends a gesture: one history entry, the preview cleared, locked elements untouched. */
+  commitTransform(elementId: string, geometry: TransformGeometry): void
 
   addSlide(afterSlideId?: string): string | null
   duplicateSlide(slideId: string): string | null
@@ -89,7 +99,7 @@ export type PresentationStoreState = {
   redo(): void
 }
 
-const initialView: PresentationViewState = { activeSlideId: null, selectedElementIds: [], editingElementId: null, zoom: 1, pan: { x: 0, y: 0 } }
+const initialView: PresentationViewState = { activeSlideId: null, selectedElementIds: [], editingElementId: null, zoom: 1, pan: { x: 0, y: 0 }, transformPreview: null }
 
 function estimateBytes(document: PresentationDocument): number {
   try {
@@ -352,7 +362,7 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     selectSlide(slideId) {
       const document = get().document
       if (!document || !document.slides.some((slide) => slide.id === slideId)) return
-      set({ view: { ...get().view, activeSlideId: slideId, selectedElementIds: [], editingElementId: null } })
+      set({ view: { ...get().view, activeSlideId: slideId, selectedElementIds: [], editingElementId: null, transformPreview: null } })
     },
 
     selectElements(ids) {
@@ -390,6 +400,21 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
 
     setPan(pan) {
       set({ view: { ...get().view, pan } })
+    },
+
+    setTransformPreview(preview) {
+      set({ view: { ...get().view, transformPreview: preview } })
+    },
+
+    commitTransform(elementId, geometry) {
+      const element = get().document?.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
+      if (!element || element.locked) return
+      const clean = normalizeTransform(geometry)
+      if (!clean) return
+      get().transformElement(elementId, clean)
+      // The gesture is over: the next drag on this element is its own undo entry.
+      get().endHistoryGroup()
+      if (get().view.transformPreview?.elementId === elementId) get().setTransformPreview(null)
     },
 
     addSlide(afterSlideId) {
@@ -665,5 +690,5 @@ function ensureView(document: PresentationDocument, view: PresentationViewState)
   const editingElementId = view.editingElementId !== null && slide?.elements.some((element) => element.id === view.editingElementId && element.kind === 'text')
     ? view.editingElementId
     : null
-  return { ...view, activeSlideId, selectedElementIds: view.selectedElementIds.filter((id) => ids.has(id)), editingElementId }
+  return { ...view, activeSlideId, selectedElementIds: view.selectedElementIds.filter((id) => ids.has(id)), editingElementId, transformPreview: null }
 }

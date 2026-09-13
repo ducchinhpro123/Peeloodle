@@ -143,9 +143,12 @@ test('renders the active fixture slide and keeps zoom, pan, and slide changes vi
   await page.getByRole('button', { name: 'Zoom in' }).click()
   const box = await canvasHost.boundingBox()
   expect(box).not.toBeNull()
-  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+  // Panning starts on the slide background: this fixture's panel shape covers
+  // almost the whole slide, and dragging an ELEMENT now moves that element (P24).
+  const background = { x: box!.x + box!.width / 2, y: box!.y + 12 }
+  await page.mouse.move(background.x, background.y)
   await page.mouse.down()
-  await page.mouse.move(box!.x + box!.width / 2 + 35, box!.y + box!.height / 2 + 20)
+  await page.mouse.move(background.x + 35, background.y + 20)
   await expect(canvasHost).toHaveClass(/is-panning/)
   await page.mouse.up()
   await expect(canvasHost).not.toHaveClass(/is-panning/)

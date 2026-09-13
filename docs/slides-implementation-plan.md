@@ -97,7 +97,7 @@ The first coding task is **P01**, then the **export/text proof P02–P05**. Do n
 | --- | --- | --- | --- | --- |
 | [x] | P22 | Add slide rail with selection and add/duplicate actions. | P21 | New IDs on duplicate; copied media remains valid; current slide clearly indicated. |
 | [x] | P23 | Add slide reorder and delete with keyboard alternatives. | P22 | Ordering persists; deleting active slide selects a survivor; at least one slide remains. |
-| [ ] | P24 | Add element move/resize/rotate with document-coordinate transforms. | P16, P21 | Same result at different zoom levels; handles and numeric properties agree. |
+| [x] | P24 | Add element move/resize/rotate with document-coordinate transforms. | P16, P21 | Same document-space move at 100% and 125% zoom; the drawn frame/handles and the numeric inspector agree (≤1 px frame, ≤3 px handle); every visible kind selects; a locked element ignores a drag without panning; one gesture = one history entry (`proofs/p24-element-transforms.md`). |
 | [ ] | P25 | Add meaningful undo/redo, gesture grouping and bounded media retention. | P23, P24 | One drag/slider/text session = one history entry; undo spans slides; removed media survives while history references it. |
 | [ ] | P26 | Add mixed bold/italic selection, font size/color/family controls. | P17, P25 | Run formatting survives undo/save/reopen; IME typing does not trigger canvas shortcuts. |
 | [ ] | P27 | Add bullets, paragraph alignment/spacing, links and visible text-overflow feedback. | P26 | Long English/Vietnamese paragraphs render correctly; unsafe links rejected; overflow is actionable. |

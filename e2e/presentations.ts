@@ -119,3 +119,20 @@ export async function openBlankEditor(page: Page): Promise<string> {
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
   return (await readDocument(page))!.id
 }
+
+/** Stores the P02 fixture presentation with its artwork and returns its id. */
+export async function seedFixturePresentation(page: Page): Promise<string> {
+  await page.goto('/')
+  await settleDevServer(page)
+  return page.evaluate(async () => {
+    const fixture = await import('/src/features/presentations/model/fixtures/fixture.ts')
+    const persistence = await import('/src/lib/persistence/presentations/idb.ts')
+    const documentModel = fixture.createFixturePresentation()
+    await persistence.createIdbPresentationRepository().savePresentation(documentModel, [{
+      assetId: fixture.FIXTURE_IMAGE_ASSET_ID,
+      bytes: fixture.fixtureImagePng(),
+      mimeType: 'image/png',
+    }])
+    return documentModel.id
+  })
+}

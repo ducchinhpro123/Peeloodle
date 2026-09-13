@@ -13,6 +13,7 @@ import type { PresentationDocument } from '../model/types'
 import { ensurePresentationFonts } from '../rendering/fonts'
 import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
 import { PresentationCanvasControls } from './PresentationCanvasControls'
+import { ElementGeometryInspector } from './ElementGeometryInspector'
 import { PrepareImageError, preparePresentationImage } from './insertImageAsset'
 import { TextEditOverlay } from './TextEditOverlay'
 import { usePresentationSave, type PersistInsertOutcome } from './usePresentationSave'
@@ -532,7 +533,13 @@ export function PresentationEditorPage() {
             <div><dt>Slides</dt><dd>{document.slides.length}</dd></div>
             <div><dt>Elements</dt><dd>{activeSlide?.elements.length ?? 0}</dd></div>
           </dl>
-          <p className="muted">Select a text box on the slide to edit its content. Moving and formatting arrive in later increments.</p>
+          {selectedElement ? (
+            <>
+              <p>{selectedElement.name || 'Element'}</p>
+              <ElementGeometryInspector element={selectedElement} />
+            </>
+          ) : null}
+          <p className="muted">Drag an element on the slide to move it, use a corner handle to resize, and the round handle to rotate. These values are the same document units — type one to place an element exactly.</p>
         </aside>
       </div>
     </div>
