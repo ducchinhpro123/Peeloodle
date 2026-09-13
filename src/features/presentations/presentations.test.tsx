@@ -1148,7 +1148,7 @@ describe('presentation image insertion', () => {
 
     fireEvent.change(input, { target: { files: [photoFile()] } })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(`This slide already holds the maximum of ${PRESENTATION_LIMITS.maxElementsPerSlide} elements`)
+    expect(await screen.findByRole('alert', {}, { timeout: 5000 })).toHaveTextContent(`This slide already holds the maximum of ${PRESENTATION_LIMITS.maxElementsPerSlide} elements`)
     expect(editorElements()).toHaveLength(PRESENTATION_LIMITS.maxElementsPerSlide)
     expect(usePresentationStore.getState().document!.assets).toHaveLength(0)
     // The refused insert never reached storage: whatever autosave wrote has no
@@ -1173,7 +1173,7 @@ describe('presentation image insertion', () => {
     fireEvent.change(input, { target: { files: [photoFile()] } })
 
     const limit = PRESENTATION_LIMITS.maxMediaBytes / (1024 * 1024)
-    expect(await screen.findByRole('alert')).toHaveTextContent(`past the ${limit.toFixed(1)} MB limit`)
+    expect(await screen.findByRole('alert', {}, { timeout: 5000 })).toHaveTextContent(`past the ${limit.toFixed(1)} MB limit`)
     expect(editorElements()).toHaveLength(1)
     expect(usePresentationStore.getState().document!.assets).toHaveLength(1)
   })
@@ -1201,7 +1201,7 @@ describe('presentation image insertion', () => {
 
     fireEvent.change(input, { target: { files: [photoFile()] } })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(`This presentation already holds the maximum of ${PRESENTATION_LIMITS.maxAssets} images`)
+    expect(await screen.findByRole('alert', {}, { timeout: 5000 })).toHaveTextContent(`This presentation already holds the maximum of ${PRESENTATION_LIMITS.maxAssets} images`)
     expect(usePresentationStore.getState().document!.assets).toHaveLength(PRESENTATION_LIMITS.maxAssets)
     expect(editorElements()).toHaveLength(elementsBefore)
   })

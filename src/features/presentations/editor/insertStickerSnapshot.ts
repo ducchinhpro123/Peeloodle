@@ -8,7 +8,6 @@
  * snapshot, and the sticker itself stays editable.
  */
 
-import { renderDocument } from '../../exports/renderDocument'
 import { preparePresentationImage, type PreparedPresentationImage } from './insertImageAsset'
 import type { AssetRecord, StickerLabRepository } from '@/lib/persistence/repository'
 import type { ProjectDocument } from '@/types/domain'
@@ -19,8 +18,12 @@ export type StickerSnapshotRenderer = (
   masks: Map<string, Blob>,
 ) => Promise<Blob>
 
-const renderStickerArtwork: StickerSnapshotRenderer = (document, assets, masks) =>
-  renderDocument(document, assets, { size: 1024, bounds: 'artwork', masks })
+const renderStickerArtwork: StickerSnapshotRenderer = async (document, assets, masks) => {
+  // The compositor is only needed once a sticker is actually placed, so it loads
+  // on demand instead of riding in the editor page's chunk.
+  const { renderDocument } = await import('../../exports/renderDocument')
+  return renderDocument(document, assets, { size: 1024, bounds: 'artwork', masks })
+}
 
 /** Loads one saved sticker's document, artwork and masks, then prepares a snapshot. */
 export async function prepareStickerSnapshot(
@@ -29,14 +32,23 @@ export async function prepareStickerSnapshot(
   render: StickerSnapshotRenderer = renderStickerArtwork,
 ): Promise<PreparedPresentationImage> {
   const document = await repository.getProject(projectId)
-  const assets = new Map<string, AssetRecord>()
-  const masks = new Map<string, Blob>()
 
+  // Distinct assets and masks first, so each is fetched once, and all fetches run
+  // concurrently: a sticker with several layers should wait for one round trip.
+  const assetIds = new Set<string>()
+  const maskKeys = new Set<string>()
   for (const layer of document.layers) {
     if (layer.kind !== 'image') continue
-    if (!assets.has(layer.assetId)) assets.set(layer.assetId, await repository.getAsset(layer.assetId))
-    if (layer.maskKey && !masks.has(layer.maskKey)) masks.set(layer.maskKey, await repository.getMask(layer.maskKey))
+    assetIds.add(layer.assetId)
+    if (layer.maskKey) maskKeys.add(layer.maskKey)
   }
+
+  const [assetEntries, maskEntries] = await Promise.all([
+    Promise.all([...assetIds].map(async (id) => [id, await repository.getAsset(id)] as const)),
+    Promise.all([...maskKeys].map(async (key) => [key, await repository.getMask(key)] as const)),
+  ])
+  const assets = new Map(assetEntries)
+  const masks = new Map(maskEntries)
 
   const blob = await render(document, assets, masks)
   const name = `${(document.title || 'Sticker').trim().slice(0, 60)}.png`

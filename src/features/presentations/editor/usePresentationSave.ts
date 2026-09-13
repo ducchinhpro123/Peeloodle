@@ -386,23 +386,28 @@ async function mediaForCopy(
   held: PresentationMediaRecord[],
 ): Promise<{ ok: true; records: PresentationMediaRecord[] } | { ok: false; message: string }> {
   const heldByAssetId = new Map(held.map((record) => [record.assetId, record]))
-  const records: PresentationMediaRecord[] = []
-  for (const asset of copy.assets) {
-    const original = source.assets.find((candidate) => candidate.sha256 === asset.sha256)
+  const sourceBySha = new Map(source.assets.map((asset) => [asset.sha256, asset]))
+
+  // One pass over the copy's assets, fetching missing bytes concurrently, so a
+  // copy with many images waits for a single round trip rather than a series.
+  const outcomes = await Promise.all(copy.assets.map(async (asset): Promise<
+    { ok: true; record: PresentationMediaRecord } | { ok: false; message: string }
+  > => {
+    const original = sourceBySha.get(asset.sha256)
     if (!original) return { ok: false, message: 'The copy could not be prepared because its artwork no longer matches the original.' }
     const existing = heldByAssetId.get(original.id)
-    if (existing) {
-      records.push({ ...existing, assetId: asset.id })
-      continue
-    }
+    if (existing) return { ok: true, record: { ...existing, assetId: asset.id } }
     try {
       const stored = await repository.getMedia(original.id)
-      records.push({ assetId: asset.id, bytes: stored.bytes, mimeType: stored.mimeType })
+      return { ok: true, record: { assetId: asset.id, bytes: stored.bytes, mimeType: stored.mimeType } }
     } catch {
       return { ok: false, message: 'The copy could not be prepared because some of its artwork could not be read back.' }
     }
-  }
-  return { ok: true, records }
+  }))
+
+  const failed = outcomes.find((outcome) => !outcome.ok)
+  if (failed) return { ok: false, message: failed.message }
+  return { ok: true, records: outcomes.flatMap((outcome) => (outcome.ok ? [outcome.record] : [])) }
 }
 
 function conflictCopyTitle(title: string): string {

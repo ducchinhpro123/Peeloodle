@@ -182,16 +182,26 @@ async function decodeSlideArtwork(repository: PresentationRepository, slide: Sli
   const images = new Map<string, PresentationImageSource>()
   const disposers: Array<() => void> = []
 
-  try {
-    for (const assetId of assetIds) {
-      const record = await repository.getMedia(assetId)
-      const bitmap = await decodeImageBitmap(new Blob([record.bytes], { type: record.mimeType }))
-      disposers.push(() => bitmap.close())
-      images.set(assetId, bitmap)
+  // Fetch and decode the slide's artwork concurrently; allSettled keeps every
+  // bitmap reachable for disposal when one image fails.
+  const settled = await Promise.allSettled([...assetIds].map(async (assetId) => {
+    const record = await repository.getMedia(assetId)
+    const bitmap = await decodeImageBitmap(new Blob([record.bytes], { type: record.mimeType }))
+    return { assetId, bitmap }
+  }))
+
+  const failure = settled.find((result) => result.status === 'rejected')
+  if (failure) {
+    for (const result of settled) {
+      if (result.status === 'fulfilled') result.value.bitmap.close()
     }
-  } catch (error) {
-    for (const dispose of disposers) dispose()
-    throw error
+    throw failure.reason
+  }
+
+  for (const result of settled) {
+    if (result.status !== 'fulfilled') continue
+    images.set(result.value.assetId, result.value.bitmap)
+    disposers.push(() => result.value.bitmap.close())
   }
 
   return {
