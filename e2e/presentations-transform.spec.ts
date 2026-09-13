@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { openBlankEditor, seedFixturePresentation } from './presentations'
 
 const OUT = join(process.cwd(), 'proofs', 'out')
@@ -111,6 +111,24 @@ async function setField(page: Page, label: string, value: string): Promise<void>
 /** The centre of a client-pixel box, in client pixels. */
 function centreOfBox(box: { x: number; y: number; width: number; height: number }): { x: number; y: number } {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+}
+
+/**
+ * The pointer target of a handle, in client pixels. The handle's own 2px border
+ * is inside its border box and an absolutely positioned child resolves against
+ * the padding box, so the pseudo-element is what the browser hit-tests and its
+ * resolved size—not the visible handle's—is the touch target.
+ */
+async function pointerTarget(handle: Locator): Promise<{ width: number; height: number }> {
+  return handle.evaluate((element) => {
+    const pseudo = getComputedStyle(element, '::before')
+    return { width: Number.parseFloat(pseudo.width), height: Number.parseFloat(pseudo.height) }
+  })
+}
+
+/** Which element a real hit test lands on at one client point. */
+async function hitTest(page: Page, point: { x: number; y: number }): Promise<string | null> {
+  return page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.getAttribute('data-testid') ?? null, point)
 }
 
 /** One point on the circle around `centre` through `point`, turned by `degrees`. */
@@ -366,11 +384,11 @@ test('keeps the numeric geometry path and 44px handles when the inspector pane i
     expect(moved.history).toBe(before.history + 1)
 
     // The handle keeps its visual centre on the corner but offers a finger-sized
-    // target: a press 16px outside the 14px square still starts the resize.
+    // 44px target: a press 21px from the centre still starts the resize.
     const handle = page.getByTestId('presentation-handle-se')
     await handle.scrollIntoViewIfNeeded()
     const handleCentre = centreOfBox((await handle.boundingBox())!)
-    const from = { x: handleCentre.x + 16, y: handleCentre.y + 16 }
+    const from = { x: handleCentre.x + 21, y: handleCentre.y }
     await page.mouse.move(from.x, from.y)
     await page.mouse.down()
     await page.mouse.move(from.x + 20, from.y + 10)
@@ -380,6 +398,61 @@ test('keeps the numeric geometry path and 44px handles when the inspector pane i
     expect(resized.width).toBeGreaterThan(moved.width)
     expect({ x: resized.x, y: resized.y }).toEqual({ x: moved.x, y: moved.y })
     expect(resized.history).toBe(moved.history + 1)
+  }
+})
+
+test('gives every handle a 44px pointer target without moving its visual centre', async ({ page }) => {
+  await openBlankEditor(page)
+  await page.getByRole('button', { name: 'Add text' }).click()
+  await expect(page.getByRole('textbox', { name: 'Text content' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await setField(page, 'X position', '200')
+  await setField(page, 'Y position', '200')
+  await setField(page, 'Width', '320')
+  await setField(page, 'Height', '160')
+
+  // A finger, not a mouse, has to land on these handles: the phone layout is
+  // where the 44px minimum matters, and handle sizes do not vary with width.
+  await page.setViewportSize({ width: 390, height: 844 })
+  const canvasHost = page.getByTestId('presentation-canvas')
+  const element = await readElement(page)
+  const view = await canvasView(page)
+  const hostBox = (await canvasHost.boundingBox())!
+  const elementCentre = at(view, element.x + element.width / 2, element.y + element.height / 2)
+  await canvasHost.click({ position: { x: elementCentre.x - hostBox.x, y: elementCentre.y - hostBox.y } })
+  await expect(canvasHost).toHaveAttribute('data-selected-element', element.id)
+
+  const frameBox = (await page.getByTestId('presentation-selection-frame').boundingBox())!
+  // Where each visible handle must stay: on the element's own corner, and 32px
+  // above the frame's top edge for the round handle at the end of its stem.
+  const expectedCentre = {
+    nw: { x: frameBox.x, y: frameBox.y },
+    ne: { x: frameBox.x + frameBox.width, y: frameBox.y },
+    se: { x: frameBox.x + frameBox.width, y: frameBox.y + frameBox.height },
+    sw: { x: frameBox.x, y: frameBox.y + frameBox.height },
+    rotate: { x: frameBox.x + frameBox.width / 2, y: frameBox.y - 32 },
+  }
+  const visibleSize = { nw: 14, ne: 14, se: 14, sw: 14, rotate: 16 }
+
+  for (const handle of ['nw', 'ne', 'se', 'sw', 'rotate'] as const) {
+    const target = page.getByTestId(`presentation-handle-${handle}`)
+    const size = await pointerTarget(target)
+    // Soft so one run reports every handle that is short of the minimum.
+    expect.soft(size.width, `${handle} pointer width`).toBeGreaterThanOrEqual(44)
+    expect.soft(size.height, `${handle} pointer height`).toBeGreaterThanOrEqual(44)
+
+    const box = (await target.boundingBox())!
+    expect(box.width, `${handle} visible width`).toBeCloseTo(visibleSize[handle], 1)
+    expect(box.height, `${handle} visible height`).toBeCloseTo(visibleSize[handle], 1)
+    const centre = centreOfBox(box)
+    expect(Math.abs(centre.x - expectedCentre[handle].x), `${handle} centre x`).toBeLessThanOrEqual(2)
+    expect(Math.abs(centre.y - expectedCentre[handle].y), `${handle} centre y`).toBeLessThanOrEqual(2)
+
+    // A press near the required edge lands on this handle: 21px from the centre
+    // is outside a 40px corner target and 22px is outside a 42px rotate target.
+    const reach = handle === 'rotate' ? 22 : 21
+    expect.soft(await hitTest(page, { x: centre.x + reach, y: centre.y }), `${handle} at ${reach}px from centre`)
+      .toBe(`presentation-handle-${handle}`)
   }
 })
 

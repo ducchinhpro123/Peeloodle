@@ -140,12 +140,12 @@ the quarter-turn and second-quarter-turn browser drags above.
   the shared `.properties-toggle` class; the fixed bottom-right corner position now belongs to the
   sticker editor alone (`.editor-workspace .properties-toggle`), and that editor's own 1024/390px
   specs still pass.
-- Handles keep their 14px (16px rotate) visual size and centre; a transparent `::before { inset: -15px }`
-  grows only the pointer target to 44px.
+- Handles keep their 14px (16px rotate) visual size and centre; a transparent `::before` grows only
+  the pointer target — see fix round 2 for the corrected extent (the round-1 `-15px` was 40px, not 44px).
 - Browser RED: the trigger did not exist (30s timeout waiting for it). Hit-area mutation (removing
-  only the `::before` rule): `expected > 320, received 320` — the press 16px outside the square no
+  only the `::before` rule): `expected > 320, received 320` — the press outside the square no
   longer resized. GREEN at 1024×768 and 390×844: the pane fields are hidden, the dialog opens, typing
-  X commits exactly one history entry, and a press 16px outside the 14px SE square starts a resize
+  X commits exactly one history entry, and a press outside the 14px SE square starts a resize
   that grows the width with x/y pinned and +1 history entry.
 - New captures: `proofs/out/p24-element-properties-1024x768.png` and
   `p24-element-properties-390x844.png` show the dialog with the live values at both widths.
@@ -178,6 +178,56 @@ No legacy capture was re-committed in this round: the presentation specs rewrite
 every run, and the five files they touched differed from the committed ones only by 3–53 pixels at
 max channel delta 2 (re-rendering noise), so they were restored byte-identically.
 
+## Fix round 2 — the handle pointer target was 40px/42px, not 44px
+
+The reviewer was right. Global `* { box-sizing: border-box }` puts the handle's 2px border *inside*
+its border box, and an absolutely positioned child resolves against its parent's **padding** box. So
+`::before { inset: -15px }` grew the target to 10 + 30 = **40px** on the 14px corner handles and
+12 + 30 = **42px** on the 16px rotate handle, not 44px. The round-1 test pressed 16px out along each
+axis—a point that stays inside even a 40px box, whose half extent is 20px—so it could not see the
+shortfall.
+
+- `styles.css`: `inset: -17px`, i.e. 10 + 34 = 44px corner targets and 12 + 34 = 46px rotate targets,
+  and the comment above the rule now shows that arithmetic. Only the pseudo-element's extent changed:
+  the visible 14px/16px handles, their centres on the element's own corners (32px above the frame's
+  top edge for the rotate handle), and every frame/inspector value are untouched.
+- `e2e/presentations-transform.spec.ts`: new focused test “gives every handle a 44px pointer target
+  without moving its visual centre”. At 390×844 it selects an element and, for all four corners and the
+  rotate handle, (1) reads the resolved `::before` box with `getComputedStyle(handle, '::before')` and
+  requires at least 44×44, (2) requires the visible handle to stay 14px (16px rotate) with its centre on
+  the corner — or 32px above the frame's top edge — and (3) hit-tests a real point 21px from the centre
+  (22px for the shorter rotate target) with `document.elementFromPoint`, so the target is proven by the
+  browser's own hit testing, not by the CSS value alone. The existing narrow-width test now presses 21px
+  from the SE centre before dragging, so a 40px target can no longer pass the gesture path either.
+
+RED before the CSS change (focused run, `-g '44px'`): `2 failed`.
+
+- `gives every handle a 44px pointer target …`: `nw/ne/se/sw pointer width|height` →
+  `Expected: >= 44, Received: 40`; `rotate pointer width|height` → `Expected: >= 44, Received: 42`;
+  `nw at 21px from centre` (and ne/se/sw/rotate) → `Expected: "presentation-handle-nw", Received: null`.
+- `keeps the numeric geometry path and 44px handles …`: the 21px press started no resize —
+  `Expected: > 320, Received: 320`.
+
+GREEN after `inset: -17px`: the same two tests pass, and a temporary probe of the new test's loop in the
+same run reported `nw 44x44`, `ne 44x44`, `se 44x44`, `sw 44x44`, `rotate 46x46`.
+
+```bash
+npx playwright test e2e/presentations-transform.spec.ts --workers=1 -g '44px'   # RED 2 failed → GREEN 2 passed
+npx playwright test e2e/presentations-transform.spec.ts --workers=1            # 5 passed
+npx vitest run --environment jsdom src/features/presentations/editor/transformGeometry.test.ts \
+  src/features/presentations/editor/store.test.ts                               # 51 passed
+npx vitest run --environment jsdom --exclude 'e2e/**'                           # 473 passed
+npm run typecheck && npm run lint && npm run build && npm run board && git diff --check
+```
+
+Typecheck clean, lint 0 errors / 4 pre-existing warnings, `vite build` clean, `npm run board`
+regenerated `tasks.html` byte-identically (92 tasks, 23 done), `git diff --check` silent.
+
+Capture note: the two 1280×768 captures were re-rendering noise (max channel delta 1–3, no geometry
+change) and were restored byte-identically. `p24-element-properties-390x844.png` genuinely changed
+(`402`/`213` → `409`/`189`) because the strengthened 1024px gesture now leaves the element a different
+height when the 390px capture is taken, so the refreshed capture is committed.
+
 ## Limits and follow-ups
 
 - Resizing previews by scaling the rendered group (text scales rather than reflows until the commit
@@ -185,6 +235,9 @@ max channel delta 2 (re-rendering noise), so they were restored byte-identically
 - The rotate handle can leave the visible panel when a zoomed element sits at the slide's top edge;
   the Rotation field stays reachable at every width (the pane above 1150px, the properties dialog
   below it), and P31 alignment/tooling can add a smarter handle.
+- The 44–46px targets of neighbouring handles overlap once an element is smaller than about 45px on
+  screen (roughly 280 document units at the 390px viewport's fit zoom). The shared pixels go to the
+  handle later in the DOM, and the numeric fields remain exact; zooming in separates the targets.
 - Dragging is the only way to pan away from an element when an element covers the whole slide; a
   space/middle-button pan and alignment guides are P31.
 - Text formatting, layers, locks UI, snapping and multi-select remain P25–P31, as planned.

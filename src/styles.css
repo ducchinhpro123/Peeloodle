@@ -1273,9 +1273,11 @@ main > section, main > div { min-width: 0; }
 .presentation-transform-handle { position: absolute; width: 14px; height: 14px; border: 2px solid var(--mint); border-radius: 4px; background: #fff; box-shadow: var(--shadow); pointer-events: auto; touch-action: none; }
 /*
  * The visible handle keeps its size, so its centre still marks the element's own
- * corner; the pseudo-element grows only the pointer target to a 44px touch size.
+ * corner; only the pointer target grows. The 2px border sits inside the handle's
+ * border box, so the pseudo-element resolves against a 10px padding box (12px on
+ * the 16px rotate handle): -17px makes a 44px corner target and a 46px rotate one.
  */
-.presentation-transform-handle::before { position: absolute; inset: -15px; content: ''; }
+.presentation-transform-handle::before { position: absolute; inset: -17px; content: ''; }
 .presentation-transform-nw, .presentation-transform-se { cursor: nwse-resize; }
 .presentation-transform-ne, .presentation-transform-sw { cursor: nesw-resize; }
 .presentation-transform-nw { left: -2px; top: -2px; transform: translate(-50%, -50%); }
