@@ -22,7 +22,11 @@ replacement and flip) is recorded in `proofs/p29-image-adjust.md`, P30 (layer li
 `proofs/p30-layer-list.md`, P31 (alignment guides) in `proofs/p31-alignment-guides.md`, P32 (slide
 backgrounds and theme defaults) in `proofs/p32-backgrounds-theme.md`, and P33 (sticker snapshots) in
 `proofs/p33-sticker-snapshots.md`. P34's focused verification passes; its desktop/tablet browser evidence is
-deferred at the owner's request (`proofs/p34-milestone2-verification.md`). Review-driven
+deferred at the owner's request (`proofs/p34-milestone2-verification.md`). Milestone 3 is implemented through
+P43: P35–P37 are recorded in `proofs/p35-export-snapshot.md`, `proofs/p36-fixed-page-rasterizer.md` and
+`proofs/p37-pdf-export.md`; P38/P39 in `proofs/p38-p39-pptx-export.md`; P40 in
+`proofs/p40-export-dialog.md`; and P41–P43 in `proofs/p41-p43-backup-restore.md`. P44/P45 (reader and
+offline/large-document verification) remain open and need a browser/reader pass. Review-driven
 corrections are recorded in `proofs/correction-pass.md`. Start the next session from
 [`HANDOFF.md`](../HANDOFF.md).
 
@@ -124,17 +128,17 @@ The first coding task is **P01**, then the **export/text proof P02–P05**. Do n
 
 | Done | ID | Work item | Depends on | Completion evidence |
 | --- | --- | --- | --- | --- |
-| [ ] | P35 | Create export snapshot/preflight service that awaits edits, fonts and media. | P19, P34 | Concurrent edit cannot mix revisions; missing assets/overflow yield clear actionable messages. |
-| [ ] | P36 | Implement fixed-page slide renderer shared by previews and PDF rasterization. | P35 | Exact aspect/order/background, no artwork trim, viewport transform or handles. |
-| [ ] | P37 | Implement ordered PDF generation and inspect actual pages. | P06, P36 | 16:9 page sizes and expected page count; visual content intact; image-based PDF limitation documented. |
-| [ ] | P38 | Implement PPTX text paragraphs/runs, bullets and hyperlinks. | P03, P05, P35 | Native text objects preserve content/styles; edit downloaded text and save successfully. |
-| [ ] | P39 | Implement PPTX shapes and image transforms/crops. | P28, P29, P38 | Shape stays editable; each image separately movable; transparency and placement preserved. |
-| [ ] | P40 | Add lazy export loading, progress, cancellation boundaries and cleanup. | P37, P39 | Failures do not download partial files; repeated export releases URLs/canvases; main editor stays usable. |
-| [ ] | P41 | Implement backup writer with schema manifest, hashes, media and font dependencies. | P06, P35 | Inspect archive; all required bytes/metadata present, no temporary URLs or unrelated documents. |
-| [ ] | P42 | Implement bounded backup parser and safe restore to a new presentation. | P10, P14, P41 | Corrupt/oversized/duplicate-path/future-version archives fail without changing saved work. |
-| [ ] | P43 | Add backup/restore UI and recovery guidance on save failure. | P40, P42 | Restore works in a fresh browser profile; student can download work after a local save failure. |
-| [ ] | P44 | Verify full export compatibility fixture across available readers. | P37–P43 | Record app/version/OS, editability and screenshots; report untested apps, not universal support. |
-| [ ] | P45 | Verify large-document limits and network-disabled local editing/export. | P44 | Sequential export stays within measured bounds; no catalog request needed for saved media. |
+| [x] | P35 | Create export snapshot/preflight service that awaits edits, fonts and media. | P19, P34 | Concurrent edit cannot mix revisions; missing assets/overflow yield clear actionable messages. One synchronous capture plus preflight decodes and named warnings (`proofs/p35-export-snapshot.md`). |
+| [x] | P36 | Implement fixed-page slide renderer shared by previews and PDF rasterization. | P35 | Exact aspect/order/background, no artwork trim, viewport transform or handles. `rasterizeSlidePage` draws the same `renderSlide` group on a detached stage; thumbnails now use it (`proofs/p36-fixed-page-rasterizer.md`). |
+| [x] | P37 | Implement ordered PDF generation and inspect actual pages. | P06, P36 | 16:9 page sizes and expected page count; visual content intact; image-based PDF limitation documented. `buildPresentationPdf` rasterizes in document order with progress and cancellation; page count/order/size asserted (`proofs/p37-pdf-export.md`). |
+| [x] | P38 | Implement PPTX text paragraphs/runs, bullets and hyperlinks. | P03, P05, P35 | Native text objects preserve content/styles; edit downloaded text and save successfully. Run styles, hyperlinks and numbered/bulleted paragraphs asserted from the OOXML (`proofs/p38-p39-pptx-export.md`). |
+| [x] | P39 | Implement PPTX shapes and image transforms/crops. | P28, P29, P38 | Shape stays editable; each image separately movable; transparency and placement preserved. Native preset shapes, per-image media embeds, `srcRect` crop, flips and rotation-aware frames (`proofs/p38-p39-pptx-export.md`). |
+| [x] | P40 | Add lazy export loading, progress, cancellation boundaries and cleanup. | P37, P39 | Failures do not download partial files; repeated export releases URLs/canvases; main editor stays usable. Per-format dynamic imports, one-at-a-time controller, snapshot disposal and a save-failure backup action (`proofs/p40-export-dialog.md`). |
+| [x] | P41 | Implement backup writer with schema manifest, hashes, media and font dependencies. | P06, P35 | Inspect archive; all required bytes/metadata present, no temporary URLs or unrelated documents. The versioned writer has been in place since the P06 proof with 19 tests; the export controller now downloads `<title>.stickerlab.zip` (`proofs/p41-p43-backup-restore.md`). |
+| [x] | P42 | Implement bounded backup parser and safe restore to a new presentation. | P10, P14, P41 | Corrupt/oversized/duplicate-path/future-version archives fail without changing saved work. The bounded parser is unchanged from P06; `restoreBackupArchive` clones with fresh ids and re-keys media by hash (`proofs/p41-p43-backup-restore.md`). |
+| [x] | P43 | Add backup/restore UI and recovery guidance on save failure. | P40, P42 | Restore works in a fresh browser profile; student can download work after a local save failure. Library Restore control with success/error states; editor shows "Download backup" beside a failed save (`proofs/p41-p43-backup-restore.md`). |
+| [ ] | P44 | Verify full export compatibility fixture across available readers. | P37–P43 | Record app/version/OS, editability and screenshots; report untested apps, not universal support. Not run: no presentation reader was exercised and the owner asked to avoid repeated browser passes; the generated OOXML is asserted, not an app round-trip. |
+| [ ] | P45 | Verify large-document limits and network-disabled local editing/export. | P44 | Sequential export stays within measured bounds; no catalog request needed for saved media. Not run: requires the P44/browser pass and a network-disabled profile. |
 
 **Checkpoint:** this is the first complete student blank-presentation flow. It can be tried locally while the catalog/admin work proceeds. Do not call the full release complete until templates and administrator flows work.
 

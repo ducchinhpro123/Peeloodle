@@ -2,7 +2,7 @@
 
 Mint-green local sticker editor. Create a sticker, upload a photo, edit, save, reopen, and export a transparent PNG — no cloud credentials required.
 
-The [university presentations implementation plan](docs/slides-implementation-plan.md) is in progress, with [architecture](docs/slides-architecture.md) and an admin dashboard design concept. The current app can create, list, rename, duplicate, delete, and reopen local 16:9 presentations with real first-slide thumbnails, edit slide text with selection bold/italic and font family, size and color controls, apply paragraph alignment, bullets, numbering and line spacing, add safe hyperlinks, see actionable text-overflow feedback, add/duplicate/reorder/delete slides, insert and style shapes, move/resize/rotate/align elements through the canvas, layer list or a numeric inspector, snap moves to alignment guides, undo and redo with toolbar and keyboard shortcuts, set per-slide backgrounds and document theme defaults, place saved stickers as immutable snapshots, and insert, flip, crop and atomically replace personal PNG/JPEG/static-WebP images with autosave, an explicit Save, conflict recovery, and a guarded editor exit; presentation export, templates, and catalog administration remain planned increments.
+The [university presentations implementation plan](docs/slides-implementation-plan.md) is in progress, with [architecture](docs/slides-architecture.md) and an admin dashboard design concept. The current app can create, list, rename, duplicate, delete, and reopen local 16:9 presentations with real first-slide thumbnails, edit slide text with selection bold/italic and font family, size and color controls, apply paragraph alignment, bullets, numbering and line spacing, add safe hyperlinks, see actionable text-overflow feedback, add/duplicate/reorder/delete slides, insert and style shapes, move/resize/rotate/align elements through the canvas, layer list or a numeric inspector, snap moves to alignment guides, undo and redo with toolbar and keyboard shortcuts, set per-slide backgrounds and document theme defaults, place saved stickers as immutable snapshots, and insert, flip, crop and atomically replace personal images with autosave, an explicit Save, conflict recovery and a guarded editor exit, then export the deck as PDF, editable PPTX or a restorable .stickerlab.zip backup; templates and catalog administration remain planned increments.
 
 ![StickerLab overview of Dashboard, Create Sticker, and Templates](readme-included.png)
 
@@ -108,7 +108,10 @@ Fonts and cutouts are served locally, with no extra credentials or dependencies.
 - [x] Alignment guides: moves snap to sibling elements and the page with visible guide lines, plus explicit align-to-slide controls; guides are view-only and never saved
 - [x] Slide backgrounds and theme defaults: a per-slide background color and document heading/body font plus text/accent/background defaults for new slides and text, without restyling existing elements
 - [x] Sticker snapshots: saved stickers are composed through the export renderer and placed as immutable presentation images, so editing or deleting the source sticker leaves the placed copy untouched
-- [ ] Presentation PDF/PPTX/backup UI, templates, and administrator catalog workflows
+- [x] Export: one lazy export controller runs PDF (fixed visual pages), editable PPTX (native text, shapes, cropped/flipped/rotated images) and a restorable `.stickerlab.zip` backup, with progress, cancellation, preflight warnings and no partial downloads
+- [x] Backup restore: the library restores a `.stickerlab.zip` as a new presentation with fresh ids, and a failed local save still offers "Download backup"
+- [ ] Presentation templates and the administrator catalog workflows
+- [ ] Full reader compatibility, large-document and offline verification (P44/P45)
 - [ ] Public/read-only cloud sharing and native WhatsApp/Telegram installation
 
 Deferred actions open an explanation or stay disabled. They do not report success. Automatic background removal and public sharing are unavailable.

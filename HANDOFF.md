@@ -28,9 +28,19 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
   P34's focused checks pass (549 tests); its desktop/tablet Playwright journey
   was **not** re-run at the owner's request, so the plan row stays unticked
   (`proofs/p34-milestone2-verification.md`).
+- **Milestone 3 is implemented through P43.** One synchronous export capture
+  (`exports/snapshot.ts`) preflights edits, fonts and media and never mixes
+  revisions; `rendering/rasterizeSlide.ts` is the fixed-page renderer shared by
+  thumbnails and PDF; `exports/pdf.ts` writes ordered 960×540pt pages with
+  progress and cancellation; `exports/pptx.ts` writes editable text, shapes and
+  cropped/flipped/rotated images; `editor/usePresentationExport.ts` +
+  `ExportDialog` load builders lazily and never download partial files; and the
+  library restores `.stickerlab.zip` backups as new decks while a failed save
+  offers "Download backup". Evidence:
+  `proofs/p35-export-snapshot.md` … `proofs/p41-p43-backup-restore.md`.
 - Latest full checks: `npm run typecheck` clean, `npm run lint` 0 errors
-  (4 pre-existing warnings), `npm test` 549 passed / 40 files, `npm run build`
-  OK.
+  (5 pre-existing-category warnings), `npm test` ~580 tests across 45 files,
+  `npm run build` OK.
 - `/presentations` creates and reopens real local documents (blank documents are
   saved at creation). The editor renders the active slide, lists the document's
   slides, switches between them, edits text boxes through the DOM bridge, inserts
@@ -53,26 +63,25 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
   `navigate()` calls remain unguarded** because the app renders a plain
   `BrowserRouter`; closing that means a data-router migration, not a patch.
 
-## Start here: finish P34, then Milestone 3 (P35 — export snapshot/preflight)
+## Start here: P44/P45 verification, then Milestone 4 (P46 — catalog schema)
 
-**P22–P33 are done.** P32 added per-slide backgrounds and theme defaults
-(`proofs/p32-backgrounds-theme.md`); P33 added sticker snapshots composed through
-the export renderer (`proofs/p33-sticker-snapshots.md`).
+**P35–P43 are done** (see the proofs listed above). The export builders and
+backup flow are covered by focused tests that assemble and inspect real PDF
+pages and the generated OOXML package.
 
-**P34 is the one open Milestone 2 row.** Its focused checks pass; the required
-desktop/tablet browser evidence was deferred at the owner's request. When a
-browser run is acceptable, run:
+**P44 — verify the export compatibility fixture across available readers.** Open
+a generated `.pptx` and `.pdf` in an available app (PowerPoint, LibreOffice
+Impress, Google Slides), edit a text run and move a picture, save, and record
+app/version/OS plus screenshots. Report untested apps honestly. The P38/P39
+proof records exactly what was and was not verified.
 
-```bash
-npx playwright test e2e/presentations.spec.ts e2e/presentations-transform.spec.ts --workers=2
-```
+**P45 — large-document limits and network-disabled local editing/export** follows
+the P44 pass. Neither was run; both need a browser/reader session.
 
-Then tick P34 and re-run `npm run board`. Details and the coverage map are in
-`proofs/p34-milestone2-verification.md`.
-
-**Milestone 3 starts at P35 — export snapshot/preflight service** (depends P19,
-P34): one snapshot that awaits edits, fonts and media before PDF/PPTX/backup, so
-a concurrent edit cannot mix revisions.
+**Milestone 4 starts at P46 — catalog collection/item/version, template/version,
+job and event schema migrations** (depends P08, P10). P08 is still blocked on an
+authorized preview deployment, so do not start catalog ingestion code before
+that evidence exists.
 
 **Owner preference:** do not run Playwright repeatedly; it is slow. Use focused
 jsdom/Vitest tests and run a browser spec only for a task's one critical journey.
@@ -107,7 +116,7 @@ otherwise serve the shared tree through HMR module URLs.
 | Page rendering | `rendering/renderSlide.ts` + `editor/PresentationCanvas.tsx`; stage transforms are view-only |
 | Canvas view controls | `editor/PresentationCanvasControls.tsx` + `editor/viewGeometry.ts` (shared 0.25–4 clamp) |
 | Current routes | `library/PresentationsPage.tsx` and `editor/PresentationEditorPage.tsx` |
-| Exports (later) | `exports/pdf.ts`, `exports/backup.ts` |
+| Exports | `exports/snapshot.ts` (synchronous capture + preflight), `rendering/rasterizeSlide.ts` (shared fixed-page raster), `exports/pdf.ts` / `exports/pptx.ts` / `exports/backup.ts` (builders), `editor/usePresentationExport.ts` + `editor/ExportDialog.tsx` (lazy loading, progress, cancel, cleanup); restore lives in `library/restoreBackup.ts` |
 
 ## Guardrails
 

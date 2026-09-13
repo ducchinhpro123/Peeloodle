@@ -14,6 +14,7 @@ import { encodeRgbaPng } from './model/fixtures/png'
 import { usePresentationStore } from './editor/store'
 import { paragraphsToHtml } from './editor/textBridge'
 import { prepareStickerSnapshot } from './editor/insertStickerSnapshot'
+import { createBackupArchive } from './exports/backup'
 
 // The render pipeline needs a real canvas; the module has its own unit tests, so
 // the route test only verifies the picker → atomic insert wiring.
@@ -749,6 +750,20 @@ describe('presentation routes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
   })
 
+  it('offers PDF and PPTX export with an honest description', async () => {
+    const repository = createMemoryPresentationRepository()
+    await saveFixture(repository)
+    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('button', { name: 'Export PDF' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Export PPTX' })).toBeInTheDocument()
+    expect(within(dialog).getByText(/PDF keeps the exact slide visuals/, { exact: false })).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close dialog' }))
+  })
+
   it('releases decoded artwork when the editor closes', async () => {
     const repository = createMemoryPresentationRepository()
     await saveFixture(repository)
@@ -1216,6 +1231,8 @@ describe('presentation image insertion', () => {
 
     // The failure is readable, not a silent no-op, and it never claims success.
     expect(await screen.findByText(/^Save failed — /)).toBeInTheDocument()
+    // Recovery guidance: the work can still leave the browser as a backup.
+    expect(screen.getByRole('button', { name: 'Download backup' })).toBeInTheDocument()
     expect(editorElements()).toHaveLength(0)
     expect(usePresentationStore.getState().document).toBe(document)
     expect(usePresentationStore.getState().dirty).toBe(false)
@@ -1424,6 +1441,22 @@ describe('presentation library actions', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Rename this presentation' })
     return { dialog, field: within(dialog).getByRole('textbox', { name: 'Presentation name' }) }
   }
+
+  it('restores a backup archive as a new presentation', async () => {
+    const repository = createMemoryPresentationRepository()
+    const source = createPresentationDocument({ id: 'backup-source', title: 'Original deck' })
+    const bytes = await createBackupArchive(source, new Map())
+    renderLibrary(repository)
+    await screen.findByRole('heading', { name: 'No presentations yet' })
+
+    fireEvent.change(screen.getByTestId('presentation-restore-input'), {
+      target: { files: [new File([bytes], 'deck.stickerlab.zip', { type: 'application/zip' })] },
+    })
+
+    expect(await screen.findByRole('link', { name: 'Open Original deck (restored)' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/Restored .*Original deck \(restored\).* as a new presentation/)
+    expect((await repository.listPresentations()).map((item) => item.title)).toEqual(['Original deck (restored)'])
+  })
 
   it('renames a presentation and stores the trimmed title at the next revision', async () => {
     const repository = createMemoryPresentationRepository()

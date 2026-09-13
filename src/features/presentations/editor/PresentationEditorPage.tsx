@@ -26,6 +26,8 @@ import { TextEditOverlay } from './TextEditOverlay'
 import { TextFormatToolbar } from './TextFormatToolbar'
 import { ThemeControls } from './ThemeControls'
 import { usePresentationSave, type PersistInsertOutcome } from './usePresentationSave'
+import { usePresentationExport } from './usePresentationExport'
+import { ExportDialog } from './ExportDialog'
 import { usePresentationShortcuts } from './usePresentationShortcuts'
 import { registerLeaveGuard } from './leaveGuard'
 import { usePresentationStore } from './store'
@@ -128,6 +130,7 @@ export function PresentationEditorPage() {
   const canUndo = usePresentationStore((state) => state.past.length > 0)
   const canRedo = usePresentationStore((state) => state.future.length > 0)
   const save = usePresentationSave({ repository, documentId: presentationId })
+  const exportController = usePresentationExport({ repository })
   usePresentationShortcuts()
   const [attempt, setAttempt] = useState(0)
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' })
@@ -564,11 +567,21 @@ export function PresentationEditorPage() {
               <ThemeControls theme={document.theme} onChange={(next) => usePresentationStore.getState().setTheme(next, { historyGroup: 'theme' })} />
             </DialogContent>
           </Dialog>
+          <ExportDialog
+            state={exportController.state}
+            onExport={(format) => void exportController.exportDeck(format)}
+            onCancel={exportController.cancel}
+          />
           <Button onClick={requestSave}><Save size={16} aria-hidden="true" /> Save</Button>
           {save.state.status === 'conflict' ? (
             <Button disabled={recovering} onClick={() => void recoverFromConflict()}>
               {recovering ? 'Keeping your copy…' : 'Keep my copy'}
             </Button>
+          ) : null}
+          {saveReported ? (
+            /* Recovery guidance: if the local write fails, the work can still leave
+               the browser as a backup archive. */
+            <Button onClick={() => void exportController.exportDeck('backup')}>Download backup</Button>
           ) : null}
           <p className="presentation-local-status" role="status" title={save.state.message ?? undefined}>{editorNote ?? saveStatus}</p>
         </div>

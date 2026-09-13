@@ -9,10 +9,12 @@ import {
   Search,
   Sparkles,
   Trash2,
+  Upload,
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { usePresentationRepository } from '@/app/presentationRepositoryContext'
+import { blobToArrayBuffer } from '@/lib/persistence/idb'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'
@@ -20,6 +22,7 @@ import { createPresentationDocument } from '../model/factories'
 import { PRESENTATION_LIMITS } from '../model/limits'
 import type { PresentationSummary } from '../model/types'
 import { RENAME_EMPTY_TITLE_MESSAGE, describeLibraryFailure, renamedDocument } from './libraryActions'
+import { restoreBackupArchive } from './restoreBackup'
 import { PresentationThumb } from './PresentationThumb'
 
 /**
@@ -59,6 +62,9 @@ export function PresentationsPage() {
   const [pendingDelete, setPendingDelete] = useState<PresentationSummary | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [restoring, setRestoring] = useState(false)
+  const [restoreNote, setRestoreNote] = useState<string | null>(null)
+  const restoreInputRef = useRef<HTMLInputElement>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const renameOpener = useRef<HTMLButtonElement | null>(null)
   const deleteOpener = useRef<HTMLButtonElement | null>(null)
@@ -101,6 +107,33 @@ export function PresentationsPage() {
     } finally {
       creating.current = false
       if (live.current) setCreatingBlank(false)
+    }
+  }
+
+  /**
+   * Restores one backup as a NEW presentation: the parsed archive is bounded and
+   * verified by the backup parser, then cloned with fresh ids, so a bad file or a
+   * failed save leaves every existing presentation exactly as it was.
+   */
+  const restoreBackup = async (file: File) => {
+    setRestoring(true)
+    setActionError(null)
+    setRestoreNote(null)
+    try {
+      // FileReader-backed helper: `File.arrayBuffer` is missing in some embeddings.
+      const bytes = new Uint8Array(await blobToArrayBuffer(file))
+      const outcome = await restoreBackupArchive(repository, bytes)
+      if (!outcome.ok) {
+        if (live.current) setActionError(outcome.message)
+        return
+      }
+      if (!live.current) return
+      setRestoreNote(`Restored “${outcome.document.title}” as a new presentation.`)
+      await load()
+    } catch {
+      if (live.current) setActionError('This backup could not be read on this device.')
+    } finally {
+      if (live.current) setRestoring(false)
     }
   }
 
@@ -218,10 +251,27 @@ export function PresentationsPage() {
             />
           </label>
           <p className="presentation-device-note"><MonitorUp size={16} /> Best edited on a larger screen</p>
+          <Button disabled={restoring} onClick={() => restoreInputRef.current?.click()}>
+            <Upload size={16} aria-hidden="true" /> {restoring ? 'Restoring…' : 'Restore backup'}
+          </Button>
+          <input
+            ref={restoreInputRef}
+            className="sr-only"
+            type="file"
+            accept=".zip,application/zip"
+            aria-label="Choose backup file"
+            data-testid="presentation-restore-input"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file) void restoreBackup(file)
+            }}
+          />
         </div>
       </div>
 
       {actionError ? <p role="alert">{actionError}</p> : null}
+      {restoreNote ? <p role="status">{restoreNote}</p> : null}
 
       {error ? (
         <Card className="presentation-library-state">
@@ -242,7 +292,7 @@ export function PresentationsPage() {
           <div className="presentation-empty-copy">
             <p className="presentation-empty-kicker">A fresh canvas is waiting</p>
             <h2>No presentations yet</h2>
-            <p>Create a blank presentation and shape it one idea at a time. Templates and backup restore arrive in later increments.</p>
+            <p>Create a blank presentation and shape it one idea at a time. Templates arrive in a later increment; use <strong>Restore backup</strong> to bring back a downloaded .stickerlab.zip.</p>
             <Button className="primary" onClick={() => void createBlank()} disabled={creatingBlank}>
               <FilePlus2 size={18} />{creatingBlank ? 'Creating…' : 'Create your first presentation'}
             </Button>

@@ -41,6 +41,18 @@ Everything in this directory is developer evidence, not user-facing functionalit
   immutable presentation image assets.
 - `p34-milestone2-verification.md` — P34: focused milestone verification, with
   the desktop/tablet browser journey explicitly deferred.
+- `p35-export-snapshot.md` — P35: one synchronous capture plus preflight for
+  edits, fonts, media and warnings.
+- `p36-fixed-page-rasterizer.md` — P36: `rasterizeSlidePage`, the detached-stage
+  renderer shared by thumbnails and PDF.
+- `p37-pdf-export.md` — P37: ordered image-based PDF with progress and
+  cancellation, and the documented PDF limitation.
+- `p38-p39-pptx-export.md` — P38/P39: editable PPTX text, shapes and
+  cropped/flipped/rotated images, asserted from the generated OOXML.
+- `p40-export-dialog.md` — P40: lazy per-format loading, progress, cancellation,
+  cleanup and the save-failure backup action.
+- `p41-p43-backup-restore.md` — P41–P43: versioned backup writer/parser plus the
+  library restore flow and recovery guidance.
 - `out/` — generated proof outputs (PPTX, PDF, PNG renders, reports) referenced from task evidence.
 - Proof support modules live next to the code they exercise (for example
   `src/features/presentations/model/fixtures/`) so the same fixture is reused by tests and proofs.

@@ -21,6 +21,7 @@
 
 import type { PresentationRepository } from '@/lib/persistence/presentations/repository'
 import { decodeImageBitmap } from '@/lib/imageDecode'
+import { rasterizeSlidePage } from '../rendering/rasterizeSlide'
 import type { PresentationDocument, Slide } from '../model/types'
 import { ensurePresentationFonts } from '../rendering/fonts'
 import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
@@ -133,8 +134,8 @@ export async function loadStoredSlideThumbnail(
 }
 
 /**
- * Draws the first slide into a data URL. Konva arrives by dynamic import: the
- * library paints its cards without it, and the editor loads the same chunk.
+ * Draws the first slide into a data URL through the shared fixed-page rasterizer,
+ * so the card shows exactly what the export path would render.
  */
 export async function rasterizeSlideThumbnail(
   document: PresentationDocument,
@@ -142,31 +143,15 @@ export async function rasterizeSlideThumbnail(
 ): Promise<PresentationThumbnail> {
   const slide = document.slides[0]
   if (!slide) throw new Error('A presentation needs a slide to draw')
-  const [{ Konva }, { renderSlide }] = await Promise.all([
-    import('../rendering/konvaText'),
-    import('../rendering/renderSlide'),
-  ])
-
-  const scale = PRESENTATION_THUMBNAIL_WIDTH / document.pageSize.width
-  // The page group is in document units, so the scale belongs on the Stage — the
-  // same place the editor puts view zoom.
-  const stage = new Konva.Stage({
-    container: window.document.createElement('div'),
+  const raster = await rasterizeSlidePage({
+    slide,
+    pageSize: document.pageSize,
+    images,
     width: PRESENTATION_THUMBNAIL_WIDTH,
     height: PRESENTATION_THUMBNAIL_HEIGHT,
-    scaleX: scale,
-    scaleY: scale,
+    pixelRatio: 1,
   })
-  try {
-    const layer = new Konva.Layer()
-    stage.add(layer)
-    layer.add(renderSlide({ slide, pageSize: document.pageSize, images }))
-    layer.draw()
-    return { url: stage.toDataURL({ pixelRatio: 1 }) }
-  } finally {
-    // Releases the stage's canvases; the container div was never attached to the document.
-    stage.destroy()
-  }
+  return { url: raster.dataUrl }
 }
 
 type DecodedArtwork = {
