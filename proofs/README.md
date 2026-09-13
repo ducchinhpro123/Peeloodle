@@ -21,6 +21,26 @@ Everything in this directory is developer evidence, not user-facing functionalit
   fresh duplicate IDs, persisted order, and the adjacent-survivor delete.
 - `p24-element-transforms.md` — P24: element move/resize/rotate in document
   coordinates, with the frame, handles and numeric inspector agreeing.
+- `p25-history-and-retention.md` — P25: toolbar/keyboard undo and redo, gesture
+  grouping, and bounded held-media retention across history.
+- `p26-text-formatting.md` — P26: selection bold/italic, font family, size and
+  color through the bridge, surviving undo and reopen.
+- `p27-paragraphs-links-overflow.md` — P27: paragraph alignment/bullets/line
+  spacing, safe links, and actionable text-overflow feedback.
+- `p28-shapes.md` — P28: rectangle, rounded rectangle, ellipse, line and arrow
+  insertion with fill/stroke controls.
+- `p29-image-adjust.md` — P29: non-destructive crop, flip and atomic photo
+  replacement that preserves placement.
+- `p30-layer-list.md` — P30: keyboard-accessible element list with order,
+  duplicate, delete, visibility and lock controls.
+- `p31-alignment-guides.md` — P31: snapping during move, view-only guide lines
+  and explicit align-to-slide controls.
+- `p32-backgrounds-theme.md` — P32: per-slide background and document theme
+  defaults that do not restyle existing elements.
+- `p33-sticker-snapshots.md` — P33: saved stickers composed once and placed as
+  immutable presentation image assets.
+- `p34-milestone2-verification.md` — P34: focused milestone verification, with
+  the desktop/tablet browser journey explicitly deferred.
 - `out/` — generated proof outputs (PPTX, PDF, PNG renders, reports) referenced from task evidence.
 - Proof support modules live next to the code they exercise (for example
   `src/features/presentations/model/fixtures/`) so the same fixture is reused by tests and proofs.

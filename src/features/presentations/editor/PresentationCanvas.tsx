@@ -6,6 +6,7 @@ import { usePresentationStore } from './store'
 import { PresentationCanvasControls } from './PresentationCanvasControls'
 import { PresentationSelectionFrame } from './PresentationSelectionFrame'
 import { presentationViewport, clampPresentationZoom } from './viewGeometry'
+import { snapToAlignment, type AlignmentGuide } from './alignmentGuides'
 import {
   documentPointFromView,
   elementGeometry,
@@ -61,6 +62,7 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
   const zoom = usePresentationStore((state) => state.view.zoom)
   const pan = usePresentationStore((state) => state.view.pan)
   const transformPreview = usePresentationStore((state) => state.view.transformPreview)
+  const guides = usePresentationStore((state) => state.view.guides)
   const activeSlide = document?.slides.find((slide) => slide.id === activeSlideId) ?? document?.slides[0]
   const selectedElement = activeSlide?.elements.find((element) => element.id === selectedElementId)
   const editingElement = activeSlide?.elements.find((element) => element.id === editingElementId)
@@ -285,9 +287,22 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
     }
     const point = pointFromClient(event.clientX, event.clientY)
     if (!point) return true
-    const current = previewGeometry(gesture, point)
+    let current = previewGeometry(gesture, point)
+    let nextGuides: AlignmentGuide[] = []
+    // Move gestures snap to other visible elements and the page axes, and show
+    // the matched lines. Resize and rotate keep exact pointer geometry.
+    if (gesture.kind === 'move' && activeSlide && document) {
+      const others = activeSlide.elements
+        .filter((element) => element.id !== gesture.elementId && element.visible)
+        .map((element) => elementGeometry(element, null))
+      const snapped = snapToAlignment(current, others, document.pageSize)
+      current = { ...current, x: snapped.x, y: snapped.y }
+      nextGuides = snapped.guides
+    }
     gesture.current = current
-    usePresentationStore.getState().setTransformPreview({ elementId: gesture.elementId, ...current })
+    const store = usePresentationStore.getState()
+    store.setTransformPreview({ elementId: gesture.elementId, ...current })
+    store.setGuides(nextGuides)
     return true
   }
 
@@ -302,6 +317,7 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
     // A click without movement leaves no undo entry and no revision behind.
     if (commit && gesture.current) store.commitTransform(gesture.elementId, gesture.current)
     else if (gesture.current) store.setTransformPreview(null)
+    store.setGuides([])
   }
 
   if (!document || !activeSlide) return null
@@ -382,6 +398,17 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
       ) : null}
       {renderError ? <p className="presentation-canvas-error" role="alert">Some artwork on this slide could not be drawn. Your saved presentation is unchanged.</p> : null}
       {activeSlide.elements.length === 0 && !renderError ? <p className="presentation-blank-slide" aria-hidden="true">Blank slide</p> : null}
+      {guides.map((guide, index) => (
+        <div
+          key={`${guide.axis}-${guide.position}-${index}`}
+          className={`presentation-guide is-${guide.axis}`}
+          data-testid={`presentation-guide-${guide.axis}`}
+          aria-hidden="true"
+          style={guide.axis === 'x'
+            ? { left: viewport.x + guide.position * viewport.scale, top: viewport.y, height: document.pageSize.height * viewport.scale }
+            : { top: viewport.y + guide.position * viewport.scale, left: viewport.x, width: document.pageSize.width * viewport.scale }}
+        />
+      ))}
     </section>
   )
 }

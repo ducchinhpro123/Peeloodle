@@ -1,9 +1,10 @@
-import { ArrowDown, ArrowLeft, ArrowUp, Copy, ImagePlus, MonitorUp, PenLine, Plus, Save, ShieldAlert, Trash2, Type } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, Copy, ImagePlus, MonitorUp, PenLine, Plus, Redo2, Save, ShieldAlert, Trash2, Type, Undo2 } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { useOptionalRepository } from '@/app/repository'
 import { usePresentationRepository } from '@/app/presentationRepositoryContext'
 import { isPersistenceError } from '@/lib/persistence/repository'
 import { decodeImageBitmap } from '@/lib/imageDecode'
@@ -15,10 +16,17 @@ import type { PresentationDocument } from '../model/types'
 import { ensurePresentationFonts } from '../rendering/fonts'
 import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
 import { PresentationCanvasControls } from './PresentationCanvasControls'
+import { ElementLayerList } from './ElementLayerList'
 import { ElementGeometryInspector } from './ElementGeometryInspector'
-import { PrepareImageError, preparePresentationImage } from './insertImageAsset'
+import { PrepareImageError, preparePresentationImage, type PreparedPresentationImage } from './insertImageAsset'
+import { prepareStickerSnapshot } from './insertStickerSnapshot'
+import { StickerPickerDialog } from './StickerPickerDialog'
+import { createSlideShape, type ShapeInsertKind } from './shapeTools'
 import { TextEditOverlay } from './TextEditOverlay'
+import { TextFormatToolbar } from './TextFormatToolbar'
+import { ThemeControls } from './ThemeControls'
 import { usePresentationSave, type PersistInsertOutcome } from './usePresentationSave'
+import { usePresentationShortcuts } from './usePresentationShortcuts'
 import { registerLeaveGuard } from './leaveGuard'
 import { usePresentationStore } from './store'
 
@@ -111,17 +119,23 @@ export function PresentationEditorPage() {
   const { presentationId = '' } = useParams()
   const navigate = useNavigate()
   const repository = usePresentationRepository()
+  const stickerRepository = useOptionalRepository()
   const document = usePresentationStore((state) => state.document)
   const activeSlideId = usePresentationStore((state) => state.view.activeSlideId)
   const selectedElementIds = usePresentationStore((state) => state.view.selectedElementIds)
+  const editingElementId = usePresentationStore((state) => state.view.editingElementId)
   const dirty = usePresentationStore((state) => state.dirty)
+  const canUndo = usePresentationStore((state) => state.past.length > 0)
+  const canRedo = usePresentationStore((state) => state.future.length > 0)
   const save = usePresentationSave({ repository, documentId: presentationId })
+  usePresentationShortcuts()
   const [attempt, setAttempt] = useState(0)
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' })
   const [inserting, setInserting] = useState(false)
   const [insertError, setInsertError] = useState<string | null>(null)
   const [recovering, setRecovering] = useState(false)
   const [editorNote, setEditorNote] = useState<string | null>(null)
+  const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null)
   const mediaRef = useRef<DecodedMedia | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const slideButtonRefs = useRef(new Map<string, HTMLButtonElement>())
@@ -317,6 +331,15 @@ export function PresentationEditorPage() {
     if (id) setFocusSlideId(id)
   }
 
+  const addShape = (kind: ShapeInsertKind) => {
+    const store = usePresentationStore.getState()
+    if (!store.document) return
+    const element = createSlideShape(kind, store.document.pageSize)
+    // Blocks take the document's accent; linear kinds keep their stroke colour.
+    if (element.shape !== 'line' && element.shape !== 'arrow') element.fill = store.document.theme.colors.accent ?? element.fill
+    store.addElement(element)
+  }
+
   const duplicateActiveSlide = () => {
     const store = usePresentationStore.getState()
     const activeId = store.view.activeSlideId
@@ -343,7 +366,17 @@ export function PresentationEditorPage() {
    * document and the screen exactly as they were, and no success is ever shown
    * for it.
    */
-  const addImage = async (file: File) => {
+  /**
+   * Persist, then adopt: the repository writes the document and this image's
+   * bytes in one transaction, and only then does the editor show the artwork.
+   * Shared by insertion and replacement so neither path can report success for a
+   * half-written change.
+   */
+  const runImageWrite = async (
+    prepare: () => Promise<PreparedPresentationImage>,
+    write: (prepared: PreparedPresentationImage) => Promise<PersistInsertOutcome>,
+    fallback: string,
+  ) => {
     const store = usePresentationStore.getState()
     if (!store.document) return
     if (!mediaRef.current) {
@@ -354,11 +387,11 @@ export function PresentationEditorPage() {
 
     setInserting(true)
     // Past the write the element, its asset and its bytes are stored, so a later
-    // display failure must not be reported as a failed insert.
+    // display failure must not be reported as a failed write.
     let persisted = false
     try {
-      const prepared = await preparePresentationImage(file)
-      const outcome = await save.persistInsert(prepared)
+      const prepared = await prepare()
+      const outcome = await write(prepared)
       if (!outcome.ok) {
         setInsertError(insertRefusalMessage(outcome))
         return
@@ -375,10 +408,34 @@ export function PresentationEditorPage() {
     } catch (error) {
       if (error instanceof PrepareImageError) setInsertError(error.message)
       else if (persisted) setInsertError('This image was saved, but it cannot be displayed here yet. Reopen the presentation to see it.')
-      else setInsertError('This image could not be added.')
+      else setInsertError(fallback)
     } finally {
       setInserting(false)
     }
+  }
+
+  const addImage = (file: File) => runImageWrite(() => preparePresentationImage(file), (prepared) => save.persistInsert(prepared), 'This image could not be added.')
+
+  /** Opens the file picker for a replacement; the chosen file keeps the element's placement. */
+  const beginReplaceImage = (elementId: string) => {
+    setReplaceTargetId(elementId)
+    imageInputRef.current?.click()
+  }
+
+  const replacePhoto = (file: File) => {
+    const target = replaceTargetId
+    if (!target) return
+    setReplaceTargetId(null)
+    return runImageWrite(() => preparePresentationImage(file), (prepared) => save.persistReplace(target, prepared), 'This photo could not be replaced.')
+  }
+
+  /** Composes a saved sticker once and places the snapshot as an immutable image. */
+  const addSticker = (projectId: string) => {
+    if (!stickerRepository) {
+      setInsertError('Saved stickers are not available in this session.')
+      return
+    }
+    return runImageWrite(() => prepareStickerSnapshot(stickerRepository, projectId), (prepared) => save.persistInsert(prepared), 'This sticker could not be added.')
   }
 
   const requestSave = () => {
@@ -422,10 +479,47 @@ export function PresentationEditorPage() {
           <h1 title={document.title}>{document.title}</h1>
         </div>
         <div className="presentation-editor-actions">
+          <Button
+            className="icon"
+            aria-label="Undo"
+            title="Undo (Ctrl+Z)"
+            disabled={!canUndo}
+            onClick={() => usePresentationStore.getState().undo()}
+          >
+            <Undo2 size={17} aria-hidden="true" />
+          </Button>
+          <Button
+            className="icon"
+            aria-label="Redo"
+            title="Redo (Ctrl+Shift+Z)"
+            disabled={!canRedo}
+            onClick={() => usePresentationStore.getState().redo()}
+          >
+            <Redo2 size={17} aria-hidden="true" />
+          </Button>
+          <label className="presentation-add-shape">
+            <span className="sr-only">Add shape</span>
+            <select
+              aria-label="Add shape"
+              value=""
+              onChange={(event) => {
+                const kind = event.target.value as ShapeInsertKind
+                if (kind) addShape(kind)
+              }}
+            >
+              <option value="">Add shape…</option>
+              <option value="rectangle">Rectangle</option>
+              <option value="rounded-rectangle">Rounded rectangle</option>
+              <option value="ellipse">Ellipse</option>
+              <option value="line">Line</option>
+              <option value="arrow">Arrow</option>
+            </select>
+          </label>
           <Button onClick={addTextBox}><Type size={16} aria-hidden="true" /> Add text</Button>
-          <Button disabled={inserting} onClick={() => imageInputRef.current?.click()}>
+          <Button disabled={inserting} onClick={() => { setReplaceTargetId(null); imageInputRef.current?.click() }}>
             <ImagePlus size={16} aria-hidden="true" /> {inserting ? 'Adding image…' : 'Add image'}
           </Button>
+          {stickerRepository ? <StickerPickerDialog repository={stickerRepository} disabled={inserting} onPick={(projectId) => void addSticker(projectId)} /> : null}
           <input
             ref={imageInputRef}
             className="sr-only"
@@ -436,7 +530,9 @@ export function PresentationEditorPage() {
             onChange={(event) => {
               const file = event.target.files?.[0]
               event.target.value = ''
-              if (file) void addImage(file)
+              if (!file) return
+              if (replaceTargetId) void replacePhoto(file)
+              else void addImage(file)
             }}
           />
           {selectedText ? (
@@ -454,10 +550,20 @@ export function PresentationEditorPage() {
               <DialogContent>
                 <DialogTitle>Element properties</DialogTitle>
                 <DialogDescription>Exact document values for the selected element. Typing here is the keyboard path to the same numbers the canvas handles produce.</DialogDescription>
-                <ElementGeometryInspector element={selectedElement} />
+                <ElementGeometryInspector element={selectedElement} onReplaceImage={beginReplaceImage} />
               </DialogContent>
             </Dialog>
           ) : null}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button>Theme</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogTitle>Presentation theme</DialogTitle>
+              <DialogDescription>Defaults for new slides and text. Existing elements keep their own styles.</DialogDescription>
+              <ThemeControls theme={document.theme} onChange={(next) => usePresentationStore.getState().setTheme(next, { historyGroup: 'theme' })} />
+            </DialogContent>
+          </Dialog>
           <Button onClick={requestSave}><Save size={16} aria-hidden="true" /> Save</Button>
           {save.state.status === 'conflict' ? (
             <Button disabled={recovering} onClick={() => void recoverFromConflict()}>
@@ -467,6 +573,7 @@ export function PresentationEditorPage() {
           <p className="presentation-local-status" role="status" title={save.state.message ?? undefined}>{editorNote ?? saveStatus}</p>
         </div>
       </header>
+      {editingElementId ? <TextFormatToolbar /> : null}
       {insertError ? <p className="asset-error" role="alert">{insertError}</p> : null}
       <div className="presentation-mobile-note">
         <MonitorUp size={18} aria-hidden="true" />
@@ -534,6 +641,8 @@ export function PresentationEditorPage() {
               </div>
             ))}
           </div>
+          <p>Elements</p>
+          <ElementLayerList />
         </aside>
         <PresentationCanvasSlot images={loadState.images} />
         <aside className="presentation-inspector" aria-label="Presentation details">
@@ -543,10 +652,22 @@ export function PresentationEditorPage() {
             <div><dt>Slides</dt><dd>{document.slides.length}</dd></div>
             <div><dt>Elements</dt><dd>{activeSlide?.elements.length ?? 0}</dd></div>
           </dl>
+          {activeSlide ? (
+            <label className="presentation-slide-background">
+              Slide background
+              <input
+                type="color"
+                aria-label="Slide background"
+                value={activeSlide.background}
+                onChange={(event) => usePresentationStore.getState().setSlideBackground(activeSlide.id, event.target.value, { historyGroup: `slide-bg:${activeSlide.id}` })}
+                onBlur={() => usePresentationStore.getState().endHistoryGroup()}
+              />
+            </label>
+          ) : null}
           {selectedElement ? (
             <>
               <p>{selectedElement.name || 'Element'}</p>
-              <ElementGeometryInspector element={selectedElement} />
+              <ElementGeometryInspector element={selectedElement} onReplaceImage={beginReplaceImage} />
             </>
           ) : null}
           <p className="muted">Drag an element on the slide to move it, use a corner handle to resize, and the round handle to rotate. These values are the same document units — type one to place an element exactly.</p>

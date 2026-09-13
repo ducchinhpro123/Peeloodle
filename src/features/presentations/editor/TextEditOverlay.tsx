@@ -2,8 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Theme, TextElement } from '../model/types'
 import { fontStackFor } from '../rendering/fonts'
 import { usePresentationStore } from './store'
-import { bridgeDefaultsFor, registerActiveTextEditFlush, textHistoryGroup } from './textEditSession'
+import { bridgeDefaultsFor, registerActiveTextEditFlush, registerActiveTextEditFormat, textHistoryGroup } from './textEditSession'
 import {
+  applyParagraphStyleToSelection,
+  applyRunStyleToSelection,
+  caretOffsetInParagraph,
+  isApplicablePatch,
+  paragraphBlockForNode,
+  paragraphBlocks,
+  placeCaretAtParagraphOffset,
+  readParagraphStyle,
+  readSelectionStyle,
+} from './textFormat'
+import { safeLink } from '../model/links'
+import {
+  BRIDGE_ATTR,
   htmlToParagraphs,
   paragraphsToHtml,
   paragraphsToPlainText,
@@ -15,7 +28,10 @@ function placeCaretAtEnd(host: HTMLElement) {
   const selection = window.getSelection?.()
   if (!selection) return
   const range = document.createRange()
-  range.selectNodeContents(host)
+  // Inside the last paragraph block, not after it: a caret at the end of the host
+  // would let typing insert a bare text node outside any paragraph.
+  const target = host.lastElementChild ?? host
+  range.selectNodeContents(target)
   range.collapse(false)
   selection.removeAllRanges()
   selection.addRange(range)
@@ -78,6 +94,8 @@ export function TextEditOverlay({ element, scale, offsetX, offsetY, theme }: Tex
   const composing = useRef(false)
   const finished = useRef(false)
   const seededElementId = useRef<string | null>(null)
+  /** Last selection inside this field, so a toolbar control can restore it. */
+  const formatRange = useRef<Range | null>(null)
   const [commitError, setCommitError] = useState<string | null>(null)
   const defaults = useMemo(() => bridgeDefaultsFor(element, theme), [element, theme])
   const latest = useRef({ element, defaults })
@@ -105,6 +123,143 @@ export function TextEditOverlay({ element, scale, offsetX, offsetY, theme }: Tex
     registerActiveTextEditFlush(() => commit())
     return () => registerActiveTextEditFlush(null)
   }, [commit])
+
+  // Track the field's selection so a toolbar control can act after focus moved to
+  // it: a native color/select control takes focus without ending the session.
+  // Key/mouse handlers capture it synchronously; `selectionchange` alone can be
+  // delivered after focus has already left the field.
+  const captureSelection = useCallback(() => {
+    const host = hostRef.current
+    const selection = window.getSelection?.()
+    if (!host || !selection || selection.rangeCount === 0) return
+    const range = selection.getRangeAt(0)
+    if (host.contains(range.commonAncestorContainer)) formatRange.current = range.cloneRange()
+  }, [])
+
+  useEffect(() => {
+    const onSelectionChange = () => {
+      const host = hostRef.current
+      const active = document.activeElement
+      // Only cache selections made while the field owns focus: moving focus to a
+      // toolbar control can collapse the field's selection, and that collapse must
+      // not overwrite the range the control is about to act on.
+      if (!host || !(active instanceof Node && host.contains(active))) return
+      captureSelection()
+    }
+    document.addEventListener('selectionchange', onSelectionChange)
+    return () => document.removeEventListener('selectionchange', onSelectionChange)
+  }, [captureSelection])
+
+  /** Re-renders the field from the committed model, keeping the caret in place. */
+  const reseed = useCallback((paragraphIndex: number, offset: number) => {
+    const host = hostRef.current
+    if (!host) return
+    const { element: current } = latest.current
+    const updated = usePresentationStore.getState().document?.slides
+      .flatMap((slide) => slide.elements)
+      .find((candidate) => candidate.id === current.id)
+    const source = updated?.kind === 'text' ? updated : current
+    host.innerHTML = paragraphsToHtml(source.paragraphs, { lineHeight: source.lineHeight })
+    const block = host.querySelector<HTMLElement>(`[${BRIDGE_ATTR.paragraph}="${paragraphIndex}"]`)
+    if (block) placeCaretAtParagraphOffset(block, offset)
+  }, [])
+
+  // The formatting toolbar reads and writes through this controller for exactly
+  // as long as the session is open.
+  useEffect(() => {
+    const restoreRange = (): boolean => {
+      const host = hostRef.current
+      const selection = window.getSelection?.()
+      if (!host || !selection) return false
+      const active = document.activeElement
+      const focusedInHost = active instanceof Node && host.contains(active)
+      const live = selection.rangeCount > 0 && host.contains(selection.getRangeAt(0).commonAncestorContainer) ? selection.getRangeAt(0) : null
+      // Focus still in the field: the live selection is the truth.
+      if (focusedInHost && live) return true
+      // A toolbar control owns focus; the field's selection may have collapsed, so
+      // restore the last selection made inside it.
+      const saved = formatRange.current
+      if (saved && host.contains(saved.commonAncestorContainer)) {
+        selection.removeAllRanges()
+        selection.addRange(saved)
+        return true
+      }
+      if (live) {
+        selection.removeAllRanges()
+        selection.addRange(live)
+        return true
+      }
+      return false
+    }
+    const caretPosition = (): { paragraphIndex: number; offset: number } => {
+      const host = hostRef.current
+      const selection = window.getSelection?.()
+      const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null
+      const block = range && host ? paragraphBlockForNode(host, range.startContainer) : null
+      const blocks = block && host ? paragraphBlocks(host) : []
+      return {
+        paragraphIndex: block ? Math.max(0, blocks.indexOf(block)) : 0,
+        offset: block && range ? caretOffsetInParagraph(block, range.startContainer, range.startOffset) : 0,
+      }
+    }
+    registerActiveTextEditFormat({
+      apply(patch) {
+        const host = hostRef.current
+        if (!host || !isApplicablePatch(patch) || !restoreRange()) return
+        if (applyRunStyleToSelection(host, patch)) commit(host)
+      },
+      read() {
+        const host = hostRef.current
+        if (!host) {
+          const { fontId, size, color } = latest.current.defaults
+          return { bold: false, italic: false, fontId, size, color, link: null }
+        }
+        restoreRange()
+        return readSelectionStyle(host, latest.current.defaults)
+      },
+      applyParagraph(patch) {
+        const host = hostRef.current
+        if (!host || !restoreRange()) return
+        const position = caretPosition()
+        if (!applyParagraphStyleToSelection(host, patch)) return
+        commit(host)
+        // Alignment and bullet markers are structural, so the field is rebuilt
+        // from the committed model with the caret put back.
+        reseed(position.paragraphIndex, position.offset)
+      },
+      readParagraph() {
+        const host = hostRef.current
+        if (!host) return { alignment: null, bullet: null, bulletLevel: null }
+        restoreRange()
+        return readParagraphStyle(host)
+      },
+      applyLink(href) {
+        const host = hostRef.current
+        if (!host || !restoreRange()) return { ok: false, message: 'Select some text before adding a link.' }
+        if (href === null) {
+          if (applyRunStyleToSelection(host, { link: '' })) commit(host)
+          return { ok: true }
+        }
+        const safe = safeLink(href)
+        if (!safe) return { ok: false, message: 'Only http, https and mailto links can be added.' }
+        if (applyRunStyleToSelection(host, { link: safe })) commit(host)
+        return { ok: true }
+      },
+      setLineHeight(value) {
+        const host = hostRef.current
+        const { element: current } = latest.current
+        const next = Math.min(3, Math.max(0.8, Math.round(value * 100) / 100))
+        if (!host || next === current.lineHeight) return
+        const position = caretPosition()
+        usePresentationStore.getState().updateElement(current.id, { lineHeight: next }, { historyGroup: textHistoryGroup(current.id) })
+        reseed(position.paragraphIndex, position.offset)
+      },
+      lineHeight() {
+        return latest.current.element.lineHeight
+      },
+    })
+    return () => registerActiveTextEditFormat(null)
+  }, [commit, reseed])
 
   const finish = useCallback((host: HTMLElement | null = hostRef.current) => {
     finished.current = true
@@ -211,7 +366,18 @@ export function TextEditOverlay({ element, scale, offsetX, offsetY, theme }: Tex
           event.preventDefault()
           event.currentTarget.blur()
         }}
-        onBlur={() => finish()}
+        onKeyUp={captureSelection}
+        onMouseUp={captureSelection}
+        onBlur={(event) => {
+          // The blur can arrive before the selection collapses; keep it for the
+          // toolbar control that is taking focus.
+          captureSelection()
+          // Focus moving into the formatting toolbar is not leaving the session:
+          // a select or color control takes focus while the selection stays live.
+          const next = event.relatedTarget as HTMLElement | null
+          if (next?.closest('[data-text-toolbar]')) return
+          finish()
+        }}
       />
       {commitError ? <p className="presentation-text-editor-alert" role="alert">{commitError}</p> : null}
     </div>

@@ -22,7 +22,7 @@ import { PRESENTATION_LIMITS } from '../model/limits'
 import type { PresentationDocument } from '../model/types'
 import type { PreparedPresentationImage } from './insertImageAsset'
 import { flushActiveTextEdit } from './textEditSession'
-import { planImageInsert, usePresentationStore, type ImageInsertRefusalReason } from './store'
+import { planImageInsert, imageReplaceRefusal, planImageReplacement, usePresentationStore, type ImageInsertRefusalReason } from './store'
 
 export type PresentationSaveStatus = 'clean' | 'saving' | 'saved' | 'failed' | 'conflict'
 export type PresentationSaveState = { status: PresentationSaveStatus; message: string | null }
@@ -49,6 +49,7 @@ export function usePresentationSave(input: { repository: PresentationRepository;
   requestSave: () => void
   saveBeforeLeave: () => Promise<boolean>
   persistInsert: (image: PreparedPresentationImage, options?: { slideId?: string }) => Promise<PersistInsertOutcome>
+  persistReplace: (elementId: string, image: PreparedPresentationImage) => Promise<PersistInsertOutcome>
   keepMineAsCopy: () => Promise<ConflictRecoveryOutcome>
 } {
   const { repository, documentId } = input
@@ -214,6 +215,35 @@ export function usePresentationSave(input: { repository: PresentationRepository;
   )
 
   /**
+   * The replacement counterpart of `persistInsert`: the new artwork and the
+   * document are written in one transaction before the element switches asset,
+   * so a failure leaves the old photo in place and no orphaned element.
+   */
+  const persistReplace = useCallback(
+    async (elementId: string, image: PreparedPresentationImage): Promise<PersistInsertOutcome> => {
+      const store = usePresentationStore.getState()
+      const document = store.document
+      if (!document || document.id !== documentId) {
+        return { ok: false, reason: 'no-slide', message: 'Open a presentation before replacing an image.' }
+      }
+      const refusal = imageReplaceRefusal(document, image, elementId)
+      if (refusal) return { ok: false, reason: refusal.reason, message: refusal.message }
+
+      const plan = planImageReplacement(document, elementId, image)
+      if (!plan) return { ok: false, reason: 'no-image', message: 'Select an image before replacing it.' }
+
+      const media = pendingMediaFor(image)
+      const outcome = await persistDocument(plan.document, media)
+      if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message }
+
+      usePresentationStore.getState().adoptPersistedReplacement(plan, image)
+      publish({ status: 'saved', message: null })
+      return { ok: true, elementId: plan.elementId }
+    },
+    [documentId, persistDocument, publish],
+  )
+
+  /**
    * A stale revision must not dead-end the editor. Keep the local work as an
    * independent copy, then load the newer stored revision so the user is no
    * longer editing something that can never be written.
@@ -331,7 +361,7 @@ export function usePresentationSave(input: { repository: PresentationRepository;
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [documentId])
 
-  return { state, saveNow, requestSave, saveBeforeLeave, persistInsert, keepMineAsCopy }
+  return { state, saveNow, requestSave, saveBeforeLeave, persistInsert, persistReplace, keepMineAsCopy }
 }
 
 /** The bytes for a just-prepared image, unless the document already holds them. */

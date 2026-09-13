@@ -19,3 +19,8 @@ export function useRepository(): StickerLabRepository {
   if (!repository) throw new Error('useRepository requires RepositoryProvider')
   return repository
 }
+
+/** For screens that can work without a sticker repository, e.g. a presentation editor. */
+export function useOptionalRepository(): StickerLabRepository | null {
+  return useContext(RepositoryContext)
+}

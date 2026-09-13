@@ -15,7 +15,8 @@ import { serializePresentationDocument } from '../model/parse'
 import { createImageElement, createSlide, nextSlideName } from '../model/factories'
 import { fitImageWithinSlide, type PreparedPresentationImage } from './insertImageAsset'
 import { normalizeTransform, type TransformGeometry } from './transformGeometry'
-import type { Element, PresentationDocument, Slide, TextParagraph, Theme } from '../model/types'
+import type { AlignmentGuide } from './alignmentGuides'
+import type { Element, NormalizedCrop, PresentationDocument, Slide, TextParagraph, Theme } from '../model/types'
 
 /** Geometry a gesture is previewing for one element; never part of the document. */
 export type TransformPreview = TransformGeometry & { elementId: string }
@@ -29,9 +30,11 @@ export type PresentationViewState = {
   pan: { x: number; y: number }
   /** In-progress move/resize/rotate; committed once the gesture ends. */
   transformPreview: TransformPreview | null
+  /** Live alignment guides for a move gesture; view state only. */
+  guides: AlignmentGuide[]
 }
 
-type HistoryEntry = { document: PresentationDocument; bytes: number }
+export type HistoryEntry = { document: PresentationDocument; bytes: number }
 
 export type PresentationStoreState = {
   document: PresentationDocument | null
@@ -66,6 +69,8 @@ export type PresentationStoreState = {
   setPan(pan: { x: number; y: number }): void
   /** Shows one element's in-progress geometry without touching the document. */
   setTransformPreview(preview: TransformPreview | null): void
+  /** Shows the current alignment guides; view state only. */
+  setGuides(guides: AlignmentGuide[]): void
   /** Ends a gesture: one history entry, the preview cleared, locked elements untouched. */
   commitTransform(elementId: string, geometry: TransformGeometry): void
 
@@ -74,9 +79,11 @@ export type PresentationStoreState = {
   renameSlide(slideId: string, name: string): void
   reorderSlide(slideId: string, targetIndex: number): void
   removeSlide(slideId: string): boolean
-  setSlideBackground(slideId: string, background: string): void
+  setSlideBackground(slideId: string, background: string, options?: { historyGroup?: string }): void
 
   addElement(element: Element): string | null
+  /** Clones an element with a fresh id, offset, and selected. One undo entry. */
+  duplicateElement(elementId: string): string | null
   /** In-memory command for tests: it does not persist. The editor inserts through
    * the atomic persist-then-adopt path, so nothing is ever shown as added before
    * its bytes are stored. */
@@ -85,6 +92,10 @@ export type PresentationStoreState = {
   checkImageInsert(image: PreparedPresentationImage, options?: { slideId?: string }): ImageInsertCheck
   /** Adopts a document that is already persisted, as exactly one undo entry. */
   adoptPersistedInsert(plan: ImageInsertPlan, image: PreparedPresentationImage): void
+  /** In-memory replacement command for tests and replay; the editor persists first. */
+  replaceImage(elementId: string, image: PreparedPresentationImage): boolean
+  /** Adopts a persisted replacement, as exactly one undo entry. */
+  adoptPersistedReplacement(plan: ImageReplacePlan, image: PreparedPresentationImage): void
   updateElement(elementId: string, patch: Partial<Element>, options?: { historyGroup?: string }): void
   transformElement(elementId: string, patch: Partial<Pick<Element, 'x' | 'y' | 'width' | 'height' | 'rotation'>>, options?: { historyGroup?: string }): void
   removeElement(elementId: string): void
@@ -92,14 +103,14 @@ export type PresentationStoreState = {
   toggleElementLocked(elementId: string): void
   toggleElementVisible(elementId: string): void
   updateText(elementId: string, paragraphs: TextParagraph[], options?: { historyGroup?: string }): void
-  setTheme(theme: Theme): void
+  setTheme(theme: Theme, options?: { historyGroup?: string }): void
 
   endHistoryGroup(): void
   undo(): void
   redo(): void
 }
 
-const initialView: PresentationViewState = { activeSlideId: null, selectedElementIds: [], editingElementId: null, zoom: 1, pan: { x: 0, y: 0 }, transformPreview: null }
+const initialView: PresentationViewState = { activeSlideId: null, selectedElementIds: [], editingElementId: null, zoom: 1, pan: { x: 0, y: 0 }, transformPreview: null, guides: [] }
 
 function estimateBytes(document: PresentationDocument): number {
   try {
@@ -124,6 +135,51 @@ function boundedHistory(past: HistoryEntry[], entry: HistoryEntry): HistoryEntry
   return next
 }
 
+/** Every asset id the given documents still reference. */
+function referencedAssetIds(documents: Iterable<PresentationDocument>): Set<string> {
+  const ids = new Set<string>()
+  for (const document of documents) {
+    for (const asset of document.assets) ids.add(asset.id)
+  }
+  return ids
+}
+
+/**
+ * Bounded media retention (P25). Held bytes are only useful while the current
+ * document or an undo/redo snapshot still references them, so unreachable
+ * records are dropped on every state change. When the reachable bytes exceed
+ * the retention budget, the oldest snapshots go first: a snapshot whose bytes
+ * have been released could not be saved, so it must not stay reachable. The
+ * current document's own bytes are never dropped — insertion already bounds a
+ * single document at maxMediaBytes.
+ *
+ * Exported for its own tests; the store calls it with the shared budget.
+ */
+export function reconcileHeldMedia(input: {
+  document: PresentationDocument
+  past: HistoryEntry[]
+  future: HistoryEntry[]
+  pendingMedia: PresentationMediaRecord[]
+  maxBytes?: number
+}): { past: HistoryEntry[]; future: HistoryEntry[]; pendingMedia: PresentationMediaRecord[] } {
+  const maxBytes = input.maxBytes ?? PRESENTATION_LIMITS.mediaRetentionBytes
+  let past = input.past
+  let future = input.future
+  const reachable = () => {
+    const ids = referencedAssetIds([input.document, ...past.map((entry) => entry.document), ...future.map((entry) => entry.document)])
+    return input.pendingMedia.filter((record) => ids.has(record.assetId))
+  }
+  let pendingMedia = reachable()
+  while (pendingMedia.reduce((sum, record) => sum + record.bytes.length, 0) > maxBytes && (past.length > 0 || future.length > 0)) {
+    // The oldest snapshot on the longer side goes first, so the nearest undo and
+    // redo steps stay usable for as long as possible.
+    if (past.length >= future.length) past = past.slice(1)
+    else future = future.slice(1)
+    pendingMedia = reachable()
+  }
+  return { past, future, pendingMedia }
+}
+
 function cloneElementWithNewId(element: Element): Element {
   const copy = structuredClone(element)
   copy.id = crypto.randomUUID()
@@ -141,7 +197,7 @@ function sameValue(a: unknown, b: unknown): boolean {
   }
 }
 
-export type ImageInsertRefusalReason = 'media-limit' | 'no-slide' | 'slide-element-cap' | 'slide-full' | 'asset-cap'
+export type ImageInsertRefusalReason = 'media-limit' | 'no-slide' | 'no-image' | 'slide-element-cap' | 'slide-full' | 'asset-cap'
 export type ImageInsertRefusal = { reason: ImageInsertRefusalReason; message: string }
 export type ImageInsertCheck = { ok: true } | ({ ok: false } & ImageInsertRefusal)
 export type ImageInsertPlan = { document: PresentationDocument; elementId: string }
@@ -231,6 +287,75 @@ export function planImageInsert(
   }
 }
 
+export type ImageReplacePlan = { document: PresentationDocument; elementId: string }
+
+/**
+ * A centered crop of the new image that fills the element's box without
+ * stretching, so a replacement preserves the intended placement and aspect.
+ */
+export function coverCrop(image: PreparedPresentationImage, box: { width: number; height: number }): NormalizedCrop {
+  const imageAspect = image.asset.width / image.asset.height
+  const boxAspect = box.width / box.height
+  if (!Number.isFinite(imageAspect) || imageAspect <= 0 || !Number.isFinite(boxAspect) || boxAspect <= 0) {
+    return { x: 0, y: 0, width: 1, height: 1 }
+  }
+  if (imageAspect > boxAspect) {
+    const width = boxAspect / imageAspect
+    return { x: (1 - width) / 2, y: 0, width, height: 1 }
+  }
+  const height = imageAspect / boxAspect
+  return { x: 0, y: (1 - height) / 2, width: 1, height }
+}
+
+/** Why a replacement would be refused: the same asset cap and byte budget as an insert. */
+export function imageReplaceRefusal(
+  document: PresentationDocument,
+  image: PreparedPresentationImage,
+  elementId: string,
+): ImageInsertRefusal | null {
+  const element = document.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
+  if (!element || element.kind !== 'image') return { reason: 'no-image', message: 'Select an image before replacing it.' }
+  const knownAsset = document.assets.some((asset) => asset.id === image.asset.id)
+  if (!knownAsset && document.assets.length >= PRESENTATION_LIMITS.maxAssets) {
+    return { reason: 'asset-cap', message: `This presentation already holds the maximum of ${PRESENTATION_LIMITS.maxAssets} images. Remove one before replacing artwork.` }
+  }
+  if (!knownAsset) {
+    const size = image.media.bytes.length
+    const stored = totalMediaBytes(document)
+    if (stored + size > PRESENTATION_LIMITS.maxMediaBytes) {
+      return {
+        reason: 'media-limit',
+        message: `Replacing with "${image.asset.provenance.label}" would take this presentation's artwork past the ${formatMediaSize(PRESENTATION_LIMITS.maxMediaBytes)} limit — ${formatMediaSize(stored)} is already stored and this image is ${formatMediaSize(size)}.`,
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Builds the next document for a replacement: the element keeps its id,
+ * placement, rotation, opacity and flips; only the asset, alt text and a fresh
+ * centered cover crop change. Crop stays non-destructive document data.
+ */
+export function planImageReplacement(
+  document: PresentationDocument,
+  elementId: string,
+  image: PreparedPresentationImage,
+): ImageReplacePlan | null {
+  const draft = structuredClone(document)
+  const target = draft.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
+  if (!target || target.kind !== 'image') return null
+  const knownAsset = draft.assets.some((asset) => asset.id === image.asset.id)
+  if (!knownAsset) draft.assets.push(structuredClone(image.asset))
+  target.assetId = image.asset.id
+  target.alt = image.asset.provenance.label
+  target.crop = coverCrop(image, target)
+  return {
+    document: serializePresentationDocument(withRevision(document, draft)),
+    elementId,
+  }
+}
+
 export const usePresentationStore = create<PresentationStoreState>()((set, get) => {
   /** Validates, bumps the revision and records one undo entry. Updaters return
    * `false` for a no-op so redo history and the revision are left untouched. */
@@ -247,12 +372,14 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     if (!merge) {
       past = boundedHistory(past, { document: current, bytes: estimateBytes(current) })
     }
+    const reconciled = reconcileHeldMedia({ document: next, past, future: [], pendingMedia: get().pendingMedia })
     set({
       document: next,
-      past,
-      future: [],
+      past: reconciled.past,
+      future: reconciled.future,
       lastHistoryGroup: group ?? null,
       dirty: next.revision !== get().savedRevision,
+      pendingMedia: reconciled.pendingMedia,
     })
     return true
   }
@@ -269,13 +396,42 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     const pendingMedia = input.heldMedia !== null && !held.some((record) => record.assetId === input.heldMedia!.assetId)
       ? [...held, input.heldMedia]
       : held
+    const past = boundedHistory(get().past, { document: current, bytes: estimateBytes(current) })
+    const reconciled = reconcileHeldMedia({ document: input.plan.document, past, future: [], pendingMedia })
     set({
       document: input.plan.document,
-      past: boundedHistory(get().past, { document: current, bytes: estimateBytes(current) }),
-      future: [],
+      past: reconciled.past,
+      future: reconciled.future,
       lastHistoryGroup: null,
       view: { ...get().view, selectedElementIds: [input.plan.elementId], editingElementId: null },
-      pendingMedia,
+      pendingMedia: reconciled.pendingMedia,
+      savedRevision: input.persisted ? input.plan.document.revision : get().savedRevision,
+      dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision,
+      saving: input.persisted ? false : get().saving,
+      saveError: input.persisted ? null : get().saveError,
+    })
+  }
+
+  /**
+   * The replacement counterpart of `applyInsert`: the element already exists, so
+   * selection and view state are left alone and only the document, history and
+   * held bytes move.
+   */
+  const applyReplace = (input: { plan: ImageReplacePlan; mediaAssetId: string; heldMedia: PresentationMediaRecord | null; persisted: boolean }): void => {
+    const current = get().document
+    if (!current || current.id !== input.plan.document.id) return
+    const held = input.persisted ? get().pendingMedia.filter((record) => record.assetId !== input.mediaAssetId) : get().pendingMedia
+    const pendingMedia = input.heldMedia !== null && !held.some((record) => record.assetId === input.heldMedia!.assetId)
+      ? [...held, input.heldMedia]
+      : held
+    const past = boundedHistory(get().past, { document: current, bytes: estimateBytes(current) })
+    const reconciled = reconcileHeldMedia({ document: input.plan.document, past, future: [], pendingMedia })
+    set({
+      document: input.plan.document,
+      past: reconciled.past,
+      future: reconciled.future,
+      lastHistoryGroup: null,
+      pendingMedia: reconciled.pendingMedia,
       savedRevision: input.persisted ? input.plan.document.revision : get().savedRevision,
       dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision,
       saving: input.persisted ? false : get().saving,
@@ -363,7 +519,7 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     selectSlide(slideId) {
       const document = get().document
       if (!document || !document.slides.some((slide) => slide.id === slideId)) return
-      set({ view: { ...get().view, activeSlideId: slideId, selectedElementIds: [], editingElementId: null, transformPreview: null } })
+      set({ view: { ...get().view, activeSlideId: slideId, selectedElementIds: [], editingElementId: null, transformPreview: null, guides: [] } })
     },
 
     selectElements(ids) {
@@ -407,6 +563,10 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       set({ view: { ...get().view, transformPreview: preview } })
     },
 
+    setGuides(guides) {
+      set({ view: { ...get().view, guides } })
+    },
+
     commitTransform(elementId, geometry) {
       const element = get().document?.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
       if (!element || element.locked) return
@@ -416,13 +576,16 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       // The gesture is over: the next drag on this element is its own undo entry.
       get().endHistoryGroup()
       if (get().view.transformPreview?.elementId === elementId) get().setTransformPreview(null)
+      get().setGuides([])
     },
 
     addSlide(afterSlideId) {
       const document = get().document
       if (!document) return null
       if (document.slides.length >= PRESENTATION_LIMITS.maxSlides) return null
-      const slide = createSlide({ name: nextSlideName(document.slides) })
+      // A new slide starts from the document theme, not the factory default, so a
+      // presentation's own background default is what the next slide uses.
+      const slide = createSlide({ name: nextSlideName(document.slides), background: document.theme.colors.background })
       const anchor = afterSlideId ?? get().view.activeSlideId ?? document.slides.at(-1)!.id
       commit((draft) => {
         const index = draft.slides.findIndex((candidate) => candidate.id === anchor)
@@ -486,13 +649,13 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       return true
     },
 
-    setSlideBackground(slideId, background) {
+    setSlideBackground(slideId, background, options) {
       commit((draft) => {
         const slide = draft.slides.find((candidate) => candidate.id === slideId)
         if (!slide || slide.background === background) return false
         slide.background = background
         return true
-      })
+      }, options)
     },
 
     addElement(element) {
@@ -509,6 +672,28 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       })
       set({ view: { ...get().view, selectedElementIds: [element.id] } })
       return element.id
+    },
+
+    duplicateElement(elementId) {
+      const document = get().document
+      if (!document) return null
+      const slide = document.slides.find((candidate) => candidate.elements.some((element) => element.id === elementId))
+      const source = slide?.elements.find((element) => element.id === elementId)
+      if (!slide || !source) return null
+      if (slide.elements.length >= PRESENTATION_LIMITS.maxElementsPerSlide) return null
+      const index = slide.elements.findIndex((element) => element.id === elementId)
+      const copy = cloneElementWithNewId(source)
+      copy.name = `${source.name} copy`
+      copy.x = source.x + 24
+      copy.y = source.y + 24
+      commit((draft) => {
+        const target = draft.slides.find((candidate) => candidate.id === slide.id)
+        if (!target) return false
+        target.elements.splice(index + 1, 0, copy)
+        return true
+      })
+      set({ view: { ...get().view, selectedElementIds: [copy.id], editingElementId: null } })
+      return copy.id
     },
 
     checkImageInsert(image, options) {
@@ -545,10 +730,32 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       const plan = planImageInsert(document, image, { slideId: options?.slideId ?? activeSlide()?.id ?? null })
       if (!plan) return null
       // The bytes stay outside the document and are attached to the next save.
-      // ponytail: an undone insert keeps its asset record and bytes until the
-      // document is closed; P25 owns bounded media retention.
+      // Undo keeps them reachable so redo can still save; reconcileHeldMedia
+      // releases them once no live snapshot references the asset.
       applyInsert({ plan, mediaAssetId: image.media.assetId, heldMedia: image.media, persisted: false })
       return plan.elementId
+    },
+
+    adoptPersistedReplacement(plan, image) {
+      const current = get().document
+      // Same revision race as an insert: replay the replacement on the live document
+      // instead of dropping a command that landed while the write was in flight.
+      if (current && current.id === plan.document.id && current.revision !== plan.document.revision - 1) {
+        set({ saving: false, saveError: null, savedRevision: plan.document.revision, dirty: true })
+        get().replaceImage(plan.elementId, image)
+        return
+      }
+      applyReplace({ plan, mediaAssetId: image.media.assetId, heldMedia: null, persisted: true })
+    },
+
+    replaceImage(elementId, image) {
+      const document = get().document
+      if (!document) return false
+      if (imageReplaceRefusal(document, image, elementId)) return false
+      const plan = planImageReplacement(document, elementId, image)
+      if (!plan) return false
+      applyReplace({ plan, mediaAssetId: image.media.assetId, heldMedia: image.media, persisted: false })
+      return true
     },
 
     updateElement(elementId, patch, options) {
@@ -634,12 +841,12 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       }, options)
     },
 
-    setTheme(theme) {
+    setTheme(theme, options) {
       commit((draft) => {
         if (JSON.stringify(draft.theme) === JSON.stringify(theme)) return false
         draft.theme = structuredClone(theme)
         return true
-      })
+      }, options)
     },
 
     endHistoryGroup() {
@@ -653,13 +860,15 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       const restored = withRevision(document, structuredClone(entry.document))
       const remaining = past.slice(0, -1)
       const nextFuture = [...future, { document, bytes: estimateBytes(document) }].slice(-PRESENTATION_LIMITS.historyEntries)
+      const reconciled = reconcileHeldMedia({ document: restored, past: remaining, future: nextFuture, pendingMedia: get().pendingMedia })
       set({
         document: restored,
-        past: remaining,
-        future: nextFuture,
+        past: reconciled.past,
+        future: reconciled.future,
         lastHistoryGroup: null,
         dirty: restored.revision !== get().savedRevision,
         view: ensureView(restored, get().view),
+        pendingMedia: reconciled.pendingMedia,
       })
     },
 
@@ -670,13 +879,15 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       const restored = withRevision(document, structuredClone(entry.document))
       const remaining = future.slice(0, -1)
       const nextPast = [...past, { document, bytes: estimateBytes(document) }].slice(-PRESENTATION_LIMITS.historyEntries)
+      const reconciled = reconcileHeldMedia({ document: restored, past: nextPast, future: remaining, pendingMedia: get().pendingMedia })
       set({
         document: restored,
-        past: nextPast,
-        future: remaining,
+        past: reconciled.past,
+        future: reconciled.future,
         lastHistoryGroup: null,
         dirty: restored.revision !== get().savedRevision,
         view: ensureView(restored, get().view),
+        pendingMedia: reconciled.pendingMedia,
       })
     },
   }
@@ -690,5 +901,5 @@ function ensureView(document: PresentationDocument, view: PresentationViewState)
   const editingElementId = view.editingElementId !== null && slide?.elements.some((element) => element.id === view.editingElementId && element.kind === 'text')
     ? view.editingElementId
     : null
-  return { ...view, activeSlideId, selectedElementIds: view.selectedElementIds.filter((id) => ids.has(id)), editingElementId, transformPreview: null }
+  return { ...view, activeSlideId, selectedElementIds: view.selectedElementIds.filter((id) => ids.has(id)), editingElementId, transformPreview: null, guides: [] }
 }

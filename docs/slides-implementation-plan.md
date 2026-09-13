@@ -13,8 +13,16 @@ budget, conflict recovery and the guarded editor exit — with the unguarded bro
 limitation stated there). P20 (library rename, duplicate, safe delete and real first-slide thumbnails) is
 recorded in `proofs/p20-library-operations.md`, and P21 verified the full create → edit → save → reload →
 reopen journey in `proofs/p21-milestone-journey.md`, which completes Milestone 1. Milestone 2 has started:
-P22 (slide rail add/duplicate) and P23 (reorder/delete) are recorded in `proofs/p22-p23-slide-rail.md`, and
-P24 (element move/resize/rotate) in `proofs/p24-element-transforms.md`. Review-driven
+P22 (slide rail add/duplicate) and P23 (reorder/delete) are recorded in `proofs/p22-p23-slide-rail.md`, P24
+(element move/resize/rotate) in `proofs/p24-element-transforms.md`, P25 (undo/redo controls and bounded
+media retention) in `proofs/p25-history-and-retention.md`, P26 (selection text formatting) in
+`proofs/p26-text-formatting.md`, P27 (paragraph controls, links and overflow feedback) in
+`proofs/p27-paragraphs-links-overflow.md`, and P28 (shapes) in `proofs/p28-shapes.md`; P29 (image crop,
+replacement and flip) is recorded in `proofs/p29-image-adjust.md`, P30 (layer list) in
+`proofs/p30-layer-list.md`, P31 (alignment guides) in `proofs/p31-alignment-guides.md`, P32 (slide
+backgrounds and theme defaults) in `proofs/p32-backgrounds-theme.md`, and P33 (sticker snapshots) in
+`proofs/p33-sticker-snapshots.md`. P34's focused verification passes; its desktop/tablet browser evidence is
+deferred at the owner's request (`proofs/p34-milestone2-verification.md`). Review-driven
 corrections are recorded in `proofs/correction-pass.md`. Start the next session from
 [`HANDOFF.md`](../HANDOFF.md).
 
@@ -99,16 +107,16 @@ The first coding task is **P01**, then the **export/text proof P02–P05**. Do n
 | [x] | P22 | Add slide rail with selection and add/duplicate actions. | P21 | New IDs on duplicate; copied media remains valid; current slide clearly indicated. |
 | [x] | P23 | Add slide reorder and delete with keyboard alternatives. | P22 | Ordering persists; deleting active slide selects a survivor; at least one slide remains. |
 | [x] | P24 | Add element move/resize/rotate with document-coordinate transforms. | P16, P21 | Same document-space move at 100% and 125% zoom; the drawn frame/handles and the numeric inspector agree (≤1 px frame, ≤3 px handle); every visible kind selects; a locked element ignores a drag without panning; one gesture = one history entry (`proofs/p24-element-transforms.md`). |
-| [ ] | P25 | Add meaningful undo/redo, gesture grouping and bounded media retention. | P23, P24 | One drag/slider/text session = one history entry; undo spans slides; removed media survives while history references it. |
-| [ ] | P26 | Add mixed bold/italic selection, font size/color/family controls. | P17, P25 | Run formatting survives undo/save/reopen; IME typing does not trigger canvas shortcuts. |
-| [ ] | P27 | Add bullets, paragraph alignment/spacing, links and visible text-overflow feedback. | P26 | Long English/Vietnamese paragraphs render correctly; unsafe links rejected; overflow is actionable. |
-| [ ] | P28 | Add rectangle, rounded rectangle, ellipse, line and arrow. | P24, P25 | Fill/stroke/geometry persist and undo correctly; supported kinds match export adapter. |
-| [ ] | P29 | Add image crop, replacement and flip with preserved aspect ratio. | P18, P25 | Replace preserves intended placement; crop data stays non-destructive; undo restores original. |
-| [ ] | P30 | Add accessible element/layer list, order controls, duplication, delete and locks. | P25, P28, P29 | Keyboard can select/reorder/edit properties; locked elements ignore canvas drags. |
-| [ ] | P31 | Add alignment guides, snapping and explicit alignment controls. | P24, P30 | Correct at multiple zoom levels; guides never enter saves/exports. |
-| [ ] | P32 | Add slide backgrounds and copied document theme defaults. | P27, P28 | Changes do not alter another presentation/template; existing element styles remain predictable. |
-| [ ] | P33 | Insert saved personal stickers as immutable image snapshots through existing compositor. | P18, P30 | Editing/deleting source sticker does not break presentation; original sticker remains editable. |
-| [ ] | P34 | Verify multi-slide gestures, keyboard access, long content and delayed fonts. | P23–P33 | Focused tests and desktop/tablet browser evidence; no canvas shortcuts in dialogs/text input. |
+| [x] | P25 | Add meaningful undo/redo, gesture grouping and bounded media retention. | P23, P24 | One drag/slider/text session = one history entry; undo spans slides; removed media survives while history references it. Toolbar Undo/Redo and Ctrl/Cmd+Z/Shift+Z/Y are covered by store, UI and browser tests; `reconcileHeldMedia` bounds held bytes and trims the oldest snapshot first (`proofs/p25-history-and-retention.md`). |
+| [x] | P26 | Add mixed bold/italic selection, font size/color/family controls. | P17, P25 | Run formatting survives undo/save/reopen; IME typing does not trigger canvas shortcuts. Selection formatting wraps the bridge's own data attributes, so the reader turns it into runs; toolbar and controller covered by unit, UI and browser tests (`proofs/p26-text-formatting.md`). |
+| [x] | P27 | Add bullets, paragraph alignment/spacing, links and visible text-overflow feedback. | P26 | Long English/Vietnamese paragraphs render correctly; unsafe links rejected; overflow is actionable. Paragraph attributes flow through the bridge, `safeLink` refuses unsafe schemes with a visible message, and the layout service's overflow drives a "Grow box to fit" action (`proofs/p27-paragraphs-links-overflow.md`). |
+| [x] | P28 | Add rectangle, rounded rectangle, ellipse, line and arrow. | P24, P25 | Fill/stroke/geometry persist and undo correctly; supported kinds match export adapter. Insertion presets, grouped style edits and persisted fill are covered by unit and UI tests (`proofs/p28-shapes.md`). |
+| [x] | P29 | Add image crop, replacement and flip with preserved aspect ratio. | P18, P25 | Replace preserves intended placement; crop data stays non-destructive; undo restores original. `coverCrop`, `planImageReplacement` and the atomic `persistReplace` path are covered by store and UI tests (`proofs/p29-image-adjust.md`). |
+| [x] | P30 | Add accessible element/layer list, order controls, duplication, delete and locks. | P25, P28, P29 | Keyboard can select/reorder/edit properties; locked elements ignore canvas drags. The top-first list exposes every action as a labelled button and `duplicateElement` offsets a fresh-id copy as one undo entry (`proofs/p30-layer-list.md`). |
+| [x] | P31 | Add alignment guides, snapping and explicit alignment controls. | P24, P30 | Correct at multiple zoom levels; guides never enter saves/exports. Pure snapping in `alignmentGuides.ts` plus document-unit guide rendering through the shared viewport and view-only guide state (`proofs/p31-alignment-guides.md`). |
+| [x] | P32 | Add slide backgrounds and copied document theme defaults. | P27, P28 | Changes do not alter another presentation/template; existing element styles remain predictable. Slide background is per-slide; theme edits are defaults for new slides/text, grouped per session, and verified against a second document (`proofs/p32-backgrounds-theme.md`). |
+| [x] | P33 | Insert saved personal stickers as immutable image snapshots through existing compositor. | P18, P30 | Editing/deleting source sticker does not break presentation; original sticker remains editable. The snapshot is composed once through the export renderer and stored as the presentation's own asset (`proofs/p33-sticker-snapshots.md`). |
+| [ ] | P34 | Verify multi-slide gestures, keyboard access, long content and delayed fonts. | P23–P33 | Focused tests and desktop/tablet browser evidence; no canvas shortcuts in dialogs/text input. Focused checks pass (549 unit/UI tests, including a dialog/text-field shortcut test); the desktop/tablet Playwright journey is deferred at the owner's request (`proofs/p34-milestone2-verification.md`). |
 
 ## Milestone 3 — Ship trustworthy files and portable work
 

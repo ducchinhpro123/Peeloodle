@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { planImageInsert, usePresentationStore } from './store'
+import { coverCrop, planImageInsert, planImageReplacement, reconcileHeldMedia, usePresentationStore } from './store'
 import { createPresentationDocument, createShapeElement, createTextElement } from '../model/factories'
 import { PRESENTATION_LIMITS } from '../model/limits'
 import { MIN_ELEMENT_SIZE } from './transformGeometry'
 import type { PreparedPresentationImage } from './insertImageAsset'
+import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
 import type { PresentationAsset, PresentationDocument } from '../model/types'
 
 function reset(document: PresentationDocument = createPresentationDocument({ id: 'doc-1', title: 'Deck', now: '2026-09-10T00:00:00.000Z' })): PresentationDocument {
@@ -94,6 +95,58 @@ describe('presentation command store', () => {
     state().setTransformPreview(null)
     expect(state().view.transformPreview).toBeNull()
     expect(state().document).toBe(before)
+  })
+
+  it('shows alignment guides without touching the document', () => {
+    state().addElement(createShapeElement({ id: 'dragged' }))
+    const before = state().document
+    const history = state().past.length
+    const revision = state().document!.revision
+    const dirty = state().dirty
+
+    state().setGuides([{ axis: 'x', position: 400 }, { axis: 'y', position: 225 }])
+
+    expect(state().view.guides).toEqual([{ axis: 'x', position: 400 }, { axis: 'y', position: 225 }])
+    expect(state().document).toBe(before)
+    expect(state().document!.revision).toBe(revision)
+    expect(state().past).toHaveLength(history)
+    expect(state().dirty).toBe(dirty)
+
+    state().setGuides([])
+    expect(state().view.guides).toEqual([])
+  })
+
+  it('gives a new slide the document theme background', () => {
+    const theme = state().document!.theme
+    state().setTheme({ ...theme, colors: { ...theme.colors, background: '#123456' } })
+    const id = state().addSlide()!
+    const slide = state().document!.slides.find((candidate) => candidate.id === id)!
+    expect(slide.background).toBe('#123456')
+  })
+
+  it('changes theme defaults without restyling existing elements', () => {
+    const styled = createTextElement({ id: 'styled', fontId: 'spectral', size: 30, color: '#111111', text: 'Keep me' })
+    state().addElement(styled)
+    const before = structuredClone(state().document!.slides[0]!.elements[0]!)
+
+    const theme = state().document!.theme
+    state().setTheme({ ...theme, bodyFontId: 'spectral', colors: { ...theme.colors, text: '#ff0000', accent: '#00ff00' } })
+
+    expect(state().document!.slides[0]!.elements[0]!).toEqual(before)
+    expect(state().document!.theme).toMatchObject({ bodyFontId: 'spectral', colors: { text: '#ff0000', accent: '#00ff00' } })
+  })
+
+  it('groups slide background changes into one undo entry', () => {
+    const slideId = state().document!.slides[0]!.id
+    const history = state().past.length
+    state().setSlideBackground(slideId, '#111111', { historyGroup: `slide-bg:${slideId}` })
+    state().setSlideBackground(slideId, '#222222', { historyGroup: `slide-bg:${slideId}` })
+    expect(state().past).toHaveLength(history + 1)
+    state().endHistoryGroup()
+    state().setSlideBackground(slideId, '#333333')
+    expect(state().past).toHaveLength(history + 2)
+    state().undo()
+    expect(state().document!.slides[0]!.background).toBe('#222222')
   })
 
   it('commits one completed gesture as one history entry and clears the preview', () => {
@@ -235,6 +288,27 @@ describe('presentation command store', () => {
     const only = state().document!.slides[0]!.id
     expect(state().removeSlide(only)).toBe(false)
     expect(state().document!.slides).toHaveLength(1)
+  })
+
+  it('duplicates an element with a fresh id, an offset and one undo entry', () => {
+    state().addElement(createShapeElement({ id: 'original', x: 100, y: 80, width: 200, height: 120 }))
+    const history = state().past.length
+
+    const copyId = state().duplicateElement('original')!
+
+    expect(copyId).not.toBe('original')
+    const elements = state().document!.slides[0]!.elements
+    expect(elements.map((element) => element.id)).toEqual(['original', copyId])
+    expect(elements[1]!).toMatchObject({ name: 'Element 1 copy', x: 124, y: 104, width: 200, height: 120 })
+    expect(state().view.selectedElementIds).toEqual([copyId])
+    expect(state().past).toHaveLength(history + 1)
+
+    state().undo()
+    expect(state().document!.slides[0]!.elements.map((element) => element.id)).toEqual(['original'])
+  })
+
+  it('refuses to duplicate a missing element', () => {
+    expect(state().duplicateElement('missing')).toBeNull()
   })
 
   it('inserts, updates, reorders and removes elements', () => {
@@ -488,13 +562,35 @@ describe('presentation image insertion', () => {
     expect(state().document!.slides[0]!.elements).toHaveLength(0)
     // Undo restores the pre-insert snapshot, so the asset record goes with it.
     expect(state().document!.assets).toHaveLength(0)
-    // ponytail: the bytes stay held so redo can still save, but a save may only
+    // The bytes stay held while redo can still reach them, but a save may only
     // submit what the document references.
     expect(state().pendingMedia).toHaveLength(1)
     expect(state().mediaForSave()).toEqual([])
 
     state().redo()
     expect(state().document!.slides[0]!.elements[0]!.id).toBe(id)
+    expect(state().mediaForSave()).toHaveLength(1)
+  })
+
+  it('releases held bytes once no snapshot can reach them', () => {
+    state().insertImage(preparedImage())
+    state().undo()
+    expect(state().pendingMedia).toHaveLength(1)
+
+    // A new command clears redo, so nothing can reference the bytes any more.
+    state().addElement(createShapeElement({ id: 'after-undo' }))
+    expect(state().future).toHaveLength(0)
+    expect(state().pendingMedia).toEqual([])
+  })
+
+  it('keeps held bytes across undo and redo while the snapshot chain references them', () => {
+    state().insertImage(preparedImage())
+    state().undo()
+    state().redo()
+    expect(state().pendingMedia).toHaveLength(1)
+    state().undo()
+    expect(state().pendingMedia).toHaveLength(1)
+    state().redo()
     expect(state().mediaForSave()).toHaveLength(1)
   })
 
@@ -619,8 +715,69 @@ describe('presentation image insertion', () => {
     expect(state().pendingMedia).toHaveLength(1)
   })
 
-  it('plans an insert without mutating the document or the store', () => {
-    const before = state().document!
+  it('plans a replacement that keeps placement and flips and center-crops the new image', () => {
+    state().insertImage(preparedImage())
+    const element = state().document!.slides[0]!.elements[0]!
+    if (element.kind !== 'image') throw new Error('expected image')
+    state().updateElement(element.id, { flipX: true, x: 100, y: 50, width: 300, height: 300 })
+
+    const replacement = preparedImage('b'.repeat(64), 400, 300)
+    const plan = planImageReplacement(state().document!, element.id, replacement)!
+
+    const replaced = plan.document.slides[0]!.elements[0]!
+    if (replaced.kind !== 'image') throw new Error('expected image')
+    expect(replaced).toMatchObject({ x: 100, y: 50, width: 300, height: 300, flipX: true, assetId: replacement.asset.id, alt: 'photo.png' })
+    // The 4:3 image is cover-cropped to the square box, not stretched.
+    expect(replaced.crop).toEqual({ x: 0.125, y: 0, width: 0.75, height: 1 })
+    expect(plan.document.assets.map((asset) => asset.id)).toContain(replacement.asset.id)
+    // The original document is untouched: the plan is what gets persisted first.
+    expect(element.assetId).not.toBe(replacement.asset.id)
+  })
+
+  it('cover-crops a wider image to the box aspect instead of stretching it', () => {
+    const wide = preparedImage('c'.repeat(64), 800, 200)
+    expect(coverCrop(wide, { width: 300, height: 300 })).toEqual({ x: 0.375, y: 0, width: 0.25, height: 1 })
+  })
+
+  it('replaces an image as one undo entry and restores the original', () => {
+    const first = preparedImage()
+    state().insertImage(first)
+    const element = state().document!.slides[0]!.elements[0]!
+    if (element.kind !== 'image') throw new Error('expected image')
+    const history = state().past.length
+
+    const second = preparedImage('d'.repeat(64), 200, 400)
+    expect(state().replaceImage(element.id, second)).toBe(true)
+    expect(state().past).toHaveLength(history + 1)
+    const replaced = state().document!.slides[0]!.elements[0]!
+    if (replaced.kind !== 'image') throw new Error('expected image')
+    expect(replaced.assetId).toBe(second.asset.id)
+    // A portrait image is cropped to the 400×300 box, not squashed into it.
+    expect(replaced.crop).toEqual({ x: 0, y: 0.3125, width: 1, height: 0.375 })
+    expect(state().mediaForSave().map((record) => record.assetId)).toContain(second.asset.id)
+
+    state().undo()
+    const restored = state().document!.slides[0]!.elements[0]!
+    if (restored.kind !== 'image') throw new Error('expected image')
+    expect(restored.assetId).toBe(first.asset.id)
+    expect(restored.crop).toEqual({ x: 0, y: 0, width: 1, height: 1 })
+
+    state().redo()
+    const again = state().document!.slides[0]!.elements[0]!
+    if (again.kind !== 'image') throw new Error('expected image')
+    expect(again.assetId).toBe(second.asset.id)
+  })
+
+  it('refuses to replace anything that is not a selected image', () => {
+    const text = createTextElement({ id: 'not-an-image' })
+    state().addElement(text)
+    const history = state().past.length
+    expect(state().replaceImage('not-an-image', preparedImage())).toBe(false)
+    expect(state().replaceImage('missing', preparedImage())).toBe(false)
+    expect(state().past).toHaveLength(history)
+  })
+
+  it('plans an insert without mutating the document or the store', () => {    const before = state().document!
 
     const plan = planImageInsert(before, preparedImage('5'.repeat(64)))
 
@@ -654,5 +811,70 @@ describe('presentation image insertion', () => {
     expect(state().document!.assets[0]!.byteLength).toBe(4)
     // The bytes are already stored, so nothing is held as pending.
     expect(state().pendingMedia).toEqual([])
+  })
+})
+
+describe('bounded media retention', () => {
+  function documentWithAsset(documentId: string, assetId: string, byteLength: number): PresentationDocument {
+    const document = createPresentationDocument({ id: documentId })
+    document.assets = [{
+      id: assetId,
+      blobKey: `uploads/${assetId}`,
+      mimeType: 'image/png',
+      width: 4,
+      height: 4,
+      sha256: assetId.padEnd(64, '0'),
+      byteLength,
+      provenance: { source: 'upload', label: `${assetId}.png` },
+    }]
+    return document
+  }
+
+  function record(assetId: string, byteLength: number): PresentationMediaRecord {
+    return { assetId, bytes: new Uint8Array(byteLength), mimeType: 'image/png' }
+  }
+
+  it('releases unreachable bytes and trims the oldest snapshot when over budget', () => {
+    const current = documentWithAsset('doc-current', 'asset-c', 10)
+    const past = [{ document: documentWithAsset('doc-past', 'asset-a', 10), bytes: 1 }]
+    const future = [{ document: documentWithAsset('doc-future', 'asset-b', 10), bytes: 1 }]
+    const pendingMedia = [record('asset-a', 10), record('asset-b', 10), record('asset-c', 10)]
+
+    const result = reconcileHeldMedia({ document: current, past, future, pendingMedia, maxBytes: 25 })
+
+    // A's snapshot is the oldest, so it goes first; its bytes are released with it.
+    expect(result.past).toEqual([])
+    expect(result.future).toEqual(future)
+    expect(result.pendingMedia.map((item) => item.assetId)).toEqual(['asset-b', 'asset-c'])
+  })
+
+  it('drops bytes nothing references without trimming history', () => {
+    const current = documentWithAsset('doc-current', 'asset-c', 10)
+    const past = [{ document: documentWithAsset('doc-past', 'asset-a', 10), bytes: 1 }]
+
+    const result = reconcileHeldMedia({
+      document: current,
+      past,
+      future: [],
+      pendingMedia: [record('asset-a', 10), record('asset-c', 10), record('asset-orphan', 10)],
+      maxBytes: 1024,
+    })
+
+    expect(result.past).toEqual(past)
+    expect(result.pendingMedia.map((item) => item.assetId)).toEqual(['asset-a', 'asset-c'])
+  })
+
+  it('never releases bytes the current document still needs', () => {
+    const current = documentWithAsset('doc-current', 'asset-current', 100)
+
+    const result = reconcileHeldMedia({
+      document: current,
+      past: [],
+      future: [],
+      pendingMedia: [record('asset-current', 100)],
+      maxBytes: 10,
+    })
+
+    expect(result.pendingMedia.map((item) => item.assetId)).toEqual(['asset-current'])
   })
 })

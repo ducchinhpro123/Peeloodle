@@ -478,6 +478,151 @@ test('adds, duplicates, reorders, and deletes slides through the accessible rail
   await expect.poll(async () => JSON.parse(await readPresentationJson(page, presentationId)).slides).toHaveLength(1)
 })
 
+test('undoes and redoes through the toolbar and keyboard without stealing text-field undo', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 768 })
+  const presentationId = await seedFixturePresentation(page)
+  await page.goto(`/presentations/${presentationId}`)
+  await expect(page.getByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })).toBeVisible()
+
+  const undo = page.getByRole('button', { name: 'Undo' })
+  const redo = page.getByRole('button', { name: 'Redo' })
+  await expect(undo).toBeDisabled()
+  await expect(redo).toBeDisabled()
+
+  await page.getByRole('button', { name: 'Duplicate active slide' }).click()
+  await expect(page.getByRole('button', { name: 'Show slide 2: Title slide copy' })).toHaveAttribute('aria-current', 'true')
+  await expect(undo).toBeEnabled()
+
+  await undo.click()
+  await expect(page.getByRole('button', { name: 'Show slide 2: Title slide copy' })).toHaveCount(0)
+  await expect(redo).toBeEnabled()
+
+  // Ctrl+Shift+Z redoes; Ctrl+Z (plain) then undoes again.
+  await page.keyboard.press('Control+Shift+Z')
+  await expect(page.getByRole('button', { name: 'Show slide 2: Title slide copy' })).toBeVisible()
+  await expect(redo).toBeDisabled()
+  await page.keyboard.press('Control+z')
+  await expect(page.getByRole('button', { name: 'Show slide 2: Title slide copy' })).toHaveCount(0)
+
+  // Inside the text field the browser's own undo belongs to the field: the app
+  // shortcut must not remove the text box out from under the caret.
+  await page.getByRole('button', { name: 'Add text' }).click()
+  const field = page.getByRole('textbox', { name: 'Text content' })
+  await field.click()
+  await page.keyboard.type('Xin chào')
+  await page.keyboard.press('Control+z')
+  await expect(field).toBeVisible()
+})
+
+test('formats a text selection and keeps it through save and reopen', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 768 })
+  await page.goto('/presentations')
+  await page.getByRole('button', { name: /Create (your first|a blank) presentation/ }).click()
+  await expect(page).toHaveURL(/\/presentations\/[^/]+$/)
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  const presentationId = await page.evaluate(async () => {
+    const { usePresentationStore } = await import('/src/features/presentations/editor/store.ts')
+    return usePresentationStore.getState().document!.id
+  })
+
+  await page.getByRole('button', { name: 'Add text' }).click()
+  const field = page.getByRole('textbox', { name: 'Text content' })
+  await field.click()
+  await page.keyboard.type('Xin chao')
+  await page.keyboard.press('Control+a')
+  await page.getByRole('button', { name: 'Bold' }).click()
+  await page.getByLabel('Font size').selectOption('40')
+
+  const readRuns = () => page.evaluate(async () => {
+    const { usePresentationStore } = await import('/src/features/presentations/editor/store.ts')
+    const element = usePresentationStore.getState().document!.slides[0]!.elements[0]!
+    if (element.kind !== 'text') return null
+    return element.paragraphs.flatMap((paragraph) => paragraph.runs).map((run) => ({ text: run.text, bold: run.bold ?? false, size: run.size }))
+  })
+
+  const formatted = await readRuns()
+  expect(formatted?.map((run) => run.text).join('')).toBe('Xin chao')
+  expect(formatted?.every((run) => run.bold)).toBe(true)
+  expect(formatted?.every((run) => run.size === 40)).toBe(true)
+
+  await field.blur()
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByTestId('presentation-canvas')).toBeVisible()
+
+  const reopened = await page.evaluate(async (id) => {
+    const persistence = await import('/src/lib/persistence/presentations/idb.ts')
+    const stored = await persistence.createIdbPresentationRepository().getPresentation(id)
+    const element = stored.slides[0]!.elements[0]!
+    if (element.kind !== 'text') return null
+    return element.paragraphs.flatMap((paragraph) => paragraph.runs).map((run) => ({ text: run.text, bold: run.bold ?? false, size: run.size }))
+  }, presentationId)
+  expect(reopened?.every((run) => run.bold && run.size === 40)).toBe(true)
+})
+
+test('applies paragraph formatting and links, and reports text overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 768 })
+  await page.goto('/presentations')
+  await page.getByRole('button', { name: /Create (your first|a blank) presentation/ }).click()
+  await expect(page).toHaveURL(/\/presentations\/[^/]+$/)
+  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Add text' }).click()
+  const field = page.getByRole('textbox', { name: 'Text content' })
+  await expect(field).toBeFocused()
+  await page.keyboard.type('Dòng một')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Dòng hai')
+
+  const readParagraphs = () => page.evaluate(async () => {
+    const { usePresentationStore } = await import('/src/features/presentations/editor/store.ts')
+    const element = usePresentationStore.getState().document!.slides[0]!.elements[0]!
+    if (element.kind !== 'text') return null
+    return element.paragraphs.map((paragraph) => ({
+      alignment: paragraph.alignment,
+      bullet: paragraph.bullet,
+      runs: paragraph.runs.map((run) => ({ text: run.text, link: run.link ?? null })),
+    }))
+  })
+
+  await page.keyboard.press('Control+a')
+  await page.getByRole('button', { name: 'Align center' }).click()
+  await page.keyboard.press('Control+a')
+  await page.getByRole('button', { name: 'Bulleted list' }).click()
+
+  const paragraphs = await readParagraphs()
+  expect(paragraphs?.map((paragraph) => paragraph.alignment)).toEqual(['center', 'center'])
+  expect(paragraphs?.map((paragraph) => paragraph.bullet)).toEqual(['bullet', 'bullet'])
+  expect(paragraphs?.map((paragraph) => paragraph.runs.map((run) => run.text).join('')).join('|')).toContain('Dòng một')
+
+  await page.keyboard.press('Control+a')
+  await page.getByLabel('Link URL').fill('https://example.com')
+  await page.getByRole('button', { name: 'Add link' }).click()
+  const linked = await readParagraphs()
+  expect(linked?.every((paragraph) => paragraph.runs.every((run) => run.link === 'https://example.com'))).toBe(true)
+
+  await page.getByLabel('Link URL').click()
+  await page.keyboard.press('Control+a')
+  await page.keyboard.type('javascript:alert(1)')
+  await page.getByRole('button', { name: 'Add link' }).click()
+  await expect(page.getByRole('alert')).toContainText('Only http, https and mailto links can be added.')
+
+  const elementHeight = () => page.evaluate(async () => {
+    const { usePresentationStore } = await import('/src/features/presentations/editor/store.ts')
+    const element = usePresentationStore.getState().document!.slides[0]!.elements[0]!
+    return element.kind === 'text' ? element.height : 0
+  })
+
+  await field.click()
+  await page.keyboard.press('Control+a')
+  await page.keyboard.type('a'.repeat(600))
+  const before = await elementHeight()
+  await expect(page.getByText(/Text overflows this box/)).toBeVisible()
+  await page.getByRole('button', { name: 'Grow box to fit' }).click()
+  await expect.poll(elementHeight).toBeGreaterThan(before)
+  await expect(page.getByText(/Text overflows this box/)).toHaveCount(0)
+})
+
 test('autosaves a typed edit and keeps it after a reload and reopen', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 768 })
   await page.goto('/presentations')

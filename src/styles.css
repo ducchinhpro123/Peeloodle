@@ -46,6 +46,9 @@
   --mint-line: #9fd7c2;
   --mint-strong: #82d4b6;
   --blush-strong: #ffe3ed;
+  --warning-line: #f0c9a8;
+  --warning-bg: #fff6ec;
+  --warning-ink: #8a4b12;
   --surface: #fff;
   --canvas: #fafbf8;
   --header-height: 80px;
@@ -1245,6 +1248,36 @@ main > section, main > div { min-width: 0; }
 .presentation-editor-title p { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .presentation-editor-title h1 { max-width: 100%; overflow: hidden; font-size: 18px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
 .presentation-local-status { margin: 0; color: #007b55; font-size: 12px; font-weight: 800; }
+.presentation-text-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); background: var(--surface-warm); }
+.presentation-text-toolbar-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.presentation-text-toolbar-group + .presentation-text-toolbar-group { padding-left: var(--space-2); border-left: 1px solid var(--line); }
+.presentation-text-toolbar .button.icon { width: 36px; min-height: 36px; }
+.presentation-text-toolbar .button[aria-pressed="true"] { background: var(--pale); color: #00764f; box-shadow: inset 0 0 0 2px var(--mint); }
+.presentation-text-toolbar-field select, .presentation-text-toolbar-field input { min-height: 36px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 700; }
+.presentation-text-toolbar-color input { width: 44px; padding: 2px; }
+.presentation-text-toolbar-link input { min-width: 170px; }
+.presentation-text-toolbar-error { flex-basis: 100%; margin: 0; color: var(--danger); font-size: 12px; font-weight: 700; }
+.presentation-overflow-notice { display: grid; gap: var(--space-2); justify-items: start; margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--warning-line); border-radius: var(--radius-sm); background: var(--warning-bg); color: var(--warning-ink); font-size: 12px; font-weight: 600; }
+.presentation-overflow-notice p { margin: 0; }
+.presentation-add-shape select { min-height: 36px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 700; }
+.presentation-shape-fields { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
+.presentation-shape-fields label { display: grid; gap: var(--space-1); color: var(--muted); font-size: 11px; font-weight: 700; }
+.presentation-shape-fields input[type="color"] { width: 100%; min-height: 36px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.presentation-shape-fields input[type="number"] { min-height: 36px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 700; }
+.presentation-shape-toggle { display: flex !important; align-items: center; gap: var(--space-2); }
+.presentation-image-fields { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
+.presentation-image-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.presentation-image-actions .button { min-height: 36px; }
+.presentation-slide-background { display: grid; gap: var(--space-1); margin-bottom: var(--space-5); color: var(--muted); font-size: 11px; font-weight: 700; }
+.presentation-slide-background input { width: 100%; min-height: 36px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.presentation-theme-fields { display: grid; gap: var(--space-3); }
+.presentation-theme-fields label { display: grid; gap: var(--space-1); color: var(--muted); font-size: 11px; font-weight: 700; }
+.presentation-theme-fields select, .presentation-theme-fields input { min-height: 36px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 700; }
+.presentation-theme-fields input[type="color"] { width: 100%; padding: 2px; }
+.presentation-theme-fields .muted { margin: 0; }
+.presentation-sticker-picker { display: grid; gap: var(--space-2); margin: var(--space-4) 0 0; padding: 0; list-style: none; }
+.presentation-sticker-picker .button { display: flex; width: 100%; min-height: 40px; justify-content: space-between; gap: var(--space-3); text-align: left; }
+.presentation-sticker-picker span { color: var(--muted); font-size: 11px; font-weight: 700; }
 .presentation-workspace { display: grid; grid-template-columns: 168px minmax(0, 1fr) 220px; min-width: 0; min-height: 0; flex: 1; }
 .presentation-slide-rail, .presentation-inspector { min-height: 0; padding: var(--space-4); overflow: auto; background: var(--surface); }
 .presentation-slide-rail { border-right: 1px solid var(--line); }
@@ -1262,6 +1295,16 @@ main > section, main > div { min-width: 0; }
 .presentation-slide-card b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .presentation-slide-item-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-1); }
 .presentation-slide-action { min-width: 0; min-height: 32px; padding: 6px 2px; border-radius: 8px; }
+.presentation-layer-list { display: grid; gap: var(--space-2); }
+.presentation-layer-item { display: grid; gap: 2px; padding: var(--space-1); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.presentation-layer-item[data-selected="true"] { border-color: var(--mint); background: var(--pale); }
+.presentation-layer-select { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-width: 0; padding: 4px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 11px; text-align: left; }
+.presentation-layer-select span { color: var(--muted); font-size: 10px; text-transform: capitalize; }
+.presentation-layer-select b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.presentation-layer-select:focus-visible { outline: 2px solid var(--mint); outline-offset: 1px; }
+.presentation-layer-actions { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; }
+.presentation-layer-actions .button.icon { width: 100%; min-height: 26px; padding: 3px; }
+.presentation-layer-delete { color: var(--danger); }
 .presentation-slide-delete { color: var(--danger); }
 .presentation-slide-delete:hover:not(:disabled) { border-color: var(--danger-line); background: var(--danger-tint); color: var(--danger-strong); }
 .presentation-inspector dl { display: grid; gap: var(--space-3); margin: 0 0 var(--space-5); }
@@ -1273,6 +1316,11 @@ main > section, main > div { min-width: 0; }
 .presentation-geometry-fields label { display: grid; gap: var(--space-1); color: var(--muted); font-size: 11px; font-weight: 700; }
 .presentation-geometry-fields input { min-width: 0; width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 700; }
 .presentation-geometry-fields input:focus-visible { outline: 2px solid var(--mint); outline-offset: 1px; }
+.presentation-align-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-1); margin-top: var(--space-3); }
+.presentation-align-controls .button { min-height: 32px; padding: 6px 4px; font-size: 11px; }
+.presentation-guide { position: absolute; z-index: 3; background: var(--icon-pink); pointer-events: none; }
+.presentation-guide.is-x { width: 1px; }
+.presentation-guide.is-y { height: 1px; }
 /*
  * Handles live inside the frame, whose 2px border is drawn inside its box; the
  * -2px offsets put each handle's centre exactly on the element's own corner, so
@@ -1305,7 +1353,7 @@ main > section, main > div { min-width: 0; }
 .presentation-transform-handle.is-rotate::after { position: absolute; left: 50%; top: 100%; width: 2px; height: 24px; background: var(--mint); content: ''; transform: translateX(-50%); }
 .presentation-canvas-panel { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #dfe8e6; }
 .presentation-canvas-loading { margin: 0; padding: var(--space-5); color: var(--muted); font-size: 13px; text-align: center; }
-.presentation-canvas-error { position: absolute; z-index: 2; inset: auto var(--space-4) var(--space-7); margin: 0; padding: var(--space-3) var(--space-4); border: 1px solid #f0c9a8; border-radius: var(--radius-sm); background: #fff6ec; color: #8a4b12; font-size: 12px; font-weight: 600; }
+.presentation-canvas-error { position: absolute; z-index: 2; inset: auto var(--space-4) var(--space-7); margin: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--warning-line); border-radius: var(--radius-sm); background: var(--warning-bg); color: var(--warning-ink); font-size: 12px; font-weight: 600; }
 .presentation-canvas { position: absolute; inset: 0; cursor: grab; touch-action: none; }
 .presentation-canvas.is-panning { cursor: grabbing; }
 .presentation-canvas canvas { filter: drop-shadow(0 12px 28px #08152f2b); }
@@ -1317,7 +1365,7 @@ main > section, main > div { min-width: 0; }
 .presentation-text-editor-layer { position: absolute; z-index: 3; pointer-events: none; transform-origin: 0 0; }
 .presentation-text-editor { position: absolute; display: flex; flex-direction: column; box-sizing: border-box; overflow-wrap: break-word; border-radius: 4px; outline: 2px dashed var(--mint); outline-offset: 6px; pointer-events: auto; caret-color: var(--mint); }
 .presentation-text-editor:focus-visible { outline: 2px dashed var(--mint); }
-.presentation-text-editor-alert { position: absolute; top: 100%; left: 0; margin: var(--space-4) 0 0; padding: var(--space-2) var(--space-3); border: 1px solid #f0c9a8; border-radius: var(--radius-sm); background: #fff6ec; color: #8a4b12; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.presentation-text-editor-alert { position: absolute; top: 100%; left: 0; margin: var(--space-4) 0 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--warning-line); border-radius: var(--radius-sm); background: var(--warning-bg); color: var(--warning-ink); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .presentation-mobile-note { display: none; }
 
 .packs-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(350px, 410px); gap: var(--space-6); align-items: start; }

@@ -95,6 +95,19 @@ describe('text bridge', () => {
     expect(paragraphs[2]!.runs).toEqual([])
   })
 
+  it('round-trips an empty paragraph through its placeholder break', () => {
+    const paragraphs: TextParagraph[] = [
+      { runs: [{ text: 'before', fontId: 'be-vietnam-pro', size: 24, color: '#08152f' }], alignment: 'left', bullet: 'none', bulletLevel: 0 },
+      { runs: [], alignment: 'left', bullet: 'none', bulletLevel: 0 },
+      { runs: [{ text: 'after', fontId: 'be-vietnam-pro', size: 24, color: '#08152f' }], alignment: 'left', bullet: 'none', bulletLevel: 0 },
+    ]
+    const html = paragraphsToHtml(paragraphs)
+    expect(html).toContain('<br>')
+    const read = readHtml(html)
+    expect(read.map((paragraph) => paragraphsToPlainText([paragraph]))).toEqual(['before', '', 'after'])
+    expect(read[1]!.runs).toEqual([])
+  })
+
   it('normalizes non-breaking spaces and collapses markup whitespace', () => {
     const paragraphs = htmlToParagraphs('<p>a&nbsp;b</p>\n<p>\n  spaced   out\n</p>', defaults)
     expect(paragraphs[0]!.runs[0]!.text).toBe('a b')

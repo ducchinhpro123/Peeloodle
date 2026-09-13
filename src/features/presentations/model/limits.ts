@@ -36,6 +36,13 @@ export const PRESENTATION_LIMITS = {
   historyEntries: 50,
   /** Approximate retained history bytes before trimming older entries. */
   historySoftBytes: 32 * 1024 * 1024,
+  /**
+   * In-memory bytes held for artwork that is not stored yet, across the current
+   * document and its undo/redo snapshots. The current document's own bytes are
+   * exempt because insertion already bounds one document at maxMediaBytes; this
+   * budget only limits how much history can keep alive.
+   */
+  mediaRetentionBytes: 64 * 1024 * 1024,
   /** Title characters. */
   maxTitleLength: 300,
 } as const

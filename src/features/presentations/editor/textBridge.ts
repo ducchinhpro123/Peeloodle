@@ -97,15 +97,38 @@ export function paragraphsToHtml(paragraphs: TextParagraph[], options: Paragraph
       const runs = paragraph.runs
         .map((run) => `<span ${runStyleAttributes(run)} style="${runCss(run, scale)}">${escapeHtml(run.text).replace(/\n/g, '<br>')}</span>`)
         .join('')
+      // An empty paragraph needs a placeholder break to be a real editing line;
+      // the reader normalizes a lone placeholder back to no runs.
+      const content = paragraph.runs.every((run) => run.text === '') ? '<br>' : runs
       // Hanging indent mirrors the layout service: first line starts at the marker
       // x, wrapping and the text itself align to the paragraph indent.
       const indentStyle = indent > 0 ? `padding-left:${indent * scale}px;text-indent:-${BULLET_HANGING * scale}px;` : ''
-      return `<p ${BRIDGE_ATTR.paragraph}="${index}" ${BRIDGE_ATTR.align}="${paragraph.alignment}"${bulletAttr} style="margin:0;text-align:${paragraph.alignment};${indentStyle}${options.lineHeight ? `line-height:${options.lineHeight};` : ''}">${marker}${runs}</p>`
+      return `<p ${BRIDGE_ATTR.paragraph}="${index}" ${BRIDGE_ATTR.align}="${paragraph.alignment}"${bulletAttr} style="margin:0;text-align:${paragraph.alignment};${indentStyle}${options.lineHeight ? `line-height:${options.lineHeight};` : ''}">${marker}${content}</p>`
     })
     .join('')
 }
 
 type StyleState = { fontId: string; size: number; color: string; bold: boolean; italic: boolean; link?: string }
+
+/** Effective inline style at one node, with the inherited defaults resolved. */
+export type RunStyleState = StyleState
+
+/**
+ * Resolves the effective run style at a node by walking its ancestor elements,
+ * applying the same rules `readParagraphsFromDom` uses. Exposed for the
+ * selection toolbar so the DOM and the model never disagree about a run.
+ */
+export function runStyleAtNode(node: Node, defaults: BridgeDefaults): RunStyleState {
+  const chain: Element[] = []
+  let current: Node | null = node.nodeType === Node.ELEMENT_NODE ? node : node.parentNode
+  while (current && current.nodeType === Node.ELEMENT_NODE) {
+    chain.unshift(current as Element)
+    current = current.parentNode
+  }
+  let style: StyleState = { ...defaults, bold: false, italic: false }
+  for (const element of chain) style = styleFromElement(element, style)
+  return style
+}
 
 function styleFromElement(element: Element, inherited: StyleState): StyleState {
   const tag = element.tagName.toLowerCase()
@@ -122,9 +145,15 @@ function styleFromElement(element: Element, inherited: StyleState): StyleState {
   if (italic === 'true' || italic === 'false') next.italic = italic === 'true'
   if (tag === 'b' || tag === 'strong') next.bold = true
   if (tag === 'i' || tag === 'em') next.italic = true
+  // An element that carries the link attribute (or an anchor) decides the link for
+  // its subtree: an empty/unsafe value clears an inherited one, which is how the
+  // formatting toolbar removes a link from part of a linked run.
   const link = element.getAttribute(BRIDGE_ATTR.link) ?? (tag === 'a' ? element.getAttribute('href') : null)
-  const safe = safeLink(link)
-  if (safe) next.link = safe
+  if (link !== null) {
+    const safe = safeLink(link)
+    if (safe) next.link = safe
+    else delete next.link
+  }
   return next
 }
 
@@ -205,6 +234,31 @@ function mergeRuns(runs: TextRun[]): TextRun[] {
 
 const BLOCK_TAGS = new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre', 'section', 'article'])
 
+/**
+ * True when a block's only content is the placeholder break an empty editing
+ * paragraph carries (browsers need one for the block to have a line box).
+ * Marker spans and whitespace are ignored.
+ */
+function hasOnlyPlaceholderBreak(element: Element): boolean {
+  let breaks = 0
+  let content = 0
+  for (const node of element.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if ((node.textContent ?? '').trim() !== '') content += 1
+      continue
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) continue
+    const child = node as Element
+    if (child.getAttribute(BRIDGE_ATTR.marker) === 'true') continue
+    if (child.tagName.toLowerCase() === 'br') {
+      breaks += 1
+      continue
+    }
+    content += 1
+  }
+  return content === 0 && breaks === 1
+}
+
 function paragraphFromElement(
   element: Element,
   defaults: StyleState,
@@ -216,7 +270,7 @@ function paragraphFromElement(
   const levelAttr = Number(element.getAttribute(BRIDGE_ATTR.level))
   const bullet: TextParagraph['bullet'] = bulletAttr === 'bullet' || bulletAttr === 'number' ? bulletAttr : (options.inheritedBullet?.bullet ?? 'none')
   const bulletLevel = [0, 1, 2].includes(levelAttr) ? (levelAttr as BulletLevel) : (options.inheritedBullet?.level ?? 0)
-  const runs = mergeRuns(runsFromContainer(element, defaults, options))
+  const runs = hasOnlyPlaceholderBreak(element) ? [] : mergeRuns(runsFromContainer(element, defaults, options))
   return { runs, alignment, bullet, bulletLevel }
 }
 

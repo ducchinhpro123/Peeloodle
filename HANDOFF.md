@@ -1,6 +1,6 @@
 # Handoff — presentation work
 
-Updated 2026-09-11. Full scope: [`docs/slides-implementation-plan.md`](docs/slides-implementation-plan.md);
+Updated 2026-09-13. Full scope: [`docs/slides-implementation-plan.md`](docs/slides-implementation-plan.md);
 contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
 
 ## Where the work stands
@@ -19,6 +19,18 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
   `proofs/p15-p16-basic-presentations.md`, `proofs/p17-text-editing.md`,
   `proofs/p18-p19-image-and-save.md`, `proofs/p20-library-operations.md`,
   `proofs/p21-milestone-journey.md`.
+- **Milestone 2 is implemented through P33; P34 is partially verified.** Slide
+  rail, element transforms, undo/redo with bounded media retention, text
+  formatting, paragraphs/links/overflow, shapes, image flip/crop/replace, the
+  layer list, snapping alignment guides, slide backgrounds/theme defaults and
+  sticker snapshots are all in. Evidence:
+  `proofs/p22-p23-slide-rail.md` through `proofs/p33-sticker-snapshots.md`.
+  P34's focused checks pass (549 tests); its desktop/tablet Playwright journey
+  was **not** re-run at the owner's request, so the plan row stays unticked
+  (`proofs/p34-milestone2-verification.md`).
+- Latest full checks: `npm run typecheck` clean, `npm run lint` 0 errors
+  (4 pre-existing warnings), `npm test` 549 passed / 40 files, `npm run build`
+  OK.
 - `/presentations` creates and reopens real local documents (blank documents are
   saved at creation). The editor renders the active slide, lists the document's
   slides, switches between them, edits text boxes through the DOM bridge, inserts
@@ -41,27 +53,29 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
   `navigate()` calls remain unguarded** because the app renders a plain
   `BrowserRouter`; closing that means a data-router migration, not a patch.
 
-## Start here: P22 — Milestone 2 (make multi-slide editing useful)
+## Start here: finish P34, then Milestone 3 (P35 — export snapshot/preflight)
 
-**The `/my-stickers` pack library was redesigned** in a separate concurrent session (pack cards with real collage
-covers from the pack's own stickers, a sticky detail panel with a thumbnail gallery and reorder/remove controls,
-working pack search and Recent/Name sort, mobile stacking) and is recorded in `docs/ui-audit.md`. It also fixed
-the pre-existing wide-width header overflow, so `e2e/ui-polish.spec.ts` now passes in full (28 tests). Verified
-here: 453 unit tests, the pack journey in `e2e/editor.spec.ts`, all 28 ui-polish tests, and the 14 presentation
-browser tests — the shell and stylesheet changed under the presentation routes, so those were re-run rather than
-assumed.
+**P22–P33 are done.** P32 added per-slide backgrounds and theme defaults
+(`proofs/p32-backgrounds-theme.md`); P33 added sticker snapshots composed through
+the export renderer (`proofs/p33-sticker-snapshots.md`).
 
-**P20 and P21 are done.** P20 added rename, duplicate and safe delete (shared dialog, safe action focused
-first, focus restored to a surviving control) plus real first-slide thumbnails rendered through the same
-`renderSlide` the editor uses, cached by `documentId:revision` and drawn two at a time
-(`proofs/p20-library-operations.md`). P21 verified the whole milestone journey at 1440×900 and 1024×768 —
-text and media through autosave, a library rename, a reload and a reopen, with the stored row and media
-bytes read back and hashed against the uploaded file (`proofs/p21-milestone-journey.md`).
+**P34 is the one open Milestone 2 row.** Its focused checks pass; the required
+desktop/tablet browser evidence was deferred at the owner's request. When a
+browser run is acceptable, run:
 
-**P22 — slide rail with selection and add/duplicate actions** (acceptance: new IDs on duplicate; copied
-media remains valid; current slide clearly indicated). The milestone-journey spec already gives you pixel
-and geometry assertions to reuse, including `paintedPixelsInRect` and `elementRectInCanvas` in
-`e2e/presentations.ts`.
+```bash
+npx playwright test e2e/presentations.spec.ts e2e/presentations-transform.spec.ts --workers=2
+```
+
+Then tick P34 and re-run `npm run board`. Details and the coverage map are in
+`proofs/p34-milestone2-verification.md`.
+
+**Milestone 3 starts at P35 — export snapshot/preflight service** (depends P19,
+P34): one snapshot that awaits edits, fonts and media before PDF/PPTX/backup, so
+a concurrent edit cannot mix revisions.
+
+**Owner preference:** do not run Playwright repeatedly; it is slow. Use focused
+jsdom/Vitest tests and run a browser spec only for a task's one critical journey.
 
 **P21 note, kept for the next increment:** run browser specs from a clean worktree when another writer is
 editing the shared checkout, and stop any dev server on 4173 first — `reuseExistingServer: true` will
@@ -74,10 +88,18 @@ otherwise serve the shared tree through HMR module URLs.
 | Document contract | `src/features/presentations/model/types.ts` |
 | Create/clone | `model/factories.ts` (`createPresentationDocument`, `clonePresentationDocumentWithNewIds`) |
 | Validate on every boundary | `model/parse.ts` (`serializePresentationDocument`, `validatePresentationDocument`) |
-| Mutations + undo | `editor/store.ts` (`usePresentationStore`; view state never dirties) |
+| Mutations + undo | `editor/store.ts` (`usePresentationStore`; view state never dirties). History is whole-document snapshots; one completed gesture = one entry via `historyGroup`. `reconcileHeldMedia` keeps `pendingMedia` only while the current document or a history snapshot references it, and trims the oldest snapshot first when over `mediaRetentionBytes` |
+| Undo/redo controls | Toolbar buttons in `editor/PresentationEditorPage.tsx` and `editor/usePresentationShortcuts.ts` (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y); both call the same store commands and are ignored inside fields/sliders/dialogs |
 | Persistence | `lib/persistence/presentations/repository.ts` (memory) and `.../idb.ts` |
 | Text | `rendering/textLayout.ts` + `editor/textBridge.ts` + `rendering/fonts.ts` (`ensurePresentationFonts()` before measuring) |
 | Text editing | `editor/TextEditOverlay.tsx` + `editor/textEditSession.ts`; commits go through `store.updateText` with `textHistoryGroup`, one entry per session |
+| Text formatting | `editor/textFormat.ts` (`applyRunStyleToSelection` wraps the bridge's `data-*` attributes; `readSelectionStyle` for active states) + `editor/TextFormatToolbar.tsx`, connected by the `registerActiveTextEditFormat` controller seam. Paragraphs, bullets and links use the same module; overflow feedback is `editor/TextOverflowNotice.tsx` + `editor/textMeasure.ts` |
+| Shapes | `editor/shapeTools.ts` (insert presets) + `editor/ShapeStyleInspector.tsx`; `renderShape` already draws every `ShapeKind` |
+| Image adjust | `editor/ImageAdjustInspector.tsx`; `coverCrop`/`imageReplaceRefusal`/`planImageReplacement` in `store.ts` and `persistReplace` in `usePresentationSave.ts` |
+| Layer list | `editor/ElementLayerList.tsx` + `store.duplicateElement`; mounted in the slide rail |
+| Alignment guides | `editor/alignmentGuides.ts` (pure snap/align) + `view.guides` in `store.ts` + `editor/PresentationCanvas.tsx`; explicit controls in `ElementGeometryInspector.tsx` |
+| Backgrounds/theme | `editor/ThemeControls.tsx` + the slide-background control in `PresentationEditorPage.tsx`; `store.setSlideBackground`/`setTheme` take a history group |
+| Sticker snapshots | `editor/insertStickerSnapshot.ts` (composes through `exports/renderDocument`) + `editor/StickerPickerDialog.tsx`; inserted through the shared `runImageWrite` path |
 | Image insertion | `editor/insertImageAsset.ts` (`preparePresentationImage`), then `usePresentationSave.persistInsert` (check → plan → persist document + bytes → adopt → decode). `store.insertImage` is the local-only command and is **not** the UI path. Caps and the 200 MB budget live in `model/limits.ts` + `store.checkImageInsert`; held bytes live in `store.pendingMedia` and reach a repository only via `store.mediaForSave()` |
 | Saving | `editor/usePresentationSave.ts` (750 ms autosave + explicit Save, plus `saveBeforeLeave` and `keepMineAsCopy`); `baseRevision` is read inside the serialized task, and media is cleared using the ids from the persisted snapshot |
 | Leaving the editor | `editor/leaveGuard.ts`, consumed by `GuardedLink` in `src/main.tsx`; browser Back/Forward and `navigate()` stay unguarded while the app uses a plain `BrowserRouter` |

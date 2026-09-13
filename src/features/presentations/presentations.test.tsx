@@ -10,7 +10,14 @@ import type { PresentationDocument } from './model/types'
 import { createPresentationDocument, createTextElement } from './model/factories'
 import { PRESENTATION_LIMITS } from './model/limits'
 import { createFixturePresentation, FIXTURE_ID, FIXTURE_IMAGE_ASSET_ID, FIXTURE_IMAGE_BYTE_LENGTH, FIXTURE_IMAGE_SHA256, fixtureImagePng } from './model/fixtures/fixture'
+import { encodeRgbaPng } from './model/fixtures/png'
 import { usePresentationStore } from './editor/store'
+import { paragraphsToHtml } from './editor/textBridge'
+import { prepareStickerSnapshot } from './editor/insertStickerSnapshot'
+
+// The render pipeline needs a real canvas; the module has its own unit tests, so
+// the route test only verifies the picker → atomic insert wiring.
+vi.mock('./editor/insertStickerSnapshot', () => ({ prepareStickerSnapshot: vi.fn() }))
 
 class ResizeObserverStub {
   observe() {}
@@ -29,13 +36,14 @@ afterEach(() => {
 })
 
 function renderPresentations(path: string, presentationRepository = createMemoryPresentationRepository(), { strict = false } = {}) {
+  const stickerRepository = createMemoryRepository()
   const app = (
     <MemoryRouter initialEntries={[path]}>
-      <App repository={createMemoryRepository()} presentationRepository={presentationRepository} />
+      <App repository={stickerRepository} presentationRepository={presentationRepository} />
     </MemoryRouter>
   )
   const view = render(strict ? <StrictMode>{app}</StrictMode> : app)
-  return { repository: presentationRepository, unmount: view.unmount }
+  return { repository: presentationRepository, stickers: stickerRepository, unmount: view.unmount }
 }
 
 function trackDecodedBitmaps() {
@@ -64,11 +72,21 @@ async function openBlankEditor(repository = createMemoryPresentationRepository()
   await screen.findByRole('heading', { name: 'No presentations yet' })
   fireEvent.click(screen.getByRole('button', { name: 'Create your first presentation' }))
   await screen.findByRole('heading', { name: 'Untitled presentation' })
-  return { repository, input: screen.getByTestId('presentation-image-input'), unmount: view.unmount }
+  return { repository, stickers: view.stickers, input: screen.getByTestId('presentation-image-input'), unmount: view.unmount }
 }
 
 function editorElements() {
   return usePresentationStore.getState().document!.slides[0]!.elements
+}
+
+/** Selects a text range, which is what the formatting toolbar acts on. */
+function selectRange(node: Node, start: number, end: number) {
+  const range = document.createRange()
+  range.setStart(node, start)
+  range.setEnd(node, end)
+  const selection = window.getSelection()!
+  selection.removeAllRanges()
+  selection.addRange(range)
 }
 
 /** A write that can be held open, so "not yet committed" is observable. */
@@ -311,6 +329,424 @@ describe('presentation routes', () => {
       const stored = await repository.getPresentation(FIXTURE_ID)
       expect(stored.slides.map((slide) => slide.id)).toEqual(['fixture-slide-1'])
     })
+  })
+
+  it('undoes and redoes through the toolbar and keyboard without stealing text-field undo', async () => {
+    const repository = createMemoryPresentationRepository()
+    await saveFixture(repository)
+    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
+
+    const undo = screen.getByRole('button', { name: 'Undo' })
+    const redo = screen.getByRole('button', { name: 'Redo' })
+    expect(undo).toBeDisabled()
+    expect(redo).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add slide' }))
+    expect(usePresentationStore.getState().document!.slides).toHaveLength(3)
+    expect(undo).toBeEnabled()
+
+    fireEvent.click(undo)
+    expect(usePresentationStore.getState().document!.slides).toHaveLength(2)
+    expect(redo).toBeEnabled()
+
+    // Ctrl/Cmd+Shift+Z and Ctrl+Y redo; plain Ctrl/Cmd+Z undoes.
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true })
+    expect(usePresentationStore.getState().document!.slides).toHaveLength(3)
+    fireEvent.keyDown(window, { key: 'y', ctrlKey: true })
+    expect(usePresentationStore.getState().document!.slides).toHaveLength(3)
+    expect(redo).toBeDisabled()
+
+    // A shortcut typed inside a text field belongs to the field, not the document.
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+    const historyBefore = usePresentationStore.getState().past.length
+    fireEvent.keyDown(field, { key: 'z', ctrlKey: true })
+    expect(usePresentationStore.getState().past).toHaveLength(historyBefore)
+    expect(usePresentationStore.getState().document!.slides).toHaveLength(3)
+  })
+
+  it('formats a selected run and keeps it through undo, redo and reopen', async () => {
+    const { repository, unmount } = await openBlankEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+    field.innerHTML = '<p>Xin chào</p>'
+    fireEvent.input(field)
+
+    const text = field.querySelector('p')!.firstChild as Text
+    const range = document.createRange()
+    range.setStart(text, 0)
+    range.setEnd(text, 3)
+    const selection = window.getSelection()!
+    selection.removeAllRanges()
+    selection.addRange(range)
+
+    const bold = screen.getByRole('button', { name: 'Bold' })
+    fireEvent.click(bold)
+    expect(bold).toHaveAttribute('aria-pressed', 'true')
+
+    const formatted = editorElements()[0]!
+    if (formatted.kind !== 'text') throw new Error('expected text')
+    expect(formatted.paragraphs[0]!.runs.map((run) => ({ text: run.text, bold: run.bold ?? false }))).toEqual([
+      { text: 'Xin', bold: true },
+      { text: ' chào', bold: false },
+    ])
+    const documentId = usePresentationStore.getState().document!.id
+    const history = usePresentationStore.getState().past.length
+
+    // Typing and formatting stay one session, so one undo entry.
+    fireEvent.blur(field)
+    expect(usePresentationStore.getState().past).toHaveLength(history)
+    await waitFor(async () => {
+      const stored = await repository.getPresentation(documentId)
+      const storedElement = stored.slides[0]!.elements[0]!
+      if (storedElement.kind !== 'text') throw new Error('expected text')
+      expect(storedElement.paragraphs[0]!.runs[0]!.bold).toBe(true)
+    }, { timeout: 3000 })
+
+    // Undo restores the empty box; redo brings the formatted runs back.
+    usePresentationStore.getState().undo()
+    const undone = editorElements()[0]!
+    if (undone.kind !== 'text') throw new Error('expected text')
+    expect(undone.paragraphs[0]!.runs).toEqual([])
+    usePresentationStore.getState().redo()
+    const redone = editorElements()[0]!
+    if (redone.kind !== 'text') throw new Error('expected text')
+    expect(redone.paragraphs[0]!.runs[0]!.bold).toBe(true)
+
+    // Reopen from storage: the formatting is persisted data, not DOM state.
+    unmount()
+    renderPresentations(`/presentations/${documentId}`, repository)
+    await screen.findByTestId('presentation-canvas')
+    const reopened = editorElements()[0]!
+    if (reopened.kind !== 'text') throw new Error('expected text')
+    expect(reopened.paragraphs[0]!.runs.map((run) => run.bold ?? false)).toEqual([true, false])
+  })
+
+  it('applies paragraph alignment and bullets and keeps them after reopen', async () => {
+    const { repository, unmount } = await openBlankEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+    const run = { text: '', fontId: 'be-vietnam-pro', size: 24, color: '#08152f' }
+    field.innerHTML = paragraphsToHtml([
+      { runs: [{ ...run, text: 'Dòng một' }], alignment: 'left', bullet: 'none', bulletLevel: 0 },
+      { runs: [{ ...run, text: 'Dòng hai' }], alignment: 'left', bullet: 'none', bulletLevel: 0 },
+    ])
+    fireEvent.input(field)
+
+    const firstText = field.querySelector('[data-p="0"] span')!.firstChild as Text
+    selectRange(firstText, 0, firstText.length)
+    fireEvent.click(screen.getByRole('button', { name: 'Align center' }))
+
+    const secondText = field.querySelector('[data-p="1"] span')!.firstChild as Text
+    selectRange(secondText, 0, secondText.length)
+    fireEvent.click(screen.getByRole('button', { name: 'Bulleted list' }))
+
+    const element = editorElements()[0]!
+    if (element.kind !== 'text') throw new Error('expected text')
+    expect(element.paragraphs.map((paragraph) => paragraph.alignment)).toEqual(['center', 'left'])
+    expect(element.paragraphs.map((paragraph) => paragraph.bullet)).toEqual(['none', 'bullet'])
+
+    const documentId = usePresentationStore.getState().document!.id
+    fireEvent.blur(field)
+    await waitFor(async () => {
+      const stored = await repository.getPresentation(documentId)
+      const storedElement = stored.slides[0]!.elements[0]!
+      if (storedElement.kind !== 'text') throw new Error('expected text')
+      expect(storedElement.paragraphs[0]!.alignment).toBe('center')
+      expect(storedElement.paragraphs[1]!.bullet).toBe('bullet')
+    }, { timeout: 3000 })
+
+    unmount()
+    renderPresentations(`/presentations/${documentId}`, repository)
+    await screen.findByTestId('presentation-canvas')
+    const reopened = editorElements()[0]!
+    if (reopened.kind !== 'text') throw new Error('expected text')
+    expect(reopened.paragraphs[0]!.alignment).toBe('center')
+    expect(reopened.paragraphs[1]!.bullet).toBe('bullet')
+  })
+
+  it('adds a safe link and refuses an unsafe one', async () => {
+    await openBlankEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+    field.innerHTML = paragraphsToHtml([
+      { runs: [{ text: 'Trang chủ', fontId: 'be-vietnam-pro', size: 24, color: '#08152f' }], alignment: 'left', bullet: 'none', bulletLevel: 0 },
+    ])
+    fireEvent.input(field)
+
+    const text = field.querySelector('[data-p="0"] span')!.firstChild as Text
+    selectRange(text, 0, text.length)
+    const linkInput = screen.getByLabelText('Link URL')
+    fireEvent.change(linkInput, { target: { value: 'https://example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add link' }))
+
+    const linked = editorElements()[0]!
+    if (linked.kind !== 'text') throw new Error('expected text')
+    expect(linked.paragraphs[0]!.runs[0]!.link).toBe('https://example.com')
+    expect(screen.getByRole('button', { name: 'Remove link' })).toBeInTheDocument()
+
+    // An unsafe scheme is refused in words, and the existing link is unchanged.
+    fireEvent.change(linkInput, { target: { value: 'javascript:alert(1)' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add link' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Only http, https and mailto links can be added.')
+    const stillLinked = editorElements()[0]!
+    if (stillLinked.kind !== 'text') throw new Error('expected text')
+    expect(stillLinked.paragraphs[0]!.runs[0]!.link).toBe('https://example.com')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove link' }))
+    const removed = editorElements()[0]!
+    if (removed.kind !== 'text') throw new Error('expected text')
+    expect(removed.paragraphs[0]!.runs[0]!.link).toBeUndefined()
+  })
+
+  it('shows actionable text overflow and grows the box to fit', async () => {
+    await openBlankEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+    field.innerHTML = paragraphsToHtml([
+      { runs: [{ text: 'a'.repeat(600), fontId: 'be-vietnam-pro', size: 24, color: '#08152f' }], alignment: 'left', bullet: 'none', bulletLevel: 0 },
+    ])
+    fireEvent.input(field)
+
+    const before = editorElements()[0]!
+    if (before.kind !== 'text') throw new Error('expected text')
+    expect(await screen.findByText(/Text overflows this box/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grow box to fit' }))
+    const grown = editorElements()[0]!
+    if (grown.kind !== 'text') throw new Error('expected text')
+    expect(grown.height).toBeGreaterThan(before.height)
+    expect(screen.queryByText(/Text overflows this box/)).not.toBeInTheDocument()
+  })
+
+  it('inserts every shape kind and edits its fill and stroke', async () => {
+    const { repository } = await openBlankEditor()
+    const addShape = (kind: string) => fireEvent.change(screen.getByLabelText('Add shape'), { target: { value: kind } })
+
+    addShape('rectangle')
+    let first = editorElements()[0]!
+    expect(first).toMatchObject({ kind: 'shape', shape: 'rectangle', x: 400, y: 225 })
+    addShape('ellipse')
+    addShape('rounded-rectangle')
+    addShape('line')
+    addShape('arrow')
+
+    const shapes = editorElements().map((element) => (element.kind === 'shape' ? element.shape : null))
+    expect(shapes).toEqual(['rectangle', 'ellipse', 'rounded-rectangle', 'line', 'arrow'])
+
+    // Linear kinds carry a stroke and no fill; blocks carry the accent fill.
+    const line = editorElements()[3]!
+    if (line.kind !== 'shape') throw new Error('expected shape')
+    expect(line).toMatchObject({ fill: null, stroke: '#08152f', strokeWidth: 4 })
+
+    usePresentationStore.getState().undo()
+    expect(editorElements()).toHaveLength(4)
+
+    first = editorElements()[0]!
+    if (first.kind !== 'shape') throw new Error('expected shape')
+    usePresentationStore.getState().selectElements([first.id])
+    fireEvent.change(await screen.findByLabelText('Shape fill color'), { target: { value: '#b42338' } })
+    fireEvent.change(screen.getByLabelText('Stroke width'), { target: { value: '6' } })
+    fireEvent.blur(screen.getByLabelText('Stroke width'))
+
+    const updated = editorElements()[0]!
+    if (updated.kind !== 'shape') throw new Error('expected shape')
+    expect(updated.fill).toBe('#b42338')
+    expect(updated.strokeWidth).toBe(6)
+
+    // The style is real persisted document data, not just live state.
+    const documentId = usePresentationStore.getState().document!.id
+    await waitFor(async () => {
+      const stored = await repository.getPresentation(documentId)
+      const storedShape = stored.slides[0]!.elements[0]!
+      expect(storedShape.kind === 'shape' ? storedShape.fill : null).toBe('#b42338')
+    }, { timeout: 3000 })
+
+    // One grouped history entry for the style session, not one per control.
+    const history = usePresentationStore.getState().past.length
+    usePresentationStore.getState().undo()
+    const undone = editorElements()[0]!
+    if (undone.kind !== 'shape') throw new Error('expected shape')
+    expect(undone.fill).toBe('#08b879')
+    expect(usePresentationStore.getState().past).toHaveLength(history - 1)
+  })
+
+  it('selects, reorders, duplicates, locks and deletes from the layer list', async () => {
+    const repository = createMemoryPresentationRepository()
+    await saveFixture(repository)
+    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
+
+    // Top of the list is the front-most element.
+    const list = screen.getByRole('list', { name: /Elements on Title slide/ })
+    let rows = within(list).getAllByRole('listitem')
+    expect(rows[0]).toHaveTextContent('Accent circle')
+    expect(rows[2]).toHaveTextContent('Title')
+    expect(rows[3]).toHaveTextContent('Panel')
+
+    fireEvent.click(within(rows[3]!).getByRole('button', { name: 'Panel' }))
+    expect(usePresentationStore.getState().view.selectedElementIds).toEqual(['fixture-shape-panel'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move Panel up' }))
+    expect(usePresentationStore.getState().document!.slides[0]!.elements.findIndex((element) => element.id === 'fixture-shape-panel')).toBe(1)
+    usePresentationStore.getState().undo()
+    expect(usePresentationStore.getState().document!.slides[0]!.elements[0]!.id).toBe('fixture-shape-panel')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate Panel' }))
+    expect(usePresentationStore.getState().document!.slides[0]!.elements).toHaveLength(5)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Panel copy' }))
+    expect(usePresentationStore.getState().document!.slides[0]!.elements).toHaveLength(4)
+
+    // Locking makes the canvas transform refuse the element.
+    fireEvent.click(screen.getByRole('button', { name: 'Lock Panel' }))
+    const locked = usePresentationStore.getState().document!.slides[0]!.elements.find((element) => element.id === 'fixture-shape-panel')!
+    expect(locked.locked).toBe(true)
+    usePresentationStore.getState().commitTransform('fixture-shape-panel', { x: 10, y: 10, width: 100, height: 100, rotation: 0 })
+    const afterTransform = usePresentationStore.getState().document!.slides[0]!.elements.find((element) => element.id === 'fixture-shape-panel')!
+    expect(afterTransform.x).toBe(locked.x)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide Panel' }))
+    expect(usePresentationStore.getState().document!.slides[0]!.elements.find((element) => element.id === 'fixture-shape-panel')!.visible).toBe(false)
+    rows = within(list).getAllByRole('listitem')
+    expect(rows).toHaveLength(4)
+  })
+
+  it('aligns an element to the slide from the inspector', async () => {
+    const repository = createMemoryPresentationRepository()
+    await saveFixture(repository)
+    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
+
+    act(() => { usePresentationStore.getState().selectElements(['fixture-shape-ellipse']) })
+    const ellipse = () => usePresentationStore.getState().document!.slides[0]!.elements.find((element) => element.id === 'fixture-shape-ellipse')!
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Align Left' }))
+    expect(ellipse().x).toBe(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Align Middle' }))
+    expect(ellipse().y).toBe((720 - ellipse().height) / 2)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Align Bottom' }))
+    expect(ellipse().y).toBe(720 - ellipse().height)
+
+    // One entry per explicit alignment, each undoable.
+    const history = usePresentationStore.getState().past.length
+    usePresentationStore.getState().undo()
+    expect(ellipse().y).toBe((720 - ellipse().height) / 2)
+    expect(usePresentationStore.getState().past).toHaveLength(history - 1)
+  })
+
+  it('edits the slide background and theme defaults without restyling saved elements', async () => {
+    const repository = createMemoryPresentationRepository()
+    await saveFixture(repository)
+    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
+
+    // Slide background applies to the active slide only and persists.
+    fireEvent.change(screen.getByLabelText('Slide background'), { target: { value: '#123456' } })
+    fireEvent.blur(screen.getByLabelText('Slide background'))
+    const changed = usePresentationStore.getState().document!
+    expect(changed.slides[0]!.background).toBe('#123456')
+    expect(changed.slides[1]!.background).not.toBe('#123456')
+    await waitFor(async () => {
+      const stored = await repository.getPresentation(FIXTURE_ID)
+      expect(stored.slides[0]!.background).toBe('#123456')
+    }, { timeout: 3000 })
+
+    // Theme changes are defaults for new text; existing runs stay untouched.
+    const titleBefore = structuredClone(usePresentationStore.getState().document!.slides[0]!.elements.find((element) => element.id === 'fixture-text-title'))
+    fireEvent.click(screen.getByRole('button', { name: 'Theme' }))
+    fireEvent.change(await screen.findByLabelText('Body font'), { target: { value: 'spectral' } })
+    fireEvent.change(screen.getByLabelText('Text color'), { target: { value: '#ff0000' } })
+    fireEvent.blur(screen.getByLabelText('Text color'))
+    expect(usePresentationStore.getState().document!.theme).toMatchObject({ bodyFontId: 'spectral', colors: { text: '#ff0000' } })
+    const titleAfter = usePresentationStore.getState().document!.slides[0]!.elements.find((element) => element.id === 'fixture-text-title')
+    expect(titleAfter).toEqual(titleBefore)
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
+
+    // A new text box uses the new defaults.
+    fireEvent.click(screen.getByRole('button', { name: 'Add text' }))
+    const field = await screen.findByRole('textbox', { name: 'Text content' })
+    field.innerHTML = '<p>Thème</p>'
+    fireEvent.input(field)
+    fireEvent.blur(field)
+    const added = editorElements().at(-1)!
+    if (added.kind !== 'text') throw new Error('expected text')
+    expect(added.paragraphs[0]!.runs[0]).toMatchObject({ text: 'Thème', fontId: 'spectral', color: '#ff0000' })
+
+    // Another presentation keeps its own theme.
+    await repository.savePresentation(createPresentationDocument({ id: 'other', title: 'Other' }))
+    expect((await repository.getPresentation('other')).theme.bodyFontId).toBe('be-vietnam-pro')
+  })
+
+  it('places a saved sticker as an immutable image snapshot', async () => {
+    const { repository, stickers } = await openBlankEditor()
+    const presentationId = usePresentationStore.getState().document!.id
+
+    const sticker = createProjectDocument({ id: 'sticker-1', title: 'Cat sticker' })
+    sticker.layers = [{
+      id: 'layer-1',
+      kind: 'image',
+      name: 'Photo',
+      assetId: 'sticker-asset',
+      transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+    }]
+    sticker.assetIds = ['sticker-asset']
+    await stickers.saveProjectWithAssets(sticker, [{
+      asset: { id: 'sticker-asset', mimeType: 'image/png', width: 256, height: 256, blobKey: 'assets/sticker-asset', provenance: 'user' },
+      blob: new Blob([fixtureImagePng()], { type: 'image/png' }),
+    }])
+
+    const asset = {
+      id: 'asset-snapshot',
+      blobKey: 'uploads/snapshot',
+      mimeType: 'image/png' as const,
+      width: 64,
+      height: 64,
+      sha256: 'a'.repeat(64),
+      byteLength: 4,
+      provenance: { source: 'sticker' as const, label: 'Cat sticker.png' },
+    }
+    vi.mocked(prepareStickerSnapshot).mockResolvedValue({
+      asset,
+      media: { assetId: asset.id, bytes: new Uint8Array([137, 80, 78, 71]), mimeType: 'image/png' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add sticker' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Cat sticker/ }))
+
+    await waitFor(() => expect(editorElements()).toHaveLength(1))
+    expect(editorElements()[0]!).toMatchObject({ kind: 'image', assetId: 'asset-snapshot', alt: 'Cat sticker.png' })
+
+    // The presentation owns its copied bytes; the source sticker is untouched.
+    const stored = await repository.getPresentation(presentationId)
+    expect(stored.assets.map((storedAsset) => storedAsset.id)).toEqual(['asset-snapshot'])
+    expect(Array.from((await repository.getMedia('asset-snapshot')).bytes)).toEqual([137, 80, 78, 71])
+    expect((await stickers.getProject('sticker-1')).layers[0]).toMatchObject({ assetId: 'sticker-asset' })
+    expect(vi.mocked(prepareStickerSnapshot)).toHaveBeenCalledWith(stickers, 'sticker-1')
+  })
+
+  it('keeps canvas shortcuts out of dialogs and text fields', async () => {
+    const repository = createMemoryPresentationRepository()
+    await saveFixture(repository)
+    renderPresentations(`/presentations/${FIXTURE_ID}`, repository)
+    await screen.findByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })
+
+    act(() => { usePresentationStore.getState().addSlide() })
+    const history = usePresentationStore.getState().past.length
+
+    fireEvent.click(screen.getByRole('button', { name: 'Theme' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.keyDown(dialog, { key: 'z', ctrlKey: true })
+    expect(usePresentationStore.getState().past).toHaveLength(history)
+
+    fireEvent.keyDown(screen.getByLabelText('Body font'), { key: 'z', ctrlKey: true })
+    expect(usePresentationStore.getState().past).toHaveLength(history)
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
   })
 
   it('releases decoded artwork when the editor closes', async () => {
@@ -568,6 +1004,56 @@ describe('presentation image insertion', () => {
     expect(screen.getByText('Saved locally')).toBeInTheDocument()
   })
 
+  it('flips, crops and replaces a photo without moving the element', async () => {
+    const { repository, input } = await openBlankEditor()
+    const presentationId = usePresentationStore.getState().document!.id
+    fireEvent.change(input, { target: { files: [photoFile()] } })
+    await waitFor(() => expect(editorElements()).toHaveLength(1))
+
+    const before = editorElements()[0]!
+    if (before.kind !== 'image') throw new Error('expected image')
+    const placement = { x: before.x, y: before.y, width: before.width, height: before.height }
+    usePresentationStore.getState().selectElements([before.id])
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Flip horizontally' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Flip vertically' }))
+    let current = editorElements()[0]!
+    if (current.kind !== 'image') throw new Error('expected image')
+    expect(current).toMatchObject({ flipX: true, flipY: true, ...placement })
+
+    // Crop is normalized document data; the pixels are never rewritten.
+    fireEvent.change(screen.getByLabelText('Crop left percent'), { target: { value: '10' } })
+    fireEvent.blur(screen.getByLabelText('Crop left percent'))
+    current = editorElements()[0]!
+    if (current.kind !== 'image') throw new Error('expected image')
+    expect(current.crop).toEqual({ x: 0.1, y: 0, width: 0.9, height: 1 })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset crop' }))
+    current = editorElements()[0]!
+    if (current.kind !== 'image') throw new Error('expected image')
+    expect(current.crop).toEqual({ x: 0, y: 0, width: 1, height: 1 })
+
+    // Replace persists the new bytes first, then switches the asset in place.
+    fireEvent.click(screen.getByRole('button', { name: 'Replace photo' }))
+    fireEvent.change(input, { target: { files: [photoFile('replacement.png', encodeRgbaPng(64, 64, () => [255, 0, 0, 255]))] } })
+    await waitFor(async () => {
+      const stored = await repository.getPresentation(presentationId)
+      const storedElement = stored.slides[0]!.elements[0]!
+      expect(storedElement.kind === 'image' ? storedElement.alt : null).toBe('replacement.png')
+    }, { timeout: 3000 })
+
+    const replaced = editorElements()[0]!
+    if (replaced.kind !== 'image') throw new Error('expected image')
+    expect({ x: replaced.x, y: replaced.y, width: replaced.width, height: replaced.height }).toEqual(placement)
+    expect(replaced).toMatchObject({ flipX: true, flipY: true, alt: 'replacement.png' })
+    expect(replaced.assetId).not.toBe(before.assetId)
+
+    usePresentationStore.getState().undo()
+    const undone = editorElements()[0]!
+    if (undone.kind !== 'image') throw new Error('expected image')
+    expect(undone.assetId).toBe(before.assetId)
+  })
+
   it('reports an image as added only after the write completes', async () => {
     const repository = new GatedPresentationRepository()
     const { input } = await openBlankEditor(repository)
@@ -665,8 +1151,11 @@ describe('presentation image insertion', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(`This slide already holds the maximum of ${PRESENTATION_LIMITS.maxElementsPerSlide} elements`)
     expect(editorElements()).toHaveLength(PRESENTATION_LIMITS.maxElementsPerSlide)
     expect(usePresentationStore.getState().document!.assets).toHaveLength(0)
-    // Refused before any write: the stored row never saw the insert.
-    expect((await repository.getPresentation(presentationId)).slides[0]!.elements).toHaveLength(0)
+    // The refused insert never reached storage: whatever autosave wrote has no
+    // image asset and no image element, only the fillers.
+    const stored = await repository.getPresentation(presentationId)
+    expect(stored.assets).toHaveLength(0)
+    expect(stored.slides[0]!.elements.every((element) => element.kind === 'text')).toBe(true)
   })
 
   it('says the artwork budget is spent instead of silently refusing the image', async () => {

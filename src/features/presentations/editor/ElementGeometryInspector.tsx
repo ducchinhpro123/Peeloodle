@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { usePresentationStore } from './store'
+import { ImageAdjustInspector } from './ImageAdjustInspector'
+import { ShapeStyleInspector } from './ShapeStyleInspector'
+import { TextOverflowNotice } from './TextOverflowNotice'
+import { alignToSlide, type SlideAlignment } from './alignmentGuides'
 import { elementGeometry, withRotation } from './transformGeometry'
 import type { Element } from '../model/types'
 
@@ -11,6 +16,15 @@ const FIELDS: Array<{ key: GeometryField; label: string; step: number }> = [
   { key: 'width', label: 'Width', step: 1 },
   { key: 'height', label: 'Height', step: 1 },
   { key: 'rotation', label: 'Rotation', step: 0.1 },
+]
+
+const ALIGN_ACTIONS: Array<{ key: SlideAlignment; label: string }> = [
+  { key: 'left', label: 'Left' },
+  { key: 'center-horizontal', label: 'Center' },
+  { key: 'right', label: 'Right' },
+  { key: 'top', label: 'Top' },
+  { key: 'middle-vertical', label: 'Middle' },
+  { key: 'bottom', label: 'Bottom' },
 ]
 
 function formatValue(value: number): string {
@@ -81,8 +95,9 @@ function GeometryFieldInput({ label, value, step, disabled, onCommit }: Geometry
  * the numbers and the frame never disagree while an element is being dragged.
  * Locked elements show their numbers read-only: the command would refuse them.
  */
-export function ElementGeometryInspector({ element }: { element: Element }) {
+export function ElementGeometryInspector({ element, onReplaceImage }: { element: Element; onReplaceImage?: (elementId: string) => void }) {
   const transformPreview = usePresentationStore((state) => state.view.transformPreview)
+  const pageSize = usePresentationStore((state) => state.document?.pageSize)
   const geometry = elementGeometry(element, transformPreview)
 
   const commitField = (key: GeometryField, value: number) => {
@@ -90,6 +105,13 @@ export function ElementGeometryInspector({ element }: { element: Element }) {
     // Rotation keeps the visual centre: the stored origin moves with the angle,
     // so the frame does not jump when the number changes.
     store.commitTransform(element.id, key === 'rotation' ? withRotation(geometry, value) : { ...geometry, [key]: value })
+  }
+
+  const align = (alignment: SlideAlignment) => {
+    if (!pageSize) return
+    const store = usePresentationStore.getState()
+    const current = elementGeometry(element, store.view.transformPreview)
+    store.commitTransform(element.id, { ...current, ...alignToSlide(current, pageSize, alignment) })
   }
 
   return (
@@ -106,7 +128,17 @@ export function ElementGeometryInspector({ element }: { element: Element }) {
           />
         ))}
       </div>
+      <div className="presentation-align-controls" role="group" aria-label="Align to slide">
+        {ALIGN_ACTIONS.map(({ key, label }) => (
+          <Button key={key} aria-label={`Align ${label}`} title={`Align ${label}`} disabled={element.locked} onClick={() => align(key)}>
+            {label}
+          </Button>
+        ))}
+      </div>
       {element.locked ? <p className="muted">This element is locked, so it ignores moves, resizes, and rotations.</p> : null}
+      {element.kind === 'text' ? <TextOverflowNotice element={element} /> : null}
+      {element.kind === 'shape' ? <ShapeStyleInspector element={element} /> : null}
+      {element.kind === 'image' ? <ImageAdjustInspector element={element} onReplace={onReplaceImage} /> : null}
     </>
   )
 }
