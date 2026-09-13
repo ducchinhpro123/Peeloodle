@@ -111,6 +111,8 @@ test('presentation library and preview remain contained on a phone', async ({ pa
   await expect(page.getByRole('button', { name: 'Zoom in' })).toBeVisible()
   // Authoring controls stay reachable at phone width even though the copy points at desktop.
   await expect(page.getByRole('button', { name: 'Add text' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add slide' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Duplicate active slide' })).toBeVisible()
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: `${OUT}/p15-editor-390x844.png`, fullPage: false })
 
@@ -368,6 +370,72 @@ test('inserts, edits, saves, and reopens a text box without moving it', async ({
   const offBox = await elementRectInCanvas(page, { x: placement.x, y: placement.y + placement.height + 40, width: placement.width, height: 80 })
   expect(await countDarkPixels(page, offBox)).toBe(0)
   await page.screenshot({ path: `${OUT}/p17-editor-reopened-1280x768.png`, fullPage: false })
+})
+
+test('adds, duplicates, reorders, and deletes slides through the accessible rail', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 768 })
+  const presentationId = await seedFixturePresentation(page)
+  await page.goto(`/presentations/${presentationId}`)
+  await expect(page.getByRole('heading', { name: 'Bài trình bày mẫu — Fixture' })).toBeVisible()
+
+  const sourceId = 'fixture-slide-1'
+  await expect(page.getByRole('button', { name: 'Show slide 1: Title slide' })).toHaveAttribute('aria-current', 'true')
+  await page.getByRole('button', { name: 'Duplicate active slide' }).click()
+  await expect(page.getByRole('button', { name: 'Show slide 2: Title slide copy' })).toHaveAttribute('aria-current', 'true')
+
+  const duplicate = await page.evaluate(async () => {
+    const { usePresentationStore } = await import('/src/features/presentations/editor/store.ts')
+    const state = usePresentationStore.getState()
+    const source = state.document!.slides[0]!
+    const copy = state.document!.slides[1]!
+    return {
+      sourceId: source.id,
+      copyId: copy.id,
+      sourceElementIds: source.elements.map((element) => element.id),
+      copyElementIds: copy.elements.map((element) => element.id),
+      copyImageAssetId: copy.elements.find((element) => element.kind === 'image')?.assetId,
+    }
+  })
+  expect(duplicate.sourceId).toBe(sourceId)
+  expect(duplicate.copyId).not.toBe(sourceId)
+  expect(duplicate.copyElementIds).not.toEqual(duplicate.sourceElementIds)
+  expect(duplicate.copyImageAssetId).toBe('fixture-asset-transparent')
+  await expect.poll(async () => (await sampleCanvas(page)).mint).toBeGreaterThan(500)
+
+  await page.getByRole('button', { name: 'Add slide' }).click()
+  const added = page.getByRole('button', { name: /Show slide 3:/ })
+  await expect(added).toHaveAttribute('aria-current', 'true')
+  const addedId = await page.evaluate(async () => {
+    const { usePresentationStore } = await import('/src/features/presentations/editor/store.ts')
+    const state = usePresentationStore.getState()
+    const slide = state.document!.slides.find((candidate) => candidate.id === state.view.activeSlideId)!
+    return { id: slide.id, elements: slide.elements.length }
+  })
+  expect(addedId.elements).toBe(0)
+
+  await page.getByRole('button', { name: 'Move slide 3 up' }).click()
+  const movedOrder = [sourceId, addedId.id, duplicate.copyId, 'fixture-slide-2']
+  await expect.poll(async () => JSON.parse(await readPresentationJson(page, presentationId)).slides.map((slide: { id: string }) => slide.id)).toEqual(movedOrder)
+
+  await page.getByRole('button', { name: /Show slide 2:/ }).click()
+  await page.getByRole('button', { name: 'Delete slide 2' }).click()
+  await expect(page.getByRole('button', { name: 'Show slide 1: Title slide' })).toBeFocused()
+  await expect.poll(async () => (await page.evaluate(async () => {
+    const { usePresentationStore } = await import('/src/features/presentations/editor/store.ts')
+    const state = usePresentationStore.getState()
+    return { active: state.view.activeSlideId, count: state.document!.slides.length }
+  }))).toEqual({ active: sourceId, count: 3 })
+
+  // Continue deleting the active survivor to prove the only-slide guard leaves one
+  // reachable slide and disables every impossible action.
+  await page.getByRole('button', { name: 'Delete slide 1' }).click()
+  await page.getByRole('button', { name: 'Delete slide 1' }).click()
+  const survivor = page.getByRole('button', { name: /Show slide 1:/ })
+  await expect(survivor).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Move slide 1 up' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Move slide 1 down' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Delete slide 1' })).toBeDisabled()
+  await expect.poll(async () => JSON.parse(await readPresentationJson(page, presentationId)).slides).toHaveLength(1)
 })
 
 test('autosaves a typed edit and keeps it after a reload and reopen', async ({ page }) => {

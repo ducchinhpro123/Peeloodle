@@ -1,4 +1,4 @@
-import { ArrowLeft, ImagePlus, MonitorUp, PenLine, Save, ShieldAlert, Type } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, Copy, ImagePlus, MonitorUp, PenLine, Plus, Save, ShieldAlert, Trash2, Type } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -127,6 +127,8 @@ export function PresentationEditorPage() {
   const [editorNote, setEditorNote] = useState<string | null>(null)
   const mediaRef = useRef<DecodedMedia | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const slideButtonRefs = useRef(new Map<string, HTMLButtonElement>())
+  const [focusSlideId, setFocusSlideId] = useState<string | null>(null)
 
   /**
    * Fetches and decodes one document's artwork. This is a callable rather than an
@@ -192,6 +194,14 @@ export function PresentationEditorPage() {
       if (usePresentationStore.getState().document?.id === presentationId) usePresentationStore.getState().closeDocument()
     }
   }, [attempt, decodeDocumentMedia, presentationId, repository])
+
+  useEffect(() => {
+    if (focusSlideId === null) return
+    const button = slideButtonRefs.current.get(focusSlideId)
+    if (!button) return
+    button.focus()
+    setFocusSlideId(null)
+  }, [document, focusSlideId])
 
   /** Re-decodes the artwork of the document the store now holds (after recovery). */
   const reloadStoredArtwork = useCallback(async (): Promise<void> => {
@@ -303,6 +313,30 @@ export function PresentationEditorPage() {
     const id = store.addElement(element)
     // Open the editor straight away so the new box can be typed into immediately.
     if (id) store.startTextEdit(id)
+  }
+
+  const addSlide = () => {
+    const id = usePresentationStore.getState().addSlide()
+    if (id) setFocusSlideId(id)
+  }
+
+  const duplicateActiveSlide = () => {
+    const store = usePresentationStore.getState()
+    const activeId = store.view.activeSlideId
+    if (!activeId) return
+    const id = store.duplicateSlide(activeId)
+    if (id) setFocusSlideId(id)
+  }
+
+  const moveSlide = (slideId: string, targetIndex: number) => {
+    usePresentationStore.getState().reorderSlide(slideId, targetIndex)
+  }
+
+  const deleteSlide = (slideId: string) => {
+    const store = usePresentationStore.getState()
+    if (!store.removeSlide(slideId)) return
+    const survivor = usePresentationStore.getState().view.activeSlideId
+    if (survivor) setFocusSlideId(survivor)
   }
 
   /**
@@ -430,19 +464,63 @@ export function PresentationEditorPage() {
       <div className="presentation-workspace">
         <aside className="presentation-slide-rail" aria-label="Slides">
           <p>Slides</p>
+          <div className="presentation-slide-rail-actions">
+            <Button aria-label="Add slide" title="Add slide" onClick={addSlide}>
+              <Plus size={16} aria-hidden="true" />
+              <span>Add slide</span>
+            </Button>
+            <Button aria-label="Duplicate active slide" title="Duplicate active slide" onClick={duplicateActiveSlide}>
+              <Copy size={16} aria-hidden="true" />
+              <span>Duplicate</span>
+            </Button>
+          </div>
           <div className="presentation-slide-list">
             {document.slides.map((slide, index) => (
-              <button
-                key={slide.id}
-                type="button"
-                className="presentation-slide-card"
-                aria-current={slide.id === activeSlide?.id ? 'true' : undefined}
-                aria-label={`Show slide ${index + 1}: ${slide.name}`}
-                onClick={() => usePresentationStore.getState().selectSlide(slide.id)}
-              >
-                <span aria-hidden="true">{index + 1}</span>
-                <b>{slide.name}</b>
-              </button>
+              <div className="presentation-slide-item" key={slide.id}>
+                <button
+                  ref={(button) => {
+                    if (button) slideButtonRefs.current.set(slide.id, button)
+                    else slideButtonRefs.current.delete(slide.id)
+                  }}
+                  type="button"
+                  className="presentation-slide-card"
+                  aria-current={slide.id === activeSlide?.id ? 'true' : undefined}
+                  aria-label={`Show slide ${index + 1}: ${slide.name}`}
+                  onClick={() => usePresentationStore.getState().selectSlide(slide.id)}
+                >
+                  <span aria-hidden="true">{index + 1}</span>
+                  <b>{slide.name}</b>
+                </button>
+                <div className="presentation-slide-item-actions">
+                  <Button
+                    className="presentation-slide-action"
+                    aria-label={`Move slide ${index + 1} up`}
+                    title={`Move slide ${index + 1} up`}
+                    disabled={index === 0}
+                    onClick={() => moveSlide(slide.id, index - 1)}
+                  >
+                    <ArrowUp size={15} aria-hidden="true" />
+                  </Button>
+                  <Button
+                    className="presentation-slide-action"
+                    aria-label={`Move slide ${index + 1} down`}
+                    title={`Move slide ${index + 1} down`}
+                    disabled={index === document.slides.length - 1}
+                    onClick={() => moveSlide(slide.id, index + 1)}
+                  >
+                    <ArrowDown size={15} aria-hidden="true" />
+                  </Button>
+                  <Button
+                    className="presentation-slide-action presentation-slide-delete"
+                    aria-label={`Delete slide ${index + 1}`}
+                    title={`Delete slide ${index + 1}`}
+                    disabled={document.slides.length <= 1}
+                    onClick={() => deleteSlide(slide.id)}
+                  >
+                    <Trash2 size={15} aria-hidden="true" />
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
         </aside>

@@ -1241,13 +1241,20 @@ main > section, main > div { min-width: 0; }
 .presentation-slide-rail { border-right: 1px solid var(--line); }
 .presentation-inspector { border-left: 1px solid var(--line); }
 .presentation-slide-rail > p, .presentation-inspector > p:first-child { margin: 0 0 var(--space-3); color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.presentation-slide-rail-actions { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.presentation-slide-rail-actions .button { width: 100%; min-height: 38px; justify-content: flex-start; padding: 8px; font-size: 11px; }
 .presentation-slide-list { display: grid; gap: var(--space-3); }
+.presentation-slide-item { display: grid; min-width: 0; gap: var(--space-1); }
 .presentation-slide-card { display: grid; width: 100%; gap: var(--space-2); padding: var(--space-2); border: 2px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); text-align: left; }
 .presentation-slide-card:hover { border-color: var(--mint); }
 .presentation-slide-card[aria-current] { border-color: var(--mint); background: var(--pale); }
 .presentation-slide-card:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
 .presentation-slide-card span { display: grid; aspect-ratio: 16 / 9; place-items: center; border-radius: 6px; background: #fff; color: var(--muted); font-size: 12px; }
 .presentation-slide-card b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.presentation-slide-item-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-1); }
+.presentation-slide-action { min-width: 0; min-height: 32px; padding: 6px 2px; border-radius: 8px; }
+.presentation-slide-delete { color: #b42338; }
+.presentation-slide-delete:hover:not(:disabled) { border-color: #f0c9cf; background: #fff1f2; color: #971b2e; }
 .presentation-inspector dl { display: grid; gap: var(--space-3); margin: 0; }
 .presentation-inspector dl div { display: flex; justify-content: space-between; gap: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--line); font-size: 12px; }
 .presentation-inspector dt { color: var(--muted); }
@@ -1596,7 +1603,11 @@ main > section, main > div { min-width: 0; }
   .presentation-local-status { grid-column: auto; }
   .presentation-mobile-note { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid #d8e4df; background: var(--pale); color: #315b4e; font-size: 12px; line-height: 1.5; }
   .presentation-workspace { display: block; min-height: 0; flex: 1; }
-  .presentation-slide-rail, .presentation-inspector { display: none; }
+  .presentation-slide-rail { display: block; padding: var(--space-3) var(--space-4); border-right: 0; border-bottom: 1px solid var(--line); }
+  .presentation-inspector { display: none; }
+  .presentation-slide-rail-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .presentation-slide-list { display: flex; min-width: 0; gap: var(--space-3); overflow-x: auto; padding-bottom: var(--space-1); scrollbar-width: thin; }
+  .presentation-slide-item { flex: 0 0 144px; }
   .presentation-canvas-panel { min-height: min(62dvh, 560px); height: 100%; }
   .presentation-canvas-controls { right: var(--space-3); bottom: var(--space-3); }
   .hero { min-height: 0; flex-direction: column; align-items: flex-start; gap: var(--space-4); padding: var(--space-5); border-radius: 24px; }
