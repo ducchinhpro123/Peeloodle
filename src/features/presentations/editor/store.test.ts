@@ -218,6 +218,19 @@ describe('presentation command store', () => {
     expect(state().view.activeSlideId).toBe(state().document!.slides[0]!.id)
   })
 
+  it('selects the adjacent slide when the active slide is removed', () => {
+    const first = state().document!.slides[0]!.id
+    const second = state().addSlide(first)!
+    const third = state().addSlide(second)!
+
+    state().selectSlide(second)
+    state().removeSlide(second)
+    expect(state().view.activeSlideId).toBe(third)
+
+    state().removeSlide(third)
+    expect(state().view.activeSlideId).toBe(first)
+  })
+
   it('refuses to remove the last slide', () => {
     const only = state().document!.slides[0]!.id
     expect(state().removeSlide(only)).toBe(false)

@@ -290,8 +290,9 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
   }
 
   const selectSurvivor = (slides: Slide[], removedId: string): string => {
+    const remaining = slides.filter((slide) => slide.id !== removedId)
     const index = slides.findIndex((slide) => slide.id === removedId)
-    const survivor = slides[Math.max(0, Math.min(index, slides.length - 1))] ?? slides[0]!
+    const survivor = remaining[Math.min(Math.max(index, 0), remaining.length - 1)] ?? remaining[0]!
     return survivor.id
   }
 
@@ -473,8 +474,7 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       const document = get().document
       if (!document || document.slides.length <= 1) return false
       if (!document.slides.some((slide) => slide.id === slideId)) return false
-      const remaining = document.slides.filter((slide) => slide.id !== slideId)
-      const survivor = selectSurvivor(remaining, slideId)
+      const survivor = selectSurvivor(document.slides, slideId)
       commit((draft) => {
         draft.slides = draft.slides.filter((slide) => slide.id !== slideId)
         return true

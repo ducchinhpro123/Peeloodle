@@ -458,12 +458,13 @@ test('adds, duplicates, reorders, and deletes slides through the accessible rail
 
   await page.getByRole('button', { name: /Show slide 2:/ }).click()
   await page.getByRole('button', { name: 'Delete slide 2' }).click()
-  await expect(page.getByRole('button', { name: 'Show slide 1: Title slide' })).toBeFocused()
+  // Deleting the active slide selects the one that took its place, not slide 1.
+  await expect(page.getByRole('button', { name: 'Show slide 2: Title slide copy' })).toBeFocused()
   await expect.poll(async () => (await page.evaluate(async () => {
     const { usePresentationStore } = await import('/src/features/presentations/editor/store.ts')
     const state = usePresentationStore.getState()
     return { active: state.view.activeSlideId, count: state.document!.slides.length }
-  }))).toEqual({ active: sourceId, count: 3 })
+  }))).toEqual({ active: duplicate.copyId, count: 3 })
 
   // Continue deleting the active survivor to prove the only-slide guard leaves one
   // reachable slide and disables every impossible action.

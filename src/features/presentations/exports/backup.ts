@@ -11,6 +11,7 @@
 
 import { unzipSync, zipSync } from 'fflate'
 import { inspectImageBytes } from '../../../lib/imageFormat'
+import { decodeImageBitmap } from '../../../lib/imageDecode'
 import type { PresentationAsset, PresentationDocument } from '../model/types'
 
 export const BACKUP_FORMAT = 'stickerlab-presentation-backup'
@@ -163,9 +164,7 @@ export const browserMediaVerifier: MediaVerifier = async (bytes, mimeType) => {
   if (typeof createImageBitmap !== 'function') return structuralMediaVerifier(bytes, mimeType)
   let bitmap: ImageBitmap
   try {
-    bitmap = await createImageBitmap(new Blob([bytes], { type: mimeType }), { imageOrientation: 'from-image' }).catch(() =>
-      createImageBitmap(new Blob([bytes], { type: mimeType })),
-    )
+    bitmap = await decodeImageBitmap(new Blob([bytes], { type: mimeType }))
   } catch {
     throw new BackupError('invalid_media', 'Media could not be decoded')
   }

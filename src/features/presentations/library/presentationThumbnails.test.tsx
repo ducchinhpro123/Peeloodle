@@ -125,6 +125,13 @@ describe('presentation thumbnail cache', () => {
     await Promise.all(pending)
 
     expect(peak).toBe(PRESENTATION_THUMBNAIL_MAX_RENDERS)
+
+    // A second wave still runs: a queued waiter cannot leak a slot by waking
+    // into one another waiter already took.
+    const nextWave = await Promise.all(
+      cards.map((documentId) => acquirePresentationThumbnail(request({ documentId: `${documentId}-again` }), source)),
+    )
+    expect(nextWave.every(Boolean)).toBe(true)
   })
 
   it('drops a finished thumbnail when the card releases it', async () => {

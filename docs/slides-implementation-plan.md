@@ -12,8 +12,9 @@ IndexedDB evidence plus the review-driven hardening that followed (atomic insert
 budget, conflict recovery and the guarded editor exit — with the unguarded browser Back/Forward
 limitation stated there). P20 (library rename, duplicate, safe delete and real first-slide thumbnails) is
 recorded in `proofs/p20-library-operations.md`, and P21 verified the full create → edit → save → reload →
-reopen journey in `proofs/p21-milestone-journey.md`, which completes Milestone 1. Milestone 2 starts at
-P22. Review-driven
+reopen journey in `proofs/p21-milestone-journey.md`, which completes Milestone 1. Milestone 2 has started:
+P22 (slide rail add/duplicate) and P23 (reorder/delete) are recorded in `proofs/p22-p23-slide-rail.md`, and
+P24 (element move/resize/rotate) in `proofs/p24-element-transforms.md`. Review-driven
 corrections are recorded in `proofs/correction-pass.md`. Start the next session from
 [`HANDOFF.md`](../HANDOFF.md).
 

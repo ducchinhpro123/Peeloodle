@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { usePresentationRepository } from '@/app/presentationRepositoryContext'
 import { isPersistenceError } from '@/lib/persistence/repository'
+import { decodeImageBitmap } from '@/lib/imageDecode'
 import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
 import { isUnmodifiedPrimaryClick } from '../../editor/toolIntent'
 import { isPresentationParseError } from '../model/parse'
@@ -39,17 +40,11 @@ type DecodedSource = {
 /** One decode path for stored and just-inserted media; the caller owns disposal. */
 async function decodeImageSource(blob: Blob): Promise<DecodedSource> {
   if (typeof createImageBitmap === 'function') {
-    // Same orientation policy as every other decode site (validateUpload, backup,
-    // renderDocument): a rotated phone JPEG must not draw with swapped axes against
-    // the asset width/height that fitImageWithinSlide already used. The bare call
-    // stays as the fallback for engines that reject the option.
-    try {
-      const oriented = await createImageBitmap(blob, { imageOrientation: 'from-image' })
-      return { source: oriented, dispose: () => oriented.close() }
-    } catch {
-      const bitmap = await createImageBitmap(blob)
-      return { source: bitmap, dispose: () => bitmap.close() }
-    }
+    // The shared helper applies the same EXIF orientation policy as every other
+    // decode site, so a rotated phone JPEG cannot draw with swapped axes against
+    // the asset width/height that fitImageWithinSlide already used.
+    const bitmap = await decodeImageBitmap(blob)
+    return { source: bitmap, dispose: () => bitmap.close() }
   }
 
   const url = URL.createObjectURL(blob)

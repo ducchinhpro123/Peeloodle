@@ -8,6 +8,7 @@ import { PresentationSelectionFrame } from './PresentationSelectionFrame'
 import { presentationViewport, clampPresentationZoom } from './viewGeometry'
 import {
   documentPointFromView,
+  elementGeometry,
   elementWorldCenter,
   moveTransform,
   nextRotationStep,
@@ -41,10 +42,6 @@ type TransformGesture = {
   capture: HTMLElement | null
 }
 
-function geometryOf(element: Element): TransformGeometry {
-  return { x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation }
-}
-
 export function PresentationCanvas({ images }: { images: PresentationImageSources }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage | null>(null)
@@ -70,9 +67,7 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
   const viewport = presentationViewport(size, document?.pageSize ?? { width: 0, height: 0 }, zoom, pan)
   // While a gesture runs, the frame and its handles describe the previewed
   // geometry; the document only changes when the gesture is committed.
-  const selectedGeometry = selectedElement
-    ? transformPreview?.elementId === selectedElement.id ? transformPreview : geometryOf(selectedElement)
-    : null
+  const selectedGeometry = selectedElement ? elementGeometry(selectedElement, transformPreview) : null
 
   useEffect(() => {
     const host = hostRef.current
@@ -143,7 +138,7 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
     const element = activeSlide?.elements.find((candidate) => candidate.id === id)
     const node = layer.findOne(`#${id}`) as Konva.Group | undefined
     if (element && node) {
-      const geometry = transformPreview?.elementId === id ? transformPreview : geometryOf(element)
+      const geometry = elementGeometry(element, transformPreview)
       node.setAttrs({
         x: geometry.x,
         y: geometry.y,
@@ -243,7 +238,7 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
   const beginTransform = (element: Element, kind: TransformGesture['kind'], handle: ResizeHandle | null, event: ReactPointerEvent<HTMLElement>) => {
     const origin = pointFromClient(event.clientX, event.clientY)
     if (!origin) return
-    const start = geometryOf(element)
+    const start = elementGeometry(element, null)
     // Capture on the Konva container for every transform gesture, so move/up
     // arrive through the same host handlers as panning.
     const capture = captureTarget()

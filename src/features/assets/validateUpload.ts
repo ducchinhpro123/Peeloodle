@@ -5,6 +5,7 @@ import {
   looksLikeSvgMarkup,
   sniffImageFormat,
 } from '../../lib/imageFormat'
+import { decodeImageBitmap } from '../../lib/imageDecode'
 
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 export const MAX_UPLOAD_PIXELS = 25_000_000
@@ -87,13 +88,9 @@ export async function validateUpload(file: File, options: ValidateUploadOptions 
 export async function decodeImageSize(blob: Blob): Promise<DecodedImageSize> {
   if (typeof createImageBitmap === 'function') {
     try {
-      return sizeFromBitmap(await createImageBitmap(blob, { imageOrientation: 'from-image' }))
+      return sizeFromBitmap(await decodeImageBitmap(blob))
     } catch {
-      try {
-        return sizeFromBitmap(await createImageBitmap(blob))
-      } catch {
-        // Fall through to HTMLImageElement.
-      }
+      // Fall through to HTMLImageElement.
     }
   }
   return decodeWithImageElement(blob)

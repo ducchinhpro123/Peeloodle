@@ -29,6 +29,18 @@ export type ResizeHandle = 'nw' | 'ne' | 'se' | 'sw'
  */
 export const MIN_ELEMENT_SIZE = 8
 
+/**
+ * An element's geometry, preferring the in-progress gesture preview for that
+ * element so the canvas frame and the inspector numbers read the same values.
+ */
+export function elementGeometry(
+  element: TransformGeometry & { id: string },
+  preview: (TransformGeometry & { elementId: string }) | null,
+): TransformGeometry {
+  if (preview?.elementId === element.id) return preview
+  return { x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation }
+}
+
 /** Element bounds in view pixels, before the frame's own rotation. */
 export function transformFrameInView(geometry: TransformGeometry, viewport: PresentationViewport): TransformGeometry {
   return {

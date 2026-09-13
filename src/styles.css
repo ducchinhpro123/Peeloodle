@@ -38,6 +38,14 @@
   --icon-green: #12b981;
   --scrapbook-yellow: #ffe16a;
   --scrapbook-green: #006b50;
+  --danger: #b42338;
+  --danger-strong: #971b2e;
+  --danger-line: #f0c9cf;
+  --danger-tint: #fff1f2;
+  --surface-warm: #fffdf8;
+  --mint-line: #9fd7c2;
+  --mint-strong: #82d4b6;
+  --blush-strong: #ffe3ed;
   --surface: #fff;
   --canvas: #fafbf8;
   --header-height: 80px;
@@ -54,6 +62,7 @@
   --radius-sm: 12px;
   --shadow: 0 4px 16px #08152f08;
   --shadow-hover: 0 8px 24px #08152f12;
+  --shadow-mint: 0 6px 14px #173c3226;
   color: var(--ink);
   background: var(--canvas);
   font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
@@ -180,8 +189,8 @@ button { cursor: pointer; }
 .button.primary, .primary { border-color: transparent; background: #00875e; color: #fff; box-shadow: 0 3px 0 #006e4e; }
 .button:hover:not(:disabled) { background: #f0f5f2; box-shadow: var(--shadow); }
 .button.primary:hover:not(:disabled) { background: #00764f; box-shadow: 0 4px 0 #005a3f; transform: translateY(-1px); }
-.button.danger { background: #b42338; border-color: #b42338; color: #fff; }
-.button.danger:hover:not(:disabled) { background: #971b2e; }
+.button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.button.danger:hover:not(:disabled) { background: var(--danger-strong); }
 .button:disabled, button:disabled { cursor: not-allowed; opacity: .6; }
 .button.icon {
   min-height: 36px;
@@ -686,7 +695,7 @@ main > section, main > div { min-width: 0; }
   padding: var(--space-3) var(--space-4);
   border: 1px solid #dce8e3;
   border-radius: 26px;
-  background: #fffdf8;
+  background: var(--surface-warm);
   box-shadow: 0 10px 30px #284a4010;
 }
 .packs-controls .pills { min-width: 0; max-width: 100%; margin: 0; }
@@ -1030,7 +1039,7 @@ main > section, main > div { min-width: 0; }
 .layer-card-actions { grid-column: 1 / -1; display: flex; gap: 6px; }
 .layer-card-actions .button { min-height: 30px; padding: 4px 8px; font-size: 12px; }
 .layer-delete { border: 0; background: transparent; color: #c2414b; box-shadow: none; }
-.layer-delete:hover:not(:disabled) { background: #fff1f2; color: #9f1239; box-shadow: none; }
+.layer-delete:hover:not(:disabled) { background: var(--danger-tint); color: #9f1239; box-shadow: none; }
 .inspector-toggle { font-weight: 700; }
 .inspector-switch {
   position: relative;
@@ -1253,8 +1262,8 @@ main > section, main > div { min-width: 0; }
 .presentation-slide-card b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .presentation-slide-item-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-1); }
 .presentation-slide-action { min-width: 0; min-height: 32px; padding: 6px 2px; border-radius: 8px; }
-.presentation-slide-delete { color: #b42338; }
-.presentation-slide-delete:hover:not(:disabled) { border-color: #f0c9cf; background: #fff1f2; color: #971b2e; }
+.presentation-slide-delete { color: var(--danger); }
+.presentation-slide-delete:hover:not(:disabled) { border-color: var(--danger-line); background: var(--danger-tint); color: var(--danger-strong); }
 .presentation-inspector dl { display: grid; gap: var(--space-3); margin: 0 0 var(--space-5); }
 .presentation-inspector dl div { display: flex; justify-content: space-between; gap: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--line); font-size: 12px; }
 .presentation-inspector dt { color: var(--muted); }
@@ -1320,10 +1329,10 @@ main > section, main > div { min-width: 0; }
   gap: var(--space-3);
   overflow: hidden;
   padding: var(--space-7);
-  border: 1px dashed #9fd7c2;
+  border: 1px dashed var(--mint-line);
   border-radius: var(--radius);
   background:
-    radial-gradient(circle at 16% 18%, #ffe3ed 0 6%, transparent 6.5%),
+    radial-gradient(circle at 16% 18%, var(--blush-strong) 0 6%, transparent 6.5%),
     radial-gradient(circle at 86% 78%, #e5dcfa 0 8%, transparent 8.5%),
     linear-gradient(145deg, #eefaf4, #fffdf4);
   text-align: center;
@@ -1357,7 +1366,7 @@ main > section, main > div { min-width: 0; }
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 .pack-card:hover {
-  border-color: #82d4b6;
+  border-color: var(--mint-strong);
   box-shadow: var(--shadow-hover);
   transform: translateY(-3px);
 }
@@ -1407,7 +1416,7 @@ main > section, main > div { min-width: 0; }
   padding: 4px 10px;
   border-radius: 999px;
   background: #fffdf0e8;
-  box-shadow: 0 6px 14px #173c3226;
+  box-shadow: var(--shadow-mint);
   color: var(--scrapbook-green);
   font: 400 28px/1.1 Chewy, cursive;
   overflow-wrap: anywhere;

@@ -1,6 +1,7 @@
 import { ARTBOARD_SIZE, type ImageLayer, type Layer, type ProjectDocument } from '../../types/domain'
 import type { AssetRecord } from '../../lib/persistence/repository'
 import { cssFont, waitForFonts } from '../../lib/fonts'
+import { decodeImageBitmap } from '../../lib/imageDecode'
 
 export type ExportSize = 512 | 1024
 export const EXPORT_SIZES: ExportSize[] = [512, 1024]
@@ -539,13 +540,9 @@ export async function decodeMaskImage(blob: Blob, width: number, height: number)
 async function defaultDecodeImage(blob: Blob): Promise<CanvasImageSource> {
   if (typeof createImageBitmap === 'function') {
     try {
-      return await createImageBitmap(blob, { imageOrientation: 'from-image', resizeQuality: 'high', premultiplyAlpha: 'none' })
+      return await decodeImageBitmap(blob, { resizeQuality: 'high', premultiplyAlpha: 'none' })
     } catch {
-      try {
-        return await createImageBitmap(blob)
-      } catch {
-        // Fall through to HTMLImageElement.
-      }
+      // Fall through to HTMLImageElement.
     }
   }
   return decodeHtmlImage(blob)

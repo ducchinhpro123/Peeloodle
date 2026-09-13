@@ -20,6 +20,7 @@
  */
 
 import type { PresentationRepository } from '@/lib/persistence/presentations/repository'
+import { decodeImageBitmap } from '@/lib/imageDecode'
 import type { PresentationDocument, Slide } from '../model/types'
 import { ensurePresentationFonts } from '../rendering/fonts'
 import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
@@ -184,7 +185,7 @@ async function decodeSlideArtwork(repository: PresentationRepository, slide: Sli
   try {
     for (const assetId of assetIds) {
       const record = await repository.getMedia(assetId)
-      const bitmap = await decodeBitmap(new Blob([record.bytes], { type: record.mimeType }))
+      const bitmap = await decodeImageBitmap(new Blob([record.bytes], { type: record.mimeType }))
       disposers.push(() => bitmap.close())
       images.set(assetId, bitmap)
     }
@@ -201,33 +202,23 @@ async function decodeSlideArtwork(repository: PresentationRepository, slide: Sli
   }
 }
 
-/**
- * Same orientation policy as every other decode site (validateUpload, backup,
- * renderDocument, the editor page): a rotated phone photo must not draw with
- * swapped axes. The bare call is the fallback for engines that reject the option.
- */
-async function decodeBitmap(blob: Blob): Promise<ImageBitmap> {
-  if (typeof createImageBitmap !== 'function') throw new Error('This browser cannot decode image files')
-  try {
-    return await createImageBitmap(blob, { imageOrientation: 'from-image' })
-  } catch {
-    return await createImageBitmap(blob)
-  }
-}
-
 let rendersInFlight = 0
 const renderQueue: Array<() => void> = []
 
 async function withRenderSlot<T>(task: () => Promise<T>): Promise<T> {
-  while (rendersInFlight >= PRESENTATION_THUMBNAIL_MAX_RENDERS) {
+  if (rendersInFlight >= PRESENTATION_THUMBNAIL_MAX_RENDERS) {
+    // A finished task hands its slot straight to the next waiter, so the count
+    // never dips and no two waiters can wake into the same freed slot.
     await new Promise<void>((resolve) => renderQueue.push(resolve))
+  } else {
+    rendersInFlight += 1
   }
-  rendersInFlight += 1
   try {
     return await task()
   } finally {
-    rendersInFlight -= 1
-    renderQueue.shift()?.()
+    const next = renderQueue.shift()
+    if (next) next()
+    else rendersInFlight -= 1
   }
 }
 
