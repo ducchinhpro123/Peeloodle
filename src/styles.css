@@ -1271,6 +1271,11 @@ main > section, main > div { min-width: 0; }
  * by the border width.
  */
 .presentation-transform-handle { position: absolute; width: 14px; height: 14px; border: 2px solid var(--mint); border-radius: 4px; background: #fff; box-shadow: var(--shadow); pointer-events: auto; touch-action: none; }
+/*
+ * The visible handle keeps its size, so its centre still marks the element's own
+ * corner; the pseudo-element grows only the pointer target to a 44px touch size.
+ */
+.presentation-transform-handle::before { position: absolute; inset: -15px; content: ''; }
 .presentation-transform-nw, .presentation-transform-se { cursor: nwse-resize; }
 .presentation-transform-ne, .presentation-transform-sw { cursor: nesw-resize; }
 .presentation-transform-nw { left: -2px; top: -2px; transform: translate(-50%, -50%); }
@@ -1558,7 +1563,10 @@ main > section, main > div { min-width: 0; }
   .presentation-library-tools { align-items: flex-end; flex-direction: column; }
   .presentation-workspace { grid-template-columns: 148px minmax(0, 1fr); }
   .presentation-inspector { display: none; }
-  .properties-toggle { position: fixed; right: 15px; bottom: 15px; z-index: 4; display: flex; }
+  .properties-toggle { display: flex; }
+  /* Only the sticker editor keeps its floating corner toggle; the presentation
+   * editor's own toggle is a normal button in its action bar. */
+  .editor-workspace .properties-toggle { position: fixed; right: 15px; bottom: 15px; z-index: 4; }
   .tool-tip-card, .tool-mascot { display: none; }
   .editor-top { flex-wrap: wrap; }
   .title-input { max-width: min(28ch, 70vw); }

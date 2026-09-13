@@ -101,12 +101,90 @@ inspector showing 200/200/320/160/0) and `proofs/out/p24-element-rotated-1280x76
 frame swapped to 190×380 client px, rotate handle now right of the centre). Re-running the P15–P17
 specs refreshed their committed captures, which is why they are part of this commit.
 
+## Fix round 1 — review findings
+
+Four Important review findings were fixed on top of the original commit. Nothing from P25 was added;
+the preview/history/lock/pan behaviour above is unchanged and still covered by the same tests.
+
+### 1. Rotation from an already-rotated element used the wrong centre
+
+`elementWorldCenter(geometry)` (the rotation-aware visual centre) and
+`withRotation(geometry, rotation)` (replaces the angle while keeping that centre) are now the one
+shared calculation used by the canvas gesture (`PresentationCanvas`) and by the numeric Rotation
+field (`ElementGeometryInspector`); `rotateTransform(start, delta)` is
+`withRotation(start, start.rotation + delta)`. The old centre was `x + width/2, y + height/2`, which
+is only the visual centre at 0°: an element stored at `{x:250,y:50,width:200,height:100,rotation:90}`
+has its centre at `(200,150)` — not `(350,100)` — and the next turn used the wrong one.
+
+- Unit RED: `TypeError: elementWorldCenter is not a function` (3 tests) → GREEN, 14 passed:
+  `{250,50,200,100,90}` + 90° = `{300,200,200,100,180}` with the centre at `(200,150)` before and
+  after, plus a 37°→143° turn whose centre holds within half a unit (only the stored origin rounds).
+- Browser RED before the fix: typing `90` into Rotation left the stored origin at `{200,200}`
+  (`expected {x:440,y:120}, received {x:200,y:200}`), moving the element's centre. GREEN now: the
+  field writes `(440,120)`, the frame centre stays within 2px, and a second 85° canvas drag on the
+  quarter-turned element reaches 175° with the centre still within 3px (one history entry).
+
+### 2. Continuous rotation recomputed from the first pointer angle
+
+The gesture now tracks the previous pointer angle and accumulates successive shortest deltas
+(`nextRotationStep(previousAngle, angle, accumulated)`), so a pointer crossing ±180° keeps turning the
+same way and the turn may pass a half turn. RED: `TypeError: nextRotationStep is not a function` →
+GREEN: the 170° → −170° → −90° → −10° → 80° sequence accumulates 20, 100, 180, 270. A stored rotation
+is periodic, so the accumulator's continuity is proven at unit level; the canvas path stays covered by
+the quarter-turn and second-quarter-turn browser drags above.
+
+### 3. Narrow widths lost the numeric path and had 14–16px handles
+
+- The same numeric fields open through the shared `Dialog` from an “Element properties” trigger in the
+  editor action bar wherever `.presentation-inspector` is hidden (1150px and below). The trigger uses
+  the shared `.properties-toggle` class; the fixed bottom-right corner position now belongs to the
+  sticker editor alone (`.editor-workspace .properties-toggle`), and that editor's own 1024/390px
+  specs still pass.
+- Handles keep their 14px (16px rotate) visual size and centre; a transparent `::before { inset: -15px }`
+  grows only the pointer target to 44px.
+- Browser RED: the trigger did not exist (30s timeout waiting for it). Hit-area mutation (removing
+  only the `::before` rule): `expected > 320, received 320` — the press 16px outside the square no
+  longer resized. GREEN at 1024×768 and 390×844: the pane fields are hidden, the dialog opens, typing
+  X commits exactly one history entry, and a press 16px outside the 14px SE square starts a resize
+  that grows the width with x/y pinned and +1 history entry.
+- New captures: `proofs/out/p24-element-properties-1024x768.png` and
+  `p24-element-properties-390x844.png` show the dialog with the live values at both widths.
+
+### 4. Resize reversed direction after crossing the pinned corner
+
+`resizeTransform` now projects the pointer onto the handle's own outward axes (signed) and clamps at
+`MIN_ELEMENT_SIZE`, instead of taking absolute projections that flipped the element to the far side of
+the pinned corner. Unit RED before the fix: a south-east drag to `(80,80)` with the north-west corner
+pinned at `(100,100)` returned a 40×40 box (and 80×60 at 37°) instead of clamping → GREEN: for every
+corner at 0° and at 37°, the pinned corner stays within 0.75 units, the dragged corner follows the
+pointer within 0.75 units, and crossing the pinned corner clamps to 8×8 on both axes.
+
+### Fix-round commands
+
+```bash
+npx vitest run --environment jsdom src/features/presentations/editor/transformGeometry.test.ts  # 9 → 15 tests
+npx vitest run --environment jsdom --exclude 'e2e/**'                                          # 473 passed
+npx playwright test e2e/presentations-transform.spec.ts --workers=1                            # 4 passed
+npx playwright test e2e/presentations.spec.ts --workers=1                                      # 7 passed
+npx playwright test e2e/presentations-image.spec.ts e2e/presentations-save-guard.spec.ts \
+  e2e/presentations-shell-guard.spec.ts e2e/presentations-library-actions.spec.ts \
+  e2e/presentations-library-thumbnails.spec.ts e2e/presentations-milestone-journey.spec.ts --workers=1  # 14 passed
+npx playwright test e2e/editor.spec.ts --workers=1                                             # 6 passed
+npx playwright test e2e/illustrated-templates.spec.ts --workers=1 -g 'at 1024px|at 390px'      # 2 passed (sticker toggle)
+npm run typecheck && npm run lint && npm run build && npm run board && git diff --check
+```
+
+No legacy capture was re-committed in this round: the presentation specs rewrite their screenshots on
+every run, and the five files they touched differed from the committed ones only by 3–53 pixels at
+max channel delta 2 (re-rendering noise), so they were restored byte-identically.
+
 ## Limits and follow-ups
 
 - Resizing previews by scaling the rendered group (text scales rather than reflows until the commit
   re-renders it). The committed document is never scaled.
 - The rotate handle can leave the visible panel when a zoomed element sits at the slide's top edge;
-  the rotation field in the inspector always works (P31 alignment/tooling can add a smarter handle).
+  the Rotation field stays reachable at every width (the pane above 1150px, the properties dialog
+  below it), and P31 alignment/tooling can add a smarter handle.
 - Dragging is the only way to pan away from an element when an element covers the whole slide; a
   space/middle-button pan and alignment guides are P31.
 - Text formatting, layers, locks UI, snapping and multi-select remain P25–P31, as planned.

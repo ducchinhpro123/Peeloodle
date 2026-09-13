@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { usePresentationStore } from './store'
+import { withRotation } from './transformGeometry'
 import type { Element } from '../model/types'
 
 type GeometryField = 'x' | 'y' | 'width' | 'height' | 'rotation'
@@ -86,7 +87,9 @@ export function ElementGeometryInspector({ element }: { element: Element }) {
 
   const commitField = (key: GeometryField, value: number) => {
     const store = usePresentationStore.getState()
-    store.commitTransform(element.id, { ...geometry, [key]: value })
+    // Rotation keeps the visual centre: the stored origin moves with the angle,
+    // so the frame does not jump when the number changes.
+    store.commitTransform(element.id, key === 'rotation' ? withRotation(geometry, value) : { ...geometry, [key]: value })
   }
 
   return (

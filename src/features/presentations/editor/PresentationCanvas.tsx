@@ -8,10 +8,11 @@ import { PresentationSelectionFrame } from './PresentationSelectionFrame'
 import { presentationViewport, clampPresentationZoom } from './viewGeometry'
 import {
   documentPointFromView,
+  elementWorldCenter,
   moveTransform,
+  nextRotationStep,
   resizeTransform,
   rotateTransform,
-  rotationDelta,
   rotationFromPoint,
   type ResizeHandle,
   type TransformGeometry,
@@ -34,15 +35,14 @@ type TransformGesture = {
   start: TransformGeometry
   /** Latest previewed geometry; null until the pointer actually moves. */
   current: TransformGeometry | null
+  /** Rotating only: pointer angle at the previous move, and the turn so far. */
+  pointerAngle: number
+  rotationTurn: number
   capture: HTMLElement | null
 }
 
 function geometryOf(element: Element): TransformGeometry {
   return { x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation }
-}
-
-function centreOf(geometry: TransformGeometry): ViewPoint {
-  return { x: geometry.x + geometry.width / 2, y: geometry.y + geometry.height / 2 }
 }
 
 export function PresentationCanvas({ images }: { images: PresentationImageSources }) {
@@ -243,11 +243,39 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
   const beginTransform = (element: Element, kind: TransformGesture['kind'], handle: ResizeHandle | null, event: ReactPointerEvent<HTMLElement>) => {
     const origin = pointFromClient(event.clientX, event.clientY)
     if (!origin) return
+    const start = geometryOf(element)
     // Capture on the Konva container for every transform gesture, so move/up
     // arrive through the same host handlers as panning.
     const capture = captureTarget()
-    transformGesture.current = { kind, pointerId: event.pointerId, elementId: element.id, handle, origin, start: geometryOf(element), current: null, capture }
+    transformGesture.current = {
+      kind,
+      pointerId: event.pointerId,
+      elementId: element.id,
+      handle,
+      origin,
+      start,
+      current: null,
+      // Rotation measures the pointer angle around the element's visual centre.
+      pointerAngle: kind === 'rotate' ? rotationFromPoint(elementWorldCenter(start), origin) : 0,
+      rotationTurn: 0,
+      capture,
+    }
     try { capture?.setPointerCapture(event.pointerId) } catch { /* Window-level pointer events still reach the host. */ }
+  }
+
+  /**
+   * The candidate geometry for one pointer position. Move and resize measure
+   * from the gesture's start; rotation walks the pointer angle step by step,
+   * updating the gesture, so a continuous turn accumulates instead of jumping at
+   * the ±180° branch cut.
+   */
+  const previewGeometry = (gesture: TransformGesture, point: ViewPoint): TransformGeometry => {
+    if (gesture.kind === 'move') return moveTransform(gesture.start, { x: point.x - gesture.origin.x, y: point.y - gesture.origin.y })
+    if (gesture.kind === 'resize') return resizeTransform(gesture.start, gesture.handle!, point)
+    const step = nextRotationStep(gesture.pointerAngle, rotationFromPoint(elementWorldCenter(gesture.start), point), gesture.rotationTurn)
+    gesture.pointerAngle = step.angle
+    gesture.rotationTurn = step.accumulated
+    return rotateTransform(gesture.start, step.accumulated)
   }
 
   /** Applies pointer movement to the live gesture; returns whether one is running. */
@@ -262,14 +290,7 @@ export function PresentationCanvas({ images }: { images: PresentationImageSource
     }
     const point = pointFromClient(event.clientX, event.clientY)
     if (!point) return true
-    const current = gesture.kind === 'move'
-      ? moveTransform(gesture.start, { x: point.x - gesture.origin.x, y: point.y - gesture.origin.y })
-      : gesture.kind === 'resize'
-        ? resizeTransform(gesture.start, gesture.handle!, point)
-        : rotateTransform(gesture.start, rotationDelta(
-            rotationFromPoint(centreOf(gesture.start), gesture.origin),
-            rotationFromPoint(centreOf(gesture.start), point),
-          ))
+    const current = previewGeometry(gesture, point)
     gesture.current = current
     usePresentationStore.getState().setTransformPreview({ elementId: gesture.elementId, ...current })
     return true

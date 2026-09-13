@@ -108,6 +108,21 @@ async function setField(page: Page, label: string, value: string): Promise<void>
   await expect(field).toHaveValue(value)
 }
 
+/** The centre of a client-pixel box, in client pixels. */
+function centreOfBox(box: { x: number; y: number; width: number; height: number }): { x: number; y: number } {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+}
+
+/** One point on the circle around `centre` through `point`, turned by `degrees`. */
+function turnAround(centre: { x: number; y: number }, point: { x: number; y: number }, degrees: number) {
+  const radians = (degrees * Math.PI) / 180
+  const offset = { x: point.x - centre.x, y: point.y - centre.y }
+  return {
+    x: centre.x + offset.x * Math.cos(radians) - offset.y * Math.sin(radians),
+    y: centre.y + offset.x * Math.sin(radians) + offset.y * Math.cos(radians),
+  }
+}
+
 test('moves, resizes, and rotates in document units at two zoom levels', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 768 })
   await openBlankEditor(page)
@@ -265,6 +280,107 @@ test('moves, resizes, and rotates in document units at two zoom levels', async (
     .toEqual({ x: rotated.x, y: rotated.y, width: rotated.width, height: rotated.height, rotation: rotated.rotation })
   expect(reopened.zoom).toBe(1)
   expect(reopened.pan).toEqual({ x: 0, y: 0 })
+})
+
+test('keeps the element centre when an already-rotated element turns again', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 768 })
+  await openBlankEditor(page)
+  await page.getByRole('button', { name: 'Add text' }).click()
+  await expect(page.getByRole('textbox', { name: 'Text content' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await setField(page, 'X position', '200')
+  await setField(page, 'Y position', '200')
+  await setField(page, 'Width', '320')
+  await setField(page, 'Height', '160')
+
+  const canvasHost = page.getByTestId('presentation-canvas')
+  const start = await readElement(page)
+  const view = await canvasView(page)
+  await clickAt(page, at(view, start.x + start.width / 2, start.y + start.height / 2))
+  await expect(canvasHost).toHaveAttribute('data-selected-element', start.id)
+
+  const frame = page.getByTestId('presentation-selection-frame')
+  const centreBefore = centreOfBox((await frame.boundingBox())!)
+
+  // The numeric field replaces the angle about the visual centre: the stored
+  // origin moves so the frame stays exactly where it was.
+  await setField(page, 'Rotation', '90')
+  const quarter = await readElement(page)
+  expect(quarter.rotation).toBe(90)
+  expect({ x: quarter.x, y: quarter.y }).toEqual({ x: 440, y: 120 })
+  const centreAfterField = centreOfBox((await frame.boundingBox())!)
+  expect(Math.abs(centreAfterField.x - centreBefore.x)).toBeLessThanOrEqual(2)
+  expect(Math.abs(centreAfterField.y - centreBefore.y)).toBeLessThanOrEqual(2)
+
+  // Dragging the round handle again turns the already-rotated element about the
+  // same visual centre instead of around its stored origin.
+  const handleBox = (await page.getByTestId('presentation-handle-rotate').boundingBox())!
+  const from = centreOfBox(handleBox)
+  await drag(page, from, turnAround(centreAfterField, from, 85), 6)
+  const turned = await readElement(page)
+  expect(Math.abs(turned.rotation - 175)).toBeLessThanOrEqual(2)
+  expect(turned.history).toBe(quarter.history + 1)
+  const centreAfterDrag = centreOfBox((await frame.boundingBox())!)
+  expect(Math.abs(centreAfterDrag.x - centreBefore.x)).toBeLessThanOrEqual(3)
+  expect(Math.abs(centreAfterDrag.y - centreBefore.y)).toBeLessThanOrEqual(3)
+})
+
+test('keeps the numeric geometry path and 44px handles when the inspector pane is hidden', async ({ page }) => {
+  await openBlankEditor(page)
+  await page.getByRole('button', { name: 'Add text' }).click()
+  await expect(page.getByRole('textbox', { name: 'Text content' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await setField(page, 'X position', '200')
+  await setField(page, 'Y position', '200')
+  await setField(page, 'Width', '320')
+  await setField(page, 'Height', '160')
+
+  for (const [index, viewport] of [{ width: 1024, height: 768 }, { width: 390, height: 844 }].entries()) {
+    await page.setViewportSize(viewport)
+    const canvasHost = page.getByTestId('presentation-canvas')
+    const before = await readElement(page)
+    // Select by clicking the painted element: locator.click() scrolls the phone
+    // layout's canvas into view, where the mouse alone would stay off screen.
+    const view = await canvasView(page)
+    const hostBox = (await canvasHost.boundingBox())!
+    const elementCentre = at(view, before.x + before.width / 2, before.y + before.height / 2)
+    await canvasHost.click({ position: { x: elementCentre.x - hostBox.x, y: elementCentre.y - hostBox.y } })
+    await expect(canvasHost).toHaveAttribute('data-selected-element', before.id)
+
+    // The wide pane is hidden at this width, so the numeric fields are reached
+    // through the shared dialog instead of disappearing.
+    await expect(page.getByLabel('X position').first()).toBeHidden()
+    await page.getByRole('button', { name: 'Element properties' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    const xField = dialog.getByLabel('X position')
+    await expect(xField).toBeVisible()
+    const targetX = 260 + index * 20
+    await xField.fill(String(targetX))
+    await xField.press('Enter')
+    await page.screenshot({ path: `${OUT}/p24-element-properties-${viewport.width}x${viewport.height}.png`, fullPage: false, animations: 'disabled' })
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    const moved = await readElement(page)
+    expect(moved.x).toBe(targetX)
+    expect(moved.history).toBe(before.history + 1)
+
+    // The handle keeps its visual centre on the corner but offers a finger-sized
+    // target: a press 16px outside the 14px square still starts the resize.
+    const handle = page.getByTestId('presentation-handle-se')
+    await handle.scrollIntoViewIfNeeded()
+    const handleCentre = centreOfBox((await handle.boundingBox())!)
+    const from = { x: handleCentre.x + 16, y: handleCentre.y + 16 }
+    await page.mouse.move(from.x, from.y)
+    await page.mouse.down()
+    await page.mouse.move(from.x + 20, from.y + 10)
+    await page.mouse.move(from.x + 40, from.y + 20)
+    await page.mouse.up()
+    const resized = await readElement(page)
+    expect(resized.width).toBeGreaterThan(moved.width)
+    expect({ x: resized.x, y: resized.y }).toEqual({ x: moved.x, y: moved.y })
+    expect(resized.history).toBe(moved.history + 1)
+  }
 })
 
 test('selects every visible element kind and leaves a locked element alone', async ({ page }) => {

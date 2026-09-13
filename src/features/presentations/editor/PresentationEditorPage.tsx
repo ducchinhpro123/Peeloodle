@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type MouseEve
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { usePresentationRepository } from '@/app/presentationRepositoryContext'
 import { isPersistenceError } from '@/lib/persistence/repository'
 import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
@@ -447,6 +448,20 @@ export function PresentationEditorPage() {
             <Button aria-label={`Edit text: ${selectedText.name}`} onClick={() => usePresentationStore.getState().startTextEdit(selectedText.id)}>
               <PenLine size={16} aria-hidden="true" /> Edit text
             </Button>
+          ) : null}
+          {selectedElement ? (
+            /* The wide pane is hidden from 1150px down, so the same numeric fields
+               stay reachable through the shared dialog at tablet and phone widths. */
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="properties-toggle">Element properties</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogTitle>Element properties</DialogTitle>
+                <DialogDescription>Exact document values for the selected element. Typing here is the keyboard path to the same numbers the canvas handles produce.</DialogDescription>
+                <ElementGeometryInspector element={selectedElement} />
+              </DialogContent>
+            </Dialog>
           ) : null}
           <Button onClick={requestSave}><Save size={16} aria-hidden="true" /> Save</Button>
           {save.state.status === 'conflict' ? (
