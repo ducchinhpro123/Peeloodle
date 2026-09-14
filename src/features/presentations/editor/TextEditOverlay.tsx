@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Theme, TextElement } from '../model/types'
 import { fontStackFor } from '../rendering/fonts'
 import { usePresentationStore } from './store'
-import { bridgeDefaultsFor, registerActiveTextEditFlush, registerActiveTextEditFormat, textHistoryGroup } from './textEditSession'
+import { bridgeDefaultsFor, textHistoryGroup } from './textEditSession'
+import { useTextEditSession } from './TextEditSessionContext'
 import {
   applyParagraphStyleToSelection,
   applyRunStyleToSelection,
@@ -90,6 +91,7 @@ type TextEditOverlayProps = {
  * zooming never re-seeds the field or moves the caret.
  */
 export function TextEditOverlay({ element, scale, offsetX, offsetY, theme }: TextEditOverlayProps) {
+  const session = useTextEditSession()
   const hostRef = useRef<HTMLDivElement>(null)
   const composing = useRef(false)
   const finished = useRef(false)
@@ -117,12 +119,12 @@ export function TextEditOverlay({ element, scale, offsetX, offsetY, theme }: Tex
   }, [])
 
   // A save must commit what is only on screen, and the DOM field belongs to this
-  // component. The registry entry lives exactly as long as a session is open, so
+  // component. The session's flush lives exactly as long as the field is open, so
   // nothing else has to reach into the markup to find it.
   useEffect(() => {
-    registerActiveTextEditFlush(() => commit())
-    return () => registerActiveTextEditFlush(null)
-  }, [commit])
+    session.registerFlush(() => commit())
+    return () => session.registerFlush(null)
+  }, [commit, session])
 
   // Track the field's selection so a toolbar control can act after focus moved to
   // it: a native color/select control takes focus without ending the session.
@@ -202,7 +204,7 @@ export function TextEditOverlay({ element, scale, offsetX, offsetY, theme }: Tex
         offset: block && range ? caretOffsetInParagraph(block, range.startContainer, range.startOffset) : 0,
       }
     }
-    registerActiveTextEditFormat({
+    session.registerFormat({
       apply(patch) {
         const host = hostRef.current
         if (!host || !isApplicablePatch(patch) || !restoreRange()) return
@@ -258,8 +260,8 @@ export function TextEditOverlay({ element, scale, offsetX, offsetY, theme }: Tex
         return latest.current.element.lineHeight
       },
     })
-    return () => registerActiveTextEditFormat(null)
-  }, [commit, reseed])
+    return () => session.registerFormat(null)
+  }, [commit, reseed, session])
 
   const finish = useCallback((host: HTMLElement | null = hostRef.current) => {
     finished.current = true

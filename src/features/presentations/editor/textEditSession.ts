@@ -6,6 +6,11 @@ import type { ParagraphFormatState, ParagraphStylePatch, RunStylePatch, TextForm
 /**
  * Session helpers for DOM text editing (P17). Kept free of JSX so the overlay
  * module stays a component-only module and these stay unit-testable.
+ *
+ * A session is an explicit object owned by the editor that opens it: the overlay
+ * registers its flush and formatting controller for the life of the session, and
+ * save/export ask the session to flush instead of reaching into a module-level
+ * registry. Nothing survives its editor.
  */
 
 /** One text session is one undo entry; every keystroke commits inside this group. */
@@ -14,40 +19,9 @@ export function textHistoryGroup(elementId: string): string {
 }
 
 /**
- * The DOM field being edited belongs to `TextEditOverlay`, so a save must ask the
- * overlay to commit rather than reaching into the document by test id. Renaming
- * the overlay's markup can then never silently turn the flush into a no-op.
- */
-let activeFlush: (() => void) | null = null
-
-export function registerActiveTextEditFlush(flush: (() => void) | null): void {
-  activeFlush = flush
-}
-
-export function flushActiveTextEdit(): void {
-  if (activeFlush === null) return
-  try {
-    activeFlush()
-  } catch {
-    // A rejected command (an over-long box) keeps the last committed text: the
-    // overlay owns that error, and a save must not fail because of it.
-  }
-}
-
-/** Fallback style for text that carries no run of its own, preferring the document theme. */
-export function bridgeDefaultsFor(element: TextElement, theme?: Pick<Theme, 'bodyFontId' | 'colors'>): BridgeDefaults {
-  const run = element.paragraphs.flatMap((paragraph) => paragraph.runs)[0]
-  return {
-    fontId: run?.fontId ?? theme?.bodyFontId ?? DEFAULT_THEME.bodyFontId,
-    size: run?.size ?? DEFAULT_BODY_FONT_SIZE,
-    color: run?.color ?? theme?.colors?.text ?? DEFAULT_THEME.colors.text ?? '#08152f',
-  }
-}
-
-/**
  * The formatting toolbar belongs to the editor page, but the DOM field and its
  * selection belong to `TextEditOverlay`, so the overlay registers a controller
- * for the life of the session (the same seam the save flush uses).
+ * for the life of the session.
  */
 export type TextFormatController = {
   /** Applies a patch to the live selection and commits the session. */
@@ -66,19 +40,54 @@ export type TextFormatController = {
   lineHeight(): number
 }
 
-let activeFormat: TextFormatController | null = null
-const formatListeners = new Set<() => void>()
-
-export function registerActiveTextEditFormat(controller: TextFormatController | null): void {
-  activeFormat = controller
-  for (const listener of formatListeners) listener()
+export type TextEditSession = {
+  /** The overlay's commit function, or null when no field is open. */
+  registerFlush(flush: (() => void) | null): void
+  /** Commits text that is only on screen; a rejected command keeps the last committed text. */
+  flush(): void
+  registerFormat(controller: TextFormatController | null): void
+  format(): TextFormatController | null
+  subscribeFormat(listener: () => void): () => void
 }
 
-export function activeTextEditFormat(): TextFormatController | null {
-  return activeFormat
+export function createTextEditSession(): TextEditSession {
+  let activeFlush: (() => void) | null = null
+  let activeFormat: TextFormatController | null = null
+  const formatListeners = new Set<() => void>()
+
+  return {
+    registerFlush(flush) {
+      activeFlush = flush
+    },
+    flush() {
+      if (activeFlush === null) return
+      try {
+        activeFlush()
+      } catch {
+        // A rejected command (an over-long box) keeps the last committed text: the
+        // overlay owns that error, and a save must not fail because of it.
+      }
+    },
+    registerFormat(controller) {
+      activeFormat = controller
+      for (const listener of formatListeners) listener()
+    },
+    format() {
+      return activeFormat
+    },
+    subscribeFormat(listener) {
+      formatListeners.add(listener)
+      return () => { formatListeners.delete(listener) }
+    },
+  }
 }
 
-export function subscribeActiveTextEditFormat(listener: () => void): () => void {
-  formatListeners.add(listener)
-  return () => formatListeners.delete(listener)
+/** Fallback style for text that carries no run of its own, preferring the document theme. */
+export function bridgeDefaultsFor(element: TextElement, theme?: Pick<Theme, 'bodyFontId' | 'colors'>): BridgeDefaults {
+  const run = element.paragraphs.flatMap((paragraph) => paragraph.runs)[0]
+  return {
+    fontId: run?.fontId ?? theme?.bodyFontId ?? DEFAULT_THEME.bodyFontId,
+    size: run?.size ?? DEFAULT_BODY_FONT_SIZE,
+    color: run?.color ?? theme?.colors?.text ?? DEFAULT_THEME.colors.text ?? '#08152f',
+  }
 }

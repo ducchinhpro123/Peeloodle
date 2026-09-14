@@ -28,6 +28,7 @@ describe('presentation export controller', () => {
     const progress: number[] = []
     const { result } = renderHook(() => usePresentationExport({
       repository,
+      flushText: () => {},
       prepare: async () => snapshot,
       download,
       buildPdf: async (_snapshot, _rasterize, options) => {
@@ -56,6 +57,7 @@ describe('presentation export controller', () => {
     const download = vi.fn()
     const { result } = renderHook(() => usePresentationExport({
       repository,
+      flushText: () => {},
       prepare: async () => snapshot,
       download,
       buildPdf: (_snapshot, _rasterize, options) => new Promise((_resolve, reject) => {
@@ -82,6 +84,7 @@ describe('presentation export controller', () => {
     const download = vi.fn()
     const { result } = renderHook(() => usePresentationExport({
       repository,
+      flushText: () => {},
       prepare: async () => snapshot,
       download,
       buildPdf: async () => { throw new Error('Some artwork could not be decoded') },
@@ -104,7 +107,7 @@ describe('presentation export controller', () => {
       await gate
       return new Uint8Array([1])
     })
-    const { result } = renderHook(() => usePresentationExport({ repository, prepare: async () => snapshot, download, buildPdf }))
+    const { result } = renderHook(() => usePresentationExport({ repository, flushText: () => {}, prepare: async () => snapshot, download, buildPdf }))
 
     let first: Promise<void> | undefined
     act(() => {

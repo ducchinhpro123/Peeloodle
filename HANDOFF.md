@@ -57,11 +57,12 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
   partial on failure); the 200 MB media budget is enforced before mutation and
   charged once per unique asset; a revision conflict has a real recovery path
   ("Keep my copy" writes an independent copy, then reopens the newer revision);
-  and leaving the editor flushes text and awaits the write. Leaving is guarded on
-  the header Back link and every shell link (`editor/leaveGuard.ts` +
-  `GuardedLink`). **The browser Back/Forward buttons and programmatic
-  `navigate()` calls remain unguarded** because the app renders a plain
-  `BrowserRouter`; closing that means a data-router migration, not a patch.
+  and leaving the editor flushes text and awaits the write. The app now renders
+  the `app/routes.tsx` data router, and `editor/useLeaveBlock.ts` blocks every
+  navigation away from a dirty presentation — shell links, programmatic
+  `navigate()` and the browser Back/Forward buttons — then proceeds only after
+  the write. `beforeunload` stays in `usePresentationSave` for reload/tab close.
+  (The earlier link-scoped `leaveGuard.ts`/`GuardedLink` pair is gone.)
 
 ## Start here: P44/P45 verification, then Milestone 4 (P46 — catalog schema)
 
@@ -111,7 +112,7 @@ otherwise serve the shared tree through HMR module URLs.
 | Sticker snapshots | `editor/insertStickerSnapshot.ts` (composes through `exports/renderDocument`) + `editor/StickerPickerDialog.tsx`; inserted through the shared `runImageWrite` path |
 | Image insertion | `editor/insertImageAsset.ts` (`preparePresentationImage`), then `usePresentationSave.persistInsert` (check → plan → persist document + bytes → adopt → decode). `store.insertImage` is the local-only command and is **not** the UI path. Caps and the 200 MB budget live in `model/limits.ts` + `store.checkImageInsert`; held bytes live in `store.pendingMedia` and reach a repository only via `store.mediaForSave()` |
 | Saving | `editor/usePresentationSave.ts` (750 ms autosave + explicit Save, plus `saveBeforeLeave` and `keepMineAsCopy`); `baseRevision` is read inside the serialized task, and media is cleared using the ids from the persisted snapshot |
-| Leaving the editor | `editor/leaveGuard.ts`, consumed by `GuardedLink` in `src/main.tsx`; browser Back/Forward and `navigate()` stay unguarded while the app uses a plain `BrowserRouter` |
+| Leaving the editor | `editor/useLeaveBlock.ts` (router-level `useBlocker`: links, programmatic `navigate()` and Back/Forward all save before they proceed); `beforeunload` stays in `usePresentationSave` |
 | Revision rules | `lib/persistence/presentations/revision.ts` (`assertRevisionWritable`) — both adapters must call it; never re-implement the checks in one adapter only |
 | Page rendering | `rendering/renderSlide.ts` + `editor/PresentationCanvas.tsx`; stage transforms are view-only |
 | Canvas view controls | `editor/PresentationCanvasControls.tsx` + `editor/viewGeometry.ts` (shared 0.25–4 clamp) |

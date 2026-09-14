@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { StrictMode } from 'react'
-import { App } from '../../main'
+import { createAppRoutes } from '../../app/routes'
 import { createMemoryRepository, createProjectDocument } from '../../lib/persistence/repository'
 import { MemoryPresentationRepository, createMemoryPresentationRepository, type PresentationMediaRecord, type SavePresentationOptions } from '../../lib/persistence/presentations/repository'
 import type { PresentationDocument } from './model/types'
@@ -38,13 +38,10 @@ afterEach(() => {
 
 function renderPresentations(path: string, presentationRepository = createMemoryPresentationRepository(), { strict = false } = {}) {
   const stickerRepository = createMemoryRepository()
-  const app = (
-    <MemoryRouter initialEntries={[path]}>
-      <App repository={stickerRepository} presentationRepository={presentationRepository} />
-    </MemoryRouter>
-  )
+  const router = createMemoryRouter(createAppRoutes({ repository: stickerRepository, presentationRepository }), { initialEntries: [path] })
+  const app = <RouterProvider router={router} />
   const view = render(strict ? <StrictMode>{app}</StrictMode> : app)
-  return { repository: presentationRepository, stickers: stickerRepository, unmount: view.unmount }
+  return { repository: presentationRepository, stickers: stickerRepository, router, unmount: view.unmount }
 }
 
 function trackDecodedBitmaps() {
@@ -1408,6 +1405,36 @@ describe('leaving the presentation editor', () => {
     expect(screen.queryByRole('heading', { name: 'Untitled presentation' })).not.toBeInTheDocument()
     expect(screen.queryByText(/could not be saved/i)).not.toBeInTheDocument()
   })
+
+  it('writes the edit before a programmatic navigate() leaves', async () => {
+    const view = renderPresentations('/presentations')
+    await screen.findByRole('heading', { name: 'No presentations yet' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create your first presentation' }))
+    await screen.findByRole('heading', { name: 'Untitled presentation' })
+    const presentationId = usePresentationStore.getState().document!.id
+    act(() => { usePresentationStore.getState().renameSlide(usePresentationStore.getState().view.activeSlideId!, 'Named before leaving') })
+
+    await act(async () => { await view.router.navigate('/templates') })
+
+    expect(await screen.findByRole('heading', { name: /Find your vibe/ })).toBeInTheDocument()
+    const stored = await view.repository.getPresentation(presentationId)
+    expect(stored.slides[0]!.name).toBe('Named before leaving')
+  })
+
+  it('writes the edit before the browser Back button leaves', async () => {
+    const view = renderPresentations('/presentations')
+    await screen.findByRole('heading', { name: 'No presentations yet' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create your first presentation' }))
+    await screen.findByRole('heading', { name: 'Untitled presentation' })
+    const presentationId = usePresentationStore.getState().document!.id
+    act(() => { usePresentationStore.getState().renameSlide(usePresentationStore.getState().view.activeSlideId!, 'Backed out safely') })
+
+    await act(async () => { await view.router.navigate(-1) })
+
+    expect(await screen.findByRole('link', { name: 'Open Untitled presentation' })).toBeInTheDocument()
+    const stored = await view.repository.getPresentation(presentationId)
+    expect(stored.slides[0]!.name).toBe('Backed out safely')
+  })
 })
 
 describe('presentation library actions', () => {
@@ -1428,11 +1455,8 @@ describe('presentation library actions', () => {
   /** Renders the library with a sticker repository the test can inspect. */
   function renderLibrary(repository: MemoryPresentationRepository) {
     const stickerRepository = createMemoryRepository()
-    render(
-      <MemoryRouter initialEntries={['/presentations']}>
-        <App repository={stickerRepository} presentationRepository={repository} />
-      </MemoryRouter>,
-    )
+    const router = createMemoryRouter(createAppRoutes({ repository: stickerRepository, presentationRepository: repository }), { initialEntries: ['/presentations'] })
+    render(<RouterProvider router={router} />)
     return { stickerRepository }
   }
 

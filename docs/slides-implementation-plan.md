@@ -9,8 +9,9 @@ editing (P17) are implemented and recorded in `proofs/p15-p16-basic-presentation
 `proofs/p17-text-editing.md`. Personal image insertion (P18) and truthful save/autosave (P19) are
 implemented and recorded in `proofs/p18-p19-image-and-save.md`, which includes browser pixel and
 IndexedDB evidence plus the review-driven hardening that followed (atomic insertion, the 200 MB media
-budget, conflict recovery and the guarded editor exit — with the unguarded browser Back/Forward
-limitation stated there). P20 (library rename, duplicate, safe delete and real first-slide thumbnails) is
+budget, conflict recovery and the guarded editor exit). The browser Back/Forward limitation
+recorded there was closed later by the `app/routes.tsx` data-router migration plus
+`editor/useLeaveBlock.ts`. P20 (library rename, duplicate, safe delete and real first-slide thumbnails) is
 recorded in `proofs/p20-library-operations.md`, and P21 verified the full create → edit → save → reload →
 reopen journey in `proofs/p21-milestone-journey.md`, which completes Milestone 1. Milestone 2 has started:
 P22 (slide rail add/duplicate) and P23 (reorder/delete) are recorded in `proofs/p22-p23-slide-rail.md`, P24

@@ -1,0 +1,114 @@
+import { Bell, ChevronRight, Heart, Home, ImagePlus, LayoutGrid, Menu, Plus, Presentation as PresentationIcon, Scissors, Sparkles, Type, Upload, UserRound } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { NoticeDialog } from '@/components/ui/notice-dialog'
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { Account, CloudBanner } from '@/features/auth/Account'
+import { GlobalSearch } from '@/components/GlobalSearch'
+import { isUnmodifiedPrimaryClick, parseToolIntent, requestToolIntent, shouldReuseCurrentToolRoute, toolIntentHref, type ToolIntent } from '@/features/editor/toolIntent'
+import { preloadEditor } from './routeModules'
+import type { ReactNode } from 'react'
+
+const getView = (search: string) => new URLSearchParams(search).get('view')
+
+const topNavigation = [
+  { to: '/', label: 'Home', active: (pathname: string, search: string) => pathname === '/' && !getView(search) },
+  { to: '/create', label: 'Create', active: (pathname: string) => pathname === '/create' || pathname.startsWith('/editor/') },
+  { to: '/templates', label: 'Templates', active: (pathname: string, search: string) => pathname === '/templates' && getView(search) !== 'explore' },
+  { to: '/my-stickers', label: 'My Stickers', active: (pathname: string, search: string) => pathname === '/my-stickers' && getView(search) !== 'favorites' },
+  { to: '/templates?view=explore', label: 'Explore', active: (pathname: string, search: string) => pathname === '/templates' && getView(search) === 'explore' },
+]
+
+function Header() {
+  const { pathname, search } = useLocation()
+
+  return (
+    <header className="header">
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button className="icon mobile-only" aria-label="Open navigation"><Menu /></Button>
+        </SheetTrigger>
+        <SheetContent>
+          <SheetTitle>Navigation</SheetTitle>
+          <SheetDescription className="sr-only">StickerLab navigation links</SheetDescription>
+          <Sidebar mobile />
+        </SheetContent>
+      </Sheet>
+      <Link to="/" className="brand"><img src="/art/logo-wordmark.webp" width={500} height={224} alt="StickerLab" /></Link>
+      <nav className="topnav" aria-label="Primary navigation">
+        {topNavigation.map((item) => (
+          <Link key={item.label} to={item.to} className={item.active(pathname, search) ? 'active' : undefined} aria-current={item.active(pathname, search) ? 'page' : undefined} onMouseEnter={item.to === '/create' ? preloadEditor : undefined} onFocus={item.to === '/create' ? preloadEditor : undefined}>{item.label}</Link>
+        ))}
+      </nav>
+      <GlobalSearch />
+      <NoticeDialog title="Notifications are unavailable" trigger={<Button className="icon notifications" aria-label="Notifications"><Bell size={18} /></Button>}>
+        Notifications are not implemented.
+      </NoticeDialog>
+      <Account />
+    </header>
+  )
+}
+
+const sidebarTools: Array<{ label: string; icon: typeof Scissors; intent: ToolIntent }> = [
+  { label: 'Background Eraser', icon: Scissors, intent: 'erase' },
+  { label: 'Text & Emoji', icon: Type, intent: 'text' },
+  { label: 'Filters & Effects', icon: Sparkles, intent: 'effects' },
+  { label: 'Export & Share', icon: Upload, intent: 'export' },
+]
+
+function Sidebar({ mobile = false }: { mobile?: boolean }) {
+  const { pathname, search } = useLocation()
+  const isFavorites = pathname === '/my-stickers' && getView(search) === 'favorites'
+  const isShared = pathname === '/my-stickers' && getView(search) === 'shared'
+  const currentIntent = parseToolIntent(new URLSearchParams(search).get('tool'))
+  const items = [
+    { to: '/', label: 'Dashboard', icon: Home, active: pathname === '/' },
+    { to: '/create', label: 'Create Sticker', icon: Plus, active: pathname === '/create' || pathname.startsWith('/editor/') },
+    { to: '/my-stickers', label: 'My Stickers', icon: ImagePlus, active: pathname === '/my-stickers' && !isFavorites && !isShared },
+    { to: '/presentations', label: 'Presentations', icon: PresentationIcon, active: pathname.startsWith('/presentations') },
+    { to: '/templates', label: 'Templates', icon: LayoutGrid, active: pathname === '/templates' },
+    { to: '/my-stickers?view=favorites', label: 'Favorites', icon: Heart, active: isFavorites },
+    { to: '/my-stickers?view=shared', label: 'Shared with Me', icon: UserRound, active: isShared },
+  ]
+
+  const itemLink = ({ to, label, icon: Icon, active }: typeof items[number]) => {
+    const link = <Link className={active ? 'active' : undefined} to={to} onMouseEnter={to === '/create' ? preloadEditor : undefined} onFocus={to === '/create' ? preloadEditor : undefined}><Icon size={18} />{label}</Link>
+    return mobile ? <SheetClose asChild key={label}>{link}</SheetClose> : <span key={label}>{link}</span>
+  }
+
+  return (
+    <aside className="sidebar">
+      <div className="side-links">{items.map(itemLink)}</div>
+      <div className="side-tools">
+        <small>TOOLS</small>
+        {sidebarTools.map(({ label, icon: Icon, intent }) => {
+          const to = toolIntentHref(intent, pathname)
+          const active = currentIntent === intent && (pathname === '/create' || pathname.startsWith('/editor/'))
+          const link = (
+            <Link
+              className={active ? 'active' : undefined}
+              to={to}
+              replace={shouldReuseCurrentToolRoute(pathname, search, intent)}
+              aria-current={active ? 'page' : undefined}
+              onMouseEnter={preloadEditor}
+              onFocus={preloadEditor}
+              onClick={(event) => {
+                if (!isUnmodifiedPrimaryClick(event) || !shouldReuseCurrentToolRoute(pathname, search, intent)) return
+                requestToolIntent(intent)
+              }}
+            >
+              <Icon size={18} />{label}
+            </Link>
+          )
+          return mobile ? <SheetClose asChild key={label}>{link}</SheetClose> : <span key={label}>{link}</span>
+        })}
+      </div>
+      <Card className="studio-note"><img src="/art/stickers/04-winking-smiley.webp" alt="" width={64} height={64} /><b>Good ideas stick.</b><p>Create. Customize.<br />Share. Repeat.</p><Link to="/create">Make something fun <ChevronRight size={14} /></Link></Card>
+    </aside>
+  )
+}
+
+export function Shell({ children, editor = false }: { children: ReactNode; editor?: boolean }) {
+  return <><Header /><div className={`layout${editor ? ' editor-layout' : ''}`}><Sidebar /><main><CloudBanner />{children}</main></div></>
+}

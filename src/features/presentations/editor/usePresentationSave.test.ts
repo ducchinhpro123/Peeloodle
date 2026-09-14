@@ -8,7 +8,7 @@
 
 import { createElement } from 'react'
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PresentationRepositoryContext } from '@/app/presentationRepositoryContext'
 import {
@@ -22,7 +22,7 @@ import { createPresentationDocument, createTextElement } from '../model/factorie
 import { FIXTURE_IMAGE_SHA256, fixtureImagePng } from '../model/fixtures/fixture'
 import type { PreparedPresentationImage } from './insertImageAsset'
 import { PresentationEditorPage } from './PresentationEditorPage'
-import { bridgeDefaultsFor, registerActiveTextEditFlush, textHistoryGroup } from './textEditSession'
+import { bridgeDefaultsFor, textHistoryGroup } from './textEditSession'
 import { PRESENTATION_LIMITS } from '../model/limits'
 import { readParagraphsFromDom } from './textBridge'
 import { usePresentationStore } from './store'
@@ -98,26 +98,29 @@ beforeEach(() => {
   vi.useFakeTimers()
 })
 
+/** Stands in for the owning session's flush, which the hook now receives as input. */
+let registeredFlush: (() => void) | null = null
+
 afterEach(() => {
   cleanup()
-  registerActiveTextEditFlush(null)
+  registeredFlush = null
   usePresentationStore.getState().closeDocument()
   vi.useRealTimers()
 })
 
 /**
- * Stands in for `TextEditOverlay`: the overlay registers its own commit function,
- * so the save path never reaches into the DOM itself.
+ * Stands in for `TextEditOverlay`: the overlay registers its commit with the text
+ * session it belongs to, so the save path never reaches into the DOM itself.
  */
 function registerFieldFlush(field: HTMLElement, elementId: string): void {
-  registerActiveTextEditFlush(() => {
+  registeredFlush = () => {
     const store = usePresentationStore.getState()
     const element = store.document?.slides.flatMap((slide) => slide.elements).find((candidate) => candidate.id === elementId)
     if (element?.kind !== 'text') return
     store.updateText(elementId, readParagraphsFromDom(field, bridgeDefaultsFor(element, store.document?.theme)), {
       historyGroup: textHistoryGroup(elementId),
     })
-  })
+  }
 }
 
 /** A field that looks like the overlay's own. */
@@ -140,7 +143,11 @@ async function openEditor(repository: MemoryPresentationRepository): Promise<Pre
 }
 
 function editor(repository: MemoryPresentationRepository) {
-  return renderHook(() => usePresentationSave({ repository, documentId: PRESENTATION_ID }))
+  return renderHook(() => usePresentationSave({
+    repository,
+    documentId: PRESENTATION_ID,
+    flushText: () => { registeredFlush?.() },
+  }))
 }
 
 const store = () => usePresentationStore.getState()
@@ -511,24 +518,20 @@ describe('presentation save flushing', () => {
 
 describe('presentation editor save wiring', () => {
   function renderEditor(repository: PresentationRepository) {
-    return render(
-      createElement(
-        MemoryRouter,
-        { initialEntries: [`/presentations/${PRESENTATION_ID}`] },
-        createElement(
-          Routes,
-          null,
-          createElement(Route, {
-            path: '/presentations/:presentationId',
-            element: createElement(
-              PresentationRepositoryContext.Provider,
-              { value: repository },
-              createElement(PresentationEditorPage),
-            ),
-          }),
-        ),
-      ),
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/presentations/:presentationId',
+          element: createElement(
+            PresentationRepositoryContext.Provider,
+            { value: repository },
+            createElement(PresentationEditorPage),
+          ),
+        },
+      ],
+      { initialEntries: [`/presentations/${PRESENTATION_ID}`] },
     )
+    return render(createElement(RouterProvider, { router }))
   }
 
   it('shows the real save state and lets the Save control write a later edit', async () => {
@@ -658,7 +661,7 @@ describe('presentation text flush wiring', () => {
     // A field that looks exactly like the overlay's, but nothing registered on it.
     const orphan = fieldWith('<p>Must never be read</p>')
     const flush = vi.fn()
-    registerActiveTextEditFlush(flush)
+    registeredFlush = flush
 
     await act(async () => { await view.result.current.saveNow() })
 

@@ -18,7 +18,6 @@ import type { PresentationMediaRecord, PresentationRepository } from '@/lib/pers
 import { ensurePresentationFonts } from '../rendering/fonts'
 import { layoutTextElement, type MeasureText } from '../rendering/textLayout'
 import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
-import { flushActiveTextEdit } from '../editor/textEditSession'
 import { usePresentationStore } from '../editor/store'
 import { measureTextWidth } from '../editor/textMeasure'
 import type { PresentationAsset, PresentationDocument } from '../model/types'
@@ -64,8 +63,8 @@ export type ExportInput = { document: PresentationDocument; media: PresentationM
  * held for assets that are not persisted yet. Everything is read in one
  * synchronous pass, so no await can straddle two revisions.
  */
-export function captureExportInput(): ExportInput {
-  flushActiveTextEdit()
+export function captureExportInput(flushText?: () => void): ExportInput {
+  flushText?.()
   const store = usePresentationStore.getState()
   if (!store.document) throw new PresentationPreflightError('no-document', 'Open a presentation before exporting.')
   return { document: store.document, media: store.mediaForSave() }
@@ -83,6 +82,8 @@ export type CreateExportSnapshotOptions = {
   measure?: MeasureText
   /** Decode hook for tests; defaults to the shared decode policy. */
   decode?: (record: PresentationMediaRecord) => Promise<ImageBitmap>
+  /** The owning text session's flush; commits on-screen text before capture. */
+  flushText?: () => void
 }
 
 /** The assets the slides actually draw, in document order, de-duplicated. */
@@ -205,6 +206,6 @@ export async function createExportSnapshot(
 
 /** Capture, preflight and return a snapshot ready to render or package. */
 export async function prepareExportSnapshot(repository: PresentationRepository, options: Omit<CreateExportSnapshotOptions, 'repository'> = {}): Promise<PresentationExportSnapshot> {
-  const input = captureExportInput()
+  const input = captureExportInput(options.flushText)
   return createExportSnapshot(input.document, { ...options, repository, media: input.media })
 }

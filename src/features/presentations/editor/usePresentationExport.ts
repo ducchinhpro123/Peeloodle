@@ -56,7 +56,7 @@ const MIME: Record<PresentationExportFormat, string> = {
   backup: 'application/zip',
 }
 
-export function usePresentationExport(input: { repository: PresentationRepository } & PresentationExportOverrides): {
+export function usePresentationExport(input: { repository: PresentationRepository; flushText: () => void } & PresentationExportOverrides): {
   state: PresentationExportState
   exportDeck: (format: PresentationExportFormat) => Promise<void>
   cancel: () => void
@@ -95,7 +95,7 @@ export function usePresentationExport(input: { repository: PresentationRepositor
     try {
       const snapshotModule = await import('../exports/snapshot')
       const prepare = latest.current.prepare ?? snapshotModule.prepareExportSnapshot
-      snapshot = await prepare(latest.current.repository)
+      snapshot = await prepare(latest.current.repository, { flushText: latest.current.flushText })
       if (controller.signal.aborted) throw new Error('cancelled')
 
       const total = snapshot.document.slides.length

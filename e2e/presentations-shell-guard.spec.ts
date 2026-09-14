@@ -45,3 +45,19 @@ test('a clean editor follows a shell nav link immediately', async ({ page }) => 
   await expect(page.getByRole('heading', { name: /Small stickers/ })).toBeVisible()
   await expect(page.getByText(/could not be saved/i)).not.toBeVisible()
 })
+
+test('the browser Back button writes the pending edit before it leaves', async ({ page }) => {
+  const presentationId = await openBlankEditor(page)
+
+  await page.getByRole('button', { name: 'Add text' }).click()
+  const field = page.getByRole('textbox', { name: 'Text content' })
+  await expect(field).toBeFocused()
+  await page.keyboard.type('Back must not lose this')
+
+  // Back is not a link: only router-level blocking can hold it.
+  await page.goBack()
+
+  await expect(page).toHaveURL('/presentations')
+  const stored = await readStoredDocument(page, presentationId)
+  expect(stored.text).toContain('Back must not lose this')
+})

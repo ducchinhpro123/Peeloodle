@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
-import { MemoryRouter } from 'react-router-dom'
+import { RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { App } from '../../main'
+import { createAppRoutes } from '../../app/routes'
 import { createMemoryRepository, createProjectDocument } from '../../lib/persistence/repository'
 import { resetEditorStore, useEditorStore } from './store'
 
@@ -34,11 +34,8 @@ afterEach(() => {
 })
 
 function renderApp(path = '/create', repo = createMemoryRepository()) {
-  render(
-    <MemoryRouter initialEntries={[path]}>
-      <App repository={repo} />
-    </MemoryRouter>,
-  )
+  const router = createMemoryRouter(createAppRoutes({ repository: repo }), { initialEntries: [path] })
+  render(<RouterProvider router={router} />)
   return repo
 }
 
@@ -116,11 +113,7 @@ describe('editor integration', () => {
     if (!id) throw new Error('missing project id')
     resetEditorStore()
     cleanup()
-    render(
-      <MemoryRouter initialEntries={[`/editor/${id}`]}>
-        <App repository={repo} />
-      </MemoryRouter>,
-    )
+    renderApp(`/editor/${id}`, repo)
     await waitFor(() => {
       const text = useEditorStore.getState().document?.layers.find((layer) => layer.kind === 'text')
       expect(text && text.kind === 'text' ? text.fontFamily : undefined).toBe('Georgia')
@@ -326,11 +319,7 @@ describe('editor integration', () => {
     // Reopen in fresh render
     resetEditorStore()
     cleanup()
-    render(
-      <MemoryRouter initialEntries={[`/editor/${projectId}`]}>
-        <App repository={repo} />
-      </MemoryRouter>,
-    )
+    renderApp(`/editor/${projectId}`, repo)
 
     await waitFor(() => {
       const doc = useEditorStore.getState().document

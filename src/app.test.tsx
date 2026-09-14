@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as assetLoader from './features/assets/assetLoader'
-import { App } from './main'
+import { createAppRoutes } from './app/routes'
 import { createMemoryRepository, createProjectDocument } from './lib/persistence/repository'
 import { resetEditorStore, useEditorStore } from './features/editor/store'
 
@@ -23,12 +23,13 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+function renderAt(path: string, repository = createMemoryRepository()) {
+  const router = createMemoryRouter(createAppRoutes({ repository }), { initialEntries: [path] })
+  return render(<RouterProvider router={router} />)
+}
+
 function renderRoute(path = '/') {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <App repository={createMemoryRepository()} />
-    </MemoryRouter>,
-  )
+  return renderAt(path)
 }
 
 describe('foundation routes', () => {
@@ -121,11 +122,7 @@ describe('foundation interactions', () => {
 
   it('opens a template preview dialog and clones it into an independent editable project', async () => {
     const repo = createMemoryRepository()
-    render(
-      <MemoryRouter initialEntries={['/templates']}>
-        <App repository={repo} />
-      </MemoryRouter>,
-    )
+    renderAt('/templates', repo)
     const cardTitle = screen.getAllByRole('button', { name: 'Orbit Pop' })[0]!
     fireEvent.click(cardTitle)
     const dialog = await screen.findByRole('dialog', { name: 'Orbit Pop' })
@@ -149,7 +146,7 @@ describe('foundation interactions', () => {
   it('keeps a template preview open on save failure and restores focus on dismissal', async () => {
     const repo = createMemoryRepository()
     repo.injectWriteFailure()
-    render(<MemoryRouter initialEntries={['/templates']}><App repository={repo} /></MemoryRouter>)
+    renderAt('/templates', repo)
     const opener = screen.getAllByRole('button', { name: 'Orbit Pop' })[0]!
     opener.focus()
     fireEvent.click(opener)
@@ -173,7 +170,7 @@ describe('foundation interactions', () => {
   it('shows pack write failures without closing the form or losing its title', async () => {
     const repo = createMemoryRepository()
     repo.injectWriteFailure()
-    render(<MemoryRouter initialEntries={['/my-stickers']}><App repository={repo} /></MemoryRouter>)
+    renderAt('/my-stickers', repo)
     fireEvent.click(screen.getByRole('button', { name: 'New Pack' }))
     const dialog = await screen.findByRole('dialog', { name: 'Create New Pack' })
     fireEvent.change(within(dialog).getByLabelText('Pack Name'), { target: { value: 'Keep my title' } })
@@ -206,7 +203,7 @@ describe('foundation interactions', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-02T00:00:00.000Z',
     })
-    render(<MemoryRouter initialEntries={['/my-stickers']}><App repository={repo} /></MemoryRouter>)
+    renderAt('/my-stickers', repo)
 
     expect(await screen.findByRole('button', { name: /Beta Cats/ })).toBeInTheDocument()
     const search = screen.getByRole('searchbox', { name: 'Search packs' })
@@ -230,11 +227,7 @@ describe('foundation interactions', () => {
     const p1 = createProjectDocument({ id: 'proj-1', title: 'Happy Cat' })
     await repo.saveProject(p1)
 
-    render(
-      <MemoryRouter initialEntries={['/my-stickers']}>
-        <App repository={repo} />
-      </MemoryRouter>,
-    )
+    renderAt('/my-stickers', repo)
 
     expect(await screen.findByRole('heading', { name: 'No local packs yet' })).toBeInTheDocument()
 
@@ -289,7 +282,7 @@ describe('foundation interactions', () => {
   it('lists recent stickers, previews them, and deletes with confirmation', async () => {
     const repo = createMemoryRepository()
     await repo.saveProject(createProjectDocument({ id: 'sticker-1', title: 'Happy Cat' }))
-    render(<MemoryRouter initialEntries={['/']}><App repository={repo} /></MemoryRouter>)
+    renderAt('/', repo)
     expect(await screen.findByRole('link', { name: /Happy Cat/ })).toHaveAttribute('href', '/editor/sticker-1')
     expect(within(screen.getByRole('heading', { name: /Recent Projects/ }).parentElement!).getByRole('link', { name: 'View all' })).toHaveAttribute('href', '/my-stickers#local-stickers')
     fireEvent.click(screen.getByRole('button', { name: 'Delete Happy Cat' }))
@@ -404,11 +397,7 @@ describe('tool intent entry', () => {
   it('offers create or reopen when a tool needs a document and stickers already exist', async () => {
     const repo = createMemoryRepository()
     await repo.saveProject(createProjectDocument({ id: 'keep-me', title: 'Saved Cat' }))
-    render(
-      <MemoryRouter initialEntries={['/create?tool=erase']}>
-        <App repository={repo} />
-      </MemoryRouter>,
-    )
+    renderAt('/create?tool=erase', repo)
     expect(await screen.findByTestId('tool-document-choice')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Background Eraser' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create new sticker' })).toBeInTheDocument()
@@ -421,11 +410,7 @@ describe('tool intent entry', () => {
 
   it('does not duplicate text when reopening a saved sticker with the text tool', async () => {
     const repo = createMemoryRepository()
-    render(
-      <MemoryRouter initialEntries={['/create?tool=text']}>
-        <App repository={repo} />
-      </MemoryRouter>,
-    )
+    renderAt('/create?tool=text', repo)
     fireEvent.click(await screen.findByRole('button', { name: 'Text' }))
     expect(useEditorStore.getState().document?.layers.filter((layer) => layer.kind === 'text')).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: /save to my stickers/i }))
@@ -434,11 +419,7 @@ describe('tool intent entry', () => {
     if (!id) throw new Error('missing project id')
     cleanup()
     resetEditorStore()
-    render(
-      <MemoryRouter initialEntries={[`/editor/${id}?tool=text`]}>
-        <App repository={repo} />
-      </MemoryRouter>,
-    )
+    renderAt(`/editor/${id}?tool=text`, repo)
     await waitFor(() => {
       const layers = useEditorStore.getState().document?.layers.filter((layer) => layer.kind === 'text') ?? []
       expect(layers).toHaveLength(1)
@@ -457,11 +438,7 @@ describe('tool intent entry', () => {
   it('still mints a blank document for Create a Sticker when saved stickers exist', async () => {
     const repo = createMemoryRepository()
     await repo.saveProject(createProjectDocument({ id: 'keep-me', title: 'Saved Cat' }))
-    render(
-      <MemoryRouter initialEntries={['/create']}>
-        <App repository={repo} />
-      </MemoryRouter>,
-    )
+    renderAt('/create', repo)
     expect(await screen.findByRole('heading', { name: /untitled sticker/i })).toBeInTheDocument()
     expect(screen.queryByTestId('tool-document-choice')).not.toBeInTheDocument()
     expect(useEditorStore.getState().document?.id).not.toBe('keep-me')

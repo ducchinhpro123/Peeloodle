@@ -10,14 +10,15 @@ import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, IndentDecrease,
 import { useCallback, useEffect, useState, useSyncExternalStore, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { PRESENTATION_FONT_FAMILIES } from '../rendering/fonts'
-import { activeTextEditFormat, subscribeActiveTextEditFormat } from './textEditSession'
+import { useTextEditSession } from './TextEditSessionContext'
 import type { ParagraphFormatState, ParagraphStylePatch, RunStylePatch, TextFormatState } from './textFormat'
 
 const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96]
 const LINE_HEIGHTS = [1, 1.15, 1.5, 2]
 
 export function TextFormatToolbar() {
-  const controller = useSyncExternalStore(subscribeActiveTextEditFormat, activeTextEditFormat, () => null)
+  const session = useTextEditSession()
+  const controller = useSyncExternalStore(session.subscribeFormat, session.format, () => null)
   const [format, setFormat] = useState<TextFormatState | null>(null)
   const [paragraph, setParagraph] = useState<ParagraphFormatState | null>(null)
   const [lineHeight, setLineHeight] = useState(1)
@@ -25,7 +26,7 @@ export function TextFormatToolbar() {
   const [linkError, setLinkError] = useState<string | null>(null)
 
   const refresh = useCallback(() => {
-    const active = activeTextEditFormat()
+    const active = session.format()
     if (!active) {
       setFormat(null)
       setParagraph(null)
@@ -34,7 +35,7 @@ export function TextFormatToolbar() {
     setFormat(active.read())
     setParagraph(active.readParagraph())
     setLineHeight(active.lineHeight())
-  }, [])
+  }, [session])
 
   useEffect(() => {
     if (!controller) {

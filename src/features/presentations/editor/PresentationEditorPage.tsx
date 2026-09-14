@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowLeft, ArrowUp, Copy, ImagePlus, MonitorUp, PenLine, Plus, Redo2, Save, ShieldAlert, Trash2, Type, Undo2 } from 'lucide-react'
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -9,7 +9,6 @@ import { usePresentationRepository } from '@/app/presentationRepositoryContext'
 import { isPersistenceError } from '@/lib/persistence/repository'
 import { decodeImageBitmap } from '@/lib/imageDecode'
 import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
-import { isUnmodifiedPrimaryClick } from '../../editor/toolIntent'
 import { isPresentationParseError } from '../model/parse'
 import { createTextElement } from '../model/factories'
 import type { PresentationDocument } from '../model/types'
@@ -29,8 +28,10 @@ import { usePresentationSave, type PersistInsertOutcome } from './usePresentatio
 import { usePresentationExport } from './usePresentationExport'
 import { ExportDialog } from './ExportDialog'
 import { usePresentationShortcuts } from './usePresentationShortcuts'
-import { registerLeaveGuard } from './leaveGuard'
 import { usePresentationStore } from './store'
+import { createTextEditSession } from './textEditSession'
+import { TextEditSessionProvider } from './TextEditSessionContext'
+import { useLeaveBlock } from './useLeaveBlock'
 
 const PresentationCanvas = lazy(() => import('./PresentationCanvas').then((module) => ({ default: module.PresentationCanvas })))
 
@@ -119,7 +120,6 @@ function insertRefusalMessage(outcome: Extract<PersistInsertOutcome, { ok: false
 
 export function PresentationEditorPage() {
   const { presentationId = '' } = useParams()
-  const navigate = useNavigate()
   const repository = usePresentationRepository()
   const stickerRepository = useOptionalRepository()
   const document = usePresentationStore((state) => state.document)
@@ -129,8 +129,11 @@ export function PresentationEditorPage() {
   const dirty = usePresentationStore((state) => state.dirty)
   const canUndo = usePresentationStore((state) => state.past.length > 0)
   const canRedo = usePresentationStore((state) => state.future.length > 0)
-  const save = usePresentationSave({ repository, documentId: presentationId })
-  const exportController = usePresentationExport({ repository })
+  // The editor that opens a text session owns it: the overlay registers its flush
+  // and formatting controller here, and save/export flush through it.
+  const [textSession] = useState(createTextEditSession)
+  const save = usePresentationSave({ repository, documentId: presentationId, flushText: textSession.flush })
+  const exportController = usePresentationExport({ repository, flushText: textSession.flush })
   usePresentationShortcuts()
   const [attempt, setAttempt] = useState(0)
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' })
@@ -233,41 +236,17 @@ export function PresentationEditorPage() {
   }, [decodeDocumentMedia, presentationId])
 
   /**
-   * The one leave decision, taken before the route changes: text that is still
-   * only on screen is flushed and its write awaited, so leaving cannot silently
-   * drop an edit. When the write fails the editor stays put and says why. The
-   * header Back link calls this directly and the shell's own nav links reach it
-   * through the leave-guard registry (see leaveGuard.ts).
-   *
-   * ROUTER CONSTRAINT: this app renders <BrowserRouter> with <Routes>, not a data
-   * router, so react-router's `useBlocker` throws here. The in-app links the shell
-   * renders now consult this guard, but a programmatic navigate() and the
-   * browser's Back/Forward buttons still cannot be intercepted, and the
-   * `beforeunload` guard covers reload/close only.
+   * The one leave decision, taken by the router before the route changes: text
+   * that is still only on screen is flushed and its write awaited, so leaving
+   * cannot silently drop an edit. When the write fails the editor stays put and
+   * says why. Link clicks, programmatic navigation and Back/Forward all arrive
+   * here through `useLeaveBlock`; no link needs to consult a guard registry.
    */
-  const confirmLeave = async (event: MouseEvent): Promise<boolean> => {
-    // A modified click is a new tab or window: it does not abandon this tab's work.
-    if (!isUnmodifiedPrimaryClick(event)) return true
-    // The decision needs a write, so the click is stopped before it is awaited.
-    event.preventDefault()
-    setEditorNote(null)
-    if (await save.saveBeforeLeave()) return true
-    setEditorNote('This presentation could not be saved, so it is still open. Press Save to try again — or press Keep my copy if another tab or window has a newer version.')
-    return false
-  }
-
-  useEffect(() => {
-    registerLeaveGuard(confirmLeave)
-    return () => registerLeaveGuard(null)
-    // Re-registered after every render, so the registered guard always uses the
-    // current save path and note setter rather than an earlier render's closure.
+  useLeaveBlock({
+    documentId: presentationId,
+    saveBeforeLeave: save.saveBeforeLeave,
+    onSaveFailed: () => setEditorNote('This presentation could not be saved, so it is still open. Press Save to try again — or press Keep my copy if another tab or window has a newer version.'),
   })
-
-  /** The header Back link: the same decision, with its own destination. */
-  const leaveEditor = async (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!isUnmodifiedPrimaryClick(event)) return
-    if (await confirmLeave(event)) navigate('/presentations')
-  }
 
   if (loadState.status === 'loading') {
     return <Card className="presentation-route-state"><p role="status">Opening presentation…</p></Card>
@@ -474,9 +453,10 @@ export function PresentationEditorPage() {
   }
 
   return (
+    <TextEditSessionProvider session={textSession}>
     <div className="presentation-editor">
       <header className="presentation-editor-bar">
-        <Link className="button icon" aria-label="Back to presentations" to="/presentations" onClick={(event) => void leaveEditor(event)}><ArrowLeft size={19} /></Link>
+        <Link className="button icon" aria-label="Back to presentations" to="/presentations"><ArrowLeft size={19} /></Link>
         <div className="presentation-editor-title">
           <p>Presentation</p>
           <h1 title={document.title}>{document.title}</h1>
@@ -687,6 +667,7 @@ export function PresentationEditorPage() {
         </aside>
       </div>
     </div>
+    </TextEditSessionProvider>
   )
 }
 
