@@ -12,6 +12,56 @@ function snapshotOf(document: PresentationDocument, media: Map<string, { assetId
   return { document, revision: document.revision, images: new Map(), media, warnings: [], dispose() {} }
 }
 
+/** The `<a:p>` blocks of one shape's text body, in document order. */
+function paragraphsOf(xml: string, shapeName: string): string[] {
+  const nameAt = xml.indexOf(`name="${shapeName}"`)
+  if (nameAt < 0) throw new Error(`no shape named ${shapeName}`)
+  const shape = xml.slice(xml.lastIndexOf('<p:sp>', nameAt), xml.indexOf('</p:sp>', nameAt))
+  const body = shape.slice(shape.indexOf('<p:txBody>'), shape.indexOf('</p:txBody>'))
+  return body.match(/<a:p>.*?<\/a:p>/g) ?? []
+}
+
+type ParagraphProperties = {
+  align: string | null
+  level: number | null
+  marL: number | null
+  indent: number | null
+  bullet: string
+}
+
+/**
+ * Every `<a:pPr>` block in one `<a:p>`, parsed into the properties a reader acts
+ * on. PptxGenJS emits one block per run, so a paragraph with two runs must yield
+ * two identical entries; anything else means a later run disagrees with the
+ * paragraph and the reader can drop its bullet, indent or alignment.
+ */
+function paragraphPropertiesIn(paragraph: string): ParagraphProperties[] {
+  return [...paragraph.matchAll(/<a:pPr\b[^>]*>.*?<\/a:pPr>/g)].map((match) => {
+    const block = match[0]!
+    const opening = /^<a:pPr\b([^>]*)>/.exec(block)?.[1] ?? ''
+    const attribute = (name: string) => new RegExp(`\\b${name}="([^"]*)"`).exec(opening)?.[1] ?? null
+    const number = (name: string) => {
+      const raw = attribute(name)
+      return raw === null ? null : Number(raw)
+    }
+    const character = /<a:buChar char="&#x([0-9A-Fa-f]+);"\/>/.exec(block)
+    const numbering = /<a:buAutoNum type="([^"]+)" startAt="(\d+)"\/>/.exec(block)
+    return {
+      align: attribute('algn'),
+      level: number('lvl'),
+      marL: number('marL'),
+      indent: number('indent'),
+      bullet: character
+        ? `char:${String.fromCodePoint(parseInt(character[1]!, 16))}`
+        : numbering
+          ? `number:${numbering[1]}:${numbering[2]}`
+          : block.includes('<a:buNone/>')
+            ? 'none'
+            : 'inherited',
+    }
+  })
+}
+
 function fixtureDocument(): { document: PresentationDocument; media: Map<string, { assetId: string; bytes: Uint8Array; mimeType: 'image/png' }> } {
   const document = createPresentationDocument({ id: 'deck', title: 'Deck' })
   const image = {
@@ -135,6 +185,88 @@ describe('editable PPTX export', () => {
     expect(first).toContain('prst="rect"')
     expect(first).toContain('val="FF0000"')
     expect(first).toContain('val="000000"')
+  })
+
+  it('writes a multi-run paragraph as one paragraph with identical options on every run', async () => {
+    // PptxGenJS emits `<a:pPr>` once per run; a run without a bullet writes
+    // `<a:buNone/>`, and a run whose alignment changes starts a new paragraph that
+    // readers render as an extra line. The P44 LibreOffice render showed the old
+    // first-run-only version losing the bullet glyphs and indentation, so this test
+    // parses every emitted property block of every paragraph and requires each run
+    // to carry the paragraph's own options.
+    const run = (text: string) => ({ text, fontId: 'be-vietnam-pro' as const, size: 28, color: '#08152f' })
+    const document = createPresentationDocument({ id: 'deck', title: 'Deck' })
+    document.slides = [
+      {
+        ...createSlide({ id: 'slide-1', name: 'One' }),
+        elements: [
+          createTextElement({
+            id: 'mixed',
+            name: 'Mixed',
+            paragraphs: [
+              { runs: [run('Đoạn một, '), run('nhấn mạnh, '), run('kết thúc.')], alignment: 'center', bullet: 'none', bulletLevel: 0 },
+              { runs: [run('Kết quả chính: '), run('năng suất giảm 12%.')], alignment: 'left', bullet: 'bullet', bulletLevel: 0 },
+              { runs: [run('Chi tiết phụ: '), run('đã kiểm tra lại.')], alignment: 'left', bullet: 'number', bulletLevel: 1 },
+              { runs: [run('Bước một: '), run('chuẩn bị dữ liệu.')], alignment: 'left', bullet: 'number', bulletLevel: 0 },
+              { runs: [run('Bước hai: '), run('trình bày kết quả.')], alignment: 'center', bullet: 'number', bulletLevel: 0 },
+            ],
+          }),
+        ],
+      },
+    ]
+
+    const bytes = await buildPresentationPptx(snapshotOf(document, new Map()))
+    const xml = strFromU8(unzipSync(bytes)['ppt/slides/slide1.xml']!)
+    const paragraphs = paragraphsOf(xml, 'Mixed')
+
+    // One <a:p> per document paragraph, in order: no run may start an extra one.
+    expect(paragraphs).toHaveLength(5)
+    expect(paragraphs[0]).toContain('Đoạn một, ')
+    expect(paragraphs[0]).toContain('nhấn mạnh, ')
+    expect(paragraphs[0]).toContain('kết thúc.')
+    expect(paragraphs[1]).toContain('Kết quả chính: ')
+    expect(paragraphs[1]).toContain('năng suất giảm 12%.')
+    expect(paragraphs[2]).toContain('Chi tiết phụ: ')
+    expect(paragraphs[3]).toContain('Bước một: ')
+    expect(paragraphs[4]).toContain('Bước hai: ')
+    expect(paragraphs[4]).toContain('trình bày kết quả.')
+
+    const expected: ParagraphProperties[][] = [
+      // Centred three-run paragraph (the fixture title's shape).
+      [
+        { align: 'ctr', level: null, marL: 0, indent: 0, bullet: 'none' },
+        { align: 'ctr', level: null, marL: 0, indent: 0, bullet: 'none' },
+        { align: 'ctr', level: null, marL: 0, indent: 0, bullet: 'none' },
+      ],
+      // Bulleted two-run paragraph, level 0.
+      [
+        { align: 'l', level: null, marL: 342900, indent: -342900, bullet: 'char:\u2022' },
+        { align: 'l', level: null, marL: 342900, indent: -342900, bullet: 'char:\u2022' },
+      ],
+      // Numbered two-run paragraph at level 1.
+      [
+        { align: 'l', level: 1, marL: 685800, indent: -342900, bullet: 'number:arabicPeriod:1' },
+        { align: 'l', level: 1, marL: 685800, indent: -342900, bullet: 'number:arabicPeriod:1' },
+      ],
+      // Numbered two-run paragraph at level 0 restarting the level counter.
+      [
+        { align: 'l', level: null, marL: 342900, indent: -342900, bullet: 'number:arabicPeriod:1' },
+        { align: 'l', level: null, marL: 342900, indent: -342900, bullet: 'number:arabicPeriod:1' },
+      ],
+      // Consecutive numbered paragraph at the same level continues the count.
+      [
+        { align: 'ctr', level: null, marL: 342900, indent: -342900, bullet: 'number:arabicPeriod:2' },
+        { align: 'ctr', level: null, marL: 342900, indent: -342900, bullet: 'number:arabicPeriod:2' },
+      ],
+    ]
+
+    paragraphs.forEach((paragraph, index) => {
+      // Paragraph properties are the paragraph's first child, as the schema requires.
+      expect(paragraph.startsWith('<a:p><a:pPr')).toBe(true)
+      const blocks = paragraphPropertiesIn(paragraph)
+      // One property block per run, all identical to the paragraph's own options.
+      expect(blocks).toEqual(expected[index])
+    })
   })
 
   it('writes one slide per document slide in order', async () => {

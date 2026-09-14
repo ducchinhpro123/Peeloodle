@@ -11,8 +11,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { '@': path.join(root, 'src') } },
   // Pre-bundle lazy export dependencies so the first import cannot trigger a
-  // dev-server re-optimization (and page reload) mid-session.
-  optimizeDeps: { include: ['pdf-lib', 'fflate', 'konva', 'react-konva'] },
+  // dev-server re-optimization (and page reload) mid-session. PptxGenJS is only
+  // reached through `exports/pptx.ts`, so a PPTX export used to be the first place
+  // the dev server met it — and the reload it caused threw away the page state.
+  optimizeDeps: { include: ['pdf-lib', 'fflate', 'konva', 'react-konva', 'pptxgenjs'] },
   // Generated proof/report artifacts must not trigger dev-server HMR reloads.
   server: { watch: { ignored: ['**/proofs/out/**', '**/test-results/**', '**/playwright-report/**'] } },
   // Vitest reads this key; the app's Vite version does not type it, and Vitest

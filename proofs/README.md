@@ -53,6 +53,19 @@ Everything in this directory is developer evidence, not user-facing functionalit
   cleanup and the save-failure backup action.
 - `p41-p43-backup-restore.md` — P41–P43: versioned backup writer/parser plus the
   library restore flow and recovery guidance.
+- `p44-p45-readers-and-limits.md` — P44/P45: a LibreOffice UNO round trip over the
+  exported PPTX (text edit, picture move, save, close, reopen and render the saved
+  file), reader-versus-app raster agreement for a cropped/flipped/rotated picture,
+  the multi-run paragraph export defect found by that pass and fixed, the measured
+  large-document and network-disabled bounds, and the production-build offline run
+  (`playwright.preview.config.ts` + `e2e/presentations-production-offline.spec.ts`:
+  eight font faces fetched and loaded before readiness, first-use PDF/PPTX/backup
+  exports after the disconnect, and a real aborted builder fetch). Both plan rows stay
+  unchecked: no reader window screenshot exists and the 200 MiB media budget is
+  unmeasured (an 18.85 MB byte-scale probe is 9.0% of it).
+- `readers/libreoffice_roundtrip.py` — the P44 reader script (headless LibreOffice
+  through UNO). Writes `out/p44-reader-report.json`, the round-trip PPTX and the
+  reader-rendered PNGs; see the proof document for what it does and does not prove.
 - `out/` — generated proof outputs (PPTX, PDF, PNG renders, reports) referenced from task evidence.
 - Proof support modules live next to the code they exercise (for example
   `src/features/presentations/model/fixtures/`) so the same fixture is reused by tests and proofs.

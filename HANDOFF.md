@@ -91,20 +91,66 @@ feature prefix, lowest priority; verify with `e2e/ui-polish.spec.ts`), the
 optional canvas-renderer and template-favorites seams, and the deferred
 per-session presentation store (the module-global Zustand store stays for now).
 
-## Start here: P44/P45 verification, then Milestone 4 (P46 — catalog schema)
+## Start here: P44/P45 partial verification, then Milestone 4 (P46 — catalog schema)
 
 **P35–P43 are done** (see the proofs listed above). The export builders and
 backup flow are covered by focused tests that assemble and inspect real PDF
 pages and the generated OOXML package.
 
-**P44 — verify the export compatibility fixture across available readers.** Open
-a generated `.pptx` and `.pdf` in an available app (PowerPoint, LibreOffice
-Impress, Google Slides), edit a text run and move a picture, save, and record
-app/version/OS plus screenshots. Report untested apps honestly. The P38/P39
-proof records exactly what was and was not verified.
+**P44/P45 — partially verified on 2026-09-14; both rows stay unchecked.**
+Evidence: `proofs/p44-p45-readers-and-limits.md`, `proofs/out/p44-reader-report.json`,
+`proofs/out/p45-*-report.json`, and `proofs/readers/libreoffice_roundtrip.py`
+(LibreOffice 26.8.0.3 headless through UNO, 25/25 checks: open, edit a text run,
+move a picture, save, close, reopen the saved file and render *it*, plus a
+reader-versus-app raster comparison of the cropped/flipped/rotated picture within
+one pixel). The pass also found and fixed a real export defect: PptxGenJS writes a
+paragraph-properties block per run, so runs that did not repeat the paragraph's
+bullet emitted `buNone` and the reader dropped the bullet glyphs and indentation;
+`paragraphRuns` in `exports/pptx.ts` now puts identical paragraph options on every
+run (with `breakLine` only on the last run of a non-final paragraph), the
+regression test parses every emitted property block of centred/bulleted/numbered
+multi-run paragraphs, and the regenerated LibreOffice page-2 render was inspected.
+P45 measured a deck at the slide/element/asset aggregate ceilings (PDF 8.6 s /
+6.5 MB, PPTX 0.76 s / 8.8 MB) and an 18.85 MB byte-scale probe (9.0% of the 200 MiB
+media budget), and verified network-disabled edit → autosave → reopen → export with
+no external-origin request at all, measuring the reopened artwork pixels again from
+IndexedDB rather than reusing the pre-navigation measurement.
 
-**P45 — large-document limits and network-disabled local editing/export** follows
-the P44 pass. Neither was run; both need a browser/reader session.
+The review-driven second pass added the **production-build** offline run
+(`npm run build` + `vite preview`, `playwright.preview.config.ts`,
+`e2e/presentations-production-offline.spec.ts`, 3 tests passing in 37.6 s on
+2026-09-14). It records, per report: the eight presentation `.ttf` requests and the
+eight loaded `FontFace` descriptors before readiness says “Ready for offline use.”
+(no `document.fonts.check`), readiness fetching exactly `snapshot`/`pdf`/`pptx`
+(the `backup` chunk is route-loaded by the library) plus the route modules, first-use
+PDF/PPTX/backup exports after the disconnect with their bytes inspected, an offline
+reopen, a disconnect that lands before readiness, an aborted builder fetch with the
+recovery copy, and a build fingerprint (git revision, dirty flag, content-hashed
+`dist/assets`). Reports are written after the assertions. Recovery copy is now
+save-aware (`ReloadSafety`): unwritten work must reach “Saved locally” before a
+reload, and a failing save says not to reload or close the tab. These reports
+therefore supersede the `proofs/out/p45-*-report.json` dev-server runs.
+
+Remaining gaps before either row can be ticked:
+
+- **P44 needs screenshots of a reader application window** and an independent second
+  reader. This machine has no GUI display session and PowerPoint/Google Slides were
+  not exercised; the proof records reader-rendered PNGs as rendering evidence only.
+- **P45's 200 MiB media budget is unmeasured** (18.85 MB probed, 9.0% of it), the
+  per-slide element and document-size limits are not probed, and no memory figure is
+  reported (Chromium heap quantization without `--enable-precise-memory-info`).
+- Offline is scoped to a page that **warmed while online**: a route chunk or export
+  builder that was never fetched cannot be fetched with the network disabled, a failed
+  module import stays failed for the life of the page, and there is no service worker
+  or app-shell cache — so cold app startup and reloading while offline stay
+  unsupported and unclaimed. The `vite.config.ts` change that adds `pptxgenjs` to
+  `optimizeDeps` remains a **dev-server** fix; the production evidence is the run
+  above.
+- Not re-run in the second pass: the P44 reader script and reader spec, the two
+  large-deck P45 probes (their reports are from the original 2026-09-14 run), and the
+  sticker/browser regression specs. The second pass did run `npm test` (55 files, 626
+  passed), `npm run typecheck`, `npm run lint` (0 errors, the same 8 pre-existing
+  warnings), `npm run build`, and the production-offline spec (3 passed).
 
 **Milestone 4 starts at P46 — catalog collection/item/version, template/version,
 job and event schema migrations** (depends P08, P10). P08 is still blocked on an

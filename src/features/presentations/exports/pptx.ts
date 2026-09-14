@@ -55,35 +55,45 @@ export function pptxFrame(element: Element): { x: number; y: number; w: number; 
 
 const transparencyOf = (opacity: number) => Math.round((1 - opacity) * 100)
 
+/**
+ * One paragraph's runs.
+ *
+ * Every run carries the same paragraph options.
+ *
+ * PptxGenJS 4.0.1 writes `<a:pPr>` once *per run*: `genXmlTextBody` calls
+ * `genXmlParagraphProperties` for each text object, and a run whose options lack
+ * a bullet emits `<a:buNone/>` (node_modules/pptxgenjs/dist/pptxgen.es.js
+ * `genXmlTextBody` step 6 + `genXmlParagraphProperties`). A reader that applies
+ * the later block therefore drops the paragraph's bullet and indent, so the
+ * options must be identical on every run. A run whose `align` differs from the
+ * previous run's additionally starts a *new* paragraph, which readers render as
+ * an extra line; keeping one identical alignment on every run prevents that.
+ * Only `breakLine` is run-specific: it belongs on the last run of a paragraph
+ * that is not the element's last, and nowhere else.
+ */
 function paragraphRuns(paragraph: TextParagraph, isLastParagraph: boolean, numberStartAt: number): PptxGenJS.TextProps[] {
-  return paragraph.runs.map((run, index) => {
-    const lastRun = index === paragraph.runs.length - 1
-    return {
-      text: run.text,
-      options: {
-        fontFace: fontFamilyFor(run.fontId),
-        fontSize: unitsToPoints(run.size),
-        color: hex(run.color),
-        bold: run.bold ?? false,
-        italic: run.italic ?? false,
-        ...(run.link ? { hyperlink: { url: run.link } } : {}),
-        ...(lastRun
-          ? {
-              // Paragraph-level options live on the last run so multi-run
-              // paragraphs still carry one alignment/bullet definition.
-              align: paragraph.alignment,
-              breakLine: !isLastParagraph,
-              indentLevel: paragraph.bullet === 'none' ? 0 : paragraph.bulletLevel,
-              bullet: paragraph.bullet === 'none'
-                ? false
-                : paragraph.bullet === 'number'
-                  ? { type: 'number' as const, numberType: 'arabicPeriod' as const, numberStartAt }
-                  : { characterCode: '2022' },
-            }
-          : {}),
-      },
-    }
-  })
+  const paragraphOptions: PptxGenJS.TextPropsOptions = {
+    align: paragraph.alignment,
+    indentLevel: paragraph.bullet === 'none' ? 0 : paragraph.bulletLevel,
+    bullet: paragraph.bullet === 'none'
+      ? false
+      : paragraph.bullet === 'number'
+        ? { type: 'number' as const, numberType: 'arabicPeriod' as const, numberStartAt }
+        : { characterCode: '2022' },
+  }
+  return paragraph.runs.map((run, index) => ({
+    text: run.text,
+    options: {
+      fontFace: fontFamilyFor(run.fontId),
+      fontSize: unitsToPoints(run.size),
+      color: hex(run.color),
+      bold: run.bold ?? false,
+      italic: run.italic ?? false,
+      ...(run.link ? { hyperlink: { url: run.link } } : {}),
+      ...paragraphOptions,
+      ...(index === paragraph.runs.length - 1 && !isLastParagraph ? { breakLine: true } : {}),
+    },
+  }))
 }
 
 function addText(slide: PptxGenJS.Slide, element: TextElement) {

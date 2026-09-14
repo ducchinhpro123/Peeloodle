@@ -27,7 +27,11 @@ deferred at the owner's request (`proofs/p34-milestone2-verification.md`). Miles
 P43: P35–P37 are recorded in `proofs/p35-export-snapshot.md`, `proofs/p36-fixed-page-rasterizer.md` and
 `proofs/p37-pdf-export.md`; P38/P39 in `proofs/p38-p39-pptx-export.md`; P40 in
 `proofs/p40-export-dialog.md`; and P41–P43 in `proofs/p41-p43-backup-restore.md`. P44/P45 (reader and
-offline/large-document verification) remain open and need a browser/reader pass. Review-driven
+offline/large-document verification) were partially run on 2026-09-14 and remain open:
+the LibreOffice UNO round trip, the measured large-document/network-disabled bounds
+and a production-build offline pass (font faces, builders, exports) are recorded in
+`proofs/p44-p45-readers-and-limits.md`, but P44 still needs a reader
+window screenshot and a second reader app, and P45's media ceiling is unmeasured. Review-driven
 corrections are recorded in `proofs/correction-pass.md`. Start the next session from
 [`HANDOFF.md`](../HANDOFF.md).
 
@@ -138,8 +142,8 @@ The first coding task is **P01**, then the **export/text proof P02–P05**. Do n
 | [x] | P41 | Implement backup writer with schema manifest, hashes, media and font dependencies. | P06, P35 | Inspect archive; all required bytes/metadata present, no temporary URLs or unrelated documents. The versioned writer has been in place since the P06 proof with 19 tests; the export controller now downloads `<title>.stickerlab.zip` (`proofs/p41-p43-backup-restore.md`). |
 | [x] | P42 | Implement bounded backup parser and safe restore to a new presentation. | P10, P14, P41 | Corrupt/oversized/duplicate-path/future-version archives fail without changing saved work. The bounded parser is unchanged from P06; `restoreBackupArchive` clones with fresh ids and re-keys media by hash (`proofs/p41-p43-backup-restore.md`). |
 | [x] | P43 | Add backup/restore UI and recovery guidance on save failure. | P40, P42 | Restore works in a fresh browser profile; student can download work after a local save failure. Library Restore control with success/error states; editor shows "Download backup" beside a failed save (`proofs/p41-p43-backup-restore.md`). |
-| [ ] | P44 | Verify full export compatibility fixture across available readers. | P37–P43 | Record app/version/OS, editability and screenshots; report untested apps, not universal support. Not run: no presentation reader was exercised and the owner asked to avoid repeated browser passes; the generated OOXML is asserted, not an app round-trip. |
-| [ ] | P45 | Verify large-document limits and network-disabled local editing/export. | P44 | Sequential export stays within measured bounds; no catalog request needed for saved media. Not run: requires the P44/browser pass and a network-disabled profile. |
+| [ ] | P44 | Verify full export compatibility fixture across available readers. | P37–P43 | Record app/version/OS, editability and screenshots; report untested apps, not universal support. Partially run 2026-09-14: headless LibreOffice 26.8.0.3 (UNO, no GUI window) opened the exported PPTX, edited a text run, moved the picture, saved, reopened and rendered it — 25/25 checks, and the pass found and fixed a multi-run paragraph export defect that dropped bullets/indentation in the reader. Still missing: a reader-window screenshot and an independent second reader (PowerPoint/Google Slides untested). Evidence: `proofs/p44-p45-readers-and-limits.md`. |
+| [ ] | P45 | Verify large-document limits and network-disabled local editing/export. | P44 | Sequential export stays within measured bounds; no catalog request needed for saved media. Partially run 2026-09-14: a deck at three aggregate ceilings (50 slides / 2 000 elements / 200 assets) exported (PDF 8.6 s / 6.5 MB; PPTX 0.76 s / 8.8 MB) and an 18.85 MB byte-scale probe ran (9.0% of the 200 MiB media budget); network-disabled edit → autosave → reopen → export made no external-origin request and measured the reopened artwork pixels again from IndexedDB. A production build (`npm run build` + `vite preview`) then passed the offline journey in `e2e/presentations-production-offline.spec.ts` (3 tests): readiness is only reported after all eight local font faces were fetched and loaded, first-use PDF/PPTX/backup exports ran after the disconnect and their bytes were inspected, and an aborted builder fetch reported save-aware recovery. Still missing: the 200 MiB budget itself, memory, and per-slide/document-size limits. Evidence: `proofs/p44-p45-readers-and-limits.md`. |
 
 **Checkpoint:** this is the first complete student blank-presentation flow. It can be tried locally while the catalog/admin work proceeds. Do not call the full release complete until templates and administrator flows work.
 

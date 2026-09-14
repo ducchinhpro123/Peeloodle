@@ -1,0 +1,318 @@
+{
+  "generatedAt": "2026-09-14T05:14:02.031Z",
+  "fingerprint": {
+    "gitRevision": "e215ce8e019b84b13d3208d7a1b456c90948a17a",
+    "workingTreeDirty": true,
+    "assets": [
+      {
+        "name": "EditorPage-BNT4eaNO.js",
+        "bytes": 78096
+      },
+      {
+        "name": "KonvaCanvas-I7_v88cX.js",
+        "bytes": 119199
+      },
+      {
+        "name": "PresentationCanvas-BfxUz9AH.js",
+        "bytes": 25670
+      },
+      {
+        "name": "PresentationEditorPage-NJaz0IeL.js",
+        "bytes": 50538
+      },
+      {
+        "name": "PresentationsPage-CEfUG3Lb.js",
+        "bytes": 15357
+      },
+      {
+        "name": "TextEditSessionContext-BgtoY7rq.js",
+        "bytes": 19744
+      },
+      {
+        "name": "__vite-browser-external-BIHI7g3E.js",
+        "bytes": 33
+      },
+      {
+        "name": "backup-D0eJc9VZ.js",
+        "bytes": 20150
+      },
+      {
+        "name": "cloud-bIvh4CUD.js",
+        "bytes": 8595
+      },
+      {
+        "name": "cloudRemote-DmalTtgB.js",
+        "bytes": 4124
+      },
+      {
+        "name": "decodedArtwork-BmPxfwuR.js",
+        "bytes": 6245
+      },
+      {
+        "name": "geometry-DLKiByQZ.js",
+        "bytes": 191
+      },
+      {
+        "name": "hash-CYQd-kSx.js",
+        "bytes": 274
+      },
+      {
+        "name": "index-C45eyn4h.js",
+        "bytes": 193980
+      },
+      {
+        "name": "index-HbnSoS0S.css",
+        "bytes": 108195
+      },
+      {
+        "name": "index-xqMzz0ts.js",
+        "bytes": 179844
+      },
+      {
+        "name": "konvaText-vhMeV9OE.js",
+        "bytes": 817
+      },
+      {
+        "name": "pdf-C460OTV2.js",
+        "bytes": 432342
+      },
+      {
+        "name": "pptx-BhmYJzBo.js",
+        "bytes": 376523
+      },
+      {
+        "name": "rasterizeSlide-CbpS9Qtp.js",
+        "bytes": 1345
+      },
+      {
+        "name": "renderDocument-31Id718L.js",
+        "bytes": 12261
+      },
+      {
+        "name": "renderSlide-BYW0mIod.js",
+        "bytes": 2509
+      },
+      {
+        "name": "snapshot-BP0SerYS.js",
+        "bytes": 2604
+      },
+      {
+        "name": "supabase-Buqg5CVw.js",
+        "bytes": 227797
+      },
+      {
+        "name": "textLayout-DVlybGqJ.js",
+        "bytes": 3633
+      },
+      {
+        "name": "textMeasure-Db5ap1li.js",
+        "bytes": 239
+      },
+      {
+        "name": "undo-2-CxA1NgMh.js",
+        "bytes": 3738
+      },
+      {
+        "name": "vendor-sTN_aHGS.js",
+        "bytes": 237021
+      },
+      {
+        "name": "zipExport-DVWs6_mZ.js",
+        "bytes": 2348
+      }
+    ]
+  },
+  "environment": {
+    "build": "production (`npm run build` + `vite preview`)",
+    "viewport": "1440×900",
+    "browser": "chromium (Playwright launchOptions.executablePath=/usr/bin/chromium)",
+    "note": "vite preview gzips responses. `decodedBodySize` is the raw module the browser evaluated, `encodedBodySize`/`transferSize` are what it sent over the wire, and `rawFileBytes` is the same file in dist/assets. The report is written after the test’s assertions."
+  },
+  "readiness": {
+    "label": "Ready for offline use.",
+    "readinessBuilderChunks": [
+      "/assets/snapshot-BP0SerYS.js",
+      "/assets/pptx-BhmYJzBo.js",
+      "/assets/pdf-C460OTV2.js"
+    ],
+    "routeLoadedChunks": [
+      "/assets/PresentationsPage-CEfUG3Lb.js",
+      "/assets/backup-D0eJc9VZ.js",
+      "/assets/PresentationCanvas-BfxUz9AH.js",
+      "/assets/PresentationEditorPage-NJaz0IeL.js"
+    ],
+    "builderEncodedBytes": 317469,
+    "builderRawFileBytes": 831619,
+    "measuredModules": [
+      {
+        "path": "/assets/backup-D0eJc9VZ.js",
+        "decodedBodySize": 20150,
+        "encodedBodySize": 8989,
+        "transferSize": 9289,
+        "rawFileBytes": 20150
+      },
+      {
+        "path": "/assets/pdf-C460OTV2.js",
+        "decodedBodySize": 432342,
+        "encodedBodySize": 178867,
+        "transferSize": 179167,
+        "rawFileBytes": 432342
+      },
+      {
+        "path": "/assets/pptx-BhmYJzBo.js",
+        "decodedBodySize": 376523,
+        "encodedBodySize": 128264,
+        "transferSize": 128564,
+        "rawFileBytes": 376523
+      },
+      {
+        "path": "/assets/PresentationCanvas-BfxUz9AH.js",
+        "decodedBodySize": 25670,
+        "encodedBodySize": 9269,
+        "transferSize": 9569,
+        "rawFileBytes": 25670
+      },
+      {
+        "path": "/assets/PresentationEditorPage-NJaz0IeL.js",
+        "decodedBodySize": 50538,
+        "encodedBodySize": 14700,
+        "transferSize": 15000,
+        "rawFileBytes": 50538
+      },
+      {
+        "path": "/assets/PresentationsPage-CEfUG3Lb.js",
+        "decodedBodySize": 15357,
+        "encodedBodySize": 5323,
+        "transferSize": 5623,
+        "rawFileBytes": 15357
+      },
+      {
+        "path": "/assets/snapshot-BP0SerYS.js",
+        "decodedBodySize": 2604,
+        "encodedBodySize": 1349,
+        "transferSize": 1649,
+        "rawFileBytes": 2604
+      }
+    ],
+    "fontFilesFetched": [
+      "BeVietnamPro-Bold.ttf",
+      "BeVietnamPro-BoldItalic.ttf",
+      "BeVietnamPro-Italic.ttf",
+      "BeVietnamPro-Regular.ttf",
+      "Spectral-Bold.ttf",
+      "Spectral-BoldItalic.ttf",
+      "Spectral-Italic.ttf",
+      "Spectral-Regular.ttf"
+    ],
+    "fetchedBeforeAnyExport": true,
+    "note": "The library, editor and canvas modules are fetched by rendering those routes, which the readiness check waits for. Readiness itself fetches exactly the three builders `usePresentationExport` loads on demand (snapshot, pdf, pptx) plus the eight font files. `backup` is route-loaded, not readiness-loaded: PresentationsPage statically imports `restoreBackup` → `exports/backup`, so it was fetched with the library chunk."
+  },
+  "offline": {
+    "fontFaces": [
+      {
+        "family": "Be Vietnam Pro",
+        "style": "italic",
+        "weight": "400",
+        "status": "loaded"
+      },
+      {
+        "family": "Be Vietnam Pro",
+        "style": "italic",
+        "weight": "700",
+        "status": "loaded"
+      },
+      {
+        "family": "Be Vietnam Pro",
+        "style": "normal",
+        "weight": "400",
+        "status": "loaded"
+      },
+      {
+        "family": "Be Vietnam Pro",
+        "style": "normal",
+        "weight": "700",
+        "status": "loaded"
+      },
+      {
+        "family": "Spectral",
+        "style": "italic",
+        "weight": "400",
+        "status": "loaded"
+      },
+      {
+        "family": "Spectral",
+        "style": "italic",
+        "weight": "700",
+        "status": "loaded"
+      },
+      {
+        "family": "Spectral",
+        "style": "normal",
+        "weight": "400",
+        "status": "loaded"
+      },
+      {
+        "family": "Spectral",
+        "style": "normal",
+        "weight": "700",
+        "status": "loaded"
+      }
+    ],
+    "paintedPixelsAfterReopen": 26383,
+    "paintedPixelsAfterSecondReopen": 27801,
+    "savedEditPersists": "Ngoại tuyến giữ nguyên bố cục và sửa khi mất mạng",
+    "failedRequestsBeforeColdRoute": [
+      "/favicon.png"
+    ],
+    "failedRequests": [
+      "/assets/EditorPage-BNT4eaNO.js",
+      "/assets/renderDocument-31Id718L.js"
+    ],
+    "externalRequests": [],
+    "downloads": [
+      "Untitled presentation.pdf",
+      "Untitled presentation.pptx",
+      "Untitled presentation.stickerlab.zip"
+    ]
+  },
+  "exports": {
+    "pdf": {
+      "bytes": 259464,
+      "pages": 1,
+      "pageSizePt": {
+        "width": 960,
+        "height": 540
+      },
+      "ms": 342
+    },
+    "pptx": {
+      "bytes": 143965,
+      "slides": 1,
+      "mediaEntries": 1,
+      "containsEdit": true,
+      "ms": 199
+    },
+    "backup": {
+      "bytes": 99254,
+      "entries": 3,
+      "mediaEntries": 1,
+      "documentTitle": "Untitled presentation",
+      "ms": 231
+    }
+  },
+  "coldRoute": {
+    "url": "http://127.0.0.1:4176/create",
+    "message": "Unexpected Application Error! Failed to fetch dynamically imported module: http://127.0.0.1:4176/assets/EditorPage-BNT4eaNO.js TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:4176/assets/EditorPage-BNT4eaNO.js 💿 Hey developer 👋 You can provide a way better UX than this whe"
+  },
+  "pageErrorsBeforeColdRoute": 0,
+  "pageErrors": [
+    "TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:4176/assets/EditorPage-BNT4eaNO.js",
+    "TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:4176/assets/EditorPage-BNT4eaNO.js"
+  ],
+  "pageErrorsNote": "Both page errors come from step 7, the deliberately cold sticker-editor route; the library and editor phases produced none.",
+  "limitations": [
+    "A page that never opened the presentation area is not warmed at all, and a cold page load while offline is unsupported: there is no service worker or app-shell cache.",
+    "Within a warmed page, readiness fetched the library, editor and canvas modules, the snapshot/PDF/PPTX builders and the eight font files; the backup builder arrives earlier, with the library route that imports it for restore.",
+    "A module import that failed stays failed for the life of the page, so recovery is a reload while online — and that reload is only offered once the editor is holding no unwritten work."
+  ]
+}

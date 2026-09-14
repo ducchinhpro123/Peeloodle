@@ -5,12 +5,17 @@
  * for pdf-lib or PptxGenJS. One export runs at a time; its snapshot is always
  * disposed, downloads happen only after the bytes are complete, and cancellation
  * between slides stops the work without producing a partial file.
+ *
+ * The module list lives in `exports/loaders.ts`: offline readiness warms exactly the
+ * builders this controller can reach.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { NOTHING_UNSAVED, reloadInstruction, type ReloadSafety } from '@/app/presentationOffline'
 import { downloadBlob } from '@/features/exports/download'
 import type { PresentationRepository } from '@/lib/persistence/presentations/repository'
 import { usePresentationStore } from './store'
+import { loadBackupBuilder, loadExportSnapshot, loadPdfBuilder, loadPptxBuilder } from '../exports/loaders'
 import type { ExportWarning } from '../exports/snapshot'
 import type { buildPresentationPdf } from '../exports/pdf'
 import type { buildPresentationPptx } from '../exports/pptx'
@@ -46,9 +51,37 @@ export type PresentationExportOverrides = {
   download?: (blob: Blob, filename: string) => void
 }
 
+/**
+ * What the export controller needs from its page: the repository it reads media from,
+ * the open text session's flush, and the editor's write state — a failed export's
+ * recovery copy must never tell a student to reload over unwritten work.
+ */
+export type PresentationExportInput = {
+  repository: PresentationRepository
+  flushText: () => void
+  /** Read when an export fails; the controller cannot know what is unwritten. */
+  reloadSafety?: ReloadSafety
+}
+
 export function exportFileName(title: string, format: PresentationExportFormat): string {
   const base = title.replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 60) || 'presentation'
   return format === 'backup' ? `${base}.stickerlab.zip` : `${base}.${format}`
+}
+
+/**
+ * The message for a failed export. A builder that could not be fetched is reported
+ * as such with reload guidance, because a failed browser module import stays failed
+ * for the life of the page — retrying it in the same page cannot work, and the
+ * student's saved work is unaffected either way. The reload instruction itself comes
+ * from the editor's write state: reloading over unwritten work loses it, and a save
+ * that is already failing must not be answered with a reload or a tab close.
+ */
+export function exportFailureMessage(error: unknown, safety: ReloadSafety = NOTHING_UNSAVED): string {
+  const message = error instanceof Error ? error.message : ''
+  if (/dynamically imported module|module script failed/i.test(message)) {
+    return `This export needs a part of the app that could not be loaded. ${reloadInstruction(safety)}`
+  }
+  return message || 'The export failed.'
 }
 
 const MIME: Record<PresentationExportFormat, string> = {
@@ -57,7 +90,7 @@ const MIME: Record<PresentationExportFormat, string> = {
   backup: 'application/zip',
 }
 
-export function usePresentationExport(input: { repository: PresentationRepository; flushText: () => void } & PresentationExportOverrides): {
+export function usePresentationExport(input: PresentationExportInput & PresentationExportOverrides): {
   state: PresentationExportState
   exportDeck: (format: PresentationExportFormat) => Promise<void>
   cancel: () => void
@@ -94,7 +127,7 @@ export function usePresentationExport(input: { repository: PresentationRepositor
 
     let snapshot: Awaited<ReturnType<typeof prepareExportSnapshot>> | null = null
     try {
-      const snapshotModule = await import('../exports/snapshot')
+      const snapshotModule = await loadExportSnapshot()
       const prepare = latest.current.prepare ?? snapshotModule.prepareExportSnapshot
       // Capture after the flush so an open text session is part of the snapshot,
       // and pass the document in: the snapshot module never reads the store.
@@ -109,7 +142,7 @@ export function usePresentationExport(input: { repository: PresentationRepositor
 
       let bytes: Uint8Array
       if (format === 'pdf') {
-        const { buildPresentationPdf } = await import('../exports/pdf')
+        const { buildPresentationPdf } = await loadPdfBuilder()
         const buildPdf = latest.current.buildPdf ?? buildPresentationPdf
         bytes = await buildPdf(snapshot, undefined, {
           signal: controller.signal,
@@ -118,12 +151,12 @@ export function usePresentationExport(input: { repository: PresentationRepositor
           },
         })
       } else if (format === 'pptx') {
-        const { buildPresentationPptx } = await import('../exports/pptx')
+        const { buildPresentationPptx } = await loadPptxBuilder()
         const buildPptx = latest.current.buildPptx ?? buildPresentationPptx
         bytes = await buildPptx(snapshot, { title: snapshot.document.title })
         publish({ phase: 'rendering', format, completed: total, total, message: null, warnings: snapshot.warnings })
       } else {
-        const { createBackupArchive } = await import('../exports/backup')
+        const { createBackupArchive } = await loadBackupBuilder()
         const media = new Map([...snapshot.media].map(([assetId, record]) => [assetId, record.bytes]))
         bytes = await createBackupArchive(snapshot.document, media)
         publish({ phase: 'rendering', format, completed: total, total, message: null, warnings: snapshot.warnings })
@@ -140,7 +173,7 @@ export function usePresentationExport(input: { repository: PresentationRepositor
         format,
         completed: 0,
         total: 0,
-        message: wasCancelled ? 'The export was cancelled.' : error instanceof Error ? error.message : 'The export failed.',
+        message: wasCancelled ? 'The export was cancelled.' : exportFailureMessage(error, latest.current.reloadSafety),
         warnings: [],
       })
     } finally {

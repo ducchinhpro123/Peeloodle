@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useOptionalRepository } from '@/app/repository'
 import { usePresentationRepository } from '@/app/presentationRepositoryContext'
+import { usePresentationOfflineReadiness, type ReloadSafety } from '@/app/presentationOffline'
 import { isPersistenceError } from '@/lib/persistence/repository'
 import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
 import { isPresentationParseError } from '../model/parse'
@@ -74,7 +75,16 @@ export function PresentationEditorPage() {
   // and formatting controller here, and save/export flush through it.
   const [textSession] = useState(createTextEditSession)
   const save = usePresentationSave({ repository, documentId: presentationId, flushText: textSession.flush })
-  const exportController = usePresentationExport({ repository, flushText: textSession.flush })
+  const saveReported = save.state.status === 'failed' || save.state.status === 'conflict'
+  /**
+   * The reload guidance both the readiness line and a failed export use: the page
+   * holds the write state, so it — not the offline module — decides whether a reload
+   * is safe to suggest. `dirty` is read live from the store at failure time.
+   */
+  const reloadSafety: ReloadSafety = { unsavedWork: dirty, saveFailed: saveReported }
+  const exportController = usePresentationExport({ repository, flushText: textSession.flush, reloadSafety })
+  // A deep link straight into the editor still prepares offline use for this session.
+  const offline = usePresentationOfflineReadiness()
   usePresentationShortcuts()
   const [attempt, setAttempt] = useState(0)
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' })
@@ -217,7 +227,6 @@ export function PresentationEditorPage() {
   }
 
   const activeSlide = document.slides.find((slide) => slide.id === activeSlideId) ?? document.slides[0]
-  const saveReported = save.state.status === 'failed' || save.state.status === 'conflict'
   const saveLabel = save.state.status === 'conflict'
     ? 'Save conflict'
     : save.state.status === 'failed'
@@ -490,6 +499,8 @@ export function PresentationEditorPage() {
           </Dialog>
           <ExportDialog
             state={exportController.state}
+            offline={offline}
+            reloadSafety={reloadSafety}
             onExport={(format) => void exportController.exportDeck(format)}
             onCancel={exportController.cancel}
           />

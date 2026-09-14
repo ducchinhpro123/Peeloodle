@@ -1,0 +1,83 @@
+{
+  "generatedAt": "2026-09-14T03:54:32.610Z",
+  "fixture": {
+    "id": "7be316b7-f7ea-45dd-9eba-8b34065c2149",
+    "title": "P45 structural maximum",
+    "slideCount": 50,
+    "elementCount": 2000,
+    "assetCount": 200,
+    "kindCounts": {
+      "text": 400,
+      "image": 200,
+      "shape": 1400
+    },
+    "mediaBytes": 7405600,
+    "documentChars": 578564,
+    "saveMs": 42,
+    "limits": {
+      "maxSlides": 50,
+      "maxElements": 2000,
+      "maxAssets": 200,
+      "maxElementsPerSlide": 200,
+      "maxMediaBytes": 209715200
+    },
+    "coverage": "Slides, element count and asset count are at the model ceiling. Artwork bytes are not: this fixture stores only the small generated PNGs below."
+  },
+  "bounds": {
+    "editorOpenMs": 1082,
+    "pdfMs": 8636,
+    "pdfBytes": 6499555,
+    "pdfPages": 50,
+    "pdfPageSizePt": {
+      "width": 960,
+      "height": 540
+    },
+    "pdfMsPerSlide": 173,
+    "pptxMs": 758,
+    "pptxBytes": 8790859,
+    "pptxMsPerSlide": 15,
+    "pptxEntries": {
+      "total": 435,
+      "slides": 50,
+      "media": 200
+    },
+    "largeFiles": {
+      "pdf": "/tmp/stickerlab-p45/structural-max.pdf",
+      "pptx": "/tmp/stickerlab-p45/structural-max.pptx"
+    }
+  },
+  "progress": {
+    "pdf": {
+      "samples": 51,
+      "first": {
+        "done": 0,
+        "total": 50
+      },
+      "last": {
+        "done": 50,
+        "total": 50
+      },
+      "monotonic": true,
+      "reachedEverySlide": true
+    },
+    "pptx": {
+      "samples": 1,
+      "first": {
+        "done": 0,
+        "total": 50
+      },
+      "last": {
+        "done": 0,
+        "total": 50
+      },
+      "monotonic": true,
+      "reachedEverySlide": false
+    },
+    "note": "The PDF path rasterizes and reports one page at a time, so its samples reach 50/50 in order. PptxGenJS builds the whole package in one pass, so the PPTX path announces rendering and then completes; its slide and media counts are asserted from the package instead."
+  },
+  "environment": {
+    "browser": "chromium (Playwright launchOptions.executablePath=/usr/bin/chromium)",
+    "viewport": "1440×900",
+    "note": "JS heap sampling was dropped on purpose: without --enable-precise-memory-info Chromium quantizes performance.memory, so a heap number here would not be evidence."
+  }
+}

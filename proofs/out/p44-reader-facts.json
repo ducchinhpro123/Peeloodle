@@ -1,0 +1,81 @@
+{
+  "id": "fixture-presentation",
+  "title": "Bài trình bày mẫu — Fixture",
+  "slideCount": 2,
+  "slideBackgrounds": [
+    "#0b1f3b",
+    "#ffffff"
+  ],
+  "expectedText": {
+    "slide1": [
+      "Nghiên cứu và trình bày",
+      "Building a ",
+      "sticker",
+      " presentation",
+      "Xoay văn bản 350 độ"
+    ],
+    "slide2": [
+      "Tóm tắt kết quả: ",
+      "ấn tượng, rõ ràng và dễ đọc.",
+      "Xem hướng dẫn",
+      " trước khi nộp bài.",
+      "Kết luận và đề xuất."
+    ]
+  },
+  "linkUrl": "https://example.edu/guide",
+  "image": {
+    "name": "Sample sticker",
+    "rotation": 12,
+    "crop": {
+      "x": 0.1,
+      "y": 0.12,
+      "width": 0.7,
+      "height": 0.62
+    },
+    "flipX": true,
+    "flipY": false,
+    "element": {
+      "x": 880,
+      "y": 400,
+      "width": 256,
+      "height": 256
+    },
+    "sourcePixels": 256,
+    "rotationHundredthsDeg": 1200,
+    "frameHundredthsMm": {
+      "x": 22505,
+      "y": 11213,
+      "w": 6773,
+      "h": 6773
+    },
+    "cropBoxHundredthsMm": {
+      "x": 968,
+      "y": 1311,
+      "w": 6773,
+      "h": 6773
+    }
+  },
+  "rotatedTextRotationHundredthsDeg": 35000,
+  "pageSizeHundredthsMm": {
+    "width": 33867,
+    "height": 19050
+  },
+  "pageSizePt": {
+    "width": 960,
+    "height": 540
+  },
+  "exportedAt": "2026-09-14T04:08:40.460Z",
+  "exportPath": "Export dialog → usePresentationExport → exports/pptx.ts | exports/pdf.ts",
+  "files": {
+    "pptx": "proofs/out/p44-reader-fixture.pptx",
+    "pptxBytes": 320143,
+    "pdf": "proofs/out/p44-reader-fixture.pdf",
+    "pdfBytes": 128437
+  },
+  "pdfPages": 2,
+  "pdfPageSizePt": {
+    "width": 960,
+    "height": 540
+  },
+  "notProvenHere": "Reader open/edit/save/reopen behaviour is P44 evidence produced by proofs/readers/libreoffice_roundtrip.py, not by this spec."
+}

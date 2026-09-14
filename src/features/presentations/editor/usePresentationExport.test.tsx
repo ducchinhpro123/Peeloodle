@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { exportFileName, usePresentationExport } from './usePresentationExport'
+import { exportFailureMessage, exportFileName, usePresentationExport } from './usePresentationExport'
 import { createMemoryPresentationRepository } from '@/lib/persistence/presentations/repository'
 import { createPresentationDocument, createSlide } from '../model/factories'
 import { usePresentationStore } from './store'
@@ -134,5 +134,50 @@ describe('presentation export controller', () => {
   it('sanitizes the download name and keeps the extension', () => {
     expect(exportFileName('Bài: "Deck" *', 'pptx')).toBe('Bài Deck.pptx')
     expect(exportFileName('   ', 'pdf')).toBe('presentation.pdf')
+  })
+
+  it('turns an unloadable builder into reload guidance instead of a browser string', () => {
+    // Chromium, Firefox and Safari word the same failure differently; all three
+    // mean the chunk is not in memory and cannot be fetched again in this page.
+    for (const raw of [
+      'Failed to fetch dynamically imported module: http://localhost/assets/pdf-x.js',
+      'error loading dynamically imported module: http://localhost/assets/pptx-x.js',
+      'Importing a module script failed.',
+    ]) {
+      const message = exportFailureMessage(new Error(raw))
+      expect(message).toContain('Reconnect and reload the page')
+      expect(message).toContain('Your saved work is not affected.')
+      expect(message).not.toContain('dynamically imported module')
+    }
+    expect(exportFailureMessage(new Error('The presentation has no slides'))).toBe('The presentation has no slides')
+    expect(exportFailureMessage(undefined)).toBe('The export failed.')
+  })
+
+  it('never words the reload instruction over the editor’s unwritten work', async () => {
+    const moduleError = 'Failed to fetch dynamically imported module: http://127.0.0.1:4176/assets/pdf-x.js'
+    // Saved work keeps the plain instruction; unwritten work must be written first.
+    expect(exportFailureMessage(new Error(moduleError), { unsavedWork: false, saveFailed: false })).toContain('Reconnect and reload the page')
+    expect(exportFailureMessage(new Error(moduleError), { unsavedWork: true, saveFailed: false })).toBe(
+      'This export needs a part of the app that could not be loaded. Reconnect and press Save, then wait for “Saved locally” before reloading this page.',
+    )
+    expect(exportFailureMessage(new Error(moduleError), { unsavedWork: true, saveFailed: true })).toContain('Do not reload or close this tab')
+
+    // The same state reaches the dialog's message: a failed export while the save is
+    // failing must not offer a reload, because the browser's close prompt would take
+    // the edits with it.
+    const repository = createMemoryPresentationRepository()
+    const snapshot = snapshotWith(1)
+    const { result } = renderHook(() => usePresentationExport({
+      repository,
+      flushText: () => {},
+      reloadSafety: { unsavedWork: true, saveFailed: true },
+      prepare: async () => snapshot,
+      buildPdf: async () => { throw new Error(moduleError) },
+    }))
+
+    await act(async () => { await result.current.exportDeck('pdf') })
+
+    expect(result.current.state).toMatchObject({ phase: 'failed', message: expect.stringContaining('Do not reload or close this tab') })
+    expect(result.current.state.message).not.toContain('reload the page')
   })
 })

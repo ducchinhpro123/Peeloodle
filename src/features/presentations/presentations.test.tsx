@@ -1483,7 +1483,8 @@ describe('presentation library actions', () => {
     })
 
     expect(await screen.findByRole('link', { name: 'Open Original deck (restored)' })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(/Restored .*Original deck \(restored\).* as a new presentation/)
+    // Targeted by text: the library also carries a persistent offline-readiness status.
+    expect(screen.getByText(/Restored .*Original deck \(restored\).* as a new presentation/)).toBeInTheDocument()
     expect((await repository.listPresentations()).map((item) => item.title)).toEqual(['Original deck (restored)'])
   })
 

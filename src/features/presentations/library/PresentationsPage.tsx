@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { offlineReadinessLabel, usePresentationOfflineReadiness } from '@/app/presentationOffline'
 import { usePresentationRepository } from '@/app/presentationRepositoryContext'
 import { blobToArrayBuffer } from '@/lib/blob'
 import { Button } from '@/components/ui/button'
@@ -47,6 +48,8 @@ function formattedDate(value: string): string {
 export function PresentationsPage() {
   const repository = usePresentationRepository()
   const navigate = useNavigate()
+  // Opening the library starts (and shows) the offline warm-up for this session.
+  const offline = usePresentationOfflineReadiness()
   const live = useRef(true)
   const creating = useRef(false)
   const [items, setItems] = useState<PresentationSummary[]>([])
@@ -272,6 +275,8 @@ export function PresentationsPage() {
 
       {actionError ? <p role="alert">{actionError}</p> : null}
       {restoreNote ? <p role="status">{restoreNote}</p> : null}
+      {/* Only a completed warm-up says the session is offline-ready. */}
+      <p role="status">{offlineReadinessLabel(offline)}</p>
 
       {error ? (
         <Card className="presentation-library-state">

@@ -65,14 +65,51 @@ export const PRESENTATION_FONT_FACES: PresentationFontFace[] = [
 ]
 
 /**
+ * The browser surface the check runs against: `document.fonts` in a browser, an
+ * injected stub in tests. `load` forces the face's file to be fetched, and `ready`
+ * settles once layout has the loaded faces.
+ */
+export type PresentationFontEnvironment = {
+  load: (request: string) => Promise<readonly { status: FontFaceLoadStatus }[]>
+  ready: Promise<unknown>
+}
+
+/**
+ * The request `FontFaceSet.load` matches against `presentation-fonts.css`: style,
+ * weight, size and family, which is the same descriptor the `@font-face` rule declares.
+ */
+export function presentationFontRequest(face: PresentationFontFace): string {
+  return `${face.style} ${face.weight} 32px "${face.family}"`
+}
+
+/** jsdom and server rendering have no FontFaceSet, so no face can be proven there. */
+function browserFontEnvironment(): PresentationFontEnvironment | undefined {
+  return typeof document === 'undefined' ? undefined : document.fonts
+}
+
+/**
  * Loads every presentation face before layout/measurement/export. Canvas and
  * DOM metrics disagree while a face is still loading, so callers must await
  * this (or an equivalent) before measuring, rendering or exporting.
+ *
+ * Every one of `PRESENTATION_FONT_FACES` must be answered by a registered face that
+ * finished loading. `FontFaceSet.load` resolves with an EMPTY array when no rule
+ * declares the requested family, and `FontFaceSet.check` answers `true` from the
+ * fallback in that same case — so neither resolving nor `check` is proof a face
+ * arrived. A missing face is an error here: text measured and exported against a
+ * system fallback is not the document the author saw.
  */
 export async function ensurePresentationFonts(
-  load: (font: string) => Promise<unknown> = (font) => document.fonts.load(font),
+  environment: PresentationFontEnvironment | undefined = browserFontEnvironment(),
 ): Promise<void> {
-  if (typeof document === 'undefined' || !('fonts' in document)) return
-  await Promise.all(PRESENTATION_FONT_FACES.map((face) => load(`${face.style} ${face.weight} 32px "${face.family}"`)))
-  await document.fonts.ready
+  if (!environment) return
+  await Promise.all(
+    PRESENTATION_FONT_FACES.map(async (face) => {
+      const request = presentationFontRequest(face)
+      const matched = await environment.load(request)
+      if (matched.length === 0) throw new Error(`No registered font face matches ${request}`)
+      if (matched.some((loaded) => loaded.status !== 'loaded')) throw new Error(`${request} did not finish loading`)
+    }),
+  )
+  await environment.ready
 }

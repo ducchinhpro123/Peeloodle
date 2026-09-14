@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-09-14T03:54:39.412Z",
+  "fixture": {
+    "id": "aa837c26-f6fe-4cfb-9b7c-ebc0c29522a0",
+    "title": "P45 byte-heavy deck",
+    "slideCount": 8,
+    "elementCount": 16,
+    "assetCount": 8,
+    "mediaBytes": 18851664,
+    "meanAssetBytes": 2356458,
+    "saveMs": 83,
+    "coverage": "Bytes per asset, not element count: 8 distinct 1024×1024 incompressible PNGs. This is 1/8 of the 200 MB media ceiling, so the ceiling itself remains unmeasured."
+  },
+  "bounds": {
+    "pdfMs": 2818,
+    "pdfBytes": 22261069,
+    "pdfPages": 8,
+    "pptxMs": 1327,
+    "pptxBytes": 18940282,
+    "pptxMediaBytesStored": 18851664,
+    "pptxToMediaRatio": 1,
+    "largeFiles": {
+      "pdf": "/tmp/stickerlab-p45/byte-heavy.pdf",
+      "pptx": "/tmp/stickerlab-p45/byte-heavy.pptx"
+    }
+  },
+  "progress": {
+    "pdf": {
+      "samples": 8,
+      "first": {
+        "done": 0,
+        "total": 8
+      },
+      "last": {
+        "done": 7,
+        "total": 8
+      },
+      "monotonic": true,
+      "reachedEverySlide": false
+    },
+    "pptx": {
+      "samples": 1,
+      "first": {
+        "done": 0,
+        "total": 8
+      },
+      "last": {
+        "done": 0,
+        "total": 8
+      },
+      "monotonic": true,
+      "reachedEverySlide": false
+    }
+  }
+}

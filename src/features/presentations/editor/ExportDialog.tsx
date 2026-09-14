@@ -7,14 +7,21 @@
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { offlineReadinessLabel, type PresentationOfflineSnapshot, type ReloadSafety } from '@/app/presentationOffline'
 import type { PresentationExportFormat, PresentationExportState } from './usePresentationExport'
 
 export function ExportDialog({
   state,
+  offline,
+  reloadSafety,
   onExport,
   onCancel,
 }: {
   state: PresentationExportState
+  /** Whether this session can still build a file after the connection drops. */
+  offline: PresentationOfflineSnapshot
+  /** Whether the editor is holding unwritten work, so reload guidance stays safe. */
+  reloadSafety: ReloadSafety
   onExport: (format: PresentationExportFormat) => void
   onCancel: () => void
 }) {
@@ -34,6 +41,12 @@ export function ExportDialog({
           <Button disabled={busy} onClick={() => onExport('backup')}>Download backup (.zip)</Button>
           {busy ? <Button onClick={onCancel}>Cancel export</Button> : null}
         </div>
+        {/* The same status the library shows: exporting offline only works once the
+            warm-up finished, and a failed warm-up says how to recover — never by
+            reloading over the editor's unwritten work. Not a second live region — the
+            library's status announces the change, and this line is only read while
+            the dialog is open. */}
+        <p>{offlineReadinessLabel(offline, reloadSafety)}</p>
         <p className="muted">The backup is a .stickerlab.zip with the document and every image, restorable from the presentation library on any device.</p>
         {busy ? (
           <p role="status">

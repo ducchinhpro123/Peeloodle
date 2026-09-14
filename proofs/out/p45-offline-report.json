@@ -1,0 +1,54 @@
+{
+  "generatedAt": "2026-09-14T04:09:18.984Z",
+  "externalRequests": [],
+  "offline": {
+    "warmedRoutes": [
+      "/",
+      "/presentations",
+      "/presentations/fixture-presentation"
+    ],
+    "warmedBuilders": [
+      "pptxgenjs (pptx)"
+    ],
+    "typedAndAutosavedOffline": true,
+    "paintedImagePixelsWarmOnline": 18128,
+    "paintedImagePixelsAfterReopen": 18128,
+    "paintedPixelsNote": "Warm-online control: the still-open editor, whose bitmap was decoded before the network was disabled. After-reopen: measured again in the reopened editor while still offline, so those pixels can only come from artwork rehydrated from IndexedDB.",
+    "pptxBytesOffline": 320087,
+    "offlinePptxSlides": 2,
+    "coldPdf": {
+      "downloaded": false,
+      "message": "Failed to fetch dynamically imported module: http://127.0.0.1:4173/src/features/presentations/exports/pdf.ts"
+    },
+    "reopenedText": "Nghiên cứu và trình bàyBuilding a sticker presentationChỉnh sửa ngoại tuyếnTóm tắt kết quả: ấn tượng, rõ ràng và dễ đọc.Xem hướng dẫn trước khi nộp bài.Kết luận và đề xuất.",
+    "reopenedTextHasEdit": true,
+    "requestsAttemptedOffline": [
+      "/src/features/presentations/exports/pdf.ts",
+      "/favicon.png",
+      "/art/presentation-cat-hero.webp",
+      "/favicon.png"
+    ],
+    "downloadsWhileOffline": [
+      "Bài trình bày mẫu  Fixture.pptx"
+    ]
+  },
+  "afterReconnect": {
+    "warmedPptxBytes": 320087,
+    "pdfRetryInSamePage": "refused: the PDF export reported a failure instead of a download: Failed to fetch dynamically imported module: http://127.0.0.1:4173/src/features/presentations/exports/pdf.ts",
+    "pdfAfterReopenBytes": 116306,
+    "note": "A failed dynamic import stays failed for the life of the page, so the cold format only exports again after the page reloads. No service worker or app-shell cache exists, which is why the plan scopes offline to already-loaded work."
+  },
+  "warmupDownloads": 1,
+  "viteConsole": [
+    "[vite] connecting...",
+    "[vite] connected.",
+    "[vite] connecting...",
+    "[vite] connected.",
+    "[vite] connecting...",
+    "[vite] connected."
+  ],
+  "knownLimitations": [
+    "A route chunk or export builder that was never loaded cannot be fetched while the network is disabled; the app-shell/offline-bootstrap case is explicitly out of scope for this release.",
+    "This is a browser with the network disabled, not a browser reading a cached build from an installed service worker — none is implemented."
+  ]
+}

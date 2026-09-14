@@ -1,0 +1,156 @@
+{
+  "generatedAt": "2026-09-14T05:14:23.459Z",
+  "fingerprint": {
+    "gitRevision": "e215ce8e019b84b13d3208d7a1b456c90948a17a",
+    "workingTreeDirty": true,
+    "assets": [
+      {
+        "name": "EditorPage-BNT4eaNO.js",
+        "bytes": 78096
+      },
+      {
+        "name": "KonvaCanvas-I7_v88cX.js",
+        "bytes": 119199
+      },
+      {
+        "name": "PresentationCanvas-BfxUz9AH.js",
+        "bytes": 25670
+      },
+      {
+        "name": "PresentationEditorPage-NJaz0IeL.js",
+        "bytes": 50538
+      },
+      {
+        "name": "PresentationsPage-CEfUG3Lb.js",
+        "bytes": 15357
+      },
+      {
+        "name": "TextEditSessionContext-BgtoY7rq.js",
+        "bytes": 19744
+      },
+      {
+        "name": "__vite-browser-external-BIHI7g3E.js",
+        "bytes": 33
+      },
+      {
+        "name": "backup-D0eJc9VZ.js",
+        "bytes": 20150
+      },
+      {
+        "name": "cloud-bIvh4CUD.js",
+        "bytes": 8595
+      },
+      {
+        "name": "cloudRemote-DmalTtgB.js",
+        "bytes": 4124
+      },
+      {
+        "name": "decodedArtwork-BmPxfwuR.js",
+        "bytes": 6245
+      },
+      {
+        "name": "geometry-DLKiByQZ.js",
+        "bytes": 191
+      },
+      {
+        "name": "hash-CYQd-kSx.js",
+        "bytes": 274
+      },
+      {
+        "name": "index-C45eyn4h.js",
+        "bytes": 193980
+      },
+      {
+        "name": "index-HbnSoS0S.css",
+        "bytes": 108195
+      },
+      {
+        "name": "index-xqMzz0ts.js",
+        "bytes": 179844
+      },
+      {
+        "name": "konvaText-vhMeV9OE.js",
+        "bytes": 817
+      },
+      {
+        "name": "pdf-C460OTV2.js",
+        "bytes": 432342
+      },
+      {
+        "name": "pptx-BhmYJzBo.js",
+        "bytes": 376523
+      },
+      {
+        "name": "rasterizeSlide-CbpS9Qtp.js",
+        "bytes": 1345
+      },
+      {
+        "name": "renderDocument-31Id718L.js",
+        "bytes": 12261
+      },
+      {
+        "name": "renderSlide-BYW0mIod.js",
+        "bytes": 2509
+      },
+      {
+        "name": "snapshot-BP0SerYS.js",
+        "bytes": 2604
+      },
+      {
+        "name": "supabase-Buqg5CVw.js",
+        "bytes": 227797
+      },
+      {
+        "name": "textLayout-DVlybGqJ.js",
+        "bytes": 3633
+      },
+      {
+        "name": "textMeasure-Db5ap1li.js",
+        "bytes": 239
+      },
+      {
+        "name": "undo-2-CxA1NgMh.js",
+        "bytes": 3738
+      },
+      {
+        "name": "vendor-sTN_aHGS.js",
+        "bytes": 237021
+      },
+      {
+        "name": "zipExport-DVWs6_mZ.js",
+        "bytes": 2348
+      }
+    ]
+  },
+  "environment": {
+    "build": "production (`npm run build` + `vite preview`)",
+    "viewport": "1440×900",
+    "note": "A Playwright route held the three builder fetches and aborted them as the browser went offline, so the failure is a real failed module fetch rather than a replayed message. The report is written after the test’s assertions."
+  },
+  "failedRequests": [
+    "/assets/snapshot-BP0SerYS.js",
+    "/assets/pdf-C460OTV2.js",
+    "/assets/pptx-BhmYJzBo.js"
+  ],
+  "routeChunksInMemory": [
+    "/assets/PresentationCanvas-BfxUz9AH.js",
+    "/assets/PresentationEditorPage-NJaz0IeL.js",
+    "/assets/PresentationsPage-CEfUG3Lb.js"
+  ],
+  "failedState": {
+    "label": "Offline use could not be prepared in this page. Reconnect and reload the page. Your saved work is not affected.",
+    "exportFailureMessage": "This export needs a part of the app that could not be loaded. Reconnect and reload the page. Your saved work is not affected.",
+    "exportsProducedWhileFailed": 0,
+    "localEditSavedWhileOffline": true,
+    "note": "The three builder fetches were held and then aborted as the browser went offline, so this is a real failed module fetch. The library, editor and canvas chunks had finished, which is why local work kept working. The saved edit is why the copy gives the plain reload instruction: an editor holding unwritten work gets the save-first wording instead (`usePresentationExport.test.tsx`)."
+  },
+  "recovery": {
+    "reloadWhileOnlineLabel": "Ready for offline use.",
+    "pdfBytes": 17904,
+    "pdfPages": 1
+  },
+  "downloads": [
+    "Untitled presentation.pdf"
+  ],
+  "pageErrors": []
+}
