@@ -186,536 +186,464 @@ function selected(state: EditorStore): Layer | undefined {
   return state.document?.layers.find((layer) => layer.id === state.selectedLayerId)
 }
 
-export const useEditorStore = create<EditorStore>((set, get) => ({
-  ...resetState(),
-  workspaceEpoch: 0,
-
-  createDraft: (id) => {
-    const document = createProjectDocument({ id, title: 'Untitled Sticker' })
-    set({ ...resetState(), document })
-    return document.id
-  },
-
-  hydrate: (document, records, maskRecords = []) => {
-    const assets: Record<string, AssetRecord> = {}
-    for (const record of records) assets[record.asset.id] = record
-    const masks: Record<string, Blob> = {}
-    for (const record of maskRecords) masks[record.key] = record.blob
+export const useEditorStore = create<EditorStore>((set, get) => {
+  /**
+   * The shared tail of every committed edit: record the new revision, prune
+   * assets and masks against the document and history that can still reach them,
+   * mark dirty, and keep a write that is already in flight marked as saving.
+   * Every edit path ends here, so a new command cannot forget an invariant.
+   */
+  const publishEdit = (input: {
+    past: ProjectDocument[]
+    document: ProjectDocument
+    future?: ProjectDocument[]
+    assets?: Record<string, AssetRecord>
+    masks?: Record<string, Blob>
+    result?: Partial<EditorStore>
+  }): void => {
+    const state = get()
+    const future = input.future ?? []
+    const assets = input.assets ?? state.assets
+    const masks = input.masks ?? state.masks
     set({
-      ...resetState(),
-      document: cloneDocument(document),
-      assets,
-      masks,
-      selectedLayerId: document.layers.at(-1)?.id ?? null,
-      saveStatus: 'saved-locally',
-    })
-  },
-
-  setLoadError: (message) => set({ loadError: message, loading: false, document: get().document?.id ? get().document : null }),
-
-  setLoading: (loading) => set({ loading }),
-
-  selectLayer: (id) => {
-    const state = get()
-    if (id !== state.selectedLayerId && !state.finishMaskStroke) state.commitGesture()
-    set({ selectedLayerId: id })
-  },
-
-  setViewport: (viewport) => {
-    const current = get().viewport
-    const zoom = viewport.zoom ?? current.zoom
-    const next = {
-      zoom: Number.isFinite(zoom) ? Math.min(4, Math.max(0.25, zoom)) : current.zoom,
-      panX: viewport.panX ?? current.panX,
-      panY: viewport.panY ?? current.panY,
-    }
-    if (next.zoom === current.zoom && next.panX === current.panX && next.panY === current.panY) return
-    set({ viewport: next })
-  },
-
-  setTool: (tool) => set({ activeTool: tool }),
-
-  setBrushSize: (size) => { if (Number.isFinite(size)) set({ brushSize: Math.max(4, Math.min(120, Math.round(size))) }) },
-
-  setUploadError: (message) => set({ uploadError: message }),
-
-  beginGesture: () => {
-    const state = get()
-    if (!state.document || state.gestureActive) return
-    set({ gestureActive: true, gestureStart: cloneDocument(state.document) })
-  },
-
-  commitGesture: () => {
-    const state = get()
-    if (!state.gestureActive || !state.document) {
-      set({ gestureActive: false, gestureStart: null })
-      return
-    }
-    const start = state.gestureStart
-    if (!start || sameContent(start, state.document)) {
-      set({ gestureActive: false, gestureStart: null })
-      return
-    }
-    const past = [...state.past, start].slice(-HISTORY_LIMIT)
-    const document = touch(state.document)
-    set({
-      gestureActive: false,
-      gestureStart: null,
-      past,
-      future: [],
-      document,
-      assets: assetsFor(state.assets, [document, ...past]),
-      masks: masksFor(state.masks, [document, ...past]),
+      past: input.past,
+      future,
+      document: input.document,
+      assets: assetsFor(assets, [input.document, ...input.past, ...future]),
+      masks: masksFor(masks, [input.document, ...input.past, ...future]),
       dirty: true,
       saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
+      ...input.result,
     })
-  },
+  }
 
-  addImageLayer: (record, name = 'Image') => {
+  /**
+   * One edit command. Without an open gesture it records history, bumps the
+   * revision and prunes; six live-preview commands pass `gesture: 'defer'` so a
+   * drag, slider or open text session mutates the working document only and
+   * `commitGesture` records the single entry when it ends.
+   */
+  const commitEdit = (input: {
+    apply: (document: ProjectDocument) => ProjectDocument
+    gesture?: 'commit' | 'defer'
+    asset?: AssetRecord
+    mask?: { key: string; blob: Blob }
+    result?: Partial<EditorStore>
+  }): boolean => {
     const state = get()
-    if (!state.document) return
+    if (!state.document) return false
+    const next = input.apply(state.document)
+    if (input.gesture === 'defer' && state.gestureActive) {
+      set({ document: next })
+      return true
+    }
     const history = withHistory(state)
-    const layerId = crypto.randomUUID()
-    const layers: Layer[] = [
-      ...state.document.layers,
-      {
+    publishEdit({
+      past: history.past,
+      future: history.future,
+      document: touch(next),
+      assets: input.asset ? { ...state.assets, [input.asset.asset.id]: input.asset } : state.assets,
+      masks: input.mask ? { ...state.masks, [input.mask.key]: input.mask.blob } : state.masks,
+      result: input.result,
+    })
+    return true
+  }
+
+  return {
+    ...resetState(),
+    workspaceEpoch: 0,
+
+    createDraft: (id) => {
+      const document = createProjectDocument({ id, title: 'Untitled Sticker' })
+      set({ ...resetState(), document })
+      return document.id
+    },
+
+    hydrate: (document, records, maskRecords = []) => {
+      const assets: Record<string, AssetRecord> = {}
+      for (const record of records) assets[record.asset.id] = record
+      const masks: Record<string, Blob> = {}
+      for (const record of maskRecords) masks[record.key] = record.blob
+      set({
+        ...resetState(),
+        document: cloneDocument(document),
+        assets,
+        masks,
+        selectedLayerId: document.layers.at(-1)?.id ?? null,
+        saveStatus: 'saved-locally',
+      })
+    },
+
+    setLoadError: (message) => set({ loadError: message, loading: false, document: get().document?.id ? get().document : null }),
+
+    setLoading: (loading) => set({ loading }),
+
+    selectLayer: (id) => {
+      const state = get()
+      if (id !== state.selectedLayerId && !state.finishMaskStroke) state.commitGesture()
+      set({ selectedLayerId: id })
+    },
+
+    setViewport: (viewport) => {
+      const current = get().viewport
+      const zoom = viewport.zoom ?? current.zoom
+      const next = {
+        zoom: Number.isFinite(zoom) ? Math.min(4, Math.max(0.25, zoom)) : current.zoom,
+        panX: viewport.panX ?? current.panX,
+        panY: viewport.panY ?? current.panY,
+      }
+      if (next.zoom === current.zoom && next.panX === current.panX && next.panY === current.panY) return
+      set({ viewport: next })
+    },
+
+    setTool: (tool) => set({ activeTool: tool }),
+
+    setBrushSize: (size) => { if (Number.isFinite(size)) set({ brushSize: Math.max(4, Math.min(120, Math.round(size))) }) },
+
+    setUploadError: (message) => set({ uploadError: message }),
+
+    beginGesture: () => {
+      const state = get()
+      if (!state.document || state.gestureActive) return
+      set({ gestureActive: true, gestureStart: cloneDocument(state.document) })
+    },
+
+    commitGesture: () => {
+      const state = get()
+      if (!state.gestureActive || !state.document || !state.gestureStart) {
+        set({ gestureActive: false, gestureStart: null })
+        return
+      }
+      if (sameContent(state.gestureStart, state.document)) {
+        set({ gestureActive: false, gestureStart: null })
+        return
+      }
+      publishEdit({
+        past: [...state.past, state.gestureStart].slice(-HISTORY_LIMIT),
+        document: touch(state.document),
+        result: { gestureActive: false, gestureStart: null },
+      })
+    },
+
+    addImageLayer: (record, name = 'Image') => {
+      const state = get()
+      if (!state.document) return
+      const layerId = crypto.randomUUID()
+      commitEdit({
+        apply: (document) => {
+          const layers: Layer[] = [
+            ...document.layers,
+            {
+              id: layerId,
+              name,
+              kind: 'image',
+              assetId: record.asset.id,
+              transform: fitImageToArtboard(record.asset.width, record.asset.height),
+              opacity: 1,
+              visible: true,
+              locked: false,
+            },
+          ]
+          return { ...document, layers, assetIds: uniqueAssetIds(layers) }
+        },
+        asset: record,
+        result: {
+          selectedLayerId: layerId,
+          uploadError: null,
+          activeTool: state.activeTool === 'erase' || state.activeTool === 'restore' ? state.activeTool : 'select',
+        },
+      })
+    },
+
+    replaceImageLayer: (id, record) => {
+      const state = get()
+      const layer = state.document?.layers.find((item) => item.id === id)
+      if (!state.document || layer?.kind !== 'image' || layer.locked || state.gestureActive) return
+      const original = state.assets[layer.assetId]?.asset
+      if (!original) return
+      const t = layer.transform
+      const width = layer.crop?.width ?? original.width
+      const height = layer.crop?.height ?? original.height
+      const scale = Math.min(Math.abs(width * t.scaleX) / record.asset.width, Math.abs(height * t.scaleY) / record.asset.height)
+      const scaleX = Math.sign(t.scaleX) * scale
+      const scaleY = Math.sign(t.scaleY) * scale
+      const dx = (width * t.scaleX - record.asset.width * scaleX) / 2
+      const dy = (height * t.scaleY - record.asset.height * scaleY) / 2
+      const radians = t.rotation * Math.PI / 180
+      const transform = { ...t, scaleX, scaleY, x: t.x + dx * Math.cos(radians) - dy * Math.sin(radians), y: t.y + dx * Math.sin(radians) + dy * Math.cos(radians) }
+      commitEdit({
+        // Fit without stretching; old crop/mask coordinates cannot apply to a different photo.
+        apply: (document) => {
+          const layers = document.layers.map((item) => item.id === id
+            ? { ...layer, assetId: record.asset.id, crop: undefined, maskKey: undefined, transform }
+            : item)
+          return { ...document, layers, assetIds: uniqueAssetIds(layers) }
+        },
+        asset: record,
+        result: { uploadError: null },
+      })
+    },
+
+    addTextLayer: (style = {}) => {
+      const state = get()
+      if (!state.document) return
+      const layerId = crypto.randomUUID()
+      const layer: TextLayer = {
         id: layerId,
-        name,
-        kind: 'image',
-        assetId: record.asset.id,
-        transform: fitImageToArtboard(record.asset.width, record.asset.height),
+        name: style.content ?? 'Text',
+        kind: 'text',
+        content: style.content ?? 'Text',
+        fontFamily: style.fontFamily ?? 'Plus Jakarta Sans',
+        fontSize: style.fontSize ?? 64,
+        color: style.color ?? '#08152f',
+        transform: { x: 320, y: 430, rotation: 0, scaleX: 1, scaleY: 1 },
         opacity: 1,
         visible: true,
         locked: false,
-      },
-    ]
-    const document = touch({
-      ...state.document,
-      layers,
-      assetIds: uniqueAssetIds(layers),
-    })
-    const assets = { ...state.assets, [record.asset.id]: record }
-    set({
-      ...history,
-      assets: assetsFor(assets, [document, ...history.past, ...history.future]),
-      document,
-      selectedLayerId: layerId,
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-      uploadError: null,
-      activeTool: state.activeTool === 'erase' || state.activeTool === 'restore' ? state.activeTool : 'select',
-    })
-  },
-
-  replaceImageLayer: (id, record) => {
-    const state = get()
-    const layer = state.document?.layers.find((item) => item.id === id)
-    if (!state.document || layer?.kind !== 'image' || layer.locked || state.gestureActive) return
-    const original = state.assets[layer.assetId]?.asset
-    if (!original) return
-    const t = layer.transform
-    const width = layer.crop?.width ?? original.width
-    const height = layer.crop?.height ?? original.height
-    const scale = Math.min(Math.abs(width * t.scaleX) / record.asset.width, Math.abs(height * t.scaleY) / record.asset.height)
-    const scaleX = Math.sign(t.scaleX) * scale
-    const scaleY = Math.sign(t.scaleY) * scale
-    const dx = (width * t.scaleX - record.asset.width * scaleX) / 2
-    const dy = (height * t.scaleY - record.asset.height * scaleY) / 2
-    const radians = t.rotation * Math.PI / 180
-    const transform = { ...t, scaleX, scaleY, x: t.x + dx * Math.cos(radians) - dy * Math.sin(radians), y: t.y + dx * Math.sin(radians) + dy * Math.cos(radians) }
-    // Fit without stretching; old crop/mask coordinates cannot apply to a different photo.
-    const layers = state.document.layers.map((item) => item.id === id
-      ? { ...layer, assetId: record.asset.id, crop: undefined, maskKey: undefined, transform }
-      : item)
-    const document = touch({ ...state.document, layers, assetIds: uniqueAssetIds(layers) })
-    const history = withHistory(state)
-    set({ ...history, document, assets: assetsFor({ ...state.assets, [record.asset.id]: record }, [document, ...history.past, ...history.future]), masks: masksFor(state.masks, [document, ...history.past, ...history.future]), dirty: true, uploadError: null, saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved' })
-  },
-
-  addTextLayer: (style = {}) => {
-    const state = get()
-    if (!state.document) return
-    const history = withHistory(state)
-    const layerId = crypto.randomUUID()
-    const layer: TextLayer = {
-      id: layerId,
-      name: style.content ?? 'Text',
-      kind: 'text',
-      content: style.content ?? 'Text',
-      fontFamily: style.fontFamily ?? 'Plus Jakarta Sans',
-      fontSize: style.fontSize ?? 64,
-      color: style.color ?? '#08152f',
-      transform: { x: 320, y: 430, rotation: 0, scaleX: 1, scaleY: 1 },
-      opacity: 1,
-      visible: true,
-      locked: false,
-    }
-    const document = touch({ ...state.document, layers: [...state.document.layers, layer] })
-    set({
-      ...history,
-      document,
-      assets: assetsFor(state.assets, [document, ...history.past, ...history.future]),
-      selectedLayerId: layerId,
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-      activeTool: 'select',
-    })
-  },
-
-  updateText: (id, patch) => {
-    const state = get()
-    if (!state.document) return
-    const apply = (document: ProjectDocument) =>
-      replaceLayer(document, id, (layer) => (layer.kind === 'text' ? { ...layer, ...patch } : layer))
-    if (state.gestureActive) {
-      set({ document: apply(state.document) })
-      return
-    }
-    const history = withHistory(state)
-    set({
-      ...history,
-      document: touch(apply(state.document)),
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
-
-  updateTitle: (title) => {
-    const state = get()
-    if (!state.document) return
-    if (state.gestureActive) {
-      set({ document: { ...state.document, title } })
-      return
-    }
-    const history = withHistory(state)
-    set({
-      ...history,
-      document: touch({ ...state.document, title }),
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
-
-  applyTransform: (id, transform) => {
-    const state = get()
-    if (!state.document) return
-    const layer = state.document.layers.find((item) => item.id === id)
-    if (!layer || layer.locked) return
-    const apply = (document: ProjectDocument) => replaceLayer(document, id, (item) => ({ ...item, transform }))
-    if (state.gestureActive) {
-      set({ document: apply(state.document) })
-      return
-    }
-    const history = withHistory(state)
-    set({
-      ...history,
-      document: touch(apply(state.document)),
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
-
-  removeSelected: () => {
-    const state = get()
-    const layer = selected(state)
-    if (!state.document || !layer || layer.locked) return
-    const history = withHistory(state)
-    const layers = state.document.layers.filter((item) => item.id !== layer.id)
-    const document = touch({ ...state.document, layers, assetIds: uniqueAssetIds(layers) })
-    set({
-      ...history,
-      document,
-      assets: assetsFor(state.assets, [document, ...history.past, ...history.future]),
-      selectedLayerId: null,
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
-
-  duplicateSelected: () => {
-    const state = get()
-    const layer = selected(state)
-    if (!state.document || !layer) return
-    const history = withHistory(state)
-    const copy: Layer = {
-      ...layer,
-      id: crypto.randomUUID(),
-      name: `${layer.name} copy`,
-      transform: { ...layer.transform, x: layer.transform.x + 24, y: layer.transform.y + 24 },
-      locked: false,
-    }
-    const layers = [...state.document.layers, copy]
-    const document = touch({ ...state.document, layers, assetIds: uniqueAssetIds(layers) })
-    set({
-      ...history,
-      document,
-      assets: assetsFor(state.assets, [document, ...history.past, ...history.future]),
-      selectedLayerId: copy.id,
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
-
-  nudgeSelected: (dx, dy) => {
-    const state = get()
-    const layer = selected(state)
-    if (!state.document || !layer || layer.locked) return
-    get().applyTransform(layer.id, { ...layer.transform, x: layer.transform.x + dx, y: layer.transform.y + dy })
-  },
-
-  rotateSelected90: () => {
-    const state = get()
-    const layer = selected(state)
-    if (!state.document || !layer || layer.locked) return
-    const transform = layer.transform
-    const asset = layer.kind === 'image' ? state.assets[layer.assetId]?.asset : undefined
-    if (layer.kind === 'image' && asset) {
-      const radians = transform.rotation * Math.PI / 180
-      const halfWidth = (layer.crop?.width ?? asset.width) * transform.scaleX / 2
-      const halfHeight = (layer.crop?.height ?? asset.height) * transform.scaleY / 2
-      const dx = halfWidth * Math.cos(radians) - halfHeight * Math.sin(radians)
-      const dy = halfWidth * Math.sin(radians) + halfHeight * Math.cos(radians)
-      // A quarter turn keeps the visible image center fixed, including crops and flips.
-      get().applyTransform(layer.id, { ...transform, x: transform.x + dx + dy, y: transform.y + dy - dx, rotation: transform.rotation + 90 })
-    } else {
-      get().applyTransform(layer.id, { ...transform, rotation: transform.rotation + 90 })
-    }
-  },
-
-  flipSelected: (axis) => {
-    const state = get()
-    const layer = selected(state)
-    if (!state.document || !layer || layer.locked || layer.kind !== 'image') return
-    const asset = state.assets[layer.assetId]?.asset
-    if (!asset) return
-    const transform = layer.transform
-    const radians = (transform.rotation * Math.PI) / 180
-    const dx = axis === 'horizontal' ? (layer.crop?.width ?? asset.width) * transform.scaleX : 0
-    const dy = axis === 'vertical' ? (layer.crop?.height ?? asset.height) * transform.scaleY : 0
-    get().applyTransform(layer.id, {
-      ...transform,
-      x: transform.x + dx * Math.cos(radians) - dy * Math.sin(radians),
-      y: transform.y + dx * Math.sin(radians) + dy * Math.cos(radians),
-      scaleX: axis === 'horizontal' ? -transform.scaleX : transform.scaleX,
-      scaleY: axis === 'vertical' ? -transform.scaleY : transform.scaleY,
-    })
-  },
-
-  reorderLayer: (id, direction) => {
-    const state = get()
-    if (!state.document) return
-    const layers = [...state.document.layers]
-    const index = layers.findIndex((item) => item.id === id)
-    if (index === -1) return
-    const targetIndex = direction === 'up' ? index + 1 : index - 1
-    if (targetIndex < 0 || targetIndex >= layers.length) return
-    const [item] = layers.splice(index, 1)
-    layers.splice(targetIndex, 0, item!)
-    const history = withHistory(state)
-    const document = touch({ ...state.document, layers })
-    set({
-      ...history,
-      document,
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
-
-  toggleLayerVisibility: (id) => {
-    const state = get()
-    if (!state.document) return
-    const history = withHistory(state)
-    const document = touch(replaceLayer(state.document, id, (layer) => ({ ...layer, visible: !layer.visible })))
-    set({
-      ...history,
-      document,
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
-
-  toggleLayerLock: (id) => {
-    const state = get()
-    if (!state.document) return
-    const history = withHistory(state)
-    const document = touch(replaceLayer(state.document, id, (layer) => ({ ...layer, locked: !layer.locked })))
-    set({
-      ...history,
-      document,
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
-
-  renameLayer: (id, name) => {
-    const state = get()
-    if (!state.document) return
-    const trimmed = name.trim() || 'Layer'
-    const apply = (doc: ProjectDocument) => replaceLayer(doc, id, (layer) => ({ ...layer, name: trimmed }))
-    if (state.gestureActive) {
-      set({ document: apply(state.document) })
-      return
-    }
-    const history = withHistory(state)
-    set({
-      ...history,
-      document: touch(apply(state.document)),
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
-
-  updateFilters: (id, patch) => {
-    const state = get()
-    if (!state.document) return
-    const defaultFilters: ImageFilters = { brightness: 0, contrast: 0, saturation: 0, grayscale: 0 }
-    const apply = (doc: ProjectDocument) =>
-      replaceLayer(doc, id, (l) => {
-        if (l.kind !== 'image') return l
-        const current = l.filters ?? defaultFilters
-        return { ...l, filters: { ...current, ...patch } }
+      }
+      commitEdit({
+        apply: (document) => ({ ...document, layers: [...document.layers, layer] }),
+        result: { selectedLayerId: layerId, activeTool: 'select' },
       })
-    if (state.gestureActive) {
-      set({ document: apply(state.document) })
-      return
-    }
-    const history = withHistory(state)
-    set({
-      ...history,
-      document: touch(apply(state.document)),
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
+    },
 
-  resetFilters: (id) => {
-    const state = get()
-    if (!state.document) return
-    const history = withHistory(state)
-    const apply = (doc: ProjectDocument) =>
-      replaceLayer(doc, id, (l) => (l.kind === 'image' ? { ...l, filters: undefined } : l))
-    set({
-      ...history,
-      document: touch(apply(state.document)),
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
-
-  updateOutline: (id, patch) => {
-    const state = get()
-    if (!state.document) return
-    const defaultOutline: LayerOutline = { enabled: true, color: '#ffffff', width: 12 }
-    const apply = (doc: ProjectDocument) =>
-      replaceLayer(doc, id, (l) => {
-        if (l.kind !== 'image') return l
-        const current = l.outline ?? defaultOutline
-        return { ...l, outline: { ...current, ...patch } }
+    updateText: (id, patch) => {
+      commitEdit({
+        apply: (document) => replaceLayer(document, id, (layer) => (layer.kind === 'text' ? { ...layer, ...patch } : layer)),
+        gesture: 'defer',
       })
-    if (state.gestureActive) {
-      set({ document: apply(state.document) })
-      return
-    }
-    const history = withHistory(state)
-    set({
-      ...history,
-      document: touch(apply(state.document)),
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
+    },
 
-  applyMask: (layerId, maskKey, maskBlob) => {
-    const state = get()
-    const layer = state.document?.layers.find((item) => item.id === layerId)
-    if (!state.document || layer?.kind !== 'image' || layer.locked || layer.maskKey === maskKey || !maskKey || maskBlob.size === 0) return
-    const history = withHistory(state)
-    const document = touch(
-      replaceLayer(state.document, layerId, (layer) =>
-        layer.kind === 'image' ? { ...layer, maskKey } : layer,
-      ),
-    )
-    const nextMasks = { ...state.masks, [maskKey]: maskBlob }
-    set({
-      ...history,
-      document,
-      masks: masksFor(nextMasks, [document, ...history.past, ...history.future]),
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
+    updateTitle: (title) => {
+      commitEdit({
+        apply: (document) => ({ ...document, title }),
+        gesture: 'defer',
+      })
+    },
 
-  clearMask: (layerId) => {
-    const state = get()
-    const layer = state.document?.layers.find((item) => item.id === layerId)
-    if (!state.document || layer?.kind !== 'image' || layer.locked || !layer.maskKey) return
-    const history = withHistory(state)
-    const document = touch(
-      replaceLayer(state.document, layerId, (layer) =>
-        layer.kind === 'image' ? { ...layer, maskKey: undefined } : layer,
-      ),
-    )
-    set({
-      ...history,
-      document,
-      masks: masksFor(state.masks, [document, ...history.past, ...history.future]),
-      uploadError: null,
-      dirty: true,
-      saveStatus: state.saveStatus === 'saving' ? 'saving' : 'unsaved',
-    })
-  },
+    applyTransform: (id, transform) => {
+      const state = get()
+      const layer = state.document?.layers.find((item) => item.id === id)
+      if (!state.document || !layer || layer.locked) return
+      commitEdit({
+        apply: (document) => replaceLayer(document, id, (item) => ({ ...item, transform })),
+        gesture: 'defer',
+      })
+    },
 
-  undo: () => {
-    const state = get()
-    if (state.finishMaskStroke || state.gestureActive || !state.document || state.past.length === 0) return
-    const previous = state.past[state.past.length - 1]!
-    const document = touch({ ...previous, revision: state.document.revision })
-    const past = state.past.slice(0, -1)
-    const future = [...state.future, cloneDocument(state.document)]
-    set({
-      document,
-      past,
-      future,
-      assets: assetsFor(state.assets, [document, ...past, ...future]),
-      masks: masksFor(state.masks, [document, ...past, ...future]),
-      selectedLayerId: previous.layers.some((layer) => layer.id === state.selectedLayerId) ? state.selectedLayerId : null,
-      dirty: true,
-      saveStatus: 'unsaved',
-    })
-  },
+    removeSelected: () => {
+      const state = get()
+      const layer = selected(state)
+      if (!state.document || !layer || layer.locked) return
+      commitEdit({
+        apply: (document) => {
+          const layers = document.layers.filter((item) => item.id !== layer.id)
+          return { ...document, layers, assetIds: uniqueAssetIds(layers) }
+        },
+        result: { selectedLayerId: null },
+      })
+    },
 
-  redo: () => {
-    const state = get()
-    if (state.finishMaskStroke || state.gestureActive || !state.document || state.future.length === 0) return
-    const next = state.future[state.future.length - 1]!
-    const document = touch({ ...next, revision: state.document.revision })
-    const future = state.future.slice(0, -1)
-    const past = [...state.past, cloneDocument(state.document)]
-    set({
-      document,
-      future,
-      past,
-      assets: assetsFor(state.assets, [document, ...past, ...future]),
-      masks: masksFor(state.masks, [document, ...past, ...future]),
-      selectedLayerId: next.layers.some((layer) => layer.id === state.selectedLayerId) ? state.selectedLayerId : null,
-      dirty: true,
-      saveStatus: 'unsaved',
-    })
-  },
+    duplicateSelected: () => {
+      const state = get()
+      const layer = selected(state)
+      if (!state.document || !layer) return
+      const copy: Layer = {
+        ...layer,
+        id: crypto.randomUUID(),
+        name: `${layer.name} copy`,
+        transform: { ...layer.transform, x: layer.transform.x + 24, y: layer.transform.y + 24 },
+        locked: false,
+      }
+      commitEdit({
+        apply: (document) => {
+          const layers = [...document.layers, copy]
+          return { ...document, layers, assetIds: uniqueAssetIds(layers) }
+        },
+        result: { selectedLayerId: copy.id },
+      })
+    },
 
-  setSaveStatus: (status, error = null) => set({ saveStatus: status, saveError: error }),
+    nudgeSelected: (dx, dy) => {
+      const state = get()
+      const layer = selected(state)
+      if (!state.document || !layer || layer.locked) return
+      get().applyTransform(layer.id, { ...layer.transform, x: layer.transform.x + dx, y: layer.transform.y + dy })
+    },
 
-  markSaved: (revision) => {
-    const state = get()
-    if (!state.document || state.document.revision !== revision) {
-      set({ saveStatus: state.dirty ? 'unsaved' : state.saveStatus })
-      return
-    }
-    set({ dirty: false, saveStatus: 'saved-locally', saveError: null })
-  },
+    rotateSelected90: () => {
+      const state = get()
+      const layer = selected(state)
+      if (!state.document || !layer || layer.locked) return
+      const transform = layer.transform
+      const asset = layer.kind === 'image' ? state.assets[layer.assetId]?.asset : undefined
+      if (layer.kind === 'image' && asset) {
+        const radians = transform.rotation * Math.PI / 180
+        const halfWidth = (layer.crop?.width ?? asset.width) * transform.scaleX / 2
+        const halfHeight = (layer.crop?.height ?? asset.height) * transform.scaleY / 2
+        const dx = halfWidth * Math.cos(radians) - halfHeight * Math.sin(radians)
+        const dy = halfWidth * Math.sin(radians) + halfHeight * Math.cos(radians)
+        // A quarter turn keeps the visible image center fixed, including crops and flips.
+        get().applyTransform(layer.id, { ...transform, x: transform.x + dx + dy, y: transform.y + dy - dx, rotation: transform.rotation + 90 })
+      } else {
+        get().applyTransform(layer.id, { ...transform, rotation: transform.rotation + 90 })
+      }
+    },
 
-  reset: () => set({ ...resetState(), workspaceEpoch: get().workspaceEpoch + 1 }),
-}))
+    flipSelected: (axis) => {
+      const state = get()
+      const layer = selected(state)
+      if (!state.document || !layer || layer.locked || layer.kind !== 'image') return
+      const asset = state.assets[layer.assetId]?.asset
+      if (!asset) return
+      const transform = layer.transform
+      const radians = (transform.rotation * Math.PI) / 180
+      const dx = axis === 'horizontal' ? (layer.crop?.width ?? asset.width) * transform.scaleX : 0
+      const dy = axis === 'vertical' ? (layer.crop?.height ?? asset.height) * transform.scaleY : 0
+      get().applyTransform(layer.id, {
+        ...transform,
+        x: transform.x + dx * Math.cos(radians) - dy * Math.sin(radians),
+        y: transform.y + dx * Math.sin(radians) + dy * Math.cos(radians),
+        scaleX: axis === 'horizontal' ? -transform.scaleX : transform.scaleX,
+        scaleY: axis === 'vertical' ? -transform.scaleY : transform.scaleY,
+      })
+    },
+
+    reorderLayer: (id, direction) => {
+      const state = get()
+      if (!state.document) return
+      const index = state.document.layers.findIndex((item) => item.id === id)
+      if (index === -1) return
+      const targetIndex = direction === 'up' ? index + 1 : index - 1
+      if (targetIndex < 0 || targetIndex >= state.document.layers.length) return
+      commitEdit({
+        apply: (document) => {
+          const layers = [...document.layers]
+          const [item] = layers.splice(index, 1)
+          layers.splice(targetIndex, 0, item!)
+          return { ...document, layers }
+        },
+      })
+    },
+
+    toggleLayerVisibility: (id) => {
+      commitEdit({ apply: (document) => replaceLayer(document, id, (layer) => ({ ...layer, visible: !layer.visible })) })
+    },
+
+    toggleLayerLock: (id) => {
+      commitEdit({ apply: (document) => replaceLayer(document, id, (layer) => ({ ...layer, locked: !layer.locked })) })
+    },
+
+    renameLayer: (id, name) => {
+      const trimmed = name.trim() || 'Layer'
+      commitEdit({
+        apply: (document) => replaceLayer(document, id, (layer) => ({ ...layer, name: trimmed })),
+        gesture: 'defer',
+      })
+    },
+
+    updateFilters: (id, patch) => {
+      const defaultFilters: ImageFilters = { brightness: 0, contrast: 0, saturation: 0, grayscale: 0 }
+      commitEdit({
+        apply: (document) => replaceLayer(document, id, (layer) => {
+          if (layer.kind !== 'image') return layer
+          const current = layer.filters ?? defaultFilters
+          return { ...layer, filters: { ...current, ...patch } }
+        }),
+        gesture: 'defer',
+      })
+    },
+
+    resetFilters: (id) => {
+      commitEdit({
+        apply: (document) => replaceLayer(document, id, (layer) => (layer.kind === 'image' ? { ...layer, filters: undefined } : layer)),
+      })
+    },
+
+    updateOutline: (id, patch) => {
+      const defaultOutline: LayerOutline = { enabled: true, color: '#ffffff', width: 12 }
+      commitEdit({
+        apply: (document) => replaceLayer(document, id, (layer) => {
+          if (layer.kind !== 'image') return layer
+          const current = layer.outline ?? defaultOutline
+          return { ...layer, outline: { ...current, ...patch } }
+        }),
+        gesture: 'defer',
+      })
+    },
+
+    applyMask: (layerId, maskKey, maskBlob) => {
+      const state = get()
+      const layer = state.document?.layers.find((item) => item.id === layerId)
+      if (!state.document || layer?.kind !== 'image' || layer.locked || layer.maskKey === maskKey || !maskKey || maskBlob.size === 0) return
+      commitEdit({
+        apply: (document) => replaceLayer(document, layerId, (item) => (item.kind === 'image' ? { ...item, maskKey } : item)),
+        mask: { key: maskKey, blob: maskBlob },
+      })
+    },
+
+    clearMask: (layerId) => {
+      const state = get()
+      const layer = state.document?.layers.find((item) => item.id === layerId)
+      if (!state.document || layer?.kind !== 'image' || layer.locked || !layer.maskKey) return
+      commitEdit({
+        apply: (document) => replaceLayer(document, layerId, (item) => (item.kind === 'image' ? { ...item, maskKey: undefined } : item)),
+        result: { uploadError: null },
+      })
+    },
+
+    undo: () => {
+      const state = get()
+      if (state.finishMaskStroke || state.gestureActive || !state.document || state.past.length === 0) return
+      const previous = state.past[state.past.length - 1]!
+      const document = touch({ ...previous, revision: state.document.revision })
+      const past = state.past.slice(0, -1)
+      const future = [...state.future, cloneDocument(state.document)]
+      set({
+        document,
+        past,
+        future,
+        assets: assetsFor(state.assets, [document, ...past, ...future]),
+        masks: masksFor(state.masks, [document, ...past, ...future]),
+        selectedLayerId: previous.layers.some((layer) => layer.id === state.selectedLayerId) ? state.selectedLayerId : null,
+        dirty: true,
+        saveStatus: 'unsaved',
+      })
+    },
+
+    redo: () => {
+      const state = get()
+      if (state.finishMaskStroke || state.gestureActive || !state.document || state.future.length === 0) return
+      const next = state.future[state.future.length - 1]!
+      const document = touch({ ...next, revision: state.document.revision })
+      const future = state.future.slice(0, -1)
+      const past = [...state.past, cloneDocument(state.document)]
+      set({
+        document,
+        future,
+        past,
+        assets: assetsFor(state.assets, [document, ...past, ...future]),
+        masks: masksFor(state.masks, [document, ...past, ...future]),
+        selectedLayerId: next.layers.some((layer) => layer.id === state.selectedLayerId) ? state.selectedLayerId : null,
+        dirty: true,
+        saveStatus: 'unsaved',
+      })
+    },
+
+    setSaveStatus: (status, error = null) => set({ saveStatus: status, saveError: error }),
+
+    markSaved: (revision) => {
+      const state = get()
+      if (!state.document || state.document.revision !== revision) {
+        set({ saveStatus: state.dirty ? 'unsaved' : state.saveStatus })
+        return
+      }
+      set({ dirty: false, saveStatus: 'saved-locally', saveError: null })
+    },
+
+    reset: () => set({ ...resetState(), workspaceEpoch: get().workspaceEpoch + 1 }),
+  }
+})
 
 export function resetEditorStore(): void {
   useEditorStore.getState().reset()
