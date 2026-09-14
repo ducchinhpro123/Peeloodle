@@ -16,10 +16,7 @@ import { TemplateRail } from '@/features/templates/TemplateRail'
 import { getFavoriteTemplateIds, templateData } from '@/features/templates/templates'
 import type { PackRecord, ProjectDocument } from '@/types/domain'
 import type { StickerLabRepository } from '@/lib/persistence/repository'
-
-const packViews = ['All Packs', 'My Packs', 'Favorites', 'Shared with Me', 'Export History'] as const
-type PackView = typeof packViews[number]
-type PackSort = 'recent' | 'name'
+import { buildPackRecord, duplicatePackRecord, PACK_VIEWS, packViewFromParams, packViewParams, reorderProjectInPack, setProjectInPack, visiblePacks, type PackSort } from './packActions'
 
 function PackArtwork({
   pack,
@@ -128,47 +125,22 @@ export function PacksPage() {
     }
   }
 
-  const viewParam = params.get('view')
-  const view: PackView =
-    viewParam === 'mine'
-      ? 'My Packs'
-      : viewParam === 'favorites'
-      ? 'Favorites'
-      : viewParam === 'shared'
-      ? 'Shared with Me'
-      : viewParam === 'export-history'
-      ? 'Export History'
-      : 'All Packs'
-  const selectView = (next: PackView) => {
-    if (next === 'My Packs') setParams({ view: 'mine' })
-    else if (next === 'Favorites') setParams({ view: 'favorites' })
-    else if (next === 'Shared with Me') setParams({ view: 'shared' })
-    else if (next === 'Export History') setParams({ view: 'export-history' })
-    else setParams({})
-  }
+  const view = packViewFromParams(params)
+  const selectView = (next: typeof PACK_VIEWS[number]) => setParams(packViewParams(next))
 
-  const normalizedPackQuery = packQuery.trim().toLocaleLowerCase()
-  const visiblePacks = packs
-    .filter((pack) => !normalizedPackQuery || `${pack.title} ${pack.description}`.toLocaleLowerCase().includes(normalizedPackQuery))
-    .slice()
-    .sort((left, right) => packSort === 'name'
-      ? left.title.localeCompare(right.title, undefined, { sensitivity: 'base' })
-      : right.updatedAt.localeCompare(left.updatedAt))
-  const selectedPack = detailClosed ? null : visiblePacks.find((pack) => pack.id === selectedPackId) || visiblePacks[0] || null
+  const visible = visiblePacks(packs, packQuery, packSort)
+  const selectedPack = detailClosed ? null : visible.find((pack) => pack.id === selectedPackId) || visible[0] || null
   const projectById = new Map(projects.map((project) => [project.id, project]))
 
   const handleCreatePack = async () => {
-    const trimmed = newTitle.trim()
-    if (!trimmed) return
-    const newPack: PackRecord = {
-      id: editingPack?.id ?? crypto.randomUUID(),
-      title: trimmed,
-      description: newDesc.trim(),
-      visibility: editingPack?.visibility ?? 'local',
-      projectIds: editingPack?.projectIds ?? [],
-      createdAt: editingPack?.createdAt ?? new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
+    const newPack = buildPackRecord({
+      existing: editingPack,
+      title: newTitle,
+      description: newDesc,
+      id: crypto.randomUUID(),
+      now: new Date().toISOString(),
+    })
+    if (!newPack) return
     await repo.savePack(newPack)
     setNewTitle('')
     setNewDesc('')
@@ -177,13 +149,7 @@ export function PacksPage() {
   }
 
   const handleDuplicatePack = async (pack: PackRecord) => {
-    const dup: PackRecord = {
-      ...pack,
-      id: crypto.randomUUID(),
-      title: `${pack.title} Copy`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
+    const dup = duplicatePackRecord(pack, { id: crypto.randomUUID(), now: new Date().toISOString() })
     await repo.savePack(dup)
     setSelectedPackId(dup.id)
   }
@@ -197,29 +163,13 @@ export function PacksPage() {
 
   const handleToggleStickerInPack = async (projectId: string) => {
     if (!selectedPack) return
-    const projectIds = selectedPack.projectIds.includes(projectId)
-      ? selectedPack.projectIds.filter((id) => id !== projectId)
-      : [...selectedPack.projectIds, projectId]
-    const updated: PackRecord = {
-      ...selectedPack,
-      projectIds,
-      updatedAt: new Date().toISOString(),
-    }
-    await repo.savePack(updated)
+    await repo.savePack(setProjectInPack(selectedPack, projectId, new Date().toISOString()))
   }
 
   const handleReorderStickerInPack = async (index: number, direction: 'up' | 'down') => {
     if (!selectedPack) return
-    const ids = [...selectedPack.projectIds]
-    const target = direction === 'up' ? index - 1 : index + 1
-    if (target < 0 || target >= ids.length) return
-    const [item] = ids.splice(index, 1)
-    ids.splice(target, 0, item!)
-    const updated: PackRecord = {
-      ...selectedPack,
-      projectIds: ids,
-      updatedAt: new Date().toISOString(),
-    }
+    const updated = reorderProjectInPack(selectedPack, index, direction, new Date().toISOString())
+    if (!updated) return
     await repo.savePack(updated)
   }
 
@@ -264,7 +214,7 @@ export function PacksPage() {
       {error ? <p role="alert">{error}</p> : null}
       <section className="packs-controls" aria-label="Pack library controls">
         <div className="pills">
-          {packViews.map((item) => (
+          {PACK_VIEWS.map((item) => (
             <button aria-pressed={view === item} onClick={() => selectView(item)} key={item}>
               {item}
             </button>
@@ -321,7 +271,7 @@ export function PacksPage() {
             <Plus size={16} />Create a Pack
           </Button>
         </section>
-      ) : visiblePacks.length === 0 ? (
+      ) : visible.length === 0 ? (
         <section className="empty packs-empty packs-no-results">
           <span className="packs-empty-art"><Search size={38} /><i>?</i><b>✦</b></span>
           <p className="packs-empty-kicker">That title is playing hide-and-seek</p>
@@ -337,10 +287,10 @@ export function PacksPage() {
                 <p>YOUR COLLECTION SHELF</p>
                 <h2 id="pack-library-title">{view === 'Favorites' ? 'Your packs' : view}</h2>
               </div>
-              <span>{visiblePacks.length} {visiblePacks.length === 1 ? 'pack' : 'packs'}</span>
+              <span>{visible.length} {visible.length === 1 ? 'pack' : 'packs'}</span>
             </div>
             <div className="pack-grid">
-              {visiblePacks.map((pack, index) => (
+              {visible.map((pack, index) => (
                 <button
                   type="button"
                   key={pack.id}
@@ -364,7 +314,7 @@ export function PacksPage() {
           {selectedPack ? (
             <aside className="pack-detail" aria-label={`${selectedPack.title} pack details`}>
               <button type="button" className="pack-detail-close" aria-label="Close pack details" onClick={() => setDetailClosed(true)}><X size={16} aria-hidden="true" /></button>
-              <PackArtwork pack={selectedPack} projectById={projectById} repo={repo} tone={visiblePacks.indexOf(selectedPack)} large />
+              <PackArtwork pack={selectedPack} projectById={projectById} repo={repo} tone={visible.indexOf(selectedPack)} large />
               <div className="pack-detail-heading">
                 <div>
                   <p>SELECTED PACK</p>
