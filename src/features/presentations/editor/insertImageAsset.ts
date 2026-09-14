@@ -14,7 +14,7 @@
  * the store holds until a save persists it.
  */
 
-import { blobToArrayBuffer } from '@/lib/persistence/idb'
+import { blobToArrayBuffer } from '@/lib/blob'
 import { sha256Hex } from '@/lib/hash'
 import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
 import { UploadValidationError, validateUpload, type ValidatedUpload } from '../../assets/validateUpload'

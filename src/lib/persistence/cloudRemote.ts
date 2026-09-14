@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { blobBytes } from '../blob'
+import { sha256Hex } from '../hash'
 import type { Database, Json } from '../../types/database'
 import type { AssetRecord, MaskRecord } from './repository'
 import { parseAsset, parseProjectDocument, parsePackRecord } from './repository'
@@ -16,13 +18,7 @@ export interface CloudRemote {
 }
 
 export async function binaryHash(blob: Blob): Promise<string> {
-  const buffer = typeof blob.arrayBuffer === 'function' ? await blob.arrayBuffer() : await new Promise<ArrayBuffer>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as ArrayBuffer)
-    reader.onerror = () => reject(new Error('Could not read image'))
-    reader.readAsArrayBuffer(blob)
-  })
-  return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buffer)), (byte) => byte.toString(16).padStart(2, '0')).join('')
+  return sha256Hex(await blobBytes(blob))
 }
 
 function parseResource(value: unknown): RemoteResource {

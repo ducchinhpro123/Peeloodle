@@ -1,8 +1,9 @@
 import type { Asset, PackRecord, ProjectDocument } from '../../types/domain'
 import type { CommitResult, RemoteResource, ResourceKind, SyncEntry, SyncValue } from './syncTypes'
 import { parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
-import { blobToArrayBuffer, idbRequest, isArrayBuffer, openStickerLabDatabase, runTransaction, STICKERLAB_DB_NAME, STORE_NAMES } from './idb'
+import { idbRequest, isArrayBuffer, openStickerLabDatabase, runTransaction, STICKERLAB_DB_NAME, STORE_NAMES } from './idb'
 import { byUpdatedAtDescending } from './order'
+import { blobToArrayBuffer } from '../blob'
 
 export { createProjectDocument, isPersistenceError, parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
 export type { PersistenceErrorCode } from './document'
@@ -331,7 +332,7 @@ export class IdbRepository implements StickerLabRepository {
   }
 
   async saveMask(key: string, blob: Blob): Promise<void> {
-    const stored = { key, blob: await blobToArrayBuffer(blob) }
+    const stored = { key, blob: await readAssetBlob(blob) }
     await this.transact([MASKS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(MASKS_STORE).put(stored)))
   }
 
@@ -343,7 +344,7 @@ export class IdbRepository implements StickerLabRepository {
     const clean = serializeProjectDocument(document)
     const storedAssets = await Promise.all(assets.map(toStoredAsset))
     const storedMasks = await Promise.all(
-      masks.map(async (m) => ({ key: m.key, blob: await blobToArrayBuffer(m.blob) })),
+      masks.map(async (m) => ({ key: m.key, blob: await readAssetBlob(m.blob) })),
     )
     await this.transact([PROJECTS_STORE, ASSETS_STORE, MASKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
       const assetStore = tx.objectStore(ASSETS_STORE)
@@ -417,7 +418,7 @@ export class IdbRepository implements StickerLabRepository {
   async cacheRemote(resource: RemoteResource, assets: AssetRecord[] = [], masks: MaskRecord[] = []): Promise<void> {
     const value = resource.kind === 'project' ? serializeProjectDocument(resource.value as ProjectDocument) : parsePackRecord(resource.value)
     const storedAssets = await Promise.all(assets.map(toStoredAsset))
-    const storedMasks = await Promise.all(masks.map(async (mask) => ({ key: mask.key, blob: await blobToArrayBuffer(mask.blob) })))
+    const storedMasks = await Promise.all(masks.map(async (mask) => ({ key: mask.key, blob: await readAssetBlob(mask.blob) })))
     await this.transact([PROJECTS_STORE, PACKS_STORE, ASSETS_STORE, MASKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
       const key = `${resource.kind}:${resource.id}`
       const entry: SyncEntry | undefined = await idbRequest(tx.objectStore(SYNC_STORE).get(key))
@@ -519,7 +520,7 @@ function cloneAssetRecord(record: AssetRecord): AssetRecord {
 
 async function toStoredAsset(record: AssetRecord): Promise<Asset & { blob: ArrayBuffer }> {
   const asset = cloneAssetRecord(record).asset
-  return { ...asset, blob: await blobToArrayBuffer(record.blob) }
+  return { ...asset, blob: await readAssetBlob(record.blob) }
 }
 
 function parseStoredMask(value: unknown): Blob {
@@ -552,6 +553,16 @@ function isArrayBufferValue(value: unknown): value is ArrayBuffer {
 }
 
 /** Reference integrity both adapters must enforce: assets by id, masks by key. */
+/** A failed blob read while storing is an invalid asset, not a generic failure. */
+async function readAssetBlob(blob: Blob): Promise<ArrayBuffer> {
+  try {
+    return await blobToArrayBuffer(blob)
+  } catch (error) {
+    if (error instanceof PersistenceError) throw error
+    throw new PersistenceError('invalid_asset', 'Could not read asset blob')
+  }
+}
+
 function assertProjectReferences(document: ProjectDocument, hasAsset: (id: string) => boolean, hasMask: (key: string) => boolean): void {
   for (const assetId of document.assetIds) {
     if (!hasAsset(assetId)) throw new PersistenceError('missing_asset', `Project ${document.id} references missing asset ${assetId}`)

@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto'
 import { describe, expect, it, vi } from 'vitest'
+import { blobBytes } from '../blob'
 import { ARTBOARD_SIZE, type ImageLayer, type ProjectDocument, type TextLayer } from '../../types/domain'
 import {
   createIdbRepository,
@@ -61,16 +62,6 @@ function projectWith(overrides: Partial<ProjectDocument> = {}): ProjectDocument 
 async function expectCode(promise: Promise<unknown>, code: string) {
   await expect(promise).rejects.toBeInstanceOf(PersistenceError)
   await promise.catch((error: PersistenceError) => expect(error.code).toBe(code))
-}
-
-function readBlobBytes(blob: Blob): Promise<Uint8Array> {
-  if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer().then((buffer) => new Uint8Array(buffer))
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
-    reader.onerror = () => reject(reader.error)
-    reader.readAsArrayBuffer(blob)
-  })
 }
 
 describe('parseProjectDocument', () => {
@@ -173,7 +164,7 @@ describe('MemoryRepository', () => {
     expect(loaded.layers).toHaveLength(2)
     expect(loaded.assetIds).toEqual(['asset-1'])
     expect(loadedAsset.asset).toEqual(asset.asset)
-    expect(await readBlobBytes(loadedAsset.blob)).toEqual(new Uint8Array([9, 8, 7, 6]))
+    expect(await blobBytes(loadedAsset.blob)).toEqual(new Uint8Array([9, 8, 7, 6]))
     expect(await repo.listProjects()).toEqual([loaded])
   })
 
@@ -252,7 +243,7 @@ describe('IdbRepository', () => {
     const loadedAsset = await repo.getAsset('asset-1')
     expect(loaded.title).toBe('Sticker')
     expect(loaded.layers).toHaveLength(2)
-    expect(await readBlobBytes(loadedAsset.blob)).toEqual(new Uint8Array([4, 5, 6, 7]))
+    expect(await blobBytes(loadedAsset.blob)).toEqual(new Uint8Array([4, 5, 6, 7]))
     expect((await repo.listProjects())[0]?.id).toBe('project-1')
   })
 

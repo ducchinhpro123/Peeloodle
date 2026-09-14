@@ -1,3 +1,4 @@
+import { blobBytes } from '@/lib/blob'
 import {
   isAnimatedPng,
   isAnimatedWebp,
@@ -50,7 +51,7 @@ export async function validateUpload(file: File, options: ValidateUploadOptions 
   }
   if (file.size <= 0) throw new UploadValidationError('decode_failed', 'The image file is empty')
 
-  const prefix = await readBlobBytes(file.slice(0, Math.min(file.size, PREFIX_BYTES)))
+  const prefix = await blobBytes(file.slice(0, Math.min(file.size, PREFIX_BYTES)))
   if (isLabeledSvg(file) || looksLikeSvgMarkup(prefix)) {
     throw new UploadValidationError('svg_not_allowed', 'SVG uploads are not supported')
   }
@@ -151,12 +152,3 @@ function isGifFile(file: File, bytes: Uint8Array): boolean {
   return file.type.toLowerCase() === 'image/gif' || file.name.toLowerCase().endsWith('.gif') || isGif(bytes)
 }
 
-function readBlobBytes(blob: Blob): Promise<Uint8Array> {
-  if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer().then((buffer) => new Uint8Array(buffer))
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
-    reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'))
-    reader.readAsArrayBuffer(blob)
-  })
-}

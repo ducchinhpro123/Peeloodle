@@ -1,5 +1,7 @@
 import type { PackRecord, ProjectDocument } from '../../types/domain'
 import { loadProjectBundle, type AssetRecord, type StickerLabRepository } from '../../lib/persistence/repository'
+import { blobBytes } from '@/lib/blob'
+import { crc32 } from '@/lib/imageFormat'
 import { renderDocument } from './renderDocument'
 
 export type ZipFileEntry = {
@@ -7,16 +9,6 @@ export type ZipFileEntry = {
   data: Uint8Array
 }
 
-function crc32(bytes: Uint8Array): number {
-  let c = 0xffffffff
-  for (let i = 0; i < bytes.length; i += 1) {
-    c ^= bytes[i]!
-    for (let k = 0; k < 8; k += 1) {
-      c = (c >>> 1) ^ (-(c & 1) & 0xedb88320)
-    }
-  }
-  return (c ^ 0xffffffff) >>> 0
-}
 
 /** Pure-JS ZIP writer without external dependencies (STORE / uncompressed, ideal for PNGs). */
 export function createZipArchive(files: ZipFileEntry[]): Blob {
@@ -94,16 +86,6 @@ export function createZipArchive(files: ZipFileEntry[]): Blob {
   return new Blob(allParts, { type: 'application/zip' })
 }
 
-export function readBlobBytes(blob: Blob): Promise<Uint8Array> {
-  if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer().then((buf) => new Uint8Array(buf))
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
-    reader.onerror = () => reject(reader.error ?? new Error('Failed to read blob'))
-    reader.readAsArrayBuffer(blob)
-  })
-}
-
 export type ExportPackZipOptions = {
   renderSticker?: (
     project: ProjectDocument,
@@ -133,7 +115,7 @@ export async function exportPackZip(
       const maskMap: Record<string, Blob> = Object.fromEntries(bundle.masks)
 
       const pngBlob = await render(project, assetMap, maskMap)
-      const bytes = await readBlobBytes(pngBlob)
+      const bytes = await blobBytes(pngBlob)
       const safeTitle = project.title.replace(/[^\w.-]+/g, '_').toLowerCase() || 'sticker'
       const filename = `${String(index).padStart(2, '0')}_${safeTitle}.png`
       files.push({ name: filename, data: bytes })

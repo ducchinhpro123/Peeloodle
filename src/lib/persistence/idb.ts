@@ -95,16 +95,6 @@ export async function runTransaction<T>(
   }
 }
 
-export function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
-  if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer()
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as ArrayBuffer)
-    reader.onerror = () => reject(reader.error ?? new PersistenceError('invalid_asset', 'Could not read asset blob'))
-    reader.readAsArrayBuffer(blob)
-  })
-}
-
 export function arrayBufferToBytes(value: unknown): Uint8Array | undefined {
   if (isArrayBuffer(value) && value.byteLength > 0) return new Uint8Array(value.slice(0))
   if (ArrayBuffer.isView(value) && value.byteLength > 0) {

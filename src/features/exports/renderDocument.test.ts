@@ -1,21 +1,12 @@
 import { crc32, deflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
+import { blobBytes } from '@/lib/blob'
 import { createProjectDocument } from '../../lib/persistence/repository'
 import type { AssetRecord } from '../../lib/persistence/repository'
 import type { ImageLayer, TextLayer } from '../../types/domain'
 import { ExportError, formatCssFilter, paintText, readPngSize, renderDocument, type CanvasLike } from './renderDocument'
 
 const identity = { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 }
-
-function readBlobBytes(blob: Blob): Promise<Uint8Array> {
-  if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer().then((buffer) => new Uint8Array(buffer))
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
-    reader.onerror = () => reject(reader.error)
-    reader.readAsArrayBuffer(blob)
-  })
-}
 
 function pngChunk(type: string, data: Buffer) {
   const typeBuf = Buffer.from(type)
@@ -170,7 +161,7 @@ describe('renderDocument', () => {
       createCanvas: () => canvas,
       waitForFonts: async () => {},
     })
-    const bytes = await readBlobBytes(blob)
+    const bytes = await blobBytes(blob)
     expect(blob.type).toBe('image/png')
     expect(readPngSize(bytes)).toMatchObject({ width: 512, height: 512, colorType: 6 })
     expect(canvas.pixels[3]).toBe(0)

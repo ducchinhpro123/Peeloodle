@@ -14,7 +14,7 @@ import {
 import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { usePresentationRepository } from '@/app/presentationRepositoryContext'
-import { blobToArrayBuffer } from '@/lib/persistence/idb'
+import { blobToArrayBuffer } from '@/lib/blob'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'

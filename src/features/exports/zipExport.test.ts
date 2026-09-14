@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createMemoryRepository, createProjectDocument } from '../../lib/persistence/repository'
 import type { PackRecord } from '../../types/domain'
-import { createZipArchive, exportPackZip, readBlobBytes } from './zipExport'
+import { createZipArchive, exportPackZip } from './zipExport'
+import { blobBytes } from '@/lib/blob'
 
 describe('zipExport', () => {
   it('fails the whole export instead of silently dropping an unavailable sticker', async () => {
@@ -16,7 +17,7 @@ describe('zipExport', () => {
     const repo = createMemoryRepository()
     for (const id of ['first', 'second']) await repo.saveProject(createProjectDocument({ id, title: id }))
     const pack: PackRecord = { id: 'pack', title: 'Pack', description: '', visibility: 'local', projectIds: ['second', 'first'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-    const bytes = await readBlobBytes(await exportPackZip(pack, repo, {
+    const bytes = await blobBytes(await exportPackZip(pack, repo, {
       renderSticker: async (project) => new Blob([project.id], { type: 'image/png' }),
     }))
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
@@ -45,7 +46,7 @@ describe('zipExport', () => {
       { name: '01_sticker.png', data: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) },
     ])
     expect(zipBlob.type).toBe('application/zip')
-    const bytes = await readBlobBytes(zipBlob)
+    const bytes = await blobBytes(zipBlob)
     // Starts with PK zip local header signature 0x04034b50
     expect(bytes[0]).toBe(0x50)
     expect(bytes[1]).toBe(0x4b)
@@ -74,7 +75,7 @@ describe('zipExport', () => {
       renderSticker: async () => mockPng,
     })
     expect(zipBlob.type).toBe('application/zip')
-    const bytes = await readBlobBytes(zipBlob)
+    const bytes = await blobBytes(zipBlob)
     expect(bytes.length).toBeGreaterThan(100)
     expect(bytes[0]).toBe(0x50)
     expect(bytes[1]).toBe(0x4b)
