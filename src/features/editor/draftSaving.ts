@@ -18,7 +18,7 @@ function originOf(state: EditorStore): Origin {
 }
 
 function hasPendingWork(state: EditorStore): boolean {
-  return !!state.document && (state.dirty || state.gestureActive || !!state.finishMaskStroke)
+  return !!state.document && (state.dirty || state.gestureActive || !!state.maskStroke)
 }
 
 /** One coordinator per editor store, surviving route and repository changes. */
@@ -32,19 +32,19 @@ export function createDraftSaving(store: EditorSource = useEditorStore) {
   async function requestSave(repo: StickerLabRepository, automatic = false): Promise<SaveOutcome> {
     const initial = store.getState()
     const origin = originOf(initial)
-    if (!initial.document || (automatic && (!initial.dirty || initial.gestureActive || initial.finishMaskStroke))) {
+    if (!initial.document || (automatic && (!initial.dirty || initial.gestureActive || initial.maskStroke))) {
       return { kind: 'skipped' }
     }
-    if (initial.finishMaskStroke) {
+    if (initial.maskStroke) {
       try {
-        await initial.finishMaskStroke()
+        await initial.commitMaskStroke()
       } catch {
         // The brush owns its recoverable error and unfinished work.
         return { kind: matches(origin) ? 'stroke-pending' : 'superseded' }
       }
     }
     if (!matches(origin)) return { kind: 'superseded' }
-    if (store.getState().finishMaskStroke) return { kind: 'stroke-pending' }
+    if (store.getState().maskStroke) return { kind: 'stroke-pending' }
     if (store.getState().gestureActive) store.getState().commitGesture()
 
     try {
@@ -93,7 +93,7 @@ export function createDraftSaving(store: EditorSource = useEditorStore) {
     if (!matches(origin)) return { kind: 'superseded' }
     const state = store.getState()
     if (!state.document) return { kind: 'ready' }
-    if (state.finishMaskStroke || result?.kind === 'stroke-pending') {
+    if (state.maskStroke || result?.kind === 'stroke-pending') {
       return { kind: 'blocked', projectId: state.document.id, reason: 'stroke-pending' }
     }
     if (state.saveStatus === 'save-failed') {
@@ -111,7 +111,7 @@ export function createDraftSaving(store: EditorSource = useEditorStore) {
     const schedule = () => {
       clearTimeout(timer)
       const state = store.getState()
-      if (!belongsToAttachment() || !state.document || !state.dirty || state.gestureActive || state.finishMaskStroke) return
+      if (!belongsToAttachment() || !state.document || !state.dirty || state.gestureActive || state.maskStroke) return
       const origin = originOf(state)
       timer = setTimeout(() => {
         if (belongsToAttachment() && matches(origin)) void requestSave(repo, true)
@@ -121,7 +121,7 @@ export function createDraftSaving(store: EditorSource = useEditorStore) {
       // Status and view-only changes must not restart a timer or retry a failure.
       if (next.workspaceEpoch !== previous.workspaceEpoch || next.document?.id !== previous.document?.id ||
           next.document?.revision !== previous.document?.revision || next.dirty !== previous.dirty ||
-          next.gestureActive !== previous.gestureActive || !!next.finishMaskStroke !== !!previous.finishMaskStroke) schedule()
+          next.gestureActive !== previous.gestureActive || !!next.maskStroke !== !!previous.maskStroke) schedule()
     })
     schedule()
     return {

@@ -61,10 +61,10 @@ export function editorPathWithIntent(projectId: string, intent: ToolIntent | nul
 
 export function isReusableOpenDocument(
   document: ProjectDocument | null,
-  extras?: { dirty?: boolean; gestureActive?: boolean; finishMaskStroke?: unknown },
+  extras?: { dirty?: boolean; gestureActive?: boolean; maskStroke?: unknown },
 ): boolean {
   if (!document) return false
-  if (extras?.dirty || extras?.gestureActive || extras?.finishMaskStroke) return true
+  if (extras?.dirty || extras?.gestureActive || extras?.maskStroke) return true
   return document.layers.length > 0 || document.revision > 0
 }
 

@@ -171,7 +171,7 @@ function EditorWorkspace({ projectId, intent = null }: { projectId?: string; int
     if (!conflict || !projectId) return
     let live = true
     void (async () => {
-      await useEditorStore.getState().finishMaskStroke?.()
+      await useEditorStore.getState().commitMaskStroke()
       if (!live) return
       const state = useEditorStore.getState()
       if (state.document?.id !== projectId) return
@@ -261,7 +261,7 @@ function EditorChrome({ document, urls, intent }: { document: ProjectDocument; u
   const setInspectorTab = (tab: string) => {
     // Radix can unmount a focused field before its blur handler runs.
     const state = useEditorStore.getState()
-    if (!state.finishMaskStroke) state.commitGesture()
+    if (!state.maskStroke) state.commitGesture()
     updateInspectorTab(tab)
   }
   const [assetTab, setAssetTab] = useState(intent === 'text' ? 'stickers' : 'uploads')
@@ -301,7 +301,7 @@ function EditorChrome({ document, urls, intent }: { document: ProjectDocument; u
   const saveStatus = useEditorStore((state) => state.saveStatus)
   const saveError = useEditorStore((state) => state.saveError)
   const dirty = useEditorStore((state) => state.dirty)
-  const maskBusy = useEditorStore((state) => !!state.finishMaskStroke)
+  const maskBusy = useEditorStore((state) => !!state.maskStroke)
   const uploadError = useEditorStore((state) => state.uploadError)
   const selectedLayerId = useEditorStore((state) => state.selectedLayerId)
   const activeTool = useEditorStore((state) => state.activeTool)
@@ -1275,7 +1275,7 @@ function ExportDialog({
     setBusy(true)
     setMessage('Exporting…')
     try {
-      await useEditorStore.getState().finishMaskStroke?.()
+      await useEditorStore.getState().commitMaskStroke()
       const state = useEditorStore.getState()
       if (state.document?.id !== document.id) throw new Error('The open project changed. Reopen export to continue.')
       const blob = await renderDocument(state.document, state.assets, { size, masks: state.masks, bounds: 'artwork' })
@@ -1378,7 +1378,7 @@ async function ingestIntoCurrentProject(load: () => Promise<AssetRecord>, name?:
     const record = await load()
     if (stale()) return
     if (replaceLayerId) {
-      await useEditorStore.getState().finishMaskStroke?.()
+      await useEditorStore.getState().commitMaskStroke()
       const state = useEditorStore.getState()
       if (stale()) return
       if (state.gestureActive) { state.setUploadError('Finish the current edit, then try replacing the photo again.'); return }

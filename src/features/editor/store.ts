@@ -3,6 +3,7 @@ import { createProjectDocument, serializeProjectDocument } from '../../lib/persi
 import type { AssetRecord, MaskRecord } from '../../lib/persistence/repository'
 import type { ImageFilters, Layer, LayerOutline, ProjectDocument, TextLayer, Transform } from '../../types/domain'
 import { fitImageToArtboard } from '../assets/assetLoader'
+import type { MaskStroke } from './maskStroke'
 
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved-locally' | 'save-failed'
 export type EditorTool = 'select' | 'pan' | 'text' | 'rotate' | 'erase' | 'restore'
@@ -19,7 +20,8 @@ export type EditorStore = {
   assets: Record<string, AssetRecord>
   masks: Record<string, Blob>
   brushSize: number
-  finishMaskStroke: (() => Promise<void>) | null
+  /** The mask stroke in progress, if any; its commit is awaited before reads. */
+  maskStroke: MaskStroke | null
   selectedLayerId: string | null
   viewport: Viewport
   past: ProjectDocument[]
@@ -44,6 +46,11 @@ export type EditorStore = {
   setUploadError: (message: string | null) => void
   beginGesture: () => void
   commitGesture: () => void
+  beginMaskStroke: (stroke: MaskStroke) => void
+  /** Commits the registered stroke (no-op when none); a rejection keeps it registered. */
+  commitMaskStroke: () => Promise<void>
+  /** Forgets the registered stroke without committing. */
+  abandonMaskStroke: () => void
   addImageLayer: (record: AssetRecord, name?: string) => void
   replaceImageLayer: (id: string, record: AssetRecord) => void
   addTextLayer: (style?: Partial<TextStyle>) => void
@@ -138,7 +145,7 @@ function resetState(): Pick<
   | 'assets'
   | 'masks'
   | 'brushSize'
-  | 'finishMaskStroke'
+  | 'maskStroke'
   | 'selectedLayerId'
   | 'viewport'
   | 'past'
@@ -158,7 +165,7 @@ function resetState(): Pick<
     assets: {},
     masks: {},
     brushSize: 30,
-    finishMaskStroke: null,
+    maskStroke: null,
     selectedLayerId: null,
     viewport: { ...defaultViewport },
     past: [],
@@ -280,7 +287,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
 
     selectLayer: (id) => {
       const state = get()
-      if (id !== state.selectedLayerId && !state.finishMaskStroke) state.commitGesture()
+      if (id !== state.selectedLayerId && !state.maskStroke) state.commitGesture()
       set({ selectedLayerId: id })
     },
 
@@ -306,6 +313,18 @@ export const useEditorStore = create<EditorStore>((set, get) => {
       const state = get()
       if (!state.document || state.gestureActive) return
       set({ gestureActive: true, gestureStart: cloneDocument(state.document) })
+    },
+
+    beginMaskStroke: (stroke) => set({ maskStroke: stroke }),
+
+    commitMaskStroke: async () => {
+      const stroke = get().maskStroke
+      if (!stroke) return
+      await stroke.commit()
+    },
+
+    abandonMaskStroke: () => {
+      if (get().maskStroke) set({ maskStroke: null })
     },
 
     commitGesture: () => {
@@ -594,7 +613,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
 
     undo: () => {
       const state = get()
-      if (state.finishMaskStroke || state.gestureActive || !state.document || state.past.length === 0) return
+      if (state.maskStroke || state.gestureActive || !state.document || state.past.length === 0) return
       const previous = state.past[state.past.length - 1]!
       const document = touch({ ...previous, revision: state.document.revision })
       const past = state.past.slice(0, -1)
@@ -613,7 +632,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
 
     redo: () => {
       const state = get()
-      if (state.finishMaskStroke || state.gestureActive || !state.document || state.future.length === 0) return
+      if (state.maskStroke || state.gestureActive || !state.document || state.future.length === 0) return
       const next = state.future[state.future.length - 1]!
       const document = touch({ ...next, revision: state.document.revision })
       const future = state.future.slice(0, -1)

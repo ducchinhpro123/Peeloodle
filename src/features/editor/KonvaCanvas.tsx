@@ -50,7 +50,7 @@ function useCanvasNavigation(hostRef: RefObject<HTMLDivElement>, nodeRefs: Mutab
       }
       const state = useEditorStore.getState()
       if (state.gestureActive) state.commitGesture()
-      void state.finishMaskStroke?.().catch(() => undefined)
+      void state.commitMaskStroke().catch(() => undefined)
     }
     const spaceBlocked = (target: EventTarget | null) =>
       editingTextIdRef.current !== null || isEditableNavTarget(target) || isDialogOpen()
@@ -164,7 +164,7 @@ export default function KonvaCanvas({ urls }: { urls: Record<string, string> }) 
     const host = hostRef.current
     if (!host) return
     const update = () => {
-      void useEditorStore.getState().finishMaskStroke?.().catch(() => undefined)
+      void useEditorStore.getState().commitMaskStroke().catch(() => undefined)
       setSize({ width: host.clientWidth, height: host.clientHeight })
     }
     update()

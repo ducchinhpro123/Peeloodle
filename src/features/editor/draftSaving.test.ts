@@ -120,10 +120,10 @@ describe('draft saving', () => {
     const layerId = state().selectedLayerId!
     const gate = deferred()
     const mask = new Blob(['mask'], { type: 'image/png' })
-    useEditorStore.setState({ finishMaskStroke: async () => {
+    useEditorStore.getState().beginMaskStroke({ layerId, commit: async () => {
       await gate.promise
       state().applyMask(layerId, 'mask-a', mask)
-      useEditorStore.setState({ finishMaskStroke: null })
+      useEditorStore.getState().abandonMaskStroke()
     } })
     const result = saving.flush(repo)
     expect(await repo.listProjects()).toEqual([])
@@ -136,7 +136,7 @@ describe('draft saving', () => {
 
   it.each(['project', 'workspace'] as const)('does not capture a replacement %s after delayed stroke completion', async (replacement) => {
     const gate = deferred()
-    useEditorStore.setState({ finishMaskStroke: () => gate.promise })
+    useEditorStore.getState().beginMaskStroke({ layerId: 'layer', commit: () => gate.promise })
     const result = saving.flush(repo)
     if (replacement === 'workspace') resetEditorStore()
     state().createDraft(replacement === 'workspace' ? 'draft-a' : 'draft-b')
@@ -148,10 +148,12 @@ describe('draft saving', () => {
   })
 
   it('preserves a rejected stroke and its recoverable error', async () => {
-    const finish = async () => { throw new Error('Encoding failed') }
-    useEditorStore.setState({ finishMaskStroke: finish, uploadError: 'Encoding failed' })
+    const stroke = { layerId: 'layer', commit: async () => { throw new Error('Encoding failed') } }
+    useEditorStore.getState().beginMaskStroke(stroke)
+    useEditorStore.setState({ uploadError: 'Encoding failed' })
     expect(await saving.flush(repo)).toEqual({ kind: 'blocked', projectId: 'draft-a', reason: 'stroke-pending' })
-    expect(state()).toMatchObject({ finishMaskStroke: finish, uploadError: 'Encoding failed' })
+    expect(state().maskStroke).toBe(stroke)
+    expect(state().uploadError).toBe('Encoding failed')
     expect(await repo.listProjects()).toEqual([])
   })
 
@@ -281,10 +283,10 @@ describe('autosave attachment', () => {
     await vi.advanceTimersByTimeAsync(1000)
     expect(await repo.listProjects()).toEqual([])
     state().commitGesture()
-    useEditorStore.setState({ finishMaskStroke: async () => {} })
+    useEditorStore.getState().beginMaskStroke({ layerId: 'layer', commit: async () => {} })
     await vi.advanceTimersByTimeAsync(1000)
     expect(await repo.listProjects()).toEqual([])
-    useEditorStore.setState({ finishMaskStroke: null })
+    useEditorStore.getState().abandonMaskStroke()
     await vi.advanceTimersByTimeAsync(800)
     expect((await repo.getProject('draft-a')).title).toBe('Gesture')
   })

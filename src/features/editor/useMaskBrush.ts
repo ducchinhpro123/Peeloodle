@@ -2,6 +2,7 @@ import { useEffect, useRef, type PointerEvent, type RefObject } from 'react'
 import type { ImageLayer } from '../../types/domain'
 import { canvasToPngBlob, getBrushRadiiInImage, getStageMetrics, screenToImageLocal } from './maskUtils'
 import { createMaskPainter, loadMaskCanvas } from './maskPainter'
+import type { MaskStroke } from './maskStroke'
 import { useEditorStore } from './store'
 
 export type MaskPreviewCallbacks = Map<string, (canvas: HTMLCanvasElement | null) => void>
@@ -33,7 +34,7 @@ export function useMaskBrush(hostRef: RefObject<HTMLDivElement>, previews: RefOb
 
   function pointerDown(event: PointerEvent<HTMLDivElement>) {
     const state = useEditorStore.getState()
-    if (active.current || state.finishMaskStroke || state.gestureActive || event.button !== 0 ||
+    if (active.current || state.maskStroke || state.gestureActive || event.button !== 0 ||
         (state.activeTool !== 'erase' && state.activeTool !== 'restore')) return
     const host = hostRef.current
     const doc = state.document
@@ -70,11 +71,14 @@ export function useMaskBrush(hostRef: RefObject<HTMLDivElement>, previews: RefOb
     const queued: LocalPoint[] = [first]
     let pending: Promise<void> | null = null
     let failureMessage: string | null = null
+    // Registered with the store as soon as painting starts; its commit is what
+    // saves, exports and tool switches await.
+    const session: MaskStroke = { layerId: layer.id, commit: () => finish() }
 
     const isCurrent = () => {
       const current = useEditorStore.getState()
       const target = current.document?.layers.find((item) => item.id === layer.id)
-      return current.finishMaskStroke === finish && current.document?.id === doc.id && target?.kind === 'image' &&
+      return current.maskStroke === session && current.document?.id === doc.id && target?.kind === 'image' &&
         target.maskKey === layer.maskKey && target.visible && !target.locked
     }
     const preview = () => {
@@ -103,7 +107,7 @@ export function useMaskBrush(hostRef: RefObject<HTMLDivElement>, previews: RefOb
       if (frame.current !== null) { cancelAnimationFrame(frame.current); frame.current = null }
       previews.current?.get(layer.id)?.(null)
       if (active.current?.finish === finish) active.current = null
-      if (useEditorStore.getState().finishMaskStroke === finish) useEditorStore.setState({ finishMaskStroke: null })
+      if (useEditorStore.getState().maskStroke === session) useEditorStore.getState().abandonMaskStroke()
       if (host.hasPointerCapture(event.pointerId)) host.releasePointerCapture(event.pointerId)
     }
     const finish = (): Promise<void> => {
@@ -142,7 +146,7 @@ export function useMaskBrush(hostRef: RefObject<HTMLDivElement>, previews: RefOb
         if (phase === 'drawing' && next.pointerId === event.pointerId) paintPoint(point(next))
       },
     }
-    useEditorStore.setState({ finishMaskStroke: finish })
+    useEditorStore.getState().beginMaskStroke(session)
   }
 
   function pointerMove(event: PointerEvent<HTMLDivElement>) {

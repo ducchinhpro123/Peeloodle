@@ -51,7 +51,7 @@ async function stroke(page: Page, u: number, v: number) {
     const path = '/src/features/editor/store.ts'
     const { useEditorStore } = await import(path)
     const state = useEditorStore.getState()
-    return !state.gestureActive && !state.finishMaskStroke
+    return !state.gestureActive && !state.maskStroke
   })).toBe(true)
 }
 
@@ -202,7 +202,7 @@ for (const destination of ['/editor/other-mask-project', '/create']) test(`navig
     const path = '/src/features/editor/store.ts'
     const { useEditorStore } = await import(path)
     const s = useEditorStore.getState()
-    return { id: s.document.id, layers: s.document.layers.length, pending: !!s.finishMaskStroke }
+    return { id: s.document.id, layers: s.document.layers.length, pending: !!s.maskStroke }
   })
   expect(next.layers).toBe(0)
   expect(next.pending).toBe(false)
@@ -242,7 +242,7 @@ test('pointer cancellation commits accepted movement without gaps and ignores an
   expect(await page.evaluate(async () => {
     const path = '/src/features/editor/store.ts'
     const { useEditorStore } = await import(path)
-    return !!useEditorStore.getState().finishMaskStroke
+    return !!useEditorStore.getState().maskStroke
   })).toBe(true)
   await host.dispatchEvent('pointercancel', { ...pointer, clientX: end.x, clientY: end.y })
   await expect(page.getByRole('button', { name: 'Reset Mask' })).toBeVisible()

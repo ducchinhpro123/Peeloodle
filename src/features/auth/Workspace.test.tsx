@@ -71,7 +71,7 @@ it('keeps the workspace locked and draft intact on failure, then permits retry',
 it('rejects the account-facing flush if its originating workspace was superseded', async () => {
   let finish!: () => void
   const stroke = new Promise<void>((resolve) => { finish = resolve })
-  useEditorStore.setState({ finishMaskStroke: () => stroke })
+  useEditorStore.getState().beginMaskStroke({ layerId: 'layer', commit: () => stroke })
   const result = flushWorkspace(repo)
   const rejected = expect(result).rejects.toThrow(/could not save the current draft/i)
   resetEditorStore()
