@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
-import { useRepository } from '../app/repository'
-import { useCloudStatus } from '../features/auth/Workspace'
-import { templateData } from '../features/templates/templates'
-import type { PackRecord } from '../types/domain'
-import { Button } from './ui/button'
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from './ui/dialog'
+import { useRepository } from '@/app/repository'
+import { useCloudStatus } from '@/features/auth/Workspace'
+import { templateData } from '@/features/templates/templates'
+import type { PackRecord } from '@/types/domain'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { matchPacks, matchTemplates, packSearchHref, templateSearchHref } from './searchLibrary'
 
 export function GlobalSearch() {
   const repo = useRepository()
@@ -36,9 +37,8 @@ export function GlobalSearch() {
     })
     return () => { live = false }
   }, [open, repo, cloudStatus.version])
-  const needle = query.trim().toLowerCase()
-  const templates = templateData.filter((item) => `${item.title} ${item.category} ${item.tags.join(' ')}`.toLowerCase().includes(needle))
-  const matches = (packs ?? []).filter((item) => `${item.title} ${item.description}`.toLowerCase().includes(needle))
+  const templates = matchTemplates(templateData, query)
+  const matches = matchPacks(packs ?? [], query)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button className="search search-button" aria-label="Search templates and packs"><Search size={16} /><span>Search templates and packs...</span></Button></DialogTrigger>
@@ -50,13 +50,13 @@ export function GlobalSearch() {
         <p className="muted" role="status">{packs === null ? 'Loading saved packs…' : `${templates.length + matches.length} ${templates.length + matches.length === 1 ? 'result' : 'results'}`}</p>
         {templates.length + matches.length === 0 && packs !== null ? <p>No matches. Try another name or category.</p> : null}
         {templates.length > 0 ? <section className="global-search-results"><h3>Templates</h3>{templates.map((item) => (
-          <DialogClose asChild key={item.id}><Link to={`/templates?q=${encodeURIComponent(item.title)}`} className="global-search-result">
+          <DialogClose asChild key={item.id}><Link to={templateSearchHref(item.title)} className="global-search-result">
             {item.previewImage ? <img src={item.previewImage} alt="" loading="lazy" /> : <Search size={20} />}
             <span><strong>{item.title}</strong><small>{item.category} · Template</small></span>
           </Link></DialogClose>
         ))}</section> : null}
         {matches.length > 0 ? <section className="global-search-results"><h3>Your packs</h3>{matches.map((item) => (
-          <DialogClose asChild key={item.id}><Link to={`/my-stickers?pack=${encodeURIComponent(item.id)}`} className="global-search-result"><span><strong>{item.title}</strong><small>{item.projectIds.length} stickers · Pack</small></span></Link></DialogClose>
+          <DialogClose asChild key={item.id}><Link to={packSearchHref(item.id)} className="global-search-result"><span><strong>{item.title}</strong><small>{item.projectIds.length} stickers · Pack</small></span></Link></DialogClose>
         ))}</section> : null}
       </DialogContent>
     </Dialog>

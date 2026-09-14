@@ -1,24 +1,15 @@
-import { Bell, ChevronRight, Heart, Home, ImagePlus, LayoutGrid, Menu, Plus, Presentation as PresentationIcon, Scissors, Sparkles, Type, Upload, UserRound } from 'lucide-react'
+import { Bell, ChevronRight, Menu, Scissors, Sparkles, Type, Upload } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { NoticeDialog } from '@/components/ui/notice-dialog'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Account, CloudBanner } from '@/features/auth/Account'
-import { GlobalSearch } from '@/components/GlobalSearch'
+import { GlobalSearch } from '@/features/search/GlobalSearch'
 import { isUnmodifiedPrimaryClick, parseToolIntent, requestToolIntent, shouldReuseCurrentToolRoute, toolIntentHref, type ToolIntent } from '@/features/editor/toolIntent'
+import { primaryNavigation, sidebarNavigation } from './navigation'
 import { preloadEditor } from './routeModules'
 import type { ReactNode } from 'react'
-
-const getView = (search: string) => new URLSearchParams(search).get('view')
-
-const topNavigation = [
-  { to: '/', label: 'Home', active: (pathname: string, search: string) => pathname === '/' && !getView(search) },
-  { to: '/create', label: 'Create', active: (pathname: string) => pathname === '/create' || pathname.startsWith('/editor/') },
-  { to: '/templates', label: 'Templates', active: (pathname: string, search: string) => pathname === '/templates' && getView(search) !== 'explore' },
-  { to: '/my-stickers', label: 'My Stickers', active: (pathname: string, search: string) => pathname === '/my-stickers' && getView(search) !== 'favorites' },
-  { to: '/templates?view=explore', label: 'Explore', active: (pathname: string, search: string) => pathname === '/templates' && getView(search) === 'explore' },
-]
 
 function Header() {
   const { pathname, search } = useLocation()
@@ -37,7 +28,7 @@ function Header() {
       </Sheet>
       <Link to="/" className="brand"><img src="/art/logo-wordmark.webp" width={500} height={224} alt="StickerLab" /></Link>
       <nav className="topnav" aria-label="Primary navigation">
-        {topNavigation.map((item) => (
+        {primaryNavigation.map((item) => (
           <Link key={item.label} to={item.to} className={item.active(pathname, search) ? 'active' : undefined} aria-current={item.active(pathname, search) ? 'page' : undefined} onMouseEnter={item.to === '/create' ? preloadEditor : undefined} onFocus={item.to === '/create' ? preloadEditor : undefined}>{item.label}</Link>
         ))}
       </nav>
@@ -59,27 +50,17 @@ const sidebarTools: Array<{ label: string; icon: typeof Scissors; intent: ToolIn
 
 function Sidebar({ mobile = false }: { mobile?: boolean }) {
   const { pathname, search } = useLocation()
-  const isFavorites = pathname === '/my-stickers' && getView(search) === 'favorites'
-  const isShared = pathname === '/my-stickers' && getView(search) === 'shared'
   const currentIntent = parseToolIntent(new URLSearchParams(search).get('tool'))
-  const items = [
-    { to: '/', label: 'Dashboard', icon: Home, active: pathname === '/' },
-    { to: '/create', label: 'Create Sticker', icon: Plus, active: pathname === '/create' || pathname.startsWith('/editor/') },
-    { to: '/my-stickers', label: 'My Stickers', icon: ImagePlus, active: pathname === '/my-stickers' && !isFavorites && !isShared },
-    { to: '/presentations', label: 'Presentations', icon: PresentationIcon, active: pathname.startsWith('/presentations') },
-    { to: '/templates', label: 'Templates', icon: LayoutGrid, active: pathname === '/templates' },
-    { to: '/my-stickers?view=favorites', label: 'Favorites', icon: Heart, active: isFavorites },
-    { to: '/my-stickers?view=shared', label: 'Shared with Me', icon: UserRound, active: isShared },
-  ]
 
-  const itemLink = ({ to, label, icon: Icon, active }: typeof items[number]) => {
-    const link = <Link className={active ? 'active' : undefined} to={to} onMouseEnter={to === '/create' ? preloadEditor : undefined} onFocus={to === '/create' ? preloadEditor : undefined}><Icon size={18} />{label}</Link>
+  const itemLink = ({ to, label, icon: Icon, active }: typeof sidebarNavigation[number]) => {
+    const isActive = active(pathname, search)
+    const link = <Link className={isActive ? 'active' : undefined} to={to} onMouseEnter={to === '/create' ? preloadEditor : undefined} onFocus={to === '/create' ? preloadEditor : undefined}>{Icon ? <Icon size={18} /> : null}{label}</Link>
     return mobile ? <SheetClose asChild key={label}>{link}</SheetClose> : <span key={label}>{link}</span>
   }
 
   return (
     <aside className="sidebar">
-      <div className="side-links">{items.map(itemLink)}</div>
+      <div className="side-links">{sidebarNavigation.map(itemLink)}</div>
       <div className="side-tools">
         <small>TOOLS</small>
         {sidebarTools.map(({ label, icon: Icon, intent }) => {
