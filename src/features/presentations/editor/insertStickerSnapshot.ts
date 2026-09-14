@@ -9,7 +9,7 @@
  */
 
 import { preparePresentationImage, type PreparedPresentationImage } from './insertImageAsset'
-import type { AssetRecord, StickerLabRepository } from '@/lib/persistence/repository'
+import { loadProjectBundle, type AssetRecord, type StickerLabRepository } from '@/lib/persistence/repository'
 import type { ProjectDocument } from '@/types/domain'
 
 export type StickerSnapshotRenderer = (
@@ -32,24 +32,7 @@ export async function prepareStickerSnapshot(
   render: StickerSnapshotRenderer = renderStickerArtwork,
 ): Promise<PreparedPresentationImage> {
   const document = await repository.getProject(projectId)
-
-  // Distinct assets and masks first, so each is fetched once, and all fetches run
-  // concurrently: a sticker with several layers should wait for one round trip.
-  const assetIds = new Set<string>()
-  const maskKeys = new Set<string>()
-  for (const layer of document.layers) {
-    if (layer.kind !== 'image') continue
-    assetIds.add(layer.assetId)
-    if (layer.maskKey) maskKeys.add(layer.maskKey)
-  }
-
-  const [assetEntries, maskEntries] = await Promise.all([
-    Promise.all([...assetIds].map(async (id) => [id, await repository.getAsset(id)] as const)),
-    Promise.all([...maskKeys].map(async (key) => [key, await repository.getMask(key)] as const)),
-  ])
-  const assets = new Map(assetEntries)
-  const masks = new Map(maskEntries)
-
+  const { assets, masks } = await loadProjectBundle(repository, document)
   const blob = await render(document, assets, masks)
   const name = `${(document.title || 'Sticker').trim().slice(0, 60)}.png`
   return preparePresentationImage(new File([blob], name, { type: 'image/png' }))

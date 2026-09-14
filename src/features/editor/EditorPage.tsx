@@ -8,12 +8,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle, Di
 import { NoticeDialog } from '@/components/ui/notice-dialog'
 import { Slider } from '@/components/ui/slider'
 import { Tabs } from '@/components/ui/tabs'
-import { isPersistenceError, type AssetRecord } from '../../lib/persistence/repository'
+import { isPersistenceError, loadProjectBundle, type AssetRecord } from '../../lib/persistence/repository'
 import { ingestImageFile, ingestBundledImage, AssetObjectUrlCache } from '../assets/assetLoader'
 import { UploadValidationError } from '../assets/validateUpload'
 import { downloadBlob } from '../exports/download'
 import { renderDocument, type ExportSize } from '../exports/renderDocument'
-import type { ImageLayer, Layer, ProjectDocument } from '../../types/domain'
+import type { Layer, ProjectDocument } from '../../types/domain'
 import { saveStatusLabel, useEditorStore, type TextStyle } from './store'
 import { draftSaving } from './draftSaving'
 import { useDraftAutosave } from './useDraftAutosave'
@@ -208,15 +208,13 @@ function EditorWorkspace({ projectId, intent = null }: { projectId?: string; int
       useEditorStore.getState().setLoading(true)
       try {
         const loaded = await repo.getProject(projectId)
-        const records = await Promise.all(loaded.assetIds.map((id) => repo.getAsset(id)))
-        const maskKeys = loaded.layers
-          .filter((l): l is ImageLayer => l.kind === 'image' && !!l.maskKey)
-          .map((l) => l.maskKey!)
-        const masks = await Promise.all(
-          maskKeys.map(async (key) => ({ key, blob: await repo.getMask(key) })),
-        )
+        const bundle = await loadProjectBundle(repo, loaded)
         if (cancelled) return
-        useEditorStore.getState().hydrate(loaded, records, masks)
+        useEditorStore.getState().hydrate(
+          loaded,
+          [...bundle.assets.values()],
+          [...bundle.masks].map(([key, blob]) => ({ key, blob })),
+        )
       } catch (error) {
         if (cancelled) return
         const message = isPersistenceError(error)

@@ -1,10 +1,11 @@
 import 'fake-indexeddb/auto'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ARTBOARD_SIZE, type ImageLayer, type ProjectDocument, type TextLayer } from '../../types/domain'
 import {
   createIdbRepository,
   createMemoryRepository,
   createProjectDocument,
+  loadProjectBundle,
   parseProjectDocument,
   PersistenceError,
   type AssetRecord,
@@ -123,6 +124,35 @@ describe('parseProjectDocument', () => {
     expect(() => parseProjectDocument(projectWith({ layers: [imageLayer('missing-asset')], assetIds: [] }))).toThrowError(
       /not in assetIds/,
     )
+  })
+})
+
+describe('loadProjectBundle', () => {
+  it('fetches each referenced asset and mask once, keyed for rendering', async () => {
+    const repository = createMemoryRepository()
+    const asset = pngRecord('asset-a')
+    const mask = new Blob(['mask'], { type: 'image/png' })
+    const document = projectWith({
+      layers: [imageLayer('asset-a', 'one'), { ...imageLayer('asset-a', 'two'), maskKey: 'mask-a' }],
+      assetIds: ['asset-a'],
+    })
+    await repository.saveProjectWithAssets(document, [asset], [{ key: 'mask-a', blob: mask }])
+
+    const getAsset = vi.spyOn(repository, 'getAsset')
+    const getMask = vi.spyOn(repository, 'getMask')
+    const bundle = await loadProjectBundle(repository, document)
+
+    expect([...bundle.assets.keys()]).toEqual(['asset-a'])
+    expect([...bundle.masks.keys()]).toEqual(['mask-a'])
+    expect(getAsset).toHaveBeenCalledTimes(1)
+    expect(getMask).toHaveBeenCalledTimes(1)
+  })
+
+  it('fails with the adapter not_found code when referenced artwork is missing', async () => {
+    const repository = createMemoryRepository()
+    const document = projectWith({ layers: [imageLayer('asset-gone')], assetIds: ['asset-gone'] })
+
+    await expect(loadProjectBundle(repository, document)).rejects.toMatchObject({ code: 'not_found' })
   })
 })
 

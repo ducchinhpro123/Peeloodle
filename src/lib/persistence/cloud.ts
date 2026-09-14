@@ -1,5 +1,5 @@
 import type { PackRecord, ProjectDocument } from '../../types/domain'
-import { IdbRepository, type AssetRecord, type MaskRecord, type StickerLabRepository } from './repository'
+import { IdbRepository, loadProjectBundle, type AssetRecord, type MaskRecord, type StickerLabRepository } from './repository'
 import type { CloudRemote } from './cloudRemote'
 import { binaryHash } from './cloudRemote'
 import type { RemoteResource, SyncEntry } from './syncTypes'
@@ -10,11 +10,12 @@ function errorText(error: unknown) {
   return String(error)
 }
 
-async function loadBinaries(source: StickerLabRepository, document: ProjectDocument) {
-  const assets = await Promise.all(document.assetIds.map((id) => source.getAsset(id)))
-  const keys = [...new Set(document.layers.flatMap((layer) => (layer.kind === 'image' && layer.maskKey ? [layer.maskKey] : [])))]
-  const masks = await Promise.all(keys.map(async (key) => ({ key, blob: await source.getMask(key) })))
-  return { assets, masks }
+/** The bundle in the array shape the remote client takes. */
+function bundleArrays(bundle: Awaited<ReturnType<typeof loadProjectBundle>>): { assets: AssetRecord[]; masks: MaskRecord[] } {
+  return {
+    assets: [...bundle.assets.values()],
+    masks: [...bundle.masks].map(([key, blob]) => ({ key, blob })),
+  }
 }
 
 export type CloudStatus = { state: 'pending' | 'syncing' | 'synced' | 'error'; pending: number; error: string | null; notices: string[]; version: number; conflicts: Record<string, { id: string; revision: number }> }
@@ -172,7 +173,7 @@ export class CloudRepository extends IdbRepository {
   }
   private async records(entry: SyncEntry) {
     const document = entry.kind === 'project' ? entry.pending[0].value as ProjectDocument | null : null
-    return document ? loadBinaries(this, document) : { assets: [], masks: [] }
+    return document ? bundleArrays(await loadProjectBundle(this, document)) : { assets: [], masks: [] }
   }
 
   async refresh(): Promise<void> {
@@ -216,7 +217,7 @@ export class CloudRepository extends IdbRepository {
       if (!this.active) throw new Error('Import paused because the workspace changed. Sign in to the same account to resume.')
       const id = mapping.get(project.id)!
       if (!(await this.listSyncEntries()).some((entry) => entry.key === `project:${id}`)) {
-        const { assets, masks } = await loadBinaries(guest, project)
+        const { assets, masks } = bundleArrays(await loadProjectBundle(guest, project))
         if (!this.active) throw new Error('Import paused; guest originals were kept.')
         await this.saveProjectWithAssets({ ...project, id }, assets, masks)
       }

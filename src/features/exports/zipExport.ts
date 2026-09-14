@@ -1,5 +1,5 @@
 import type { PackRecord, ProjectDocument } from '../../types/domain'
-import type { AssetRecord, StickerLabRepository } from '../../lib/persistence/repository'
+import { loadProjectBundle, type AssetRecord, type StickerLabRepository } from '../../lib/persistence/repository'
 import { renderDocument } from './renderDocument'
 
 export type ZipFileEntry = {
@@ -128,18 +128,9 @@ export async function exportPackZip(
   for (const projectId of pack.projectIds) {
     try {
       const project = await repo.getProject(projectId)
-      const records = await Promise.all(project.assetIds.map((id) => repo.getAsset(id)))
-      const assetMap: Record<string, AssetRecord> = {}
-      for (const r of records) assetMap[r.asset.id] = r
-
-      const maskKeys = project.layers
-        .filter((l): l is import('../../types/domain').ImageLayer => l.kind === 'image' && !!l.maskKey)
-        .map((l) => l.maskKey!)
-      const maskBlobs = await Promise.all(maskKeys.map((k) => repo.getMask(k)))
-      const maskMap: Record<string, Blob> = {}
-      maskKeys.forEach((k, i) => {
-        if (maskBlobs[i]) maskMap[k] = maskBlobs[i]!
-      })
+      const bundle = await loadProjectBundle(repo, project)
+      const assetMap: Record<string, AssetRecord> = Object.fromEntries(bundle.assets)
+      const maskMap: Record<string, Blob> = Object.fromEntries(bundle.masks)
 
       const pngBlob = await render(project, assetMap, maskMap)
       const bytes = await readBlobBytes(pngBlob)

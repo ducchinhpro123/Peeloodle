@@ -24,6 +24,12 @@ export type MaskRecord = {
   blob: Blob
 }
 
+/** The artwork one project needs, keyed for rendering: assets by id, masks by key. */
+export type ProjectBundle = {
+  assets: Map<string, AssetRecord>
+  masks: Map<string, Blob>
+}
+
 /** Local-first project/asset store. Must not persist object URLs, DOM nodes, or Konva objects. */
 export interface StickerLabRepository {
   getProject(id: string): Promise<ProjectDocument>
@@ -42,6 +48,28 @@ export interface StickerLabRepository {
   getMask(key: string): Promise<Blob>
   saveMask(key: string, blob: Blob): Promise<void>
   deleteMask(key: string): Promise<void>
+}
+
+/**
+ * Loads every asset and mask a document references, once each and concurrently.
+ * The id set is the union of the document's own `assetIds` and its layers, so a
+ * row written by an older command cannot leave artwork unfetched, and missing
+ * references reject with the adapter's `PersistenceError` — one failure policy
+ * for the editor, exports, thumbnails, cloud upload and sticker snapshots.
+ */
+export async function loadProjectBundle(repository: StickerLabRepository, document: ProjectDocument): Promise<ProjectBundle> {
+  const assetIds = new Set(document.assetIds)
+  const maskKeys = new Set<string>()
+  for (const layer of document.layers) {
+    if (layer.kind !== 'image') continue
+    assetIds.add(layer.assetId)
+    if (layer.maskKey) maskKeys.add(layer.maskKey)
+  }
+  const [assets, masks] = await Promise.all([
+    Promise.all([...assetIds].map(async (id) => [id, await repository.getAsset(id)] as const)),
+    Promise.all([...maskKeys].map(async (key) => [key, await repository.getMask(key)] as const)),
+  ])
+  return { assets: new Map(assets), masks: new Map(masks) }
 }
 
 export class MemoryRepository implements StickerLabRepository {
