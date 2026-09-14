@@ -8,9 +8,9 @@ import {
   createBackupArchive,
   mediaPathForAsset,
   parseBackupArchive,
-  sha256Hex,
   type BackupMedia,
 } from './backup'
+import { sha256Hex } from '@/lib/hash'
 import { createFixturePresentation, fixtureImagePng } from '../model/fixtures/fixture'
 import { encodeRgbaPng } from '../model/fixtures/png'
 import type { PresentationDocument } from '../model/types'

@@ -13,11 +13,11 @@
  * decoded.
  */
 
-import { decodeImageBitmap } from '@/lib/imageDecode'
 import type { PresentationMediaRecord, PresentationRepository } from '@/lib/persistence/presentations/repository'
+import { decodeArtworkBatch, decodeMediaBitmap, type ArtworkBytes, type DecodeMedia } from '../rendering/decodedArtwork'
 import { ensurePresentationFonts } from '../rendering/fonts'
 import { layoutTextElement, type MeasureText } from '../rendering/textLayout'
-import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
+import type { PresentationImageSources } from '../rendering/renderSlide'
 
 import { measureTextWidth } from '../editor/textMeasure'
 import type { PresentationAsset, PresentationDocument } from '../model/types'
@@ -65,9 +65,7 @@ export type CreateExportSnapshotOptions = {
   /** Layout measure for overflow warnings; defaults to the editor's canvas measure. */
   measure?: MeasureText
   /** Decode hook for tests; defaults to the shared decode policy. */
-  decode?: (record: PresentationMediaRecord) => Promise<ImageBitmap>
-  /** The owning text session's flush; commits on-screen text before capture. */
-  flushText?: () => void
+  decode?: (record: ArtworkBytes) => Promise<ImageBitmap>
 }
 
 /** The assets the slides actually draw, in document order, de-duplicated. */
@@ -149,26 +147,19 @@ export async function createExportSnapshot(
 
   await (options.ensureFonts ?? ensurePresentationFonts)()
 
-  const decode = options.decode ?? ((record: PresentationMediaRecord) => decodeImageBitmap(new Blob([record.bytes], { type: record.mimeType })))
-  const decoded = await Promise.allSettled(resolved.map(async (entry) => ({
-    assetId: entry.asset.id,
-    bitmap: await decode(entry.record),
-  })))
-
-  const failure = decoded.find((result) => result.status === 'rejected')
-  if (failure) {
-    for (const result of decoded) {
-      if (result.status === 'fulfilled') result.value.bitmap.close()
-    }
+  // The batch closes every fulfilled bitmap before rethrowing, so a decode
+  // failure never strands the artwork that did decode.
+  const decode: DecodeMedia = options.decode
+    ? async (record) => {
+        const bitmap = await options.decode!(record)
+        return { source: bitmap, dispose: () => bitmap.close() }
+      }
+    : decodeMediaBitmap
+  let artwork
+  try {
+    artwork = await decodeArtworkBatch(resolved.map((entry) => entry.record), decode)
+  } catch {
     throw new PresentationPreflightError('decode-failed', 'Some artwork could not be decoded, so the presentation cannot be exported. Replace the unreadable image or restore it from a backup.')
-  }
-
-  const images = new Map<string, PresentationImageSource>()
-  const disposers: Array<() => void> = []
-  for (const result of decoded) {
-    if (result.status !== 'fulfilled') continue
-    images.set(result.value.assetId, result.value.bitmap)
-    disposers.push(() => result.value.bitmap.close())
   }
 
   const media = new Map(resolved.map((entry) => [entry.asset.id, entry.record]))
@@ -176,12 +167,10 @@ export async function createExportSnapshot(
   return {
     document,
     revision: document.revision,
-    images,
+    images: artwork.images,
     media,
     warnings: collectExportWarnings(document, options.measure),
-    dispose() {
-      for (const dispose of disposers.splice(0)) dispose()
-    },
+    dispose: artwork.dispose,
   }
 }
 

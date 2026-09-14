@@ -15,11 +15,9 @@
  */
 
 import { blobToArrayBuffer } from '@/lib/persistence/idb'
+import { sha256Hex } from '@/lib/hash'
 import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
 import { UploadValidationError, validateUpload, type ValidatedUpload } from '../../assets/validateUpload'
-// The presentation feature already has one tested SHA-256 implementation (used for
-// backup checksums). Reusing it keeps a single spelling of "hash these bytes".
-import { sha256Hex } from '../exports/backup'
 import type { PresentationAsset } from '../model/types'
 
 export type PreparedPresentationImage = {

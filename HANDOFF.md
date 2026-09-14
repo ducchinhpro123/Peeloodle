@@ -115,9 +115,10 @@ otherwise serve the shared tree through HMR module URLs.
 | Leaving the editor | `editor/useLeaveBlock.ts` (router-level `useBlocker`: links, programmatic `navigate()` and Back/Forward all save before they proceed); `beforeunload` stays in `usePresentationSave` |
 | Revision rules | `lib/persistence/presentations/revision.ts` (`assertRevisionWritable`) — both adapters must call it; never re-implement the checks in one adapter only |
 | Page rendering | `rendering/renderSlide.ts` + `editor/PresentationCanvas.tsx`; stage transforms are view-only |
+| Decoded artwork | `rendering/decodedArtwork.ts`: `createDecodedArtwork` (incremental, keyed, replaces and closes a repeated asset id) and `decodeArtworkBatch` (all-or-nothing, closes fulfilled bitmaps on failure), shared by the editor, library thumbnails and the export snapshot; `lib/hash.ts` owns `sha256Hex` for assets and backups |
 | Canvas view controls | `editor/PresentationCanvasControls.tsx` + `editor/viewGeometry.ts` (shared 0.25–4 clamp) |
 | Current routes | `library/PresentationsPage.tsx` and `editor/PresentationEditorPage.tsx` |
-| Exports | `exports/snapshot.ts` (synchronous capture + preflight), `rendering/rasterizeSlide.ts` (shared fixed-page raster), `exports/pdf.ts` / `exports/pptx.ts` / `exports/backup.ts` (builders), `editor/usePresentationExport.ts` + `editor/ExportDialog.tsx` (lazy loading, progress, cancel, cleanup); restore lives in `library/restoreBackup.ts` |
+| Exports | `exports/snapshot.ts` (preflight; the caller captures the document after flushing text and passes it in), `rendering/rasterizeSlide.ts` (shared fixed-page raster), `exports/pdf.ts` / `exports/pptx.ts` / `exports/backup.ts` (builders), `editor/usePresentationExport.ts` + `editor/ExportDialog.tsx` (lazy loading, progress, cancel, cleanup); restore lives in `library/restoreBackup.ts` |
 
 ## Guardrails
 

@@ -20,11 +20,11 @@
  */
 
 import type { PresentationRepository } from '@/lib/persistence/presentations/repository'
-import { decodeImageBitmap } from '@/lib/imageDecode'
 import { rasterizeSlidePage } from '../rendering/rasterizeSlide'
+import { decodeArtworkBatch } from '../rendering/decodedArtwork'
 import type { PresentationDocument, Slide } from '../model/types'
 import { ensurePresentationFonts } from '../rendering/fonts'
-import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
+import type { PresentationImageSources } from '../rendering/renderSlide'
 
 /** 16:9, 0.375 of a 1280×720 page: sharp at two device pixels per card pixel. */
 export const PRESENTATION_THUMBNAIL_WIDTH = 480
@@ -154,47 +154,13 @@ export async function rasterizeSlideThumbnail(
   return { url: raster.dataUrl }
 }
 
-type DecodedArtwork = {
-  images: PresentationImageSources
-  dispose(): void
-}
-
 /** Decodes only the artwork the first slide draws, and owns its disposal. */
-async function decodeSlideArtwork(repository: PresentationRepository, slide: Slide): Promise<DecodedArtwork> {
+async function decodeSlideArtwork(repository: PresentationRepository, slide: Slide) {
   const assetIds = new Set(
     slide.elements.flatMap((element) => (element.kind === 'image' && element.visible ? [element.assetId] : [])),
   )
-  const images = new Map<string, PresentationImageSource>()
-  const disposers: Array<() => void> = []
-
-  // Fetch and decode the slide's artwork concurrently; allSettled keeps every
-  // bitmap reachable for disposal when one image fails.
-  const settled = await Promise.allSettled([...assetIds].map(async (assetId) => {
-    const record = await repository.getMedia(assetId)
-    const bitmap = await decodeImageBitmap(new Blob([record.bytes], { type: record.mimeType }))
-    return { assetId, bitmap }
-  }))
-
-  const failure = settled.find((result) => result.status === 'rejected')
-  if (failure) {
-    for (const result of settled) {
-      if (result.status === 'fulfilled') result.value.bitmap.close()
-    }
-    throw failure.reason
-  }
-
-  for (const result of settled) {
-    if (result.status !== 'fulfilled') continue
-    images.set(result.value.assetId, result.value.bitmap)
-    disposers.push(() => result.value.bitmap.close())
-  }
-
-  return {
-    images,
-    dispose() {
-      for (const dispose of disposers.splice(0)) dispose()
-    },
-  }
+  const records = await Promise.all([...assetIds].map((assetId) => repository.getMedia(assetId)))
+  return decodeArtworkBatch(records)
 }
 
 let rendersInFlight = 0

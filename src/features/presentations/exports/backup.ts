@@ -10,6 +10,7 @@
  */
 
 import { unzipSync, zipSync } from 'fflate'
+import { sha256Hex, type HashFn } from '../../../lib/hash'
 import { inspectImageBytes } from '../../../lib/imageFormat'
 import { decodeImageBitmap } from '../../../lib/imageDecode'
 import type { PresentationAsset, PresentationDocument } from '../model/types'
@@ -76,15 +77,6 @@ export type BackupManifest = {
 }
 
 export type BackupMedia = Map<string, Uint8Array>
-
-export type HashFn = (bytes: Uint8Array) => Promise<string>
-
-export const sha256Hex: HashFn = async (bytes) => {
-  const subtle = globalThis.crypto?.subtle
-  if (!subtle) throw new BackupError('malformed_manifest', 'SHA-256 is unavailable in this environment')
-  const digest = await subtle.digest('SHA-256', bytes as unknown as BufferSource)
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
-}
 
 const DOCUMENT_PATH = 'document.json'
 const MANIFEST_PATH = 'manifest.json'

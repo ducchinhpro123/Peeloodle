@@ -7,13 +7,13 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } 
 import { useOptionalRepository } from '@/app/repository'
 import { usePresentationRepository } from '@/app/presentationRepositoryContext'
 import { isPersistenceError } from '@/lib/persistence/repository'
-import { decodeImageBitmap } from '@/lib/imageDecode'
 import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
 import { isPresentationParseError } from '../model/parse'
 import { createTextElement } from '../model/factories'
 import type { PresentationDocument } from '../model/types'
 import { ensurePresentationFonts } from '../rendering/fonts'
-import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
+import { createDecodedArtwork, type DecodedArtwork } from '../rendering/decodedArtwork'
+import type { PresentationImageSources } from '../rendering/renderSlide'
 import { PresentationCanvasControls } from './PresentationCanvasControls'
 import { ElementLayerList } from './ElementLayerList'
 import { ElementGeometryInspector } from './ElementGeometryInspector'
@@ -43,70 +43,11 @@ type LoadState =
   | { status: 'unsupported' }
   | { status: 'error'; message: string }
 
-type DecodedSource = {
-  source: PresentationImageSource
-  dispose(): void
-}
-
 /** One decode path for stored and just-inserted media; the caller owns disposal. */
-async function decodeImageSource(blob: Blob): Promise<DecodedSource> {
-  if (typeof createImageBitmap === 'function') {
-    // The shared helper applies the same EXIF orientation policy as every other
-    // decode site, so a rotated phone JPEG cannot draw with swapped axes against
-    // the asset width/height that fitImageWithinSlide already used.
-    const bitmap = await decodeImageBitmap(blob)
-    return { source: bitmap, dispose: () => bitmap.close() }
-  }
-
-  const url = URL.createObjectURL(blob)
-  try {
-    const image = new Image()
-    image.src = url
-    await image.decode()
-    return { source: image, dispose: () => URL.revokeObjectURL(url) }
-  } catch (error) {
-    URL.revokeObjectURL(url)
-    throw error
-  }
-}
-
-type DecodedMedia = {
-  images: Map<string, PresentationImageSource>
-  /** Decodes media held for a new asset so it can never render without artwork. */
-  add(records: PresentationMediaRecord[]): Promise<void>
-  dispose(): void
-}
-
-async function decodeMedia(records: PresentationMediaRecord[]): Promise<DecodedMedia> {
-  const images = new Map<string, PresentationImageSource>()
-  const disposers = new Map<string, () => void>()
-
-  const decodeInto = async (record: PresentationMediaRecord) => {
-    const decoded = await decodeImageSource(new Blob([record.bytes], { type: record.mimeType }))
-    // Keyed by asset id so the decoded source for the SAME id can be released
-    // immediately: an image inserted again under an existing asset id would
-    // otherwise keep its previous bitmap (or object URL) alive until close.
-    disposers.get(record.assetId)?.()
-    disposers.set(record.assetId, decoded.dispose)
-    images.set(record.assetId, decoded.source)
-  }
-
-  try {
-    for (const record of records) await decodeInto(record)
-  } catch (error) {
-    for (const dispose of disposers.values()) dispose()
-    throw error
-  }
-
-  return {
-    images,
-    async add(next) {
-      for (const record of next) await decodeInto(record)
-    },
-    dispose() {
-      for (const dispose of disposers.values()) dispose()
-    },
-  }
+async function decodeMedia(records: PresentationMediaRecord[]): Promise<DecodedArtwork> {
+  const decoded = createDecodedArtwork()
+  await decoded.add(records)
+  return decoded
 }
 
 /**
@@ -142,7 +83,7 @@ export function PresentationEditorPage() {
   const [recovering, setRecovering] = useState(false)
   const [editorNote, setEditorNote] = useState<string | null>(null)
   const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null)
-  const mediaRef = useRef<DecodedMedia | null>(null)
+  const mediaRef = useRef<DecodedArtwork | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const slideButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const [focusSlideId, setFocusSlideId] = useState<string | null>(null)
@@ -160,7 +101,7 @@ export function PresentationEditorPage() {
 
   useEffect(() => {
     let live = true
-    let decoded: DecodedMedia | undefined
+    let decoded: DecodedArtwork | undefined
     setLoadState({ status: 'loading' })
 
     void (async () => {
