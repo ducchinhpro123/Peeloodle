@@ -9,6 +9,8 @@
  */
 
 import { PersistenceError } from '../document'
+import { assertPresentationMediaWritable } from './mediaPolicy'
+import { byUpdatedAtDescending } from '../order'
 import { assertRevisionWritable } from './revision'
 import { clonePresentationDocumentWithNewIds } from '../../../features/presentations/model/factories'
 import { serializePresentationDocument } from '../../../features/presentations/model/parse'
@@ -67,7 +69,7 @@ export class MemoryPresentationRepository implements PresentationRepository {
         // One unreadable row must not hide the rest of the library.
       }
     }
-    return summaries.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : a.id.localeCompare(b.id)))
+    return summaries.sort(byUpdatedAtDescending)
   }
 
   async getPresentation(id: string): Promise<PresentationDocument> {
@@ -89,39 +91,14 @@ export class MemoryPresentationRepository implements PresentationRepository {
       }
     }
     assertRevisionWritable({ id: clean.id, incomingRevision: clean.revision, storedRevision, baseRevision: options.baseRevision })
+    assertPresentationMediaWritable({
+      documentId: clean.id,
+      assets: clean.assets,
+      submitted: media,
+      stored: [...this.media.values()],
+    })
     const nextMedia = new Map(this.media)
-    for (const record of media) {
-      const asset = clean.assets.find((candidate) => candidate.id === record.assetId)
-      if (!asset) {
-        throw new PersistenceError('invalid_asset', `Media ${record.assetId} is not referenced by presentation ${clean.id}`)
-      }
-      if (asset.mimeType !== record.mimeType) {
-        throw new PersistenceError('invalid_asset', `Media ${record.assetId} type does not match the document asset`)
-      }
-      if (!record.bytes || record.bytes.length === 0) throw new PersistenceError('invalid_asset', `Media for ${record.assetId} is empty`)
-      const existing = nextMedia.get(record.assetId)
-      if (existing) {
-        if (existing.mimeType !== record.mimeType) {
-          // Stored metadata is part of the immutable identity: identical-looking
-          // bytes may not be re-declared as another format.
-          throw new PersistenceError('invalid_asset', `Media ${record.assetId} is already stored as ${existing.mimeType}`)
-        }
-        if (!bytesEqual(existing.bytes, record.bytes)) {
-          // Media is immutable document-local artwork; never let one presentation replace another's bytes.
-          throw new PersistenceError('invalid_asset', `Refusing to replace media ${record.assetId} with different bytes`)
-        }
-      }
-      nextMedia.set(record.assetId, { ...record, bytes: record.bytes.slice() })
-    }
-    for (const asset of clean.assets) {
-      const stored = nextMedia.get(asset.id)
-      if (!stored) throw new PersistenceError('missing_asset', `Presentation ${clean.id} references missing media ${asset.id}`)
-      if (stored.mimeType !== asset.mimeType) {
-        // Even a save that supplies no media must not leave the stored record
-        // describing a different type than the document declares.
-        throw new PersistenceError('invalid_asset', `Stored media ${asset.id} is ${stored.mimeType}, but the document declares ${asset.mimeType}`)
-      }
-    }
+    for (const record of media) nextMedia.set(record.assetId, { ...record, bytes: record.bytes.slice() })
     // Commit together so a failed save leaves the previous document intact.
     this.media = nextMedia
     this.documents.set(clean.id, clean)
@@ -164,12 +141,4 @@ export class MemoryPresentationRepository implements PresentationRepository {
 
 export function createMemoryPresentationRepository(): MemoryPresentationRepository {
   return new MemoryPresentationRepository()
-}
-
-function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false
-  for (let i = 0; i < a.length; i += 1) {
-    if (a[i] !== b[i]) return false
-  }
-  return true
 }

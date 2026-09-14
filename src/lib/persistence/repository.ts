@@ -2,6 +2,7 @@ import type { Asset, PackRecord, ProjectDocument } from '../../types/domain'
 import type { CommitResult, RemoteResource, ResourceKind, SyncEntry, SyncValue } from './syncTypes'
 import { parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
 import { blobToArrayBuffer, idbRequest, isArrayBuffer, openStickerLabDatabase, runTransaction, STICKERLAB_DB_NAME, STORE_NAMES } from './idb'
+import { byUpdatedAtDescending } from './order'
 
 export { createProjectDocument, isPersistenceError, parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
 export type { PersistenceErrorCode } from './document'
@@ -141,16 +142,9 @@ export class MemoryRepository implements StickerLabRepository {
     const clean = serializeProjectDocument(document)
     const nextAssets = new Map(this.assets)
     for (const record of assets) nextAssets.set(record.asset.id, cloneAssetRecord(record))
-    assertAssetsResolvable(clean, (id) => nextAssets.has(id))
     const nextMasks = new Map(this.masks)
     for (const record of masks) nextMasks.set(record.key, record.blob)
-    for (const layer of clean.layers) {
-      if (layer.kind === 'image' && layer.maskKey) {
-        if (!nextMasks.has(layer.maskKey)) {
-          throw new PersistenceError('missing_mask', `Project ${clean.id} references missing mask ${layer.maskKey}`)
-        }
-      }
-    }
+    assertProjectReferences(clean, (id) => nextAssets.has(id), (key) => nextMasks.has(key))
     const nextProjects = new Map(this.projects)
     nextProjects.set(clean.id, clean)
     this.assets = nextAssets
@@ -338,17 +332,23 @@ export class IdbRepository implements StickerLabRepository {
       const maskStore = tx.objectStore(MASKS_STORE)
       for (const stored of storedAssets) await idbRequest(assetStore.put(stored))
       for (const stored of storedMasks) await idbRequest(maskStore.put(stored))
+      // The stored row shape is an adapter concern; reference integrity is shared.
+      const storedAssetIds = new Set<string>()
       for (const assetId of clean.assetIds) {
         const row = await idbRequest<unknown>(assetStore.get(assetId))
-        if (row === undefined) throw new PersistenceError('missing_asset', `Project ${clean.id} references missing asset ${assetId}`)
-        parseStoredAsset(row)
+        if (row !== undefined) {
+          parseStoredAsset(row)
+          storedAssetIds.add(assetId)
+        }
       }
+      const storedMaskKeys = new Set<string>()
       for (const layer of clean.layers) {
         if (layer.kind === 'image' && layer.maskKey) {
           const row = await idbRequest<unknown>(maskStore.get(layer.maskKey))
-          if (row === undefined) throw new PersistenceError('missing_mask', `Project ${clean.id} references missing mask ${layer.maskKey}`)
+          if (row !== undefined) storedMaskKeys.add(layer.maskKey)
         }
       }
+      assertProjectReferences(clean, (id) => storedAssetIds.has(id), (key) => storedMaskKeys.has(key))
       await idbRequest(tx.objectStore(PROJECTS_STORE).put(clean))
       await this.enqueue(tx, 'project', clean.id, clean)
     })
@@ -535,12 +535,18 @@ function isArrayBufferValue(value: unknown): value is ArrayBuffer {
   return isArrayBuffer(value)
 }
 
-function assertAssetsResolvable(document: ProjectDocument, hasAsset: (id: string) => boolean): void {
+/** Reference integrity both adapters must enforce: assets by id, masks by key. */
+function assertProjectReferences(document: ProjectDocument, hasAsset: (id: string) => boolean, hasMask: (key: string) => boolean): void {
   for (const assetId of document.assetIds) {
     if (!hasAsset(assetId)) throw new PersistenceError('missing_asset', `Project ${document.id} references missing asset ${assetId}`)
+  }
+  for (const layer of document.layers) {
+    if (layer.kind === 'image' && layer.maskKey && !hasMask(layer.maskKey)) {
+      throw new PersistenceError('missing_mask', `Project ${document.id} references missing mask ${layer.maskKey}`)
+    }
   }
 }
 
 function sortProjects(documents: ProjectDocument[]): ProjectDocument[] {
-  return documents.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : a.id.localeCompare(b.id)))
+  return documents.sort(byUpdatedAtDescending)
 }

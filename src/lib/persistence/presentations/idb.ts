@@ -12,8 +12,10 @@
  */
 
 import { PersistenceError } from '../document'
+import { assertPresentationMediaWritable } from './mediaPolicy'
+import { byUpdatedAtDescending } from '../order'
 import { assertRevisionWritable } from './revision'
-import { arrayBufferToBytes, bytesEqual, idbRequest, openStickerLabDatabase, runTransaction, STICKERLAB_DB_NAME, STORE_NAMES } from '../idb'
+import { arrayBufferToBytes, idbRequest, openStickerLabDatabase, runTransaction, STICKERLAB_DB_NAME, STORE_NAMES } from '../idb'
 import { clonePresentationDocumentWithNewIds } from '../../../features/presentations/model/factories'
 import { serializePresentationDocument } from '../../../features/presentations/model/parse'
 import type { PresentationAsset, PresentationDocument, PresentationSummary } from '../../../features/presentations/model/types'
@@ -50,7 +52,7 @@ export class IdbPresentationRepository implements PresentationRepository {
         // One unreadable row must not hide the rest of the library.
       }
     }
-    return summaries.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : a.id.localeCompare(b.id)))
+    return summaries.sort(byUpdatedAtDescending)
   }
 
   async getPresentation(id: string): Promise<PresentationDocument> {
@@ -82,34 +84,16 @@ export class IdbPresentationRepository implements PresentationRepository {
         const row = await idbRequest<StoredPresentationMedia | undefined>(mediaStore.get(asset.id))
         if (row) storedMedia.set(asset.id, row)
       }
-
-      for (const record of media) {
-        const asset = clean.assets.find((candidate) => candidate.id === record.assetId)
-        if (!asset) throw new PersistenceError('invalid_asset', `Media ${record.assetId} is not referenced by presentation ${clean.id}`)
-        if (asset.mimeType !== record.mimeType) throw new PersistenceError('invalid_asset', `Media ${record.assetId} type does not match the document asset`)
-        if (!record.bytes || record.bytes.length === 0) throw new PersistenceError('invalid_asset', `Media for ${record.assetId} is empty`)
-        const existing = storedMedia.get(record.assetId)
-        if (existing) {
-          if (existing.mimeType !== record.mimeType) {
-            throw new PersistenceError('invalid_asset', `Media ${record.assetId} is already stored as ${existing.mimeType}`)
-          }
-          const existingBytes = arrayBufferToBytes(existing.bytes)
-          if (!existingBytes || !bytesEqual(existingBytes, record.bytes)) {
-            throw new PersistenceError('invalid_asset', `Refusing to replace media ${record.assetId} with different bytes`)
-          }
-        }
-      }
-
-      const submitted = new Map(media.map((record) => [record.assetId, record]))
-      for (const asset of clean.assets) {
-        const record = submitted.get(asset.id)
-        const stored = storedMedia.get(asset.id)
-        const mimeType = record?.mimeType ?? stored?.mimeType
-        if (!mimeType) throw new PersistenceError('missing_asset', `Presentation ${clean.id} references missing media ${asset.id}`)
-        if (mimeType !== asset.mimeType) {
-          throw new PersistenceError('invalid_asset', `Stored media ${asset.id} is ${mimeType}, but the document declares ${asset.mimeType}`)
-        }
-      }
+      assertPresentationMediaWritable({
+        documentId: clean.id,
+        assets: clean.assets,
+        submitted: media,
+        stored: [...storedMedia.values()].map((row) => ({
+          assetId: row.assetId,
+          mimeType: row.mimeType,
+          bytes: arrayBufferToBytes(row.bytes) ?? null,
+        })),
+      })
 
       for (const record of media) {
         await idbRequest(mediaStore.put(toStoredMedia(record)))
