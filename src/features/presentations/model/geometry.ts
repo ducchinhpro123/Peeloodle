@@ -38,21 +38,3 @@ export function pageSizeInInches(): { width: number; height: number } {
 export function pageSizeInPoints(): { width: number; height: number } {
   return { width: unitsToPoints(PRESENTATION_PAGE_WIDTH), height: unitsToPoints(PRESENTATION_PAGE_HEIGHT) }
 }
-
-export type Rect = { x: number; y: number; width: number; height: number }
-
-/** Element bounds in document units, ordered left→right independently of zoom. */
-export function normalizeRect(rect: Rect): Rect {
-  const x = rect.width < 0 ? rect.x + rect.width : rect.x
-  const y = rect.height < 0 ? rect.y + rect.height : rect.y
-  return { x, y, width: Math.abs(rect.width), height: Math.abs(rect.height) }
-}
-
-export function rectsIntersect(a: Rect, b: Rect): boolean {
-  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
-}
-
-/** Slide order is the array order; this guards against accidental re-sorting. */
-export function slideIdsInOrder(slides: ReadonlyArray<{ id: string }>): string[] {
-  return slides.map((slide) => slide.id)
-}

@@ -3,12 +3,9 @@ import {
   POINTS_PER_INCH,
   UNITS_PER_INCH,
   inchesToUnits,
-  normalizeRect,
   pageSizeInInches,
   pageSizeInPoints,
   pointsToUnits,
-  rectsIntersect,
-  slideIdsInOrder,
   unitsToInches,
   unitsToPoints,
 } from './geometry'
@@ -48,14 +45,4 @@ describe('presentation geometry', () => {
     expect(unitsToPoints(title.paragraphs[0]!.runs[0]!.size)).toBe(54)
   })
 
-  it('preserves slide array order', () => {
-    const doc = createFixturePresentation()
-    expect(slideIdsInOrder(doc.slides)).toEqual(['fixture-slide-1', 'fixture-slide-2'])
-  })
-
-  it('normalizes negative-size rectangles without changing their footprint', () => {
-    expect(normalizeRect({ x: 100, y: 100, width: -40, height: -20 })).toEqual({ x: 60, y: 80, width: 40, height: 20 })
-    expect(rectsIntersect({ x: 0, y: 0, width: 10, height: 10 }, { x: 5, y: 5, width: 10, height: 10 })).toBe(true)
-    expect(rectsIntersect({ x: 0, y: 0, width: 10, height: 10 }, { x: 20, y: 20, width: 5, height: 5 })).toBe(false)
-  })
 })
