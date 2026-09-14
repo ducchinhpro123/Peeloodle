@@ -1,5 +1,16 @@
+/**
+ * Cloud-capable sticker store: an IndexedDB repository plus a remote, with the
+ * revision each writer last read tracked for conflict detection.
+ *
+ * The adapter composes `IdbRepository` rather than extending it: local reads and
+ * writes are delegated, and the sync bookkeeping (pending entries, base
+ * revisions, status) lives here. Which base revision a write carries is injected
+ * into the local adapter's change tracking at construction, so the local store
+ * stays usable on its own and no callback reaches into protected internals.
+ */
+
 import type { PackRecord, ProjectDocument } from '../../types/domain'
-import { IdbRepository, loadProjectBundle, type AssetRecord, type MaskRecord, type StickerLabRepository } from './repository'
+import { IdbRepository, loadProjectBundle, type AssetRecord, type MaskRecord, type RepositorySync, type StickerLabRepository } from './repository'
 import type { CloudRemote } from './cloudRemote'
 import { binaryHash } from './cloudRemote'
 import type { RemoteResource, SyncEntry } from './syncTypes'
@@ -20,7 +31,8 @@ function bundleArrays(bundle: Awaited<ReturnType<typeof loadProjectBundle>>): { 
 
 export type CloudStatus = { state: 'pending' | 'syncing' | 'synced' | 'error'; pending: number; error: string | null; notices: string[]; version: number; conflicts: Record<string, { id: string; revision: number }> }
 
-export class CloudRepository extends IdbRepository {
+export class CloudRepository implements StickerLabRepository {
+  private readonly local: IdbRepository
   private active = true
   private listeners = new Set<() => void>()
   private status: CloudStatus = { state: 'pending', pending: 0, error: null, notices: [], version: 0, conflicts: {} }
@@ -29,14 +41,22 @@ export class CloudRepository extends IdbRepository {
   private importWork: Promise<void> | null = null
   private remoteProjects: RemoteResource[] = []
   private openProjectBases = new Map<string, number>()
-  private projectBases = new WeakMap<ProjectDocument, { revision: number }>()
-  private packBases = new WeakMap<PackRecord, { revision: number }>()
+  /** Base revision per record id, populated by the listing that handed the record out. */
+  private projectBases = new Map<string, number>()
+  private packBases = new Map<string, { revision: number }>()
   private pendingPackBases = new Map<string, Set<{ revision: number }>>()
-  protected override writeBase = (kind: string, id: string) => kind === 'project' ? this.openProjectBases.get(id) : undefined
 
-  constructor(dbName: string, private readonly remote: CloudRemote) { super(dbName, true) }
+  constructor(dbName: string, private readonly remote: CloudRemote) {
+    // A project save usually follows an open (`openProjectBases`); a delete of a
+    // listed but unopened project uses the base recorded by the listing.
+    this.local = new IdbRepository(dbName, true, (kind, id) => kind === 'project'
+      ? this.openProjectBases.get(id) ?? this.projectBases.get(id)
+      : this.packBases.get(id)?.revision)
+  }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener) } }
   getStatus = () => this.status
+  /** The capability callers use after a mutation; local adapters have no `sync`. */
+  readonly sync: RepositorySync = { settle: () => this.settle() }
   dismissConflict(id: string) {
     const conflicts = { ...this.status.conflicts }
     delete conflicts[id]
@@ -49,20 +69,28 @@ export class CloudRepository extends IdbRepository {
     for (const listener of this.listeners) listener()
   }
   private async updateStatus() {
-    const entries = await this.listSyncEntries()
+    const entries = await this.local.listSyncEntries()
     const pending = entries.reduce((sum, entry) => sum + entry.pending.length, 0)
     this.publish({ pending, state: pending ? 'pending' : 'synced', error: null, notices: [...entries.flatMap((entry) => entry.notice ? [entry.notice] : []), ...(this.remote.warnings ?? [])] })
   }
-  private changed() { this.wakeRequested = true; this.publish({ state: 'pending' }); void this.sync() }
-  override async saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[], masks: MaskRecord[] = []) {
-    await super.saveProjectWithAssets(document, assets, masks)
+  private changed() { this.wakeRequested = true; this.publish({ state: 'pending' }); void this.settle() }
+
+  async saveProject(document: ProjectDocument): Promise<void> {
+    await this.saveProjectWithAssets(document, [])
+  }
+  async saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[], masks: MaskRecord[] = []) {
+    await this.local.saveProjectWithAssets(document, assets, masks)
     this.changed()
   }
-  override async listPacks() {
-    const rows = await this.packsWithRevisions()
+  async deleteProject(id: string): Promise<void> {
+    await this.local.deleteProject(id)
+    this.changed()
+  }
+  async listPacks() {
+    const rows = await this.local.packsWithRevisions()
     for (const { pack, baseRevision, pendingIds } of rows) {
       const token = { revision: baseRevision }
-      this.packBases.set(pack, token)
+      this.packBases.set(pack.id, token)
       for (const id of pendingIds) {
         const tokens = this.pendingPackBases.get(id) ?? new Set()
         tokens.add(token)
@@ -71,37 +99,33 @@ export class CloudRepository extends IdbRepository {
     }
     return rows.map(({ pack }) => pack).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   }
-  override async getPack(id: string) {
-    return (await this.listPacks()).find((pack) => pack.id === id) ?? super.getPack(id)
+  async getPack(id: string) {
+    return (await this.listPacks()).find((pack) => pack.id === id) ?? this.local.getPack(id)
   }
-  override async savePack(pack: PackRecord, previous?: PackRecord) {
+  async savePack(pack: PackRecord): Promise<void> {
     const next = { ...pack, visibility: 'private' as const }
     delete next.coverAssetId
-    await this.savePackAtRevision(next, previous ? this.packBases.get(previous)?.revision : undefined)
+    await this.local.savePack(next)
     this.changed()
   }
-  override async deleteProject(id: string, previous?: ProjectDocument) {
-    await this.deleteProjectAtRevision(id, previous ? this.projectBases.get(previous)?.revision : undefined)
-    this.changed()
-  }
-  override async deletePack(id: string, previous?: PackRecord) { await this.deletePackAtRevision(id, previous ? this.packBases.get(previous)?.revision : undefined); this.changed() }
-  override async listProjects() {
-    const local = await super.listProjects()
-    const entries = await this.listSyncEntries()
+  async deletePack(id: string): Promise<void> { await this.local.deletePack(id); this.changed() }
+  async listProjects() {
+    const local = await this.local.listProjects()
+    const entries = await this.local.listSyncEntries()
     const localEntries = new Map(entries.filter((entry) => entry.kind === 'project').map((entry) => [entry.id, entry]))
-    for (const project of local) this.projectBases.set(project, { revision: localEntries.get(project.id)?.baseRevision ?? 0 })
+    for (const project of local) this.projectBases.set(project.id, localEntries.get(project.id)?.baseRevision ?? 0)
     const remote = this.remoteProjects
       .filter((row) => !row.deleted && !localEntries.has(row.id))
       .map((row) => {
         const project = row.value as ProjectDocument
-        this.projectBases.set(project, { revision: row.revision })
+        this.projectBases.set(project.id, row.revision)
         return project
       })
     return [...local, ...remote]
   }
-  override async getProject(id: string) {
+  async getProject(id: string) {
     try {
-      const { document, baseRevision } = await this.projectWithRevision(id)
+      const { document, baseRevision } = await this.local.projectWithRevision(id)
       this.openProjectBases.set(id, baseRevision)
       return document
     } catch (error) {
@@ -110,14 +134,25 @@ export class CloudRepository extends IdbRepository {
       if (!row || !this.active) throw new Error('This sticker is not cached. Connect and use Account → Refresh cloud, then retry.')
       const bundle = await this.remote.download(row)
       if (!this.active) throw new Error('Workspace changed')
-      await this.cacheRemote(row, bundle.assets, bundle.masks)
+      await this.local.cacheRemote(row, bundle.assets, bundle.masks)
       this.openProjectBases.set(id, row.revision)
-      return super.getProject(id)
+      return this.local.getProject(id)
     }
   }
 
+  /** The local sync queue (diagnostics and tests); `getStatus()` summarizes it. */
+  listSyncEntries(): Promise<SyncEntry[]> { return this.local.listSyncEntries() }
+
+  async getAsset(id: string): Promise<AssetRecord> { return this.local.getAsset(id) }
+  async listAssets() { return this.local.listAssets() }
+  async saveAsset(record: AssetRecord): Promise<void> { await this.local.saveAsset(record) }
+  async deleteAsset(id: string): Promise<void> { await this.local.deleteAsset(id) }
+  async getMask(key: string): Promise<Blob> { return this.local.getMask(key) }
+  async saveMask(key: string, blob: Blob): Promise<void> { await this.local.saveMask(key, blob) }
+  async deleteMask(key: string): Promise<void> { await this.local.deleteMask(key) }
+
   /** One foreground drain, no polling or silent infinite retries. Online/account controls retry. */
-  sync(): Promise<void> {
+  settle(): Promise<void> {
     if (this.work) return this.work
     if (!this.active) return Promise.resolve()
     this.work = this.drain().catch((error: unknown) => {
@@ -131,14 +166,14 @@ export class CloudRepository extends IdbRepository {
       })
     }).finally(() => {
       this.work = null
-      if (this.active && this.wakeRequested && this.status.state !== 'error') void this.sync()
+      if (this.active && this.wakeRequested && this.status.state !== 'error') void this.settle()
     })
     return this.work
   }
   private async drain() {
     while (this.active) {
       this.wakeRequested = false
-      const entries = (await this.listSyncEntries()).filter((entry) => entry.pending.length)
+      const entries = (await this.local.listSyncEntries()).filter((entry) => entry.pending.length)
       // Project saves, then packs, then project deletes (membership must be cleared first).
       entries.sort((a, b) => {
         const rank = (entry: typeof a) => (entry.kind === 'project' && entry.pending[0]?.value === null ? 2 : entry.kind === 'pack' ? 1 : 0)
@@ -158,10 +193,10 @@ export class CloudRepository extends IdbRepository {
           const latest = (await this.remote.list(entry.kind)).find((row) => row.id === reportedOriginal.id) ?? reportedOriginal
           const bundle = await this.remote.download(latest)
           result = result.original ? { ...result, original: latest } : { ...result, resource: latest }
-          for (const asset of bundle.assets) await this.saveAsset(asset)
-          for (const mask of bundle.masks) await this.saveMask(mask.key, mask.blob)
+          for (const asset of bundle.assets) await this.local.saveAsset(asset)
+          for (const mask of bundle.masks) await this.local.saveMask(mask.key, mask.blob)
         }
-        await this.acknowledge(entry.key, operation.operationId, result)
+        await this.local.acknowledge(entry.key, operation.operationId, result)
         for (const token of this.pendingPackBases.get(operation.operationId) ?? []) {
           if (!result.conflict) token.revision = result.resource.revision
         }
@@ -173,11 +208,11 @@ export class CloudRepository extends IdbRepository {
   }
   private async records(entry: SyncEntry) {
     const document = entry.kind === 'project' ? entry.pending[0].value as ProjectDocument | null : null
-    return document ? bundleArrays(await loadProjectBundle(this, document)) : { assets: [], masks: [] }
+    return document ? bundleArrays(await loadProjectBundle(this.local, document)) : { assets: [], masks: [] }
   }
 
   async refresh(): Promise<void> {
-    await this.sync()
+    await this.settle()
     if (!this.active) return
     try {
       const [projects, packs] = await Promise.all([this.remote.list('project'), this.remote.list('pack')])
@@ -186,12 +221,12 @@ export class CloudRepository extends IdbRepository {
       const errors: string[] = []
       for (const row of [...projects, ...packs]) {
         if (!this.active) return
-        const local = (await this.listSyncEntries()).find((entry) => entry.kind === row.kind && entry.id === row.id)
+        const local = (await this.local.listSyncEntries()).find((entry) => entry.kind === row.kind && entry.id === row.id)
         if (local?.pending.length || local?.baseRevision === row.revision) continue
         try {
           const bundle = await this.remote.download(row)
           if (!this.active) return
-          await this.cacheRemote(row, bundle.assets, bundle.masks)
+          await this.local.cacheRemote(row, bundle.assets, bundle.masks)
         } catch { errors.push(`“${row.value.title}” could not be downloaded. Reconnect and refresh to retry.`) }
       }
       if (errors.length) throw new Error(errors.join(' '))
@@ -216,7 +251,7 @@ export class CloudRepository extends IdbRepository {
     for (const project of projects) {
       if (!this.active) throw new Error('Import paused because the workspace changed. Sign in to the same account to resume.')
       const id = mapping.get(project.id)!
-      if (!(await this.listSyncEntries()).some((entry) => entry.key === `project:${id}`)) {
+      if (!(await this.local.listSyncEntries()).some((entry) => entry.key === `project:${id}`)) {
         const { assets, masks } = bundleArrays(await loadProjectBundle(guest, project))
         if (!this.active) throw new Error('Import paused; guest originals were kept.')
         await this.saveProjectWithAssets({ ...project, id }, assets, masks)
@@ -226,13 +261,13 @@ export class CloudRepository extends IdbRepository {
     for (const pack of packs) {
       if (!this.active) throw new Error('Import paused; guest originals were kept.')
       const id = await targetId('pack', pack.id)
-      if (!(await this.listSyncEntries()).some((entry) => entry.key === `pack:${id}`)) {
+      if (!(await this.local.listSyncEntries()).some((entry) => entry.key === `pack:${id}`)) {
         if (pack.projectIds.some((projectId) => !mapping.has(projectId))) throw new Error(`Pack “${pack.title}” has missing stickers. Repair the guest pack and retry.`)
         await this.savePack({ ...pack, id, projectIds: pack.projectIds.map((projectId) => mapping.get(projectId)!) })
       }
     }
-    await this.sync()
-    if (!this.active || this.status.state === 'error' || (await this.listSyncEntries()).some((entry) => entry.pending.length)) throw new Error(this.status.error ?? 'Import was copied locally and remains pending. Retry cloud sync in the originating account.')
+    await this.settle()
+    if (!this.active || this.status.state === 'error' || (await this.local.listSyncEntries()).some((entry) => entry.pending.length)) throw new Error(this.status.error ?? 'Import was copied locally and remains pending. Retry cloud sync in the originating account.')
     progress('Import saved to cloud. Guest originals are still on this device.')
   }
 }

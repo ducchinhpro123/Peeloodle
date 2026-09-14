@@ -169,7 +169,7 @@ export function PacksPage() {
       createdAt: editingPack?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
-    await repo.savePack(newPack, editingPack ?? undefined)
+    await repo.savePack(newPack)
     setNewTitle('')
     setNewDesc('')
     setCreateOpen(false)
@@ -189,7 +189,7 @@ export function PacksPage() {
   }
 
   const handleDeletePack = async (packId: string) => {
-    await repo.deletePack(packId, deletePack ?? undefined)
+    await repo.deletePack(packId)
     deleteOpener.current = null
     setDeletePack(null)
     setSelectedPackId(null)
@@ -205,7 +205,7 @@ export function PacksPage() {
       projectIds,
       updatedAt: new Date().toISOString(),
     }
-    await repo.savePack(updated, selectedPack)
+    await repo.savePack(updated)
   }
 
   const handleReorderStickerInPack = async (index: number, direction: 'up' | 'down') => {
@@ -220,7 +220,7 @@ export function PacksPage() {
       projectIds: ids,
       updatedAt: new Date().toISOString(),
     }
-    await repo.savePack(updated, selectedPack)
+    await repo.savePack(updated)
   }
 
   const handleExportZip = async (pack: PackRecord) => {

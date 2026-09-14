@@ -31,12 +31,19 @@ export type ProjectBundle = {
   masks: Map<string, Blob>
 }
 
+/**
+ * A cloud-capable adapter's pending-work handle. Callers await `settle()` after
+ * a mutation when they need the cloud round trip finished; local adapters omit
+ * the capability entirely, so no caller casts to find it.
+ */
+export type RepositorySync = { settle(): Promise<void> }
+
 /** Local-first project/asset store. Must not persist object URLs, DOM nodes, or Konva objects. */
 export interface StickerLabRepository {
   getProject(id: string): Promise<ProjectDocument>
   listProjects(): Promise<ProjectDocument[]>
   saveProject(document: ProjectDocument): Promise<void>
-  deleteProject(id: string, previous?: ProjectDocument): Promise<void>
+  deleteProject(id: string): Promise<void>
   getAsset(id: string): Promise<AssetRecord>
   listAssets(): Promise<Asset[]>
   saveAsset(record: AssetRecord): Promise<void>
@@ -44,11 +51,13 @@ export interface StickerLabRepository {
   saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[], masks?: MaskRecord[]): Promise<void>
   getPack(id: string): Promise<PackRecord>
   listPacks(): Promise<PackRecord[]>
-  savePack(record: PackRecord, previous?: PackRecord): Promise<void>
-  deletePack(id: string, previous?: PackRecord): Promise<void>
+  savePack(record: PackRecord): Promise<void>
+  deletePack(id: string): Promise<void>
   getMask(key: string): Promise<Blob>
   saveMask(key: string, blob: Blob): Promise<void>
   deleteMask(key: string): Promise<void>
+  /** Present only when an adapter has cloud work to drain. */
+  readonly sync?: RepositorySync
 }
 
 /**
@@ -198,7 +207,16 @@ export class MemoryRepository implements StickerLabRepository {
 export class IdbRepository implements StickerLabRepository {
   private openPromise: Promise<IDBDatabase> | undefined
 
-  constructor(private readonly dbName = DEFAULT_DB_NAME, private readonly trackChanges = false) {}
+  /**
+   * `trackChanges` records pending sync entries; `writeBase` answers "which
+   * revision did the writer last read?" for a record, which is a cloud adapter's
+   * concern injected at construction rather than a protected method to override.
+   */
+  constructor(
+    private readonly dbName = DEFAULT_DB_NAME,
+    private readonly trackChanges = false,
+    private readonly writeBase?: (kind: ResourceKind, id: string) => number | undefined,
+  ) {}
 
   async getProject(id: string): Promise<ProjectDocument> {
     const value = await this.transact([PROJECTS_STORE], 'readonly', (tx) => idbRequest<unknown>(tx.objectStore(PROJECTS_STORE).get(id)))
@@ -358,7 +376,7 @@ export class IdbRepository implements StickerLabRepository {
     return this.transact([SYNC_STORE], 'readonly', (tx) => idbRequest(tx.objectStore(SYNC_STORE).getAll()))
   }
 
-  protected async projectWithRevision(id: string): Promise<{ document: ProjectDocument; baseRevision: number }> {
+  async projectWithRevision(id: string): Promise<{ document: ProjectDocument; baseRevision: number }> {
     return this.transact([PROJECTS_STORE, SYNC_STORE], 'readonly', async (tx) => {
       const value: unknown = await idbRequest(tx.objectStore(PROJECTS_STORE).get(id))
       if (value === undefined) throw new PersistenceError('not_found', `Project ${id} was not found`)
@@ -367,7 +385,7 @@ export class IdbRepository implements StickerLabRepository {
     })
   }
 
-  protected async packsWithRevisions(): Promise<Array<{ pack: PackRecord; baseRevision: number; pendingIds: string[] }>> {
+  async packsWithRevisions(): Promise<Array<{ pack: PackRecord; baseRevision: number; pendingIds: string[] }>> {
     return this.transact([PACKS_STORE, SYNC_STORE], 'readonly', async (tx) => {
       const rows: unknown[] = await idbRequest(tx.objectStore(PACKS_STORE).getAll())
       const result: Array<{ pack: PackRecord; baseRevision: number; pendingIds: string[] }> = []
@@ -381,8 +399,6 @@ export class IdbRepository implements StickerLabRepository {
       return result
     })
   }
-
-  protected writeBase?: (kind: ResourceKind, id: string) => number | undefined
 
   private async enqueue(tx: IDBTransaction, kind: ResourceKind, id: string, value: SyncValue | null, baseRevision?: number) {
     if (!this.trackChanges) return
