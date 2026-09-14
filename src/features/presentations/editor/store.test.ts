@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { coverCrop, planImageInsert, planImageReplacement, reconcileHeldMedia, usePresentationStore } from './store'
+import { coverCrop, imageReplaceRefusal, planImageInsert, planImageReplacement, usePresentationStore } from './store'
 import { createPresentationDocument, createShapeElement, createTextElement } from '../model/factories'
 import { PRESENTATION_LIMITS } from '../model/limits'
 import { MIN_ELEMENT_SIZE } from './transformGeometry'
 import type { PreparedPresentationImage } from './insertImageAsset'
-import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
 import type { PresentationAsset, PresentationDocument } from '../model/types'
 
 function reset(document: PresentationDocument = createPresentationDocument({ id: 'doc-1', title: 'Deck', now: '2026-09-10T00:00:00.000Z' })): PresentationDocument {
@@ -521,19 +520,45 @@ describe('presentation image insertion', () => {
     return { asset, media: { assetId: asset.id, bytes: new Uint8Array([137, 80, 78, 71]), mimeType: 'image/png' } }
   }
 
+  /**
+   * Simulates the production persist-first insert: the caller checks, plans, and
+   * writes the plan before adopting it here, so the document is never shown with
+   * bytes that are not stored.
+   */
+  function persistedInsert(image: PreparedPresentationImage, options?: { slideId?: string }): string | null {
+    const document = state().document
+    if (!document || !state().checkImageInsert(image, options).ok) return null
+    const plan = planImageInsert(document, image, { slideId: options?.slideId ?? state().view.activeSlideId })
+    if (!plan) return null
+    state().adoptPersistedInsert(plan, image)
+    return plan.elementId
+  }
+
+  /** The replacement counterpart of `persistedInsert`. */
+  function persistedReplace(elementId: string, image: PreparedPresentationImage): boolean {
+    const document = state().document
+    if (!document || imageReplaceRefusal(document, image, elementId)) return false
+    const plan = planImageReplacement(document, elementId, image)
+    if (!plan) return false
+    state().adoptPersistedReplacement(plan, image)
+    return true
+  }
+
   beforeEach(() => {
     reset()
   })
 
-  it('inserts a stored image as one history entry and keeps its bytes out of the document', () => {
+  it('adopts a persisted image as one history entry, placement, and asset record', () => {
     const prepared = preparedImage()
     const before = state().past.length
 
-    const id = state().insertImage(prepared)
+    const id = persistedInsert(prepared)
 
     expect(id).toBeTruthy()
     expect(state().past).toHaveLength(before + 1)
-    expect(state().dirty).toBe(true)
+    // The plan's revision was written before it was shown, so it is clean.
+    expect(state().dirty).toBe(false)
+    expect(state().savedRevision).toBe(state().document!.revision)
     expect(state().view.selectedElementIds).toEqual([id])
     expect(state().document!.slides[0]!.elements[0]!).toMatchObject({
       kind: 'image',
@@ -547,68 +572,56 @@ describe('presentation image insertion', () => {
       crop: { x: 0, y: 0, width: 1, height: 1 },
     })
     expect(state().document!.assets).toEqual([prepared.asset])
-
-    // The bytes are held for the save and never enter the document JSON.
-    expect(state().pendingMedia).toHaveLength(1)
-    expect(state().pendingMedia[0]!.assetId).toBe(prepared.asset.id)
     expect(JSON.stringify(state().document)).not.toContain('bytes')
   })
 
-  it('removes the inserted element with undo', () => {
-    const id = state().insertImage(preparedImage())!
-    expect(state().mediaForSave()).toHaveLength(1)
+  it('removes the element and asset with undo, and restores both with redo', () => {
+    const prepared = preparedImage()
+    const id = persistedInsert(prepared)!
 
     state().undo()
     expect(state().document!.slides[0]!.elements).toHaveLength(0)
     // Undo restores the pre-insert snapshot, so the asset record goes with it.
     expect(state().document!.assets).toHaveLength(0)
-    // The bytes stay held while redo can still reach them, but a save may only
-    // submit what the document references.
-    expect(state().pendingMedia).toHaveLength(1)
-    expect(state().mediaForSave()).toEqual([])
 
     state().redo()
     expect(state().document!.slides[0]!.elements[0]!.id).toBe(id)
-    expect(state().mediaForSave()).toHaveLength(1)
+    expect(state().document!.assets.map((asset) => asset.id)).toEqual([prepared.asset.id])
   })
 
-  it('releases held bytes once no snapshot can reach them', () => {
-    state().insertImage(preparedImage())
-    state().undo()
-    expect(state().pendingMedia).toHaveLength(1)
+  it('replays a persisted insert on a live document that moved on during the write', () => {
+    const image = preparedImage('7'.repeat(64))
+    const plan = planImageInsert(state().document!, image)!
+    // A command lands while the write is in flight.
+    state().addElement(createShapeElement({ id: 'landed-during-write' }))
+    const liveRevision = state().document!.revision
 
-    // A new command clears redo, so nothing can reference the bytes any more.
-    state().addElement(createShapeElement({ id: 'after-undo' }))
-    expect(state().future).toHaveLength(0)
-    expect(state().pendingMedia).toEqual([])
+    state().adoptPersistedInsert(plan, image)
+
+    // The stored revision becomes the new base and the insert is replayed on the
+    // live document, which therefore still needs a write.
+    expect(state().savedRevision).toBe(plan.document.revision)
+    expect(state().dirty).toBe(true)
+    expect(state().document!.revision).toBeGreaterThan(liveRevision)
+    expect(state().document!.slides[0]!.elements.some((element) => element.id === 'landed-during-write')).toBe(true)
+    expect(state().document!.slides[0]!.elements.some((element) => element.kind === 'image' && element.assetId === image.asset.id)).toBe(true)
   })
 
-  it('keeps held bytes across undo and redo while the snapshot chain references them', () => {
-    state().insertImage(preparedImage())
-    state().undo()
-    state().redo()
-    expect(state().pendingMedia).toHaveLength(1)
-    state().undo()
-    expect(state().pendingMedia).toHaveLength(1)
-    state().redo()
-    expect(state().mediaForSave()).toHaveLength(1)
-  })
-
-  it('reuses one asset record and one media record for identical bytes', () => {
+  it('reuses one asset record for identical bytes without charging the document twice', () => {
     const prepared = preparedImage()
-    const first = state().insertImage(prepared)!
-    const second = state().insertImage(prepared)!
+    const first = persistedInsert(prepared)!
+    const second = persistedInsert(prepared)!
 
     expect(first).not.toBe(second)
     expect(state().document!.assets).toHaveLength(1)
     expect(state().document!.slides[0]!.elements).toHaveLength(2)
-    expect(state().pendingMedia).toHaveLength(1)
     expect(state().past).toHaveLength(2)
+    expect(storedBytes()).toBe(4)
   })
 
   it('names each further image on the slide', () => {
-    state().insertImage(preparedImage('b'.repeat(64)))
-    state().insertImage(preparedImage('c'.repeat(64)))
+    persistedInsert(preparedImage('b'.repeat(64)))
+    persistedInsert(preparedImage('c'.repeat(64)))
 
     expect(state().document!.slides[0]!.elements.map((element) => element.name)).toEqual(['Image', 'Image 2'])
   })
@@ -616,7 +629,8 @@ describe('presentation image insertion', () => {
   it('refuses to insert without an open document', () => {
     state().closeDocument()
 
-    expect(state().insertImage(preparedImage())).toBeNull()
+    expect(state().checkImageInsert(preparedImage()).ok).toBe(false)
+    expect(persistedInsert(preparedImage())).toBeNull()
   })
 
   it('refuses a new asset at the asset limit but still allows one the document holds', () => {
@@ -633,34 +647,10 @@ describe('presentation image insertion', () => {
     }))
     reset(full)
 
-    expect(state().insertImage(preparedImage('d'.repeat(64)))).toBeNull()
+    expect(state().checkImageInsert(preparedImage('d'.repeat(64))).ok).toBe(false)
+    expect(persistedInsert(preparedImage('d'.repeat(64)))).toBeNull()
     expect(state().document!.assets).toHaveLength(PRESENTATION_LIMITS.maxAssets)
-    expect(state().insertImage(preparedImage('0'.repeat(64)))).toBeTruthy()
-  })
-
-  it('drops held media for the stored assets only', () => {
-    const first = preparedImage('e'.repeat(64))
-    const second = preparedImage('f'.repeat(64))
-    state().insertImage(first)
-    state().insertImage(second)
-    expect(state().pendingMedia).toHaveLength(2)
-
-    state().clearPendingMedia([first.asset.id])
-    expect(state().pendingMedia.map((record) => record.assetId)).toEqual([second.asset.id])
-
-    state().clearPendingMedia([first.asset.id, second.asset.id])
-    expect(state().pendingMedia).toEqual([])
-  })
-
-  it('never carries held media into the next document', () => {    state().insertImage(preparedImage())
-    expect(state().pendingMedia).toHaveLength(1)
-
-    reset(createPresentationDocument({ id: 'doc-2', now: '2026-09-10T00:00:00.000Z' }))
-    expect(state().pendingMedia).toEqual([])
-
-    state().insertImage(preparedImage('9'.repeat(64)))
-    state().closeDocument()
-    expect(state().pendingMedia).toEqual([])
+    expect(persistedInsert(preparedImage('0'.repeat(64)))).toBeTruthy()
   })
 
   it('refuses an image that would exceed the media budget, before mutating anything', () => {
@@ -669,7 +659,6 @@ describe('presentation image insertion', () => {
 
     const document = state().document!
     const history = state().past.length
-    const pending = state().pendingMedia.length
 
     const check = state().checkImageInsert(preparedImage('2'.repeat(64)))
     expect(check.ok).toBe(false)
@@ -680,10 +669,9 @@ describe('presentation image insertion', () => {
     expect(check.message).toContain('photo.png')
 
     // The command refuses for the same reason, and nothing moved.
-    expect(state().insertImage(preparedImage('2'.repeat(64)))).toBeNull()
+    expect(persistedInsert(preparedImage('2'.repeat(64)))).toBeNull()
     expect(state().document).toBe(document)
     expect(state().past).toHaveLength(history)
-    expect(state().pendingMedia).toHaveLength(pending)
   })
 
   it('still accepts re-inserting artwork the presentation already holds when the budget is full', () => {
@@ -699,24 +687,23 @@ describe('presentation image insertion', () => {
     // The same bytes again add no storage, so refusing it would be wrong: this is
     // what the known-asset exemption in the byte budget exists for.
     expect(state().checkImageInsert(preparedImage('5'.repeat(64))).ok).toBe(true)
-    expect(state().insertImage(preparedImage('5'.repeat(64)))).not.toBeNull()
+    expect(persistedInsert(preparedImage('5'.repeat(64)))).not.toBeNull()
     expect(state().document!.assets).toHaveLength(1)
   })
 
   it('never charges the media budget twice for identical content', () => {
-    state().insertImage(preparedImage('3'.repeat(64)))
+    persistedInsert(preparedImage('3'.repeat(64)))
     expect(state().document!.assets).toHaveLength(1)
     expect(storedBytes()).toBe(4)
 
-    state().insertImage(preparedImage('3'.repeat(64)))
+    persistedInsert(preparedImage('3'.repeat(64)))
 
     expect(state().document!.assets).toHaveLength(1)
     expect(storedBytes()).toBe(4)
-    expect(state().pendingMedia).toHaveLength(1)
   })
 
   it('plans a replacement that keeps placement and flips and center-crops the new image', () => {
-    state().insertImage(preparedImage())
+    persistedInsert(preparedImage())
     const element = state().document!.slides[0]!.elements[0]!
     if (element.kind !== 'image') throw new Error('expected image')
     state().updateElement(element.id, { flipX: true, x: 100, y: 50, width: 300, height: 300 })
@@ -739,22 +726,24 @@ describe('presentation image insertion', () => {
     expect(coverCrop(wide, { width: 300, height: 300 })).toEqual({ x: 0.375, y: 0, width: 0.25, height: 1 })
   })
 
-  it('replaces an image as one undo entry and restores the original', () => {
+  it('replaces an image as one undo entry and restores the original with undo/redo', () => {
     const first = preparedImage()
-    state().insertImage(first)
+    persistedInsert(first)
     const element = state().document!.slides[0]!.elements[0]!
     if (element.kind !== 'image') throw new Error('expected image')
     const history = state().past.length
 
     const second = preparedImage('d'.repeat(64), 200, 400)
-    expect(state().replaceImage(element.id, second)).toBe(true)
+    expect(persistedReplace(element.id, second)).toBe(true)
     expect(state().past).toHaveLength(history + 1)
     const replaced = state().document!.slides[0]!.elements[0]!
     if (replaced.kind !== 'image') throw new Error('expected image')
     expect(replaced.assetId).toBe(second.asset.id)
     // A portrait image is cropped to the 400×300 box, not squashed into it.
     expect(replaced.crop).toEqual({ x: 0, y: 0.3125, width: 1, height: 0.375 })
-    expect(state().mediaForSave().map((record) => record.assetId)).toContain(second.asset.id)
+    // The new artwork is part of the document now; its bytes were written with
+    // the replacement, so the document carries both asset records over history.
+    expect(state().document!.assets.map((asset) => asset.id)).toContain(second.asset.id)
 
     state().undo()
     const restored = state().document!.slides[0]!.elements[0]!
@@ -768,16 +757,38 @@ describe('presentation image insertion', () => {
     expect(again.assetId).toBe(second.asset.id)
   })
 
+  it('replays a persisted replacement on a live document that moved on during the write', () => {
+    persistedInsert(preparedImage('8'.repeat(64)))
+    const element = state().document!.slides[0]!.elements[0]!
+    if (element.kind !== 'image') throw new Error('expected image')
+    const replacement = preparedImage('9'.repeat(64))
+    const plan = planImageReplacement(state().document!, element.id, replacement)!
+    // A command lands while the write is in flight.
+    state().addElement(createShapeElement({ id: 'landed-during-replace' }))
+
+    state().adoptPersistedReplacement(plan, replacement)
+
+    expect(state().savedRevision).toBe(plan.document.revision)
+    expect(state().dirty).toBe(true)
+    expect(state().document!.slides[0]!.elements.some((candidate) => candidate.id === 'landed-during-replace')).toBe(true)
+    const replaced = state().document!.slides[0]!.elements.find((candidate) => candidate.id === element.id)
+    expect(replaced?.kind === 'image' && replaced.assetId).toBe(replacement.asset.id)
+  })
+
   it('refuses to replace anything that is not a selected image', () => {
     const text = createTextElement({ id: 'not-an-image' })
     state().addElement(text)
+    const document = state().document!
     const history = state().past.length
-    expect(state().replaceImage('not-an-image', preparedImage())).toBe(false)
-    expect(state().replaceImage('missing', preparedImage())).toBe(false)
+    expect(imageReplaceRefusal(document, preparedImage(), 'not-an-image')).not.toBeNull()
+    expect(imageReplaceRefusal(document, preparedImage(), 'missing')).not.toBeNull()
+    expect(persistedReplace('not-an-image', preparedImage())).toBe(false)
+    expect(persistedReplace('missing', preparedImage())).toBe(false)
     expect(state().past).toHaveLength(history)
   })
 
-  it('plans an insert without mutating the document or the store', () => {    const before = state().document!
+  it('plans an insert without mutating the document or the store', () => {
+    const before = state().document!
 
     const plan = planImageInsert(before, preparedImage('5'.repeat(64)))
 
@@ -788,7 +799,6 @@ describe('presentation image insertion', () => {
     expect(before.slides[0]!.elements).toHaveLength(0)
     expect(before.assets).toHaveLength(0)
     expect(state().document).toBe(before)
-    expect(state().pendingMedia).toEqual([])
     expect(state().past).toHaveLength(0)
   })
 
@@ -809,72 +819,6 @@ describe('presentation image insertion', () => {
     expect(state().past).toHaveLength(history + 1)
     expect(state().view.selectedElementIds).toEqual([plan.elementId])
     expect(state().document!.assets[0]!.byteLength).toBe(4)
-    // The bytes are already stored, so nothing is held as pending.
-    expect(state().pendingMedia).toEqual([])
   })
 })
 
-describe('bounded media retention', () => {
-  function documentWithAsset(documentId: string, assetId: string, byteLength: number): PresentationDocument {
-    const document = createPresentationDocument({ id: documentId })
-    document.assets = [{
-      id: assetId,
-      blobKey: `uploads/${assetId}`,
-      mimeType: 'image/png',
-      width: 4,
-      height: 4,
-      sha256: assetId.padEnd(64, '0'),
-      byteLength,
-      provenance: { source: 'upload', label: `${assetId}.png` },
-    }]
-    return document
-  }
-
-  function record(assetId: string, byteLength: number): PresentationMediaRecord {
-    return { assetId, bytes: new Uint8Array(byteLength), mimeType: 'image/png' }
-  }
-
-  it('releases unreachable bytes and trims the oldest snapshot when over budget', () => {
-    const current = documentWithAsset('doc-current', 'asset-c', 10)
-    const past = [{ document: documentWithAsset('doc-past', 'asset-a', 10), bytes: 1 }]
-    const future = [{ document: documentWithAsset('doc-future', 'asset-b', 10), bytes: 1 }]
-    const pendingMedia = [record('asset-a', 10), record('asset-b', 10), record('asset-c', 10)]
-
-    const result = reconcileHeldMedia({ document: current, past, future, pendingMedia, maxBytes: 25 })
-
-    // A's snapshot is the oldest, so it goes first; its bytes are released with it.
-    expect(result.past).toEqual([])
-    expect(result.future).toEqual(future)
-    expect(result.pendingMedia.map((item) => item.assetId)).toEqual(['asset-b', 'asset-c'])
-  })
-
-  it('drops bytes nothing references without trimming history', () => {
-    const current = documentWithAsset('doc-current', 'asset-c', 10)
-    const past = [{ document: documentWithAsset('doc-past', 'asset-a', 10), bytes: 1 }]
-
-    const result = reconcileHeldMedia({
-      document: current,
-      past,
-      future: [],
-      pendingMedia: [record('asset-a', 10), record('asset-c', 10), record('asset-orphan', 10)],
-      maxBytes: 1024,
-    })
-
-    expect(result.past).toEqual(past)
-    expect(result.pendingMedia.map((item) => item.assetId)).toEqual(['asset-a', 'asset-c'])
-  })
-
-  it('never releases bytes the current document still needs', () => {
-    const current = documentWithAsset('doc-current', 'asset-current', 100)
-
-    const result = reconcileHeldMedia({
-      document: current,
-      past: [],
-      future: [],
-      pendingMedia: [record('asset-current', 100)],
-      maxBytes: 10,
-    })
-
-    expect(result.pendingMedia.map((item) => item.assetId)).toEqual(['asset-current'])
-  })
-})

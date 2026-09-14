@@ -9,10 +9,10 @@
  */
 
 import { create } from 'zustand'
-import type { PresentationMediaRecord } from '@/lib/persistence/presentations/repository'
 import { PRESENTATION_LIMITS } from '../model/limits'
 import { serializePresentationDocument } from '../model/parse'
 import { createImageElement, createSlide, nextSlideName } from '../model/factories'
+import { recordHistory, stepBack, stepForward, withRevision, type HistoryEntry } from './history'
 import { fitImageWithinSlide, type PreparedPresentationImage } from './insertImageAsset'
 import { normalizeTransform, type TransformGeometry } from './transformGeometry'
 import type { AlignmentGuide } from './alignmentGuides'
@@ -34,8 +34,6 @@ export type PresentationViewState = {
   guides: AlignmentGuide[]
 }
 
-export type HistoryEntry = { document: PresentationDocument; bytes: number }
-
 export type PresentationStoreState = {
   document: PresentationDocument | null
   view: PresentationViewState
@@ -47,18 +45,12 @@ export type PresentationStoreState = {
   past: HistoryEntry[]
   future: HistoryEntry[]
   lastHistoryGroup: string | null
-  /** Bytes for media that is not persisted yet. Never part of the document JSON. */
-  pendingMedia: PresentationMediaRecord[]
 
   loadDocument(document: PresentationDocument, options?: { saved?: boolean }): void
   closeDocument(): void
   markSaving(): void
   markSaved(revision: number): void
   markSaveFailed(message: string): void
-  /** Drops held media once it is stored (or all of it when called without ids). */
-  clearPendingMedia(assetIds: string[]): void
-  /** The held media a save may submit: only what the current document references. */
-  mediaForSave(): PresentationMediaRecord[]
 
   selectSlide(slideId: string): void
   selectElements(ids: string[]): void
@@ -84,16 +76,15 @@ export type PresentationStoreState = {
   addElement(element: Element): string | null
   /** Clones an element with a fresh id, offset, and selected. One undo entry. */
   duplicateElement(elementId: string): string | null
-  /** In-memory command for tests: it does not persist. The editor inserts through
-   * the atomic persist-then-adopt path, so nothing is ever shown as added before
-   * its bytes are stored. */
-  insertImage(image: PreparedPresentationImage, options?: { slideId?: string }): string | null
   /** The refusal an insert would hit, resolved before anything is mutated. */
   checkImageInsert(image: PreparedPresentationImage, options?: { slideId?: string }): ImageInsertCheck
-  /** Adopts a document that is already persisted, as exactly one undo entry. */
+  /**
+   * Adopts an insert whose document and bytes are already persisted, as exactly
+   * one undo entry. Planning is pure (`planImageInsert`) and the write belongs to
+   * the saver, so this is the only insert command: nothing is ever shown as
+   * added before its bytes are stored.
+   */
   adoptPersistedInsert(plan: ImageInsertPlan, image: PreparedPresentationImage): void
-  /** In-memory replacement command for tests and replay; the editor persists first. */
-  replaceImage(elementId: string, image: PreparedPresentationImage): boolean
   /** Adopts a persisted replacement, as exactly one undo entry. */
   adoptPersistedReplacement(plan: ImageReplacePlan, image: PreparedPresentationImage): void
   updateElement(elementId: string, patch: Partial<Element>, options?: { historyGroup?: string }): void
@@ -111,74 +102,6 @@ export type PresentationStoreState = {
 }
 
 const initialView: PresentationViewState = { activeSlideId: null, selectedElementIds: [], editingElementId: null, zoom: 1, pan: { x: 0, y: 0 }, transformPreview: null, guides: [] }
-
-function estimateBytes(document: PresentationDocument): number {
-  try {
-    return JSON.stringify(document).length
-  } catch {
-    return 0
-  }
-}
-
-function withRevision(current: PresentationDocument, next: PresentationDocument): PresentationDocument {
-  next.revision = current.revision + 1
-  next.updatedAt = new Date().toISOString()
-  return next
-}
-
-/** One place that bounds undo history, so every push trims identically. */
-function boundedHistory(past: HistoryEntry[], entry: HistoryEntry): HistoryEntry[] {
-  let next = [...past, entry]
-  while (next.length > PRESENTATION_LIMITS.historyEntries || (next.length > 1 && next.reduce((sum, item) => sum + item.bytes, 0) > PRESENTATION_LIMITS.historySoftBytes)) {
-    next = next.slice(1)
-  }
-  return next
-}
-
-/** Every asset id the given documents still reference. */
-function referencedAssetIds(documents: Iterable<PresentationDocument>): Set<string> {
-  const ids = new Set<string>()
-  for (const document of documents) {
-    for (const asset of document.assets) ids.add(asset.id)
-  }
-  return ids
-}
-
-/**
- * Bounded media retention (P25). Held bytes are only useful while the current
- * document or an undo/redo snapshot still references them, so unreachable
- * records are dropped on every state change. When the reachable bytes exceed
- * the retention budget, the oldest snapshots go first: a snapshot whose bytes
- * have been released could not be saved, so it must not stay reachable. The
- * current document's own bytes are never dropped — insertion already bounds a
- * single document at maxMediaBytes.
- *
- * Exported for its own tests; the store calls it with the shared budget.
- */
-export function reconcileHeldMedia(input: {
-  document: PresentationDocument
-  past: HistoryEntry[]
-  future: HistoryEntry[]
-  pendingMedia: PresentationMediaRecord[]
-  maxBytes?: number
-}): { past: HistoryEntry[]; future: HistoryEntry[]; pendingMedia: PresentationMediaRecord[] } {
-  const maxBytes = input.maxBytes ?? PRESENTATION_LIMITS.mediaRetentionBytes
-  let past = input.past
-  let future = input.future
-  const reachable = () => {
-    const ids = referencedAssetIds([input.document, ...past.map((entry) => entry.document), ...future.map((entry) => entry.document)])
-    return input.pendingMedia.filter((record) => ids.has(record.assetId))
-  }
-  let pendingMedia = reachable()
-  while (pendingMedia.reduce((sum, record) => sum + record.bytes.length, 0) > maxBytes && (past.length > 0 || future.length > 0)) {
-    // The oldest snapshot on the longer side goes first, so the nearest undo and
-    // redo steps stay usable for as long as possible.
-    if (past.length >= future.length) past = past.slice(1)
-    else future = future.slice(1)
-    pendingMedia = reachable()
-  }
-  return { past, future, pendingMedia }
-}
 
 function cloneElementWithNewId(element: Element): Element {
   const copy = structuredClone(element)
@@ -366,20 +289,13 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     const changed = updater(draft)
     if (changed === false) return false
     const next = serializePresentationDocument(withRevision(current, draft))
-    const group = options.historyGroup
-    const merge = group !== undefined && group === get().lastHistoryGroup
-    let past = get().past
-    if (!merge) {
-      past = boundedHistory(past, { document: current, bytes: estimateBytes(current) })
-    }
-    const reconciled = reconcileHeldMedia({ document: next, past, future: [], pendingMedia: get().pendingMedia })
+    const recorded = recordHistory({ past: get().past, future: [], lastHistoryGroup: get().lastHistoryGroup }, current, options.historyGroup)
     set({
       document: next,
-      past: reconciled.past,
-      future: reconciled.future,
-      lastHistoryGroup: group ?? null,
+      past: recorded.past,
+      future: recorded.future,
+      lastHistoryGroup: recorded.lastHistoryGroup,
       dirty: next.revision !== get().savedRevision,
-      pendingMedia: reconciled.pendingMedia,
     })
     return true
   }
@@ -389,22 +305,16 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
    * written before it is exposed, so the revision it carries is the saved one and
    * the editor must not look dirty — or schedule a redundant write for it.
    */
-  const applyInsert = (input: { plan: ImageInsertPlan; mediaAssetId: string; heldMedia: PresentationMediaRecord | null; persisted: boolean }): void => {
+  const applyInsert = (input: { plan: ImageInsertPlan; persisted: boolean }): void => {
     const current = get().document
     if (!current || current.id !== input.plan.document.id) return
-    const held = input.persisted ? get().pendingMedia.filter((record) => record.assetId !== input.mediaAssetId) : get().pendingMedia
-    const pendingMedia = input.heldMedia !== null && !held.some((record) => record.assetId === input.heldMedia!.assetId)
-      ? [...held, input.heldMedia]
-      : held
-    const past = boundedHistory(get().past, { document: current, bytes: estimateBytes(current) })
-    const reconciled = reconcileHeldMedia({ document: input.plan.document, past, future: [], pendingMedia })
+    const recorded = recordHistory({ past: get().past, future: [], lastHistoryGroup: get().lastHistoryGroup }, current)
     set({
       document: input.plan.document,
-      past: reconciled.past,
-      future: reconciled.future,
-      lastHistoryGroup: null,
+      past: recorded.past,
+      future: recorded.future,
+      lastHistoryGroup: recorded.lastHistoryGroup,
       view: { ...get().view, selectedElementIds: [input.plan.elementId], editingElementId: null },
-      pendingMedia: reconciled.pendingMedia,
       savedRevision: input.persisted ? input.plan.document.revision : get().savedRevision,
       dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision,
       saving: input.persisted ? false : get().saving,
@@ -414,29 +324,44 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
 
   /**
    * The replacement counterpart of `applyInsert`: the element already exists, so
-   * selection and view state are left alone and only the document, history and
-   * held bytes move.
+   * selection and view state are left alone and only the document and history move.
    */
-  const applyReplace = (input: { plan: ImageReplacePlan; mediaAssetId: string; heldMedia: PresentationMediaRecord | null; persisted: boolean }): void => {
+  const applyReplace = (input: { plan: ImageReplacePlan; persisted: boolean }): void => {
     const current = get().document
     if (!current || current.id !== input.plan.document.id) return
-    const held = input.persisted ? get().pendingMedia.filter((record) => record.assetId !== input.mediaAssetId) : get().pendingMedia
-    const pendingMedia = input.heldMedia !== null && !held.some((record) => record.assetId === input.heldMedia!.assetId)
-      ? [...held, input.heldMedia]
-      : held
-    const past = boundedHistory(get().past, { document: current, bytes: estimateBytes(current) })
-    const reconciled = reconcileHeldMedia({ document: input.plan.document, past, future: [], pendingMedia })
+    const recorded = recordHistory({ past: get().past, future: [], lastHistoryGroup: get().lastHistoryGroup }, current)
     set({
       document: input.plan.document,
-      past: reconciled.past,
-      future: reconciled.future,
-      lastHistoryGroup: null,
-      pendingMedia: reconciled.pendingMedia,
+      past: recorded.past,
+      future: recorded.future,
+      lastHistoryGroup: recorded.lastHistoryGroup,
       savedRevision: input.persisted ? input.plan.document.revision : get().savedRevision,
       dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision,
       saving: input.persisted ? false : get().saving,
       saveError: input.persisted ? null : get().saveError,
     })
+  }
+
+  /**
+   * Re-applies an insert over a live document that moved on during the write. The
+   * stored revision carries the insert; the live document carries the interim
+   * command. Planning reuses the plan's target slide and stays pure, so a refusal
+   * at replay time leaves the live document untouched.
+   */
+  const replayInsert = (plan: ImageInsertPlan, image: PreparedPresentationImage): void => {
+    const current = get().document
+    if (!current || current.id !== plan.document.id) return
+    const slideId = plan.document.slides.find((slide) => slide.elements.some((element) => element.id === plan.elementId))?.id ?? null
+    const replanned = planImageInsert(current, image, { slideId })
+    if (replanned) applyInsert({ plan: replanned, persisted: false })
+  }
+
+  /** The replacement counterpart of `replayInsert`. */
+  const replayReplace = (plan: ImageReplacePlan, image: PreparedPresentationImage): void => {
+    const current = get().document
+    if (!current || current.id !== plan.document.id) return
+    const replanned = planImageReplacement(current, plan.elementId, image)
+    if (replanned) applyReplace({ plan: replanned, persisted: false })
   }
 
   const activeSlide = (): Slide | undefined => {
@@ -462,7 +387,6 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     past: [],
     future: [],
     lastHistoryGroup: null,
-    pendingMedia: [],
 
     loadDocument(document, options) {
       const clean = serializePresentationDocument(document)
@@ -477,13 +401,11 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
         past: [],
         future: [],
         lastHistoryGroup: null,
-        // Media held for the previous document must never leak into this one.
-        pendingMedia: [],
       })
     },
 
     closeDocument() {
-      set({ document: null, view: initialView, savedRevision: -1, dirty: false, saving: false, saveError: null, past: [], future: [], lastHistoryGroup: null, pendingMedia: [] })
+      set({ document: null, view: initialView, savedRevision: -1, dirty: false, saving: false, saveError: null, past: [], future: [], lastHistoryGroup: null })
     },
 
     markSaving() {
@@ -497,23 +419,6 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
 
     markSaveFailed(message) {
       set({ saving: false, saveError: message })
-    },
-
-    clearPendingMedia(assetIds) {
-      const pending = get().pendingMedia
-      const keep = pending.filter((record) => !assetIds.includes(record.assetId))
-      if (keep.length !== pending.length) set({ pendingMedia: keep })
-    },
-
-    mediaForSave() {
-      const document = get().document
-      if (!document) return []
-      const referenced = new Set(document.assets.map((asset) => asset.id))
-      // Held bytes are a superset of what the document needs: undoing an insert
-      // removes the asset from the document but keeps its bytes available for redo.
-      // Submitting an unreferenced record makes a save fail (`invalid_asset`), so
-      // the save path must always come through here.
-      return get().pendingMedia.filter((record) => referenced.has(record.assetId))
     },
 
     selectSlide(slideId) {
@@ -714,26 +619,13 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       // row can carry the same revision number while differing in content.
       if (current && current.id === plan.document.id && current.revision !== plan.document.revision - 1) {
         set({ saving: false, saveError: null, savedRevision: plan.document.revision, dirty: true })
-        // Re-checks and re-plans against the live document. If it is refused now (a cap
-        // was reached in the meantime) nothing is lost: the next write reconciles the
+        // Re-plans against the live document. If it is refused now (a cap was
+        // reached in the meantime) nothing is lost: the next write reconciles the
         // stored insert with the live document.
-        get().insertImage(image)
+        replayInsert(plan, image)
         return
       }
-      applyInsert({ plan, mediaAssetId: image.media.assetId, heldMedia: null, persisted: true })
-    },
-
-    insertImage(image, options) {
-      const document = get().document
-      if (!document) return null
-      if (!get().checkImageInsert(image, options).ok) return null
-      const plan = planImageInsert(document, image, { slideId: options?.slideId ?? activeSlide()?.id ?? null })
-      if (!plan) return null
-      // The bytes stay outside the document and are attached to the next save.
-      // Undo keeps them reachable so redo can still save; reconcileHeldMedia
-      // releases them once no live snapshot references the asset.
-      applyInsert({ plan, mediaAssetId: image.media.assetId, heldMedia: image.media, persisted: false })
-      return plan.elementId
+      applyInsert({ plan, persisted: true })
     },
 
     adoptPersistedReplacement(plan, image) {
@@ -742,20 +634,10 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
       // instead of dropping a command that landed while the write was in flight.
       if (current && current.id === plan.document.id && current.revision !== plan.document.revision - 1) {
         set({ saving: false, saveError: null, savedRevision: plan.document.revision, dirty: true })
-        get().replaceImage(plan.elementId, image)
+        replayReplace(plan, image)
         return
       }
-      applyReplace({ plan, mediaAssetId: image.media.assetId, heldMedia: null, persisted: true })
-    },
-
-    replaceImage(elementId, image) {
-      const document = get().document
-      if (!document) return false
-      if (imageReplaceRefusal(document, image, elementId)) return false
-      const plan = planImageReplacement(document, elementId, image)
-      if (!plan) return false
-      applyReplace({ plan, mediaAssetId: image.media.assetId, heldMedia: image.media, persisted: false })
-      return true
+      applyReplace({ plan, persisted: true })
     },
 
     updateElement(elementId, patch, options) {
@@ -854,40 +736,32 @@ export const usePresentationStore = create<PresentationStoreState>()((set, get) 
     },
 
     undo() {
-      const { document, past, future } = get()
-      const entry = past.at(-1)
-      if (!document || !entry) return
-      const restored = withRevision(document, structuredClone(entry.document))
-      const remaining = past.slice(0, -1)
-      const nextFuture = [...future, { document, bytes: estimateBytes(document) }].slice(-PRESENTATION_LIMITS.historyEntries)
-      const reconciled = reconcileHeldMedia({ document: restored, past: remaining, future: nextFuture, pendingMedia: get().pendingMedia })
+      const { document, past, future, lastHistoryGroup } = get()
+      if (!document) return
+      const step = stepBack({ past, future, lastHistoryGroup }, document)
+      if (!step) return
       set({
-        document: restored,
-        past: reconciled.past,
-        future: reconciled.future,
+        document: step.restored,
+        past: step.history.past,
+        future: step.history.future,
         lastHistoryGroup: null,
-        dirty: restored.revision !== get().savedRevision,
-        view: ensureView(restored, get().view),
-        pendingMedia: reconciled.pendingMedia,
+        dirty: step.restored.revision !== get().savedRevision,
+        view: ensureView(step.restored, get().view),
       })
     },
 
     redo() {
-      const { document, past, future } = get()
-      const entry = future.at(-1)
-      if (!document || !entry) return
-      const restored = withRevision(document, structuredClone(entry.document))
-      const remaining = future.slice(0, -1)
-      const nextPast = [...past, { document, bytes: estimateBytes(document) }].slice(-PRESENTATION_LIMITS.historyEntries)
-      const reconciled = reconcileHeldMedia({ document: restored, past: nextPast, future: remaining, pendingMedia: get().pendingMedia })
+      const { document, past, future, lastHistoryGroup } = get()
+      if (!document) return
+      const step = stepForward({ past, future, lastHistoryGroup }, document)
+      if (!step) return
       set({
-        document: restored,
-        past: reconciled.past,
-        future: reconciled.future,
+        document: step.restored,
+        past: step.history.past,
+        future: step.history.future,
         lastHistoryGroup: null,
-        dirty: restored.revision !== get().savedRevision,
-        view: ensureView(restored, get().view),
-        pendingMedia: reconciled.pendingMedia,
+        dirty: step.restored.revision !== get().savedRevision,
+        view: ensureView(step.restored, get().view),
       })
     },
   }

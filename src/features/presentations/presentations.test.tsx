@@ -11,7 +11,8 @@ import { createPresentationDocument, createTextElement } from './model/factories
 import { PRESENTATION_LIMITS } from './model/limits'
 import { createFixturePresentation, FIXTURE_ID, FIXTURE_IMAGE_ASSET_ID, FIXTURE_IMAGE_BYTE_LENGTH, FIXTURE_IMAGE_SHA256, fixtureImagePng } from './model/fixtures/fixture'
 import { encodeRgbaPng } from './model/fixtures/png'
-import { usePresentationStore } from './editor/store'
+import { planImageInsert, usePresentationStore } from './editor/store'
+import type { PreparedPresentationImage } from './editor/insertImageAsset'
 import { paragraphsToHtml } from './editor/textBridge'
 import { prepareStickerSnapshot } from './editor/insertStickerSnapshot'
 import { createBackupArchive } from './exports/backup'
@@ -985,6 +986,14 @@ describe('presentation routes', () => {
 })
 
 describe('presentation image insertion', () => {
+  /** Seeds a previously stored image the way production does: write the plan and its bytes, then adopt the written revision. */
+  async function seedStoredImage(repository: MemoryPresentationRepository, image: PreparedPresentationImage): Promise<void> {
+    const store = usePresentationStore.getState()
+    const plan = planImageInsert(store.document!, image, { slideId: store.view.activeSlideId })!
+    await repository.savePresentation(plan.document, [image.media])
+    usePresentationStore.getState().adoptPersistedInsert(plan, image)
+  }
+
   it('commits the document and its bytes together when a photo is inserted', async () => {
     const { repository, input } = await openBlankEditor()
     const presentationId = usePresentationStore.getState().document!.id
@@ -1011,7 +1020,6 @@ describe('presentation image insertion', () => {
     expect(stored.assets).toMatchObject([{ id: assetId, sha256: FIXTURE_IMAGE_SHA256, width: 64, height: 64 }])
     expect(stored.slides[0]!.elements[0]!).toMatchObject({ kind: 'image', assetId })
     expect(Array.from((await repository.getMedia(assetId)).bytes)).toEqual(Array.from(fixtureImagePng()))
-    expect(usePresentationStore.getState().mediaForSave()).toHaveLength(0)
     expect(usePresentationStore.getState().dirty).toBe(false)
     expect(screen.getByText('Saved locally')).toBeInTheDocument()
   })
@@ -1098,7 +1106,6 @@ describe('presentation image insertion', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/PNG, JPEG, or static WebP/)
     expect(editorElements()).toHaveLength(0)
     expect(usePresentationStore.getState().document!.assets).toHaveLength(0)
-    expect(usePresentationStore.getState().pendingMedia).toHaveLength(0)
     expect(usePresentationStore.getState().dirty).toBe(false)
 
     // The refusal keeps the upload boundary's specific reason.
@@ -1118,8 +1125,7 @@ describe('presentation image insertion', () => {
     await waitFor(() => expect(editorElements()).toHaveLength(2))
 
     expect(usePresentationStore.getState().document!.assets).toHaveLength(1)
-    // Both insertions are already stored, so nothing is held for a later save.
-    expect(usePresentationStore.getState().mediaForSave()).toHaveLength(0)
+    // Both insertions are already stored, so no later save carries them again.
     // One history entry per insertion.
     expect(usePresentationStore.getState().past).toHaveLength(2)
     expect(editorElements().map((element) => element.name)).toEqual(['Image', 'Image 2'])
@@ -1171,12 +1177,11 @@ describe('presentation image insertion', () => {
   })
 
   it('says the artwork budget is spent instead of silently refusing the image', async () => {
-    const { input } = await openBlankEditor()
+    const { repository, input } = await openBlankEditor()
     const storedAssetId = 'asset-already-stored'
-    act(() => {
-      const store = usePresentationStore.getState()
+    await act(async () => {
       // A stored asset whose recorded size already fills almost the whole budget.
-      store.insertImage({
+      await seedStoredImage(repository, {
         asset: { id: storedAssetId, blobKey: 'uploads/stored', mimeType: 'image/png', width: 8, height: 8, sha256: 'c'.repeat(64), byteLength: PRESENTATION_LIMITS.maxMediaBytes - 1, provenance: { source: 'upload', label: 'stored.png' } },
         media: { assetId: storedAssetId, bytes: new Uint8Array([1]), mimeType: 'image/png' },
       })
@@ -1191,8 +1196,8 @@ describe('presentation image insertion', () => {
   })
 
   it('says the image cap is reached instead of silently refusing the image', async () => {
-    const { input } = await openBlankEditor()
-    act(() => {
+    const { repository, input } = await openBlankEditor()
+    await act(async () => {
       const store = usePresentationStore.getState()
       for (let index = 0; index < PRESENTATION_LIMITS.maxAssets; index += 1) {
         if (index === PRESENTATION_LIMITS.maxElementsPerSlide / 2) {
@@ -1200,7 +1205,7 @@ describe('presentation image insertion', () => {
           if (second) store.selectSlide(second)
         }
         const id = `cap-asset-${index}`
-        store.insertImage({
+        await seedStoredImage(repository, {
           asset: { id, blobKey: `uploads/${id}`, mimeType: 'image/png', width: 8, height: 8, sha256: 'b'.repeat(64), byteLength: 1, provenance: { source: 'upload', label: `${id}.png` } },
           media: { assetId: id, bytes: new Uint8Array([index % 251]), mimeType: 'image/png' },
         })

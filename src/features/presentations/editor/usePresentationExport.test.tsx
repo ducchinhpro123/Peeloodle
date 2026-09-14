@@ -21,6 +21,16 @@ afterEach(() => {
 })
 
 describe('presentation export controller', () => {
+  it('reports that no presentation is open instead of exporting', async () => {
+    usePresentationStore.getState().closeDocument()
+    const repository = createMemoryPresentationRepository()
+    const { result } = renderHook(() => usePresentationExport({ repository, flushText: () => {} }))
+
+    await act(async () => { await result.current.exportDeck('pdf') })
+
+    expect(result.current.state).toMatchObject({ phase: 'failed', message: expect.stringContaining('Open a presentation before exporting.') })
+  })
+
   it('prepares, reports progress, downloads once and disposes the snapshot', async () => {
     const repository = createMemoryPresentationRepository()
     const snapshot = snapshotWith(2)

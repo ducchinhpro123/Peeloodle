@@ -1,16 +1,16 @@
 /**
  * Export snapshot and preflight (P35).
  *
- * One synchronous capture of the live document and its held media, then all
- * asynchronous work — flushing on-screen text, awaiting fonts, loading and
- * decoding artwork — runs against that captured document object. A command that
- * lands while the export is preparing therefore cannot mix revisions into the
- * output: the snapshot keeps the document it was captured from.
+ * The caller captures one reference to the live document (after flushing any
+ * open text session), then all asynchronous work — awaiting fonts, loading and
+ * decoding artwork — runs against that captured object. A command that lands
+ * while the export is preparing therefore cannot mix revisions into the output:
+ * the snapshot keeps the document it was captured from.
  *
- * Preflight is honest: a referenced image that is neither persisted nor held is
- * reported with the slide and file name, text overflow and unknown fonts become
- * warnings the caller can show, and decode failures release every bitmap that
- * was already decoded.
+ * Preflight is honest: a referenced image that is not stored is reported with
+ * the slide and file name, text overflow and unknown fonts become warnings the
+ * caller can show, and decode failures release every bitmap that was already
+ * decoded.
  */
 
 import { decodeImageBitmap } from '@/lib/imageDecode'
@@ -18,7 +18,7 @@ import type { PresentationMediaRecord, PresentationRepository } from '@/lib/pers
 import { ensurePresentationFonts } from '../rendering/fonts'
 import { layoutTextElement, type MeasureText } from '../rendering/textLayout'
 import type { PresentationImageSource, PresentationImageSources } from '../rendering/renderSlide'
-import { usePresentationStore } from '../editor/store'
+
 import { measureTextWidth } from '../editor/textMeasure'
 import type { PresentationAsset, PresentationDocument } from '../model/types'
 
@@ -44,7 +44,7 @@ export type PresentationExportSnapshot = {
   dispose(): void
 }
 
-export type PresentationPreflightErrorCode = 'no-document' | 'missing-media' | 'decode-failed'
+export type PresentationPreflightErrorCode = 'missing-media' | 'decode-failed'
 
 export class PresentationPreflightError extends Error {
   readonly code: PresentationPreflightErrorCode
@@ -56,24 +56,8 @@ export class PresentationPreflightError extends Error {
   }
 }
 
-export type ExportInput = { document: PresentationDocument; media: PresentationMediaRecord[] }
-
-/**
- * Flushes the open text session and captures the live document with the bytes
- * held for assets that are not persisted yet. Everything is read in one
- * synchronous pass, so no await can straddle two revisions.
- */
-export function captureExportInput(flushText?: () => void): ExportInput {
-  flushText?.()
-  const store = usePresentationStore.getState()
-  if (!store.document) throw new PresentationPreflightError('no-document', 'Open a presentation before exporting.')
-  return { document: store.document, media: store.mediaForSave() }
-}
-
 export type CreateExportSnapshotOptions = {
   repository: PresentationRepository
-  /** Bytes held for not-yet-persisted assets; pass `captureExportInput().media`. */
-  media?: PresentationMediaRecord[]
   /** Override for tests or Node: loads one stored asset's bytes. */
   getMedia?: (assetId: string) => Promise<PresentationMediaRecord>
   /** Fonts must be loaded before measuring or rasterizing. */
@@ -143,13 +127,10 @@ export async function createExportSnapshot(
   document: PresentationDocument,
   options: CreateExportSnapshotOptions,
 ): Promise<PresentationExportSnapshot> {
-  const held = new Map((options.media ?? []).map((record) => [record.assetId, record]))
   const loadMedia = options.getMedia ?? ((assetId: string) => options.repository.getMedia(assetId))
   const assets = referencedAssets(document)
 
   const loaded = await Promise.all(assets.map(async (asset): Promise<{ asset: PresentationAsset; record: PresentationMediaRecord } | { asset: PresentationAsset; error: true }> => {
-    const record = held.get(asset.id)
-    if (record) return { asset, record }
     try {
       return { asset, record: await loadMedia(asset.id) }
     } catch {
@@ -204,8 +185,15 @@ export async function createExportSnapshot(
   }
 }
 
-/** Capture, preflight and return a snapshot ready to render or package. */
-export async function prepareExportSnapshot(repository: PresentationRepository, options: Omit<CreateExportSnapshotOptions, 'repository'> = {}): Promise<PresentationExportSnapshot> {
-  const input = captureExportInput(options.flushText)
-  return createExportSnapshot(input.document, { ...options, repository, media: input.media })
+/**
+ * Preflight and return a snapshot ready to render or package. The caller owns
+ * capturing `document` (after flushing any open text session), so this module
+ * never reads the editor store.
+ */
+export async function prepareExportSnapshot(
+  repository: PresentationRepository,
+  document: PresentationDocument,
+  options: Omit<CreateExportSnapshotOptions, 'repository'> = {},
+): Promise<PresentationExportSnapshot> {
+  return createExportSnapshot(document, { ...options, repository })
 }

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryPresentationRepository } from '@/lib/persistence/presentations/repository'
-import { createExportSnapshot, captureExportInput, collectExportWarnings, PresentationPreflightError, referencedAssets } from './snapshot'
+import { createExportSnapshot, collectExportWarnings, referencedAssets } from './snapshot'
 import { createImageElement, createPresentationDocument, createTextElement } from '../model/factories'
 import { usePresentationStore } from '../editor/store'
 import { fixtureImagePng } from '../model/fixtures/fixture'
@@ -61,23 +61,20 @@ describe('export snapshot preflight', () => {
     expect(closed).toHaveLength(1)
   })
 
-  it('uses held bytes before asking storage', async () => {
-    const repository = createMemoryPresentationRepository()
-    const document = createPresentationDocument({ id: 'deck' })
-    const image = asset('asset-held', 'held.png')
-    document.assets = [image]
-    document.slides[0]!.elements.push(createImageElement({ assetId: image.id }))
+  it('loads only the artwork the document references', async () => {
+    const { repository, document } = await documentWithImage('asset-referenced')
+    repository.seedMedia({ assetId: 'asset-unreferenced', bytes: fixtureImagePng(), mimeType: 'image/png' })
     const getMedia = vi.spyOn(repository, 'getMedia')
 
     const snapshot = await createExportSnapshot(document, {
       repository,
-      media: [{ assetId: image.id, bytes: fixtureImagePng(), mimeType: 'image/png' }],
       ensureFonts: async () => {},
       decode: async () => bitmap(),
     })
 
-    expect(getMedia).not.toHaveBeenCalled()
-    expect([...snapshot.images.keys()]).toEqual(['asset-held'])
+    expect(getMedia).toHaveBeenCalledTimes(1)
+    expect(getMedia).toHaveBeenCalledWith('asset-referenced')
+    expect([...snapshot.images.keys()]).toEqual(['asset-referenced'])
     snapshot.dispose()
   })
 
@@ -99,12 +96,12 @@ describe('export snapshot preflight', () => {
     const document = createPresentationDocument({ id: 'deck', title: 'Deck' })
     usePresentationStore.getState().loadDocument(document, { saved: true })
 
-    const captured = captureExportInput()
+    // The caller captures the live document; the snapshot module never reads the store.
+    const captured = usePresentationStore.getState().document!
     usePresentationStore.getState().addSlide()
 
-    const snapshot = await createExportSnapshot(captured.document, {
+    const snapshot = await createExportSnapshot(captured, {
       repository,
-      media: captured.media,
       ensureFonts: async () => {},
     })
 
@@ -160,9 +157,5 @@ describe('export snapshot preflight', () => {
     document.slides[0]!.elements.push(createImageElement({ assetId: 'used' }))
 
     expect(referencedAssets(document).map((entry) => entry.id)).toEqual(['used'])
-  })
-
-  it('refuses to capture without an open document', () => {
-    expect(() => captureExportInput()).toThrow(PresentationPreflightError)
   })
 })

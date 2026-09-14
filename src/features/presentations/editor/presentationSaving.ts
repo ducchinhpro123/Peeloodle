@@ -14,6 +14,11 @@
  * (`serialize`), so there is never a second, concurrent writer. The hook
  * `usePresentationSave` connects status and lifecycle to React; `attachAutosave`
  * is the lifecycle edge, like `draftSaving.attachAutosave` for stickers.
+ *
+ * Image insertion is persist-first: the document and the new bytes are written
+ * in one transaction, so a normal save never carries media and the store holds
+ * no pending bytes. A write omits a media record only when the repository
+ * already stores it (a content-addressed asset inserted or restored before).
  */
 
 import { isPersistenceError } from '@/lib/persistence/repository'
@@ -108,15 +113,15 @@ export function createPresentationSaving(input: {
       return 'skipped'
     }
 
-    // `mediaForSave` is the only safe source of bytes: a record the document no
-    // longer references (an undone insert) makes the repository reject the write.
-    const media = pending.mediaForSave()
     const baseRevision = pending.savedRevision
     pending.markSaving()
     publish({ status: 'saving', message: null })
 
     try {
-      await repository.savePresentation(document, media, { baseRevision })
+      // Persist-first: every asset the document references was written with the
+      // insert or replacement that introduced it, so a document save carries no
+      // media of its own.
+      await repository.savePresentation(document, [], { baseRevision })
     } catch (error) {
       if (!stillCurrent()) return 'skipped'
       const failed = store.getState()
@@ -136,10 +141,6 @@ export function createPresentationSaving(input: {
     // The revision that was written, not the latest one: edits made while the
     // write was in flight must keep the document dirty.
     stored.markSaved(document.revision)
-    // Only the assetIds this write persisted. Recomputing `mediaForSave()` here
-    // could include artwork inserted during the write, whose bytes were never
-    // stored — dropping those would make every later save fail on missing media.
-    stored.clearPendingMedia(media.map((record) => record.assetId))
     publish({ status: 'saved', message: null })
     return 'saved'
   }
@@ -199,7 +200,7 @@ export function createPresentationSaving(input: {
     })
     if (!plan) return { ok: false, reason: 'no-slide', message: 'There is no slide to add this image to.' }
 
-    const media = pendingMediaFor(image)
+    const media = await mediaToPersist(repository, image)
     const outcome = await persistDocument(plan.document, media)
     if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message }
 
@@ -225,7 +226,7 @@ export function createPresentationSaving(input: {
     const plan = planImageReplacement(document, elementId, image)
     if (!plan) return { ok: false, reason: 'no-image', message: 'Select an image before replacing it.' }
 
-    const media = pendingMediaFor(image)
+    const media = await mediaToPersist(repository, image)
     const outcome = await persistDocument(plan.document, media)
     if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message }
 
@@ -250,8 +251,7 @@ export function createPresentationSaving(input: {
 
     const outcome = await serialize(async (): Promise<ConflictRecoveryOutcome> => {
       // The copy uses new asset ids, so its media must be re-keyed by content.
-      const held = store.getState().mediaForSave()
-      const media = await mediaForCopy(repository, local, copy, held)
+      const media = await mediaForCopy(repository, local, copy)
       if (!media.ok) return { ok: false, message: media.message }
       try {
         await repository.savePresentation(copy, media.records)
@@ -360,28 +360,34 @@ export function createPresentationSaving(input: {
   }
 }
 
-/** The bytes for a just-prepared image, unless the document already holds them. */
-function pendingMediaFor(image: PreparedPresentationImage): PresentationMediaRecord[] {
-  const store = usePresentationStore.getState()
-  const document = store.document
-  const stored = document?.assets.some((asset) => asset.id === image.media.assetId) ?? false
-  if (stored) return []
-  if (store.pendingMedia.some((record) => record.assetId === image.media.assetId)) return []
-  return [image.media]
+/**
+ * The bytes to submit with a persist-first write. An asset that was inserted or
+ * restored before is already stored, so its bytes are omitted to avoid
+ * rewriting an immutable record. The probe must be answered by storage, not by
+ * the document's asset list: a document can reference an asset whose bytes were
+ * never written only if the write that introduced it failed, and that write
+ * never exposed its document. If the probe itself fails, the bytes are
+ * submitted: the repository accepts identical bytes, and a genuine mismatch
+ * still surfaces as `invalid_asset`.
+ */
+async function mediaToPersist(repository: PresentationRepository, image: PreparedPresentationImage): Promise<PresentationMediaRecord[]> {
+  try {
+    return (await repository.hasMedia(image.media.assetId)) ? [] : [image.media]
+  } catch {
+    return [image.media]
+  }
 }
 
 /**
  * Media for the conflict copy. The clone gets new asset ids, so every record has
- * to be re-keyed by content: held bytes where the editor still has them, and the
- * already-stored bytes fetched back for everything else.
+ * to be re-keyed by content: each copy asset is matched back to the source asset
+ * it was cloned from, and that asset's stored bytes are fetched for the copy id.
  */
 async function mediaForCopy(
   repository: PresentationRepository,
   source: PresentationDocument,
   copy: PresentationDocument,
-  held: PresentationMediaRecord[],
 ): Promise<{ ok: true; records: PresentationMediaRecord[] } | { ok: false; message: string }> {
-  const heldByAssetId = new Map(held.map((record) => [record.assetId, record]))
   const sourceBySha = new Map(source.assets.map((asset) => [asset.sha256, asset]))
 
   // One pass over the copy's assets, fetching missing bytes concurrently, so a
@@ -391,8 +397,6 @@ async function mediaForCopy(
   > => {
     const original = sourceBySha.get(asset.sha256)
     if (!original) return { ok: false, message: 'The copy could not be prepared because its artwork no longer matches the original.' }
-    const existing = heldByAssetId.get(original.id)
-    if (existing) return { ok: true, record: { ...existing, assetId: asset.id } }
     try {
       const stored = await repository.getMedia(original.id)
       return { ok: true, record: { assetId: asset.id, bytes: stored.bytes, mimeType: stored.mimeType } }

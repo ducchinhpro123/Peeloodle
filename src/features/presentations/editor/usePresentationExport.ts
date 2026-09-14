@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { downloadBlob } from '@/features/exports/download'
 import type { PresentationRepository } from '@/lib/persistence/presentations/repository'
+import { usePresentationStore } from './store'
 import type { ExportWarning } from '../exports/snapshot'
 import type { buildPresentationPdf } from '../exports/pdf'
 import type { buildPresentationPptx } from '../exports/pptx'
@@ -95,7 +96,12 @@ export function usePresentationExport(input: { repository: PresentationRepositor
     try {
       const snapshotModule = await import('../exports/snapshot')
       const prepare = latest.current.prepare ?? snapshotModule.prepareExportSnapshot
-      snapshot = await prepare(latest.current.repository, { flushText: latest.current.flushText })
+      // Capture after the flush so an open text session is part of the snapshot,
+      // and pass the document in: the snapshot module never reads the store.
+      latest.current.flushText()
+      const document = usePresentationStore.getState().document
+      if (!document) throw new Error('Open a presentation before exporting.')
+      snapshot = await prepare(latest.current.repository, document)
       if (controller.signal.aborted) throw new Error('cancelled')
 
       const total = snapshot.document.slides.length

@@ -345,78 +345,58 @@ describe('presentation save flushing', () => {
     field.remove()
   })
 
-  it('submits the bytes of a just-inserted image, not an empty media list', async () => {
+  it('writes the bytes of a new image with the insert, in one transaction', async () => {
     const repository = new RecordingPresentationRepository()
     await openEditor(repository)
     const view = editor(repository)
 
     const bytes = fixtureImagePng()
     const assetId = `asset-${FIXTURE_IMAGE_SHA256}`
-    act(() => {
-      store().insertImage({
-        asset: {
-          id: assetId,
-          blobKey: `uploads/${FIXTURE_IMAGE_SHA256}`,
-          mimeType: 'image/png',
-          width: 256,
-          height: 256,
-          sha256: FIXTURE_IMAGE_SHA256,
-          byteLength: bytes.length,
-          provenance: { source: 'upload', label: 'photo.png' },
-        },
-        media: { assetId, bytes, mimeType: 'image/png' },
-      })
-    })
+    const image = {
+      asset: {
+        id: assetId,
+        blobKey: `uploads/${FIXTURE_IMAGE_SHA256}`,
+        mimeType: 'image/png' as const,
+        width: 256,
+        height: 256,
+        sha256: FIXTURE_IMAGE_SHA256,
+        byteLength: bytes.length,
+        provenance: { source: 'upload' as const, label: 'photo.png' },
+      },
+      media: { assetId, bytes, mimeType: 'image/png' as const },
+    }
 
-    await advanceAutosave()
+    let outcome: PersistInsertOutcome | undefined
+    await act(async () => { outcome = await view.result.current.persistInsert(image) })
 
-    expect(view.result.current.state).toEqual({ status: 'saved', message: null })
-    // A hook that submitted `[]` would fail this with missing_asset and store no artwork.
-    expect(repository.writes.at(-1)?.assetIds).toEqual([assetId])
+    expect(outcome?.ok).toBe(true)
+    // The insert itself carried the bytes; no later document save has to.
+    expect(repository.writes).toHaveLength(1)
+    expect(repository.writes[0]?.assetIds).toEqual([assetId])
     const stored = await repository.getPresentation(PRESENTATION_ID)
     expect(stored.assets).toMatchObject([{ id: assetId, sha256: FIXTURE_IMAGE_SHA256 }])
     expect(stored.slides[0]!.elements.at(-1)).toMatchObject({ kind: 'image', assetId })
-    // The written bytes are the inserted ones, and they are no longer held.
     expect(Array.from((await repository.getMedia(assetId)).bytes)).toEqual(Array.from(bytes))
-    expect(store().pendingMedia).toEqual([])
+    // Written before it was shown, so the editor is clean.
+    expect(store().dirty).toBe(false)
+    expect(store().document!.revision).toBe(stored.revision)
   })
 
-  it('drops only the media the write persisted, keeping artwork inserted while it was in flight', async () => {
-    const repository = new GatedPresentationRepository()
+  it('omits the bytes when the repository already stores the same asset', async () => {
+    const repository = new RecordingPresentationRepository()
     await openEditor(repository)
     const view = editor(repository)
+    const image = preparedImage('asset-reuse')
 
-    act(() => {
-      store().insertImage(preparedImage('asset-first'))
-      store().insertImage(preparedImage('asset-second'))
-    })
+    await act(async () => { await view.result.current.persistInsert(image) })
+    await act(async () => { await view.result.current.persistInsert(image) })
 
-    repository.pause = true
-    let writing!: Promise<void>
-    act(() => { writing = view.result.current.saveNow() })
-    await act(async () => { await repository.entered })
-
-    // A third insert lands while the write of the first two is still in flight.
-    act(() => { store().insertImage(preparedImage('asset-third')) })
-    expect(store().pendingMedia.map((record) => record.assetId)).toEqual(['asset-first', 'asset-second', 'asset-third'])
-
-    await act(async () => {
-      repository.release()
-      await writing
-    })
-
-    expect(repository.writes.at(-1)?.assetIds).toEqual(['asset-first', 'asset-second'])
-    // Recomputing `mediaForSave()` after the write would drop the third asset's
-    // bytes, and every later save would then fail with missing_asset.
-    expect(store().pendingMedia.map((record) => record.assetId)).toEqual(['asset-third'])
-    expect(store().dirty).toBe(true)
-
-    await act(async () => { await view.result.current.saveNow() })
-
-    expect(view.result.current.state).toEqual({ status: 'saved', message: null })
-    expect(repository.writes.at(-1)?.assetIds).toEqual(['asset-third'])
-    expect(await repository.hasMedia('asset-third')).toBe(true)
-    expect(store().dirty).toBe(false)
+    // The second insert adds an element but reuses the stored bytes.
+    expect(repository.writes).toHaveLength(2)
+    expect(repository.writes[0]?.assetIds).toEqual(['asset-reuse'])
+    expect(repository.writes[1]?.assetIds).toEqual([])
+    expect(store().document!.assets).toHaveLength(1)
+    expect(store().document!.slides[0]!.elements.filter((element) => element.kind === 'image')).toHaveLength(2)
   })
 
   it('keeps a command that lands while an insert is being written instead of dropping it', async () => {
@@ -483,36 +463,49 @@ describe('presentation save flushing', () => {
     field.remove()
   })
 
-  it('submits only the media the document references, keeping bytes redo still needs', async () => {
+  it('keeps an undone insert in the repository so redo can save without rewriting bytes', async () => {
     const repository = new RecordingPresentationRepository()
     await openEditor(repository)
     const view = editor(repository)
+    const image = preparedImage('asset-undo')
+    await act(async () => { await view.result.current.persistInsert(image) })
 
-    const asset = {
-      id: 'asset-p19',
-      blobKey: 'uploads/asset-p19',
-      mimeType: 'image/png' as const,
-      width: 8,
-      height: 8,
-      sha256: 'a'.repeat(64),
-      byteLength: 4,
-      provenance: { source: 'upload' as const, label: 'photo.png' },
-    }
-    act(() => {
-      store().insertImage({ asset, media: { assetId: asset.id, bytes: new Uint8Array([1, 2, 3, 4]), mimeType: 'image/png' } })
-    })
     act(() => { store().undo() })
-
-    expect(store().pendingMedia).toHaveLength(1)
-    expect(store().mediaForSave()).toHaveLength(0)
-
     await act(async () => { await view.result.current.saveNow() })
 
-    // Submitting the raw held record would fail here (`invalid_asset`).
+    // The undone asset is unreferenced: the save carries no media and still succeeds.
     expect(view.result.current.state).toEqual({ status: 'saved', message: null })
     expect(repository.writes.at(-1)?.assetIds).toEqual([])
-    // The unreferenced bytes stay held: redo must still be able to save them.
-    expect(store().pendingMedia).toHaveLength(1)
+    expect(await repository.hasMedia(image.media.assetId)).toBe(true)
+
+    // Redo restores the element; the bytes are still stored, so no media is rewritten.
+    act(() => { store().redo() })
+    await act(async () => { await view.result.current.saveNow() })
+    expect(store().document!.slides[0]!.elements.some((element) => element.kind === 'image' && element.assetId === image.media.assetId)).toBe(true)
+    expect(repository.writes.at(-1)?.assetIds).toEqual([])
+    expect(Array.from((await repository.getMedia(image.media.assetId)).bytes)).toEqual(Array.from(image.media.bytes))
+  })
+
+  it('keeps the replaced asset stored so undo can restore it after a replacement', async () => {
+    const repository = new RecordingPresentationRepository()
+    await openEditor(repository)
+    const view = editor(repository)
+    const original = preparedImage('asset-original')
+    const replacement = preparedImage('asset-replacement')
+
+    let inserted: PersistInsertOutcome | undefined
+    await act(async () => { inserted = await view.result.current.persistInsert(original) })
+    const elementId = inserted?.ok === true ? inserted.elementId : ''
+    await act(async () => { await view.result.current.persistReplace(elementId, replacement) })
+
+    act(() => { store().undo() })
+    await act(async () => { await view.result.current.saveNow() })
+
+    const stored = await repository.getPresentation(PRESENTATION_ID)
+    const restored = stored.slides[0]!.elements.find((element) => element.id === elementId)
+    expect(restored?.kind === 'image' && restored.assetId).toBe(original.media.assetId)
+    expect(Array.from((await repository.getMedia(original.media.assetId)).bytes)).toEqual(Array.from(original.media.bytes))
+    expect(repository.writes.at(-1)?.assetIds).toEqual([])
   })
 })
 
@@ -700,12 +693,11 @@ describe('atomic image insertion', () => {
     expect(stored.slides[0]!.elements.at(-1)).toMatchObject({ kind: 'image', assetId: image.media.assetId })
     expect(Array.from((await repository.getMedia(image.media.assetId)).bytes)).toEqual(Array.from(image.media.bytes))
 
-    // Written, so the editor is clean, holds nothing pending, and made one entry.
+    // Written, so the editor is clean and made one entry.
     expect(store().dirty).toBe(false)
     expect(store().saving).toBe(false)
     expect(store().savedRevision).toBe(stored.revision)
     expect(store().document!.revision).toBe(stored.revision)
-    expect(store().pendingMedia).toEqual([])
     expect(store().past).toHaveLength(1)
     expect(store().view.selectedElementIds).toEqual([outcome?.ok === true ? outcome.elementId : ''])
     expect(view.result.current.state).toEqual({ status: 'saved', message: null })
@@ -730,7 +722,6 @@ describe('atomic image insertion', () => {
     expect(store().document).toBe(document)
     expect(store().document!.assets).toEqual([])
     expect(store().document!.slides[0]!.elements).toEqual([])
-    expect(store().pendingMedia).toEqual([])
     expect(store().past).toHaveLength(history)
     expect(store().dirty).toBe(false)
     expect(view.result.current.state.status).toBe('failed')
@@ -756,7 +747,6 @@ describe('atomic image insertion', () => {
     expect(outcome?.ok === false && outcome.reason).toBe('media-limit')
     expect(outcome?.ok === false && outcome.message).toContain(`${PRESENTATION_LIMITS.maxMediaBytes / (1024 * 1024)}.0 MB`)
     expect(store().document).toBe(document)
-    expect(store().pendingMedia).toEqual([])
     // The refused insert never reached the repository.
     expect(repository.writes).toHaveLength(1)
   })
@@ -805,8 +795,6 @@ describe('conflict recovery', () => {
     const view = editor(repository)
     const image = preparedImage('asset-art')
     await act(async () => { await view.result.current.persistInsert(image) })
-    // Persisted, so the editor holds no bytes at all: the copy has to read them back.
-    expect(store().pendingMedia).toEqual([])
 
     let outcome: ConflictRecoveryOutcome | undefined
     await act(async () => { outcome = await view.result.current.keepMineAsCopy() })
@@ -821,25 +809,24 @@ describe('conflict recovery', () => {
     expect(Array.from(media.bytes)).toEqual(Array.from(image.media.bytes))
   })
 
-  it('carries artwork that was never persisted into the copy as well', async () => {
+  it('reports unreadable artwork instead of writing a partial conflict copy', async () => {
     const repository = new MemoryPresentationRepository()
-    await openEditor(repository)
+    const image = preparedImage('asset-orphan')
+    const orphaned = createPresentationDocument({ id: PRESENTATION_ID, title: 'P19' })
+    // A document that references artwork the repository does not hold: the copy
+    // must fail whole, not with a silently missing asset.
+    orphaned.assets = [image.asset]
+    repository.seedRawDocument(PRESENTATION_ID, orphaned)
     const view = editor(repository)
-
-    // Artwork inserted but not written yet, so its bytes live only in the store:
-    // the editor must re-key those too, not just the stored ones.
-    const image = preparedImage('asset-held')
-    act(() => { store().insertImage(image) })
-    expect(store().pendingMedia).toHaveLength(1)
+    act(() => { store().loadDocument(orphaned, { saved: true }) })
 
     let outcome: ConflictRecoveryOutcome | undefined
     await act(async () => { outcome = await view.result.current.keepMineAsCopy() })
 
-    const copy = await repository.getPresentation(outcome?.ok === true ? outcome.copyId : '')
-    expect(copy.assets).toHaveLength(1)
-    expect(copy.assets[0]!.id).not.toBe(image.media.assetId)
-    const media = await repository.getMedia(copy.assets[0]!.id)
-    expect(Array.from(media.bytes)).toEqual(Array.from(image.media.bytes))
+    expect(outcome?.ok).toBe(false)
+    expect(outcome?.ok === false && outcome.message).toMatch(/could not be read back/i)
+    expect(view.result.current.state.status).toBe('failed')
+    expect(await repository.listPresentations()).toHaveLength(1)
   })
 })
 
