@@ -64,6 +64,33 @@ contracts: [`docs/slides-architecture.md`](docs/slides-architecture.md).
   the write. `beforeunload` stays in `usePresentationSave` for reload/tab close.
   (The earlier link-scoped `leaveGuard.ts`/`GuardedLink` pair is gone.)
 
+## Architecture deepening (2026-09-14)
+
+Batches A–E of the architecture review landed as separate commits; each is
+described in its own message and the load-bearing decisions are in ADR 0004 and
+ADR 0005.
+
+- A: `editor/history.ts` owns undo/redo bookkeeping; in-memory pending-media
+  retention was removed with the test-only insert commands (ADR 0005) and
+  persist-first is the only image-write path; the saver takes an injected store.
+- B: `rendering/decodedArtwork.ts` owns decode/dispose for the editor, library
+  thumbnails and the export snapshot; `lib/hash.ts` owns SHA-256.
+- C: the sticker store commits edits through one `commitEdit`/`publishEdit` path;
+  `editor/maskStroke.ts` is an explicit store-owned stroke session
+  (`commitMaskStroke` replaces the old `finishMaskStroke` field).
+- D: `loadProjectBundle` is the one artwork read; sticker thumbnails cache per
+  revision; adapter rules are shared (`presentations/mediaPolicy.ts`,
+  `persistence/order.ts`) and the cloud adapter composes IdB instead of
+  extending it, with `sync?.settle()` as the explicit capability.
+- E: pack rules live in `features/packs/packActions.ts`, byte helpers in
+  `lib/blob.ts` + `lib/imageFormat.crc32`, and shell navigation/search rules in
+  `app/navigation.ts` + `features/search/`.
+
+Remaining from the review: feature CSS ownership (split `src/styles.css` by
+feature prefix, lowest priority; verify with `e2e/ui-polish.spec.ts`), the
+optional canvas-renderer and template-favorites seams, and the deferred
+per-session presentation store (the module-global Zustand store stays for now).
+
 ## Start here: P44/P45 verification, then Milestone 4 (P46 — catalog schema)
 
 **P35–P43 are done** (see the proofs listed above). The export builders and
