@@ -35,9 +35,9 @@ After the variables exist, **rebuild and deploy this SHA** (`npx vercel --prod` 
 
 In Supabase Dashboard → Authentication → URL Configuration:
 
-| Setting | Value |
-| --- | --- |
-| Site URL | `https://stickerlab-eta.vercel.app` |
+| Setting             | Value                                             |
+| ------------------- | ------------------------------------------------- |
+| Site URL            | `https://stickerlab-eta.vercel.app`               |
 | Redirect allow list | `https://stickerlab-eta.vercel.app/auth/callback` |
 
 Keep local callbacks for development if you still use them (`http://localhost:5173/auth/callback`, `http://127.0.0.1:4173/auth/callback`, `http://127.0.0.1:4174/auth/callback`). The app requests `emailRedirectTo = ${origin}/auth/callback` and strips unknown `next` targets.

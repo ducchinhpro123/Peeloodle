@@ -6,14 +6,14 @@ one finding recorded for P56/P57.
 
 ## Code
 
-| File | Responsibility |
-| --- | --- |
+| File                          | Responsibility                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
 | `server/processing/limits.ts` | Centralized `PROCESSING_LIMITS` (source bytes, pixels, dimensions, SVG nodes/depth, concurrency) |
-| `server/processing/errors.ts` | `ProcessingError` with stable codes |
-| `server/processing/raster.ts` | Header-only sniff/animation/dimension checks, then bounded sharp decode + PNG/WebP derivatives |
-| `server/processing/svg.ts` | Strict static-subset validation (fast-xml-parser), resvg rasterization |
-| `server/processing/index.ts` | `processAssetBytes` entry point; never accepts URLs or client MIME |
-| `src/lib/imageFormat.ts` | Byte-level format/size/animation parsing shared with browser upload validation |
+| `server/processing/errors.ts` | `ProcessingError` with stable codes                                                              |
+| `server/processing/raster.ts` | Header-only sniff/animation/dimension checks, then bounded sharp decode + PNG/WebP derivatives   |
+| `server/processing/svg.ts`    | Strict static-subset validation (fast-xml-parser), resvg rasterization                           |
+| `server/processing/index.ts`  | `processAssetBytes` entry point; never accepts URLs or client MIME                               |
+| `src/lib/imageFormat.ts`      | Byte-level format/size/animation parsing shared with browser upload validation                   |
 
 Runtime: Node 24.21.0, sharp 0.35.4 (libvips 8.18.6), @resvg/resvg-js 2.6.2,
 fast-xml-parser 5.11.1. TypeScript coverage added through `tsconfig.server.json`
@@ -41,12 +41,12 @@ and a Node-globals ESLint override.
 Measured benchmark (`npx vite-node proofs/processing/benchmark.ts`,
 `proofs/out/p07-processing-report.json`, 20 iterations each):
 
-| Case | Median | p95 | Output | RSS delta |
-| --- | --- | --- | --- | --- |
-| PNG 256×256 | 16.4 ms | 19.3 ms | 9.1 KB | +15.3 MB |
-| WebP 320×240 | 9.1 ms | 11.4 ms | 1.0 KB | +14.3 MB |
-| SVG 256×256 | 9.1 ms | 11.0 ms | 29.6 KB | +0.6 MB |
-| Hostile SVG (rejected) | 0.01 ms | 0.03 ms | — | 0 MB |
+| Case                   | Median  | p95     | Output  | RSS delta |
+| ---------------------- | ------- | ------- | ------- | --------- |
+| PNG 256×256            | 16.4 ms | 19.3 ms | 9.1 KB  | +15.3 MB  |
+| WebP 320×240           | 9.1 ms  | 11.4 ms | 1.0 KB  | +14.3 MB  |
+| SVG 256×256            | 9.1 ms  | 11.0 ms | 29.6 KB | +0.6 MB   |
+| Hostile SVG (rejected) | 0.01 ms | 0.03 ms | —       | 0 MB      |
 
 These are single-file numbers on this machine; they justify the initial limits
 (15 MB / 25 MP raster, 2 MB SVG, ≤ 4096 px render) and the two-jobs-concurrent

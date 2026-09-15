@@ -10,36 +10,36 @@ Delivered in two slices: operations (`f56695b`) and thumbnails (this commit).
 
 ## What was built
 
-| File | Change |
-| --- | --- |
-| `library/libraryActions.ts` | `renamedDocument` (trim, next revision, fresh `updatedAt`, `null` when blank) and `describeLibraryFailure` (plain-language reason per failure). |
-| `library/PresentationThumb.tsx` | Lazy card thumbnail: IntersectionObserver, renders nothing until a raster exists, keeps the paper preview otherwise. |
-| `library/presentationThumbnails.ts` | Cache + render + release: LRU of 24 keyed by `documentId:revision`, in-flight dedupe, failures not cached, at most 2 renders at once, and a rasterizer that reuses `renderSlide` on a detached stage. |
-| `library/PresentationsPage.tsx` | Cards hold the open link plus **sibling** action buttons, the rename dialog, the destructive confirm dialog, and the thumbnail in the existing `aria-hidden` preview slot. |
-| `src/styles.css` | Five lines in the `.presentation-card*` family: the thumbnail overlay, its image, and `z-index` for the `16:9 SLIDES` badge. |
-| `e2e/presentations-library-actions.spec.ts` | 3 browser tests, every claim read back from IndexedDB. |
-| `e2e/presentations-library-thumbnails.spec.ts` | 3 browser tests: real pixels per deck, deletion removes the thumbnail, no overflow at 1024×768 or 390×844. |
+| File                                           | Change                                                                                                                                                                                                |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `library/libraryActions.ts`                    | `renamedDocument` (trim, next revision, fresh `updatedAt`, `null` when blank) and `describeLibraryFailure` (plain-language reason per failure).                                                       |
+| `library/PresentationThumb.tsx`                | Lazy card thumbnail: IntersectionObserver, renders nothing until a raster exists, keeps the paper preview otherwise.                                                                                  |
+| `library/presentationThumbnails.ts`            | Cache + render + release: LRU of 24 keyed by `documentId:revision`, in-flight dedupe, failures not cached, at most 2 renders at once, and a rasterizer that reuses `renderSlide` on a detached stage. |
+| `library/PresentationsPage.tsx`                | Cards hold the open link plus **sibling** action buttons, the rename dialog, the destructive confirm dialog, and the thumbnail in the existing `aria-hidden` preview slot.                            |
+| `src/styles.css`                               | Five lines in the `.presentation-card*` family: the thumbnail overlay, its image, and `z-index` for the `16:9 SLIDES` badge.                                                                          |
+| `e2e/presentations-library-actions.spec.ts`    | 3 browser tests, every claim read back from IndexedDB.                                                                                                                                                |
+| `e2e/presentations-library-thumbnails.spec.ts` | 3 browser tests: real pixels per deck, deletion removes the thumbnail, no overflow at 1024×768 or 390×844.                                                                                            |
 
 ## Acceptance, as verified
 
-| Criterion | Evidence |
-| --- | --- |
-| Duplicate is independent | Browser test: the copy is its own stored row with a different document id **and** a different slide id, while the source row's title, revision and slide id are unchanged. The copy comes from `repository.duplicatePresentation`, not hand-cloned JSON. |
-| Delete cancels safely | Browser test: the confirmation opens with the **safe action focused**; Escape closes it, restores focus to the button that opened it, and leaves all rows in place. |
-| Delete restores focus | After confirming, focus lands on a surviving control (the neighbouring card's action button), not the document body. Mutation-checked: a naive `opener.focus()` restore fails this test. |
-| Sticker projects untouched | Delete removes only presentation rows; the sticker side is not touched by this code path at all. |
-| Thumbnails | Real render of the deck's first slide at 480×270 (`naturalWidth > 0`), drawn 249 px wide inside the card, and two different decks produce different pixels. |
+| Criterion                  | Evidence                                                                                                                                                                                                                                                 |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Duplicate is independent   | Browser test: the copy is its own stored row with a different document id **and** a different slide id, while the source row's title, revision and slide id are unchanged. The copy comes from `repository.duplicatePresentation`, not hand-cloned JSON. |
+| Delete cancels safely      | Browser test: the confirmation opens with the **safe action focused**; Escape closes it, restores focus to the button that opened it, and leaves all rows in place.                                                                                      |
+| Delete restores focus      | After confirming, focus lands on a surviving control (the neighbouring card's action button), not the document body. Mutation-checked: a naive `opener.focus()` restore fails this test.                                                                 |
+| Sticker projects untouched | Delete removes only presentation rows; the sticker side is not touched by this code path at all.                                                                                                                                                         |
+| Thumbnails                 | Real render of the deck's first slide at 480×270 (`naturalWidth > 0`), drawn 249 px wide inside the card, and two different decks produce different pixels.                                                                                              |
 
 ## Checks run
 
-| Command | Result |
-| --- | --- |
-| `npm run typecheck` | clean |
-| `npm run lint` | 0 errors, 4 pre-existing `react-refresh` warnings |
-| `npm test` | **452 passed / 35 files** (baseline 437 + 15 thumbnail tests) |
-| `npm run build` | `✓ built in 2.99s` |
-| `npx playwright test` (5 presentation specs) | **12 passed** |
-| `npx playwright test e2e/presentations.spec.ts` | **6 passed** |
+| Command                                         | Result                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------- |
+| `npm run typecheck`                             | clean                                                         |
+| `npm run lint`                                  | 0 errors, 4 pre-existing `react-refresh` warnings             |
+| `npm test`                                      | **452 passed / 35 files** (baseline 437 + 15 thumbnail tests) |
+| `npm run build`                                 | `✓ built in 2.99s`                                            |
+| `npx playwright test` (5 presentation specs)    | **12 passed**                                                 |
+| `npx playwright test e2e/presentations.spec.ts` | **6 passed**                                                  |
 
 Mutation checks, each restored and proven by sha256: the delete dialog's safe-action focus and the focus
 restore; the thumbnail cache key dropping the revision (a bumped revision served the old pixels); and the
@@ -47,7 +47,7 @@ failure fallback removed (the rejection escaped instead of keeping the paper pre
 
 ## Two defects found while verifying (not by the tests)
 
-1. **Thumbnail layering.** The paper preview carries `z-index: 1`, so it painted *over* the real render —
+1. **Thumbnail layering.** The paper preview carries `z-index: 1`, so it painted _over_ the real render —
    half slide, half sticker art. Found by looking at the page, fixed with `z-index: 2` on the thumbnail
    overlay and `3` on the badge. Worth stating plainly: the unit tests and the pixel assertions both passed
    while the card looked wrong, because they measured the `<img>`, not the composited card.

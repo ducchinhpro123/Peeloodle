@@ -5,10 +5,10 @@ long-title/bullets export fixture."
 
 ## Choice
 
-| Stable font ID | Family | Role | Files | License |
-| --- | --- | --- | --- | --- |
-| `be-vietnam-pro` | Be Vietnam Pro | Body/UI text | Regular, Bold, Italic, BoldItalic (static TTF) | SIL OFL 1.1 (`public/fonts/presentations/be-vietnam-pro-OFL.txt`) |
-| `spectral` | Spectral | Headings/titles | Regular, Bold, Italic, BoldItalic (static TTF) | SIL OFL 1.1 (`public/fonts/presentations/spectral-OFL.txt`) |
+| Stable font ID   | Family         | Role            | Files                                          | License                                                           |
+| ---------------- | -------------- | --------------- | ---------------------------------------------- | ----------------------------------------------------------------- |
+| `be-vietnam-pro` | Be Vietnam Pro | Body/UI text    | Regular, Bold, Italic, BoldItalic (static TTF) | SIL OFL 1.1 (`public/fonts/presentations/be-vietnam-pro-OFL.txt`) |
+| `spectral`       | Spectral       | Headings/titles | Regular, Bold, Italic, BoldItalic (static TTF) | SIL OFL 1.1 (`public/fonts/presentations/spectral-OFL.txt`)       |
 
 Both families ship true static regular/bold/italic/bold-italic faces through
 `@font-face` in `src/features/presentations/rendering/presentation-fonts.css`
@@ -43,16 +43,16 @@ real faces in DOM and Konva output (`proofs/out/p04-dom-overlay.png`,
 Local `git hash-object` equals the upstream `sha` reported by the Google Fonts
 GitHub API for all eight files (checked 2026-09-10):
 
-| File | Upstream blob sha |
-| --- | --- |
-| `BeVietnamPro-Regular.ttf` | `dfa34c09fe2bae0626e00aa3265af2119345c27b` |
-| `BeVietnamPro-Bold.ttf` | `52aadc6da089ed8ae647b5e0c8cac4f8b3e24750` |
-| `BeVietnamPro-Italic.ttf` | `d9d0134f4120078d3c815bc20cd7e9dfc5ff66c2` |
+| File                          | Upstream blob sha                          |
+| ----------------------------- | ------------------------------------------ |
+| `BeVietnamPro-Regular.ttf`    | `dfa34c09fe2bae0626e00aa3265af2119345c27b` |
+| `BeVietnamPro-Bold.ttf`       | `52aadc6da089ed8ae647b5e0c8cac4f8b3e24750` |
+| `BeVietnamPro-Italic.ttf`     | `d9d0134f4120078d3c815bc20cd7e9dfc5ff66c2` |
 | `BeVietnamPro-BoldItalic.ttf` | `7e22a2d7e115780ad7f044548b4cbd745b52d969` |
-| `Spectral-Regular.ttf` | `25a6c47f8050e4ea3c9713a02a4843a8d6c503d5` |
-| `Spectral-Bold.ttf` | `5019e0802e726cebe021b007e661ec763c63e54f` |
-| `Spectral-Italic.ttf` | `99d6c2def129dea2daa47652c2168c271c7a59a7` |
-| `Spectral-BoldItalic.ttf` | `90aea8b167fe1f21316480c4e2860eb93a17c0a0` |
+| `Spectral-Regular.ttf`        | `25a6c47f8050e4ea3c9713a02a4843a8d6c503d5` |
+| `Spectral-Bold.ttf`           | `5019e0802e726cebe021b007e661ec763c63e54f` |
+| `Spectral-Italic.ttf`         | `99d6c2def129dea2daa47652c2168c271c7a59a7` |
+| `Spectral-BoldItalic.ttf`     | `90aea8b167fe1f21316480c4e2860eb93a17c0a0` |
 
 Upstream: `github.com/google/fonts` under `ofl/bevietnampro` and `ofl/spectral`.
 Total size ≈ 1.6 MB, fetched on demand only when presentation text uses them.
@@ -80,11 +80,11 @@ Results:
 
 ## Reader coverage and gaps
 
-| Reader | Status |
-| --- | --- |
-| LibreOffice Impress 26.8.0.3 (Linux) | Used for all export checks above |
-| Microsoft PowerPoint (desktop) | **Unavailable in this environment — not verified** |
-| Google Slides / Keynote / browser PowerPoint | Not tested |
+| Reader                                       | Status                                             |
+| -------------------------------------------- | -------------------------------------------------- |
+| LibreOffice Impress 26.8.0.3 (Linux)         | Used for all export checks above                   |
+| Microsoft PowerPoint (desktop)               | **Unavailable in this environment — not verified** |
+| Google Slides / Keynote / browser PowerPoint | Not tested                                         |
 
 PPTX references fonts by family name; a viewer without the fonts installed
 substitutes metrics. The release documentation must state the font requirement

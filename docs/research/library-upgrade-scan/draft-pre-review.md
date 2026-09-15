@@ -16,15 +16,16 @@ document, not a migration plan.
 Four independent scans (canvas/image, slides/text, persistence/sync, product-UX) reached the same
 shape of answer from different directions: **the libraries that would "boot this app to another
 level" are not in the core.** The engine (Konva), the persistence layer (typed repositories + outbox
-+ content-addressed blobs), the text pipeline, and the export compositor are already doing work that
-no drop-in library does better, and several popular candidates would actively subtract value.
 
-What the scans *did* find is a smaller, sharper set of real wins, and one of them is unusually
+- content-addressed blobs), the text pipeline, and the export compositor are already doing work that
+  no drop-in library does better, and several popular candidates would actively subtract value.
+
+What the scans _did_ find is a smaller, sharper set of real wins, and one of them is unusually
 cheap:
 
 1. **Accessibility is the single most under-served area, and the fix is two devDependencies with no
    runtime cost** — `eslint-plugin-jsx-a11y` and `@axe-core/playwright`. The repo has typed,
-   hand-rolled validation everywhere but has *never* run an a11y linter or an automated a11y audit,
+   hand-rolled validation everywhere but has _never_ run an a11y linter or an automated a11y audit,
    while `AGENTS.md` lists accessible names, dialog focus handling, and keyboard alternatives as
    requirements.
 2. **The product has already advertised an unbuilt affordance.** The header renders a search control
@@ -43,7 +44,7 @@ cheap:
    product commitment, not a drop-in.
 5. **The biggest wins are not libraries at all.** The three highest-value items found across all four
    scans are in-repo work: a `schemaVersion` **migration** module (old documents are currently
-   unreadable *and* un-restorable while P41/P42 ship restorable backups), an **export fidelity
+   unreadable _and_ un-restorable while P41/P42 ship restorable backups), an **export fidelity
    preflight** (PPTX references fonts by family name and the reader substitutes metrics), and a
    **measurement** of the full-resolution mask encode before anyone builds a worker.
 
@@ -58,11 +59,11 @@ were examined and rejected with a reason.
 Three different kinds of "level up" came out of the scans, and they should not be ranked against
 each other:
 
-| Kind | What it buys | Candidates |
-| --- | --- | --- |
-| **Capability** | Product surface that does not exist yet | `cmdk`, `@dnd-kit`, chart renderer, permissive cutout model |
-| **Quality** | Fewer regressions, honest failures, real a11y | `eslint-plugin-jsx-a11y`, `@axe-core/playwright`, Playwright snapshots, `sonner` |
-| **Velocity** | Faster, safer change in a 19k-LOC codebase mid-restructure | `rollup-plugin-visualizer`, `knip`, `@t3-oss/env-core` |
+| Kind           | What it buys                                               | Candidates                                                                       |
+| -------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **Capability** | Product surface that does not exist yet                    | `cmdk`, `@dnd-kit`, chart renderer, permissive cutout model                      |
+| **Quality**    | Fewer regressions, honest failures, real a11y              | `eslint-plugin-jsx-a11y`, `@axe-core/playwright`, Playwright snapshots, `sonner` |
+| **Velocity**   | Faster, safer change in a 19k-LOC codebase mid-restructure | `rollup-plugin-visualizer`, `knip`, `@t3-oss/env-core`                           |
 
 Every cell below was fetched on 2026-09-12 unless marked. "Last release" is the publication date of
 the newest version on the registry. Bundle sizes were **not** measured; none is quoted.
@@ -75,24 +76,24 @@ Ranked by expected value against effort. Everything here is licence-checked and 
 versions and dates were read from the registry on 2026-09-12. Bundle sizes were **not** measured, so
 none is quoted.
 
-| # | Recommendation | Licence | Version (last release) | React 18 | Buys | Effort |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | An offline app shell: `vite-plugin-pwa` | MIT | 1.3.0 (2026-05-05) | n/a (build plugin, peer `vite ^3.1–^7`) | The app currently cannot load at all without a network — for a product whose promise is offline-first, this is the gap between the promise and the behaviour | S–M |
-| 2 | `eslint-plugin-jsx-a11y` + `@axe-core/playwright` | MIT / **MPL-2.0** | axe-core/playwright 4.13.0 (2026-08-11) | n/a | Automated a11y checks inside commands that already run; closes a verified tooling gap | S |
-| 3 | `cmdk` (+ optional `fuse.js` for cross-entity search) | MIT / Apache-2.0 | cmdk 1.1.1 (2025-03-14); fuse.js 7.5.0 (2026-07-13) | cmdk `^18 \|\| ^19` ✅ | Implements the advertised-but-missing search and the missing keyboard path | S–M |
-| 4 | Playwright snapshot assertions + traces | **Apache-2.0** (already a dep, verified in `node_modules/@playwright/test/package.json`) | `@playwright/test` ^1.63.0 | n/a | Turns `/tmp` screenshots and 12 known-failing overflow checks into committed regressions | S |
-| 5 | `@dnd-kit/core` + `@dnd-kit/sortable` | MIT | 6.3.1 (2024-12-05) / 10.0.0 (2024-12-04) | `>=16.8` ✅ | Drag reorder with announcements at P23 + P30 only | M |
+| #   | Recommendation                                        | Licence                                                                                  | Version (last release)                              | React 18                                | Buys                                                                                                                                                         | Effort |
+| --- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| 1   | An offline app shell: `vite-plugin-pwa`               | MIT                                                                                      | 1.3.0 (2026-05-05)                                  | n/a (build plugin, peer `vite ^3.1–^7`) | The app currently cannot load at all without a network — for a product whose promise is offline-first, this is the gap between the promise and the behaviour | S–M    |
+| 2   | `eslint-plugin-jsx-a11y` + `@axe-core/playwright`     | MIT / **MPL-2.0**                                                                        | axe-core/playwright 4.13.0 (2026-08-11)             | n/a                                     | Automated a11y checks inside commands that already run; closes a verified tooling gap                                                                        | S      |
+| 3   | `cmdk` (+ optional `fuse.js` for cross-entity search) | MIT / Apache-2.0                                                                         | cmdk 1.1.1 (2025-03-14); fuse.js 7.5.0 (2026-07-13) | cmdk `^18 \|\| ^19` ✅                  | Implements the advertised-but-missing search and the missing keyboard path                                                                                   | S–M    |
+| 4   | Playwright snapshot assertions + traces               | **Apache-2.0** (already a dep, verified in `node_modules/@playwright/test/package.json`) | `@playwright/test` ^1.63.0                          | n/a                                     | Turns `/tmp` screenshots and 12 known-failing overflow checks into committed regressions                                                                     | S      |
+| 5   | `@dnd-kit/core` + `@dnd-kit/sortable`                 | MIT                                                                                      | 6.3.1 (2024-12-05) / 10.0.0 (2024-12-04)            | `>=16.8` ✅                             | Drag reorder with announcements at P23 + P30 only                                                                                                            | M      |
 
 **Adopt when the trigger arrives, not now** — each has a concrete trigger, and adopting early buys
 nothing:
 
-| Candidate | Licence | Version | Trigger |
-| --- | --- | --- | --- |
-| `sonner` | MIT | 2.0.8 (2026-08-09), `react: ^18 \|\| ^19` ✅ | The first genuinely off-screen async flow (P40/P43/P58/P60) |
-| `rollup-plugin-visualizer` + `knip` | MIT / ISC | 7.1.1 (2026-08-14) / 6.35.1 (2026-09-09) | Now-ish, as devDependencies: Konva is already lazy-loaded and someone must see the chunks |
-| `@tanstack/react-virtual` | MIT | 3.14.12 (2026-09-11) | A catalog page that renders hundreds of assets *and* paging has been ruled out |
-| One canvas-first chart renderer (`chart.js`) | MIT | 4.5.1 (2025-10-13) | Charts become a real requirement — then pick one renderer, never two |
-| `msw` | MIT | 2.15.0 (2026-07-08) | P46+, when hostile cloud behaviour must be induced on demand |
+| Candidate                                    | Licence   | Version                                      | Trigger                                                                                   |
+| -------------------------------------------- | --------- | -------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `sonner`                                     | MIT       | 2.0.8 (2026-08-09), `react: ^18 \|\| ^19` ✅ | The first genuinely off-screen async flow (P40/P43/P58/P60)                               |
+| `rollup-plugin-visualizer` + `knip`          | MIT / ISC | 7.1.1 (2026-08-14) / 6.35.1 (2026-09-09)     | Now-ish, as devDependencies: Konva is already lazy-loaded and someone must see the chunks |
+| `@tanstack/react-virtual`                    | MIT       | 3.14.12 (2026-09-11)                         | A catalog page that renders hundreds of assets _and_ paging has been ruled out            |
+| One canvas-first chart renderer (`chart.js`) | MIT       | 4.5.1 (2025-10-13)                           | Charts become a real requirement — then pick one renderer, never two                      |
+| `msw`                                        | MIT       | 2.15.0 (2026-07-08)                          | P46+, when hostile cloud behaviour must be induced on demand                              |
 
 **Deliberately not ranked:** automatic background removal. The permissive option exists
 (`Xenova/modnet`, Apache-2.0) but it is a 105 MB first-run download plus licence review, honest
@@ -107,7 +108,7 @@ and it is not about a canvas or a data library. The repo has **no service worker
 manifest, no `theme-color`, and no PWA tooling of any kind**: `index.html` carries only a viewport
 meta, `public/` holds icons but no manifest, and a repo-wide search for `serviceworker`,
 `registerSW`, `workbox`, `vite-plugin-pwa` and `webmanifest` returns nothing. Offline-first here
-extends to the *data* (IndexedDB documents, immutable blobs, local save/reopen) but **not to the
+extends to the _data_ (IndexedDB documents, immutable blobs, local save/reopen) but **not to the
 application itself**: with no network, a reload cannot load the app at all.
 
 For a product whose stated core is "core editing, saving, reopening and PNG export must work without
@@ -128,7 +129,7 @@ semantics for the whole app:
    survive a deploy; a prompt-on-update flow ("New version ready — reload") is the honest option and
    must not interrupt unsaved work.
 3. **The current deploy already behaves well here** — `cache-control: public, max-age=0,
-   must-revalidate` — so index and assets are revalidated; the worker must not fight that.
+must-revalidate` — so index and assets are revalidated; the worker must not fight that.
 4. Service workers need HTTPS or localhost; the Vercel deployment is HTTPS, so this is satisfied.
 5. It does not replace the storage layer, the autosave debounce, or the save-state pill, and it must
    not be presented to users as "your work is backed up".
@@ -164,7 +165,7 @@ explanation, not active-looking dead controls" — so this is decide-and-do, and
 `cmdk` 1.1.1 (MIT, `react: ^18 || ^19`) is headless: it supplies the filtering/selection primitives
 and the repo builds the chrome from its own `DialogContent` and tokens, which keeps the
 one-dialog-system rule intact. It also gives keyboard users a route to actions and documents, which
-is the other half of the pointer-only finding. If the palette must search *content* across
+is the other half of the pointer-only finding. If the palette must search _content_ across
 documents, templates and catalog assets rather than one flat action list, `fuse.js` 7.5.0
 (Apache-2.0, 2026-07-13) is the small, framework-free index for it — optional, and only if cmdk's
 own filtering stops being enough.
@@ -176,7 +177,7 @@ not become a second navigation system alongside the router.
 Rejected alternatives: `kbar` 1.0.0 (MIT, React 18 peer OK) ships its own palette UI, styling and
 animation that would collide with the token system; `hotkeys-js` 4.0.8 is vanilla-global with no
 React lifecycle; `ninja-keys` is a web component, the least composable option in a React-strict
-shell. `react-hotkeys-hook` 5.3.3 (MIT, React 18 OK) is a *conditional* swap for the existing
+shell. `react-hotkeys-hook` 5.3.3 (MIT, React 18 OK) is a _conditional_ swap for the existing
 hand-rolled shortcut dispatch — only worth it once the shortcut table outgrows one readable
 dispatcher.
 
@@ -210,7 +211,7 @@ which matters for the supported 390×844 viewport.
 
 Status is currently inline and truthful (`saveStatusLabel` with `data-state="saving" |
 "saved-locally" | "save-failed"`, `.asset-error`, `.presentation-local-status`, `NoticeDialog`), and
-the audit spent a pass *removing* non-functional controls.
+the audit spent a pass _removing_ non-functional controls.
 
 So a toast library is only justified where the result is genuinely off-screen or asynchronous:
 pack ZIP export, PPTX/PDF export progress and cancellation (P40), backup/restore (P43), per-file
@@ -251,7 +252,7 @@ repo already implements the hard part of local-first sync:
   the RPC dedupes on, with the queue bounded to two snapshots per resource
   (`src/lib/persistence/repository.ts`);
 - **optimistic concurrency on an explicit revision** — the server RPC takes `expected_revision` and
-  returns `{ resource, original, conflict }`, and conflicts produce a *copy* via `acknowledge`'s
+  returns `{ resource, original, conflict }`, and conflicts produce a _copy_ via `acknowledge`'s
   notice, never an overwrite (`src/lib/persistence/cloudRemote.ts`, `cloud.ts`);
 - **content-addressed binaries** — SHA-256 via Web Crypto, path `${ownerId}/${hash}`,
   `upsert:false` with 409 treated as success, then re-download and re-hash before acknowledging;
@@ -271,16 +272,16 @@ outbox/conflict reasoning above and re-deriving it on someone else's semantics, 
 invariants they do not provide (atomic doc+binary commits, immutable media, additive single-DB
 schema).
 
-| Engine | Service required | Verdict |
-| --- | --- | --- |
-| Electric | Yes (Cloud or self-host, in front of Postgres) | Reject — drops `expected_revision` conflict semantics |
-| PowerSync | Yes (service + connector you write) | Reject — closest analogue to the outbox, still displaces it |
-| Zero (Rocicorp) | Yes (`zero-cache`) | Reject — replaces the sync half only, so you run both |
-| RxDB replication | Yes for replication | Reject — second revision system beside the RPC one |
-| Jazz / InstantDB / Triplit | Yes (hosted or self-host) | Reject — owns the data model, i.e. replaces the Supabase stack |
-| Liveblocks | Yes (hosted, server auth endpoint) | Reject — session-oriented, replaces nothing here |
-| Yjs / Loro / Automerge | Provider needed in practice | Reject — merged CRDT state is not a validated document; no blob atomicity; co-editing is deferred by product decision |
-| Supabase Realtime | Already in the stack | **The one positive:** a subscription that wakes the existing `sync()` instead of a manual "Refresh cloud" — a notification channel, never storage |
+| Engine                     | Service required                               | Verdict                                                                                                                                           |
+| -------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Electric                   | Yes (Cloud or self-host, in front of Postgres) | Reject — drops `expected_revision` conflict semantics                                                                                             |
+| PowerSync                  | Yes (service + connector you write)            | Reject — closest analogue to the outbox, still displaces it                                                                                       |
+| Zero (Rocicorp)            | Yes (`zero-cache`)                             | Reject — replaces the sync half only, so you run both                                                                                             |
+| RxDB replication           | Yes for replication                            | Reject — second revision system beside the RPC one                                                                                                |
+| Jazz / InstantDB / Triplit | Yes (hosted or self-host)                      | Reject — owns the data model, i.e. replaces the Supabase stack                                                                                    |
+| Liveblocks                 | Yes (hosted, server auth endpoint)             | Reject — session-oriented, replaces nothing here                                                                                                  |
+| Yjs / Loro / Automerge     | Provider needed in practice                    | Reject — merged CRDT state is not a validated document; no blob atomicity; co-editing is deferred by product decision                             |
+| Supabase Realtime          | Already in the stack                           | **The one positive:** a subscription that wakes the existing `sync()` instead of a manual "Refresh cloud" — a notification channel, never storage |
 
 Storage adapters: `idb` 8.0.3 (ISC, 2025-05-07) would collapse ~40 lines of plumbing and touch
 nothing else; `dexie` 4.4.6 (Apache-2.0, 2026-09-10) adds declarative upgrades and live queries but
@@ -294,7 +295,7 @@ registry metadata and its newest release is 2024-01-05.
 History: `zundo` 2.3.0 (MIT, 2024-11-17, peer `zustand ^4.3 || ^5`) can replace the two
 past/future arrays but not the rules attached to them — it cannot express the coupled
 `assetsFor`/`masksFor` media retention that makes "delete a layer, undo it" work. `immer` 11.1.18
-(MIT, 2026-08-19) inverse patches are a *performance* question (the current push does a JSON
+(MIT, 2026-08-19) inverse patches are a _performance_ question (the current push does a JSON
 round-trip clone through the validator, 50 deep, and validates on every push) and need a profile
 before adoption — not a simplification.
 
@@ -315,19 +316,19 @@ Two concrete, library-free improvements did fall out:
   `e2e/outline.spec.ts`).
 - **Nothing measures the full-resolution mask encode.** Every paint stroke rasterises at full asset
   resolution, encodes via `canvas.toBlob` on the main thread, then writes to IndexedDB. The recorded
-  measurements cover the *preview raster* path only and do not transfer. Measure it (25 MP stroke,
+  measurements cover the _preview raster_ path only and do not transfer. Measure it (25 MP stroke,
   stroke-end latency + peak heap) **before** building anything.
 
 Alpha matting / background removal — the honest picture:
 
-| Option | Licence (verified) | Reality |
-| --- | --- | --- |
-| `@imgly/background-removal` 1.7.0 | **AGPL-3.0** (its `LICENSE.md` is the AGPL; other licensing via img.ly sales) | Copyleft obligations for a networked app; not a casual dependency |
-| BRIA RMBG-1.4 | source-available, **non-commercial** (commercial requires agreement) | The model behind many demos |
-| BRIA RMBG-2.0 | **CC BY-NC 4.0** | Same wall, newer model |
-| `Xenova/modnet` | **Apache-2.0**, ~105 MB ONNX, 103,619 downloads, last modified 2025-10-26 | The permissive path; portrait matting quality |
-| `onnx-community/BiRefNet_lite-ONNX` | **MIT**, ~322 MB ONNX | Permissive, but a large first-run download |
-| `@mediapipe/tasks-vision` 1.0.1 | Apache-2.0 | Person/selfie-oriented; the repo's own audit called it "legal but product-unfit" for pets and objects, which is what StickerLab's artwork is |
+| Option                              | Licence (verified)                                                            | Reality                                                                                                                                      |
+| ----------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@imgly/background-removal` 1.7.0   | **AGPL-3.0** (its `LICENSE.md` is the AGPL; other licensing via img.ly sales) | Copyleft obligations for a networked app; not a casual dependency                                                                            |
+| BRIA RMBG-1.4                       | source-available, **non-commercial** (commercial requires agreement)          | The model behind many demos                                                                                                                  |
+| BRIA RMBG-2.0                       | **CC BY-NC 4.0**                                                              | Same wall, newer model                                                                                                                       |
+| `Xenova/modnet`                     | **Apache-2.0**, ~105 MB ONNX, 103,619 downloads, last modified 2025-10-26     | The permissive path; portrait matting quality                                                                                                |
+| `onnx-community/BiRefNet_lite-ONNX` | **MIT**, ~322 MB ONNX                                                         | Permissive, but a large first-run download                                                                                                   |
+| `@mediapipe/tasks-vision` 1.0.1     | Apache-2.0                                                                    | Person/selfie-oriented; the repo's own audit called it "legal but product-unfit" for pets and objects, which is what StickerLab's artwork is |
 
 Runtimes: `onnxruntime-web` 1.29.0 (MIT) or `@huggingface/transformers` 4.2.0 (Apache-2.0). Two
 verified constraints stack on top of the licence question:
@@ -362,7 +363,7 @@ left, ≤3 u right, Konva↔canvas ≤0.5 u) on Vietnamese text. PPTX emits nati
 explicit numbering, hyperlinks and shapes, verified through LibreOffice → PDF at 960×540 pt.
 
 Therefore the highest-confidence line in this whole document is a **"do not add"**: adding
-`harfbuzzjs` 1.6.1 (MIT), `fontkit` 2.0.4 (MIT) or `opentype.js` 2.0.0 (MIT) as a *layout* engine
+`harfbuzzjs` 1.6.1 (MIT), `fontkit` 2.0.4 (MIT) or `opentype.js` 2.0.0 (MIT) as a _layout_ engine
 would create a second text engine and put the measured parity property at risk. Shaping libraries
 only pay off when shaping without a browser, which this architecture deliberately avoids. Likewise
 `hypher` 0.2.5 (BSD-3-Clause, 2016-12-19) and `linebreak` 1.1.0 (MIT, 2022-05-20) address scripts
@@ -370,7 +371,7 @@ only pay off when shaping without a browser, which this architecture deliberatel
 zero-dependency option if that day comes.
 
 The real gap is not a library, it is a **promise**: pptxgenjs 4.0.1 (MIT, installed) writes text with
-a font *family name*, and a reader without those fonts substitutes metrics. The architecture already
+a font _family name_, and a reader without those fonts substitutes metrics. The architecture already
 declines to promise font embedding. An export preflight that lists unresolved fonts, overflow, and
 "this will export as a picture" turns that from a latent support problem into an honest feature.
 
@@ -385,7 +386,7 @@ contract is deliberately raster via pdf-lib 1.17.1 (MIT); a selectable-text PDF 
 `@pdf-lib/fontkit`, which is not even installed. `mermaid` 12.0.0 (MIT) and `katex` 0.18.7 (MIT) are
 large runtimes whose output is a picture in PPTX anyway (and Mermaid source is an injection surface).
 `JSZip` is already present transitively and `fflate` 0.8.3 (MIT) is already direct — the repo
-currently has *two* ZIP implementations (a hand-rolled STORE-only writer in `zipExport.ts` and
+currently has _two_ ZIP implementations (a hand-rolled STORE-only writer in `zipExport.ts` and
 fflate in the presentation backup), which is a consolidation opportunity, not a library gap.
 Server-side or WASM LibreOffice conversion would break browser-only operation; its correct role here
 is as a test reader, which is how it is already used.
@@ -396,9 +397,9 @@ Ranked by expected value, and all in-repo:
 
 1. **A `schemaVersion` migration module.** `parseProjectDocument` hard-fails on any unknown
    `schemaVersion` with `unsupported_schema`; list and detail loaders skip unreadable rows. So an old
-   document is not corruptible — it is *invisible*. Meanwhile P41/P42 make portable, restorable
+   document is not corruptible — it is _invisible_. Meanwhile P41/P42 make portable, restorable
    backups a deliverable, which guarantees old-version documents will appear. `AGENTS.md` requires
-   invalid or unsupported versions to be a *recoverable* error. No library covers this shape
+   invalid or unsupported versions to be a _recoverable_ error. No library covers this shape
    (two document kinds in one additive DB); it is a small module keyed by `schemaVersion`, run before
    validation and during restore.
 2. **The export fidelity preflight** described in §9.
@@ -412,26 +413,26 @@ multiple selection of pack members for batch actions.
 
 ## Anti-recommendations (examined, rejected, with the reason)
 
-| Rejected | Licence | Reason |
-| --- | --- | --- |
-| `intro.js` 8.5.0 | **AGPL-3.0** | Licence is the risk, not the code |
-| `@triplit/client` 1.0.50 | **AGPL-3.0-only** | Same; also requires its own backend |
-| `@imgly/background-removal` | **AGPL-3.0** | Copyleft obligations; commercial licensing is a purchase |
-| BRIA RMBG-1.4 / 2.0 | Non-commercial (CC BY-NC / source-available) | Product cannot ship on these weights |
-| `@sentry/react` 10.74.0, Highlight.io, OTel web | MIT / — | Network egress, an account, a purchase and session data in an app whose promise is offline-with-no-credentials; `AGENTS.md` forbids unapproved services |
-| `web-vitals` 6.2.1 | Apache-2.0 | Measures but has nowhere to report; INP on brush strokes is better obtained from the repo's own harness |
-| `motion` 13.2.0, `react-spring` 10.0.4 | MIT | Reduced motion is already a global CSS rule; JS-driven animation escapes it and needs its own guard. Value today ≈ 0 |
-| `@formkit/auto-animate` 0.10.0 | MIT | Cosmetic until drag reorder exists; revisit then, with its own reduced-motion guard |
-| `react-easy-crop` 6.2.3, `react-zoom-pan-pinch` 4.2.0, `react-advanced-cropper` | MIT | Each introduces a second crop/zoom coordinate system or DOM transform wrapper, contradicting the non-destructive, mask-aligned, single-clamp invariants |
-| `uppy` 6.0.1 | MIT | A second upload state machine overlapping the planned durable job model (P54/P55 reserved paths, leases, idempotent retries). Its one genuinely unclaimed capability — resumable upload — is confirmed absent from the installed stack: `@supabase/storage-js` 2.115.0 exposes `upload`, `update`, `upsert`, `move`, `copy`, `remove`, `list`, `createSignedUrl(s)`, `createSignedUploadUrl`, `uploadToSignedUrl`, `getPublicUrl`, `download`, `info`, `exists`, `purgeCache`, `transform`, and **no** `resumableUpload` or tus support. The capability gap is real; the right owner for it is the existing job model, not a second uploader UI |
-| `react-dropzone` 20.1.1 | MIT | Its filters are a UX pre-filter, not a trust boundary — `validateUpload.ts` stays the gate either way. Reconsider only for P58 folder drops |
-| `react-hook-form` 7.88.0, `@conform-to/react` 1.21.1 | MIT | Two-field dialogs; conform additionally assumes a server-action architecture this app does not have |
-| `zod` 4.6.2, `valibot` 1.5.0 | MIT | Re-authors working, tested boundary parsers and adds a dependency — and adds no migration, which is the actual gap |
-| `i18next` 26.4.2 / `react-i18next` 17.0.13, Lingui 6.7.0, `typesafe-i18n` 5.27.1, Paraglide 2.25.2 | MIT | UI translation is an unmade product decision; the Vietnamese requirement is already solved at the font/metrics layer |
-| `react-joyride` 3.2.0, `driver.js` 1.8.0 | MIT | Tours hard-code selectors and copy against an editor still under construction, and can end up describing behaviour that does not exist |
-| `kbar`, `hotkeys-js`, `ninja-keys`, `sortablejs`, `@react-aria/dnd` | MIT / Apache-2.0 | See §3 and §4 |
-| `satori` 0.33.4 | **MPL-2.0** | Not permissive; the text pipeline does not need an HTML→SVG renderer |
-| `wa-sqlite` 1.0.0 | **none declared** | No licence field, no repository, last release 2024-01-05 |
+| Rejected                                                                                           | Licence                                      | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `intro.js` 8.5.0                                                                                   | **AGPL-3.0**                                 | Licence is the risk, not the code                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `@triplit/client` 1.0.50                                                                           | **AGPL-3.0-only**                            | Same; also requires its own backend                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `@imgly/background-removal`                                                                        | **AGPL-3.0**                                 | Copyleft obligations; commercial licensing is a purchase                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| BRIA RMBG-1.4 / 2.0                                                                                | Non-commercial (CC BY-NC / source-available) | Product cannot ship on these weights                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `@sentry/react` 10.74.0, Highlight.io, OTel web                                                    | MIT / —                                      | Network egress, an account, a purchase and session data in an app whose promise is offline-with-no-credentials; `AGENTS.md` forbids unapproved services                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `web-vitals` 6.2.1                                                                                 | Apache-2.0                                   | Measures but has nowhere to report; INP on brush strokes is better obtained from the repo's own harness                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `motion` 13.2.0, `react-spring` 10.0.4                                                             | MIT                                          | Reduced motion is already a global CSS rule; JS-driven animation escapes it and needs its own guard. Value today ≈ 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `@formkit/auto-animate` 0.10.0                                                                     | MIT                                          | Cosmetic until drag reorder exists; revisit then, with its own reduced-motion guard                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `react-easy-crop` 6.2.3, `react-zoom-pan-pinch` 4.2.0, `react-advanced-cropper`                    | MIT                                          | Each introduces a second crop/zoom coordinate system or DOM transform wrapper, contradicting the non-destructive, mask-aligned, single-clamp invariants                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `uppy` 6.0.1                                                                                       | MIT                                          | A second upload state machine overlapping the planned durable job model (P54/P55 reserved paths, leases, idempotent retries). Its one genuinely unclaimed capability — resumable upload — is confirmed absent from the installed stack: `@supabase/storage-js` 2.115.0 exposes `upload`, `update`, `upsert`, `move`, `copy`, `remove`, `list`, `createSignedUrl(s)`, `createSignedUploadUrl`, `uploadToSignedUrl`, `getPublicUrl`, `download`, `info`, `exists`, `purgeCache`, `transform`, and **no** `resumableUpload` or tus support. The capability gap is real; the right owner for it is the existing job model, not a second uploader UI |
+| `react-dropzone` 20.1.1                                                                            | MIT                                          | Its filters are a UX pre-filter, not a trust boundary — `validateUpload.ts` stays the gate either way. Reconsider only for P58 folder drops                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `react-hook-form` 7.88.0, `@conform-to/react` 1.21.1                                               | MIT                                          | Two-field dialogs; conform additionally assumes a server-action architecture this app does not have                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `zod` 4.6.2, `valibot` 1.5.0                                                                       | MIT                                          | Re-authors working, tested boundary parsers and adds a dependency — and adds no migration, which is the actual gap                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `i18next` 26.4.2 / `react-i18next` 17.0.13, Lingui 6.7.0, `typesafe-i18n` 5.27.1, Paraglide 2.25.2 | MIT                                          | UI translation is an unmade product decision; the Vietnamese requirement is already solved at the font/metrics layer                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `react-joyride` 3.2.0, `driver.js` 1.8.0                                                           | MIT                                          | Tours hard-code selectors and copy against an editor still under construction, and can end up describing behaviour that does not exist                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `kbar`, `hotkeys-js`, `ninja-keys`, `sortablejs`, `@react-aria/dnd`                                | MIT / Apache-2.0                             | See §3 and §4                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `satori` 0.33.4                                                                                    | **MPL-2.0**                                  | Not permissive; the text pipeline does not need an HTML→SVG renderer                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `wa-sqlite` 1.0.0                                                                                  | **none declared**                            | No licence field, no repository, last release 2024-01-05                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ---
 
@@ -486,8 +487,8 @@ multiple selection of pack members for batch actions.
    `cache-control`, `content-type`. **No `cross-origin-opener-policy` and no
    `cross-origin-embedder-policy`.** Fetched 2026-09-12.
 10. `@supabase/storage-js` 2.115.0 — read from the installed package in this working tree
-   (`dist/index.d.mts`, `package.json`): the `StorageFileApi` surface and the absence of any
-   tus/resumable method (word-boundary search returns nothing).
+    (`dist/index.d.mts`, `package.json`): the `StorageFileApi` surface and the absence of any
+    tus/resumable method (word-boundary search returns nothing).
 
 **Repository evidence (read from the working tree):** `AGENTS.md`, `CONTEXT.md`, `HANDOFF.md`,
 `package.json`, `README.md`, `docs/editor-library-research.md`, `docs/core-tools-plan.md`,

@@ -10,29 +10,29 @@ dependency.
 
 ## What was built
 
-| File | Change |
-| --- | --- |
-| `editor/store.ts` | `setSlideBackground` and `setTheme` accept a history group, so a color-picker drag is one undo entry; `addSlide` seeds the new slide from the document theme's background instead of the factory default. |
-| `editor/ThemeControls.tsx` | Heading/body font selects and text/accent/background color inputs; copy states plainly that they are defaults for new slides and text. |
-| `editor/PresentationEditorPage.tsx` | A Theme dialog in the header and a slide-background color input in the inspector; new shapes take the document accent. |
+| File                                | Change                                                                                                                                                                                                    |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `editor/store.ts`                   | `setSlideBackground` and `setTheme` accept a history group, so a color-picker drag is one undo entry; `addSlide` seeds the new slide from the document theme's background instead of the factory default. |
+| `editor/ThemeControls.tsx`          | Heading/body font selects and text/accent/background color inputs; copy states plainly that they are defaults for new slides and text.                                                                    |
+| `editor/PresentationEditorPage.tsx` | A Theme dialog in the header and a slide-background color input in the inspector; new shapes take the document accent.                                                                                    |
 
 ## Acceptance, as verified
 
-| Criterion | Evidence |
-| --- | --- |
-| Slide background is per slide | UI test changes the active slide's background, asserts the second slide is unchanged, and waits for the stored row to carry it. |
-| Theme is a default, not a restyle | Store test clones the existing element before a theme change and asserts it is byte-identical after; UI test does the same for the fixture title and then types into a new box that uses the new body font and text color. |
-| Another presentation keeps its theme | UI test saves a second document through the repository and asserts its `bodyFontId` is still the factory default. |
-| One entry per editing session | Store test groups two background changes into one entry and a later ungrouped change into a second. |
+| Criterion                            | Evidence                                                                                                                                                                                                                   |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slide background is per slide        | UI test changes the active slide's background, asserts the second slide is unchanged, and waits for the stored row to carry it.                                                                                            |
+| Theme is a default, not a restyle    | Store test clones the existing element before a theme change and asserts it is byte-identical after; UI test does the same for the fixture title and then types into a new box that uses the new body font and text color. |
+| Another presentation keeps its theme | UI test saves a second document through the repository and asserts its `bodyFontId` is still the factory default.                                                                                                          |
+| One entry per editing session        | Store test groups two background changes into one entry and a later ungrouped change into a second.                                                                                                                        |
 
 ## Checks run
 
-| Command | Result |
-| --- | --- |
-| `npm run typecheck` | clean |
-| `npm run lint` | 0 errors, 4 pre-existing `react-refresh` warnings |
-| `npm test` | **549 passed / 40 files** |
-| `npm run build` | `✓ built in 2.32s` |
+| Command             | Result                                            |
+| ------------------- | ------------------------------------------------- |
+| `npm run typecheck` | clean                                             |
+| `npm run lint`      | 0 errors, 4 pre-existing `react-refresh` warnings |
+| `npm test`          | **549 passed / 40 files**                         |
+| `npm run build`     | `✓ built in 2.32s`                                |
 
 ## Known gaps and deliberate ceilings
 

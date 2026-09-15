@@ -39,7 +39,7 @@ Target: plan rows P18 (personal image insertion) and P19 (truthful save/autosave
 `store.ts:205-213` drops every held record, while `mediaForSave()` deliberately filters to document-referenced records (`store.ts:215-223`). A P19 save that persists `mediaForSave()` and then calls the no-arg form destroys bytes that redo still needs, after which the document can never be saved (`missing_asset`: `repository.ts:119`, `idb.ts:115`). Correct pairing is `clearPendingMedia(mediaForSave().map(r => r.assetId))`; only tests use the overload today (`store.test.ts:456-459`).
 
 **MINOR — A successful-entry, failed-insert path retains an orphan decoded bitmap.**
-`PresentationEditorPage.tsx:242` adds to `media.images` *before* `store.insertImage`; if `insertImage` returns null, or the user navigates away mid-insert (cleanup nulls `mediaRef` at `PresentationEditorPage.tsx:154`), the later `media.add` push (`PresentationEditorPage.tsx:77-88`) registers a disposer on an already-disposed `DecodedMedia`, so that `close()` never runs. Bounded to one bitmap per event, no correctness impact.
+`PresentationEditorPage.tsx:242` adds to `media.images` _before_ `store.insertImage`; if `insertImage` returns null, or the user navigates away mid-insert (cleanup nulls `mediaRef` at `PresentationEditorPage.tsx:154`), the later `media.add` push (`PresentationEditorPage.tsx:77-88`) registers a disposer on an already-disposed `DecodedMedia`, so that `close()` never runs. Bounded to one bitmap per event, no correctness impact.
 
 **MINOR — Memory and IndexedDB adapters disagree on revision safety.**
 `MemoryPresentationRepository.savePresentation` checks revisions only when `options.baseRevision` is supplied (`repository.ts:82-90`), so it will silently overwrite a newer stored revision with an older one; the IDB adapter rejects that unconditionally (`idb.ts:68-82`). P18/P19 unit tests use the memory adapter (`presentations.test.tsx:23`), so a stale-write regression in a future P19 save path could pass the unit suite and only fail in the browser. `baseRevision` is optional in the contract (`repository.ts:22-25`), so correctness depends on every caller remembering it — the only real caller pattern in the repo does (`e2e/presentations.spec.ts:344`).
@@ -70,6 +70,7 @@ npm run lint
 npm test -- src/features/presentations/editor/store.test.ts src/features/presentations/editor/insertImageAsset.test.ts src/features/presentations/presentations.test.tsx src/lib/persistence/presentations/repository.test.ts src/lib/persistence/presentations/idb.test.ts
 npm run build
 ```
+
 No existing Playwright spec covers P18 or P19 insertion/save; the journey would need to be added (`npm run test:browser -- e2e/presentations.spec.ts` currently proves P15–P17 only).
 
 ### Merge verdict: **BLOCK**

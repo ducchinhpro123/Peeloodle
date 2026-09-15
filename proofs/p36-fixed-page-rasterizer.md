@@ -16,11 +16,11 @@ literally the same renderer.
 
 ## Acceptance, as verified
 
-| Criterion | Evidence |
-| --- | --- |
-| Exact aspect/background, no trim | `renderSlide` is unchanged and already covered by the P15/P16 pixel evidence; the rasterizer adds only stage sizing. |
+| Criterion                        | Evidence                                                                                                                            |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Exact aspect/background, no trim | `renderSlide` is unchanged and already covered by the P15/P16 pixel evidence; the rasterizer adds only stage sizing.                |
 | Handles/guides/viewport excluded | The stage is detached and `renderSlide` is built from the document alone; guides and handles are DOM overlays outside the renderer. |
-| Shared by previews | Thumbnail suite (15 tests) passes with the new call; the thumbnail seam tests still exercise the cache/queue. |
+| Shared by previews               | Thumbnail suite (15 tests) passes with the new call; the thumbnail seam tests still exercise the cache/queue.                       |
 
 ## Checks run
 

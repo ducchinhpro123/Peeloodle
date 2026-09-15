@@ -182,6 +182,7 @@ All findings were reproduced as failing tests before the fix.
   the run-style assertions.
 
 ## 6. P08 harness did not exercise the real transport (Medium) and its body cap
+
 was wrong (Low)
 
 - **Defect**: the probe received base64 image bytes in the function body, so it

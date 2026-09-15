@@ -25,11 +25,11 @@
 
 ## What this proves that the earlier specs did not
 
-| Earlier spec | What it covered | What P21 adds |
-| --- | --- | --- |
-| `presentations-image.spec.ts` | insert → paint → IndexedDB → reload → reopen, one image, 1280×768, width/height only, bytes compared to the document's own `sha256` | both widths in one journey, text **and** media surviving one reload on the same document id, full geometry (`x/y/width/height`) equality, and the Node-side hash/size of the uploaded file as the identity anchor |
-| `presentations.spec.ts` | text only, 1280×768, repository saved by hand | the editor's own autosave and the library rename landing on the same row, with revision continuity asserted |
-| `presentations-library-actions.spec.ts` | library operations with no editor content | library operations inside a journey that also carries canvas content and media |
+| Earlier spec                            | What it covered                                                                                                                     | What P21 adds                                                                                                                                                                                                     |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `presentations-image.spec.ts`           | insert → paint → IndexedDB → reload → reopen, one image, 1280×768, width/height only, bytes compared to the document's own `sha256` | both widths in one journey, text **and** media surviving one reload on the same document id, full geometry (`x/y/width/height`) equality, and the Node-side hash/size of the uploaded file as the identity anchor |
+| `presentations.spec.ts`                 | text only, 1280×768, repository saved by hand                                                                                       | the editor's own autosave and the library rename landing on the same row, with revision continuity asserted                                                                                                       |
+| `presentations-library-actions.spec.ts` | library operations with no editor content                                                                                           | library operations inside a journey that also carries canvas content and media                                                                                                                                    |
 
 ## Mutation evidence (proving the acceptance is really asserted)
 
@@ -45,13 +45,13 @@ Both mutations were applied in a clean worktree and reverted byte-identically:
 
 ## Checks run
 
-| Command | Where | Result |
-| --- | --- | --- |
-| `npx tsc -b` | clean worktree at HEAD | clean |
-| `npx eslint e2e/presentations-milestone-journey.spec.ts e2e/presentations.ts` | clean worktree | clean |
-| `npx playwright test e2e/presentations-milestone-journey.spec.ts` | clean worktree | **2 passed** (repeated 4× by the implementing pass, once by the lead) |
-| `npx playwright test` (the other five presentation specs) | clean worktree | **12 passed** |
-| `npx vitest run --environment jsdom --exclude 'e2e/**'` | clean worktree | **452 passed** |
+| Command                                                                       | Where                  | Result                                                                |
+| ----------------------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------- |
+| `npx tsc -b`                                                                  | clean worktree at HEAD | clean                                                                 |
+| `npx eslint e2e/presentations-milestone-journey.spec.ts e2e/presentations.ts` | clean worktree         | clean                                                                 |
+| `npx playwright test e2e/presentations-milestone-journey.spec.ts`             | clean worktree         | **2 passed** (repeated 4× by the implementing pass, once by the lead) |
+| `npx playwright test` (the other five presentation specs)                     | clean worktree         | **12 passed**                                                         |
+| `npx vitest run --environment jsdom --exclude 'e2e/**'`                       | clean worktree         | **452 passed**                                                        |
 
 **Why the worktree:** another writer was mid-edit in the shared checkout (`src/main.tsx`,
 `e2e/editor.spec.ts`, `e2e/ui-polish.spec.ts`, plus a My Sticker Packs redesign). Running these specs from a

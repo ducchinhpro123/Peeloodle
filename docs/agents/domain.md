@@ -5,6 +5,7 @@
 This is a single-context project.
 
 Before exploring:
+
 - Read root `CONTEXT.md`.
 - Read relevant decisions under `docs/adr/`.
 

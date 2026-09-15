@@ -1,64 +1,87 @@
-import type { Asset, PackRecord, ProjectDocument } from '../../types/domain'
-import type { CommitResult, RemoteResource, ResourceKind, SyncEntry, SyncValue } from './syncTypes'
-import { parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
-import { idbRequest, isArrayBuffer, openStickerLabDatabase, runTransaction, STICKERLAB_DB_NAME, STORE_NAMES } from './idb'
-import { byUpdatedAtDescending } from './order'
-import { blobToArrayBuffer } from '../blob'
+import type { Asset, PackRecord, ProjectDocument } from '../domain/domain';
+import type { CommitResult, RemoteResource, ResourceKind, SyncEntry, SyncValue } from './syncTypes';
+import {
+	parseAsset,
+	parseProjectDocument,
+	PersistenceError,
+	serializeProjectDocument
+} from './document';
+import {
+	idbRequest,
+	isArrayBuffer,
+	openStickerLabDatabase,
+	runTransaction,
+	STICKERLAB_DB_NAME,
+	STORE_NAMES
+} from './idb';
+import { byUpdatedAtDescending } from './order';
+import { blobToArrayBuffer } from '../blob';
 
-export { createProjectDocument, isPersistenceError, parseAsset, parseProjectDocument, PersistenceError, serializeProjectDocument } from './document'
-export type { PersistenceErrorCode } from './document'
+export {
+	createProjectDocument,
+	isPersistenceError,
+	parseAsset,
+	parseProjectDocument,
+	PersistenceError,
+	serializeProjectDocument
+} from './document';
+export type { PersistenceErrorCode } from './document';
 
-const PROJECTS_STORE = STORE_NAMES.projects
-const ASSETS_STORE = STORE_NAMES.assets
-const PACKS_STORE = STORE_NAMES.packs
-const MASKS_STORE = STORE_NAMES.masks
-const SYNC_STORE = STORE_NAMES.sync
-const DEFAULT_DB_NAME = STICKERLAB_DB_NAME
+const PROJECTS_STORE = STORE_NAMES.projects;
+const ASSETS_STORE = STORE_NAMES.assets;
+const PACKS_STORE = STORE_NAMES.packs;
+const MASKS_STORE = STORE_NAMES.masks;
+const SYNC_STORE = STORE_NAMES.sync;
+const DEFAULT_DB_NAME = STICKERLAB_DB_NAME;
 
 /** Metadata plus the immutable original blob. Never part of ProjectDocument. */
 export type AssetRecord = {
-  asset: Asset
-  blob: Blob
-}
+	asset: Asset;
+	blob: Blob;
+};
 
 export type MaskRecord = {
-  key: string
-  blob: Blob
-}
+	key: string;
+	blob: Blob;
+};
 
 /** The artwork one project needs, keyed for rendering: assets by id, masks by key. */
 export type ProjectBundle = {
-  assets: Map<string, AssetRecord>
-  masks: Map<string, Blob>
-}
+	assets: Map<string, AssetRecord>;
+	masks: Map<string, Blob>;
+};
 
 /**
  * A cloud-capable adapter's pending-work handle. Callers await `settle()` after
  * a mutation when they need the cloud round trip finished; local adapters omit
  * the capability entirely, so no caller casts to find it.
  */
-export type RepositorySync = { settle(): Promise<void> }
+export type RepositorySync = { settle(): Promise<void> };
 
 /** Local-first project/asset store. Must not persist object URLs, DOM nodes, or Konva objects. */
 export interface StickerLabRepository {
-  getProject(id: string): Promise<ProjectDocument>
-  listProjects(): Promise<ProjectDocument[]>
-  saveProject(document: ProjectDocument): Promise<void>
-  deleteProject(id: string): Promise<void>
-  getAsset(id: string): Promise<AssetRecord>
-  listAssets(): Promise<Asset[]>
-  saveAsset(record: AssetRecord): Promise<void>
-  deleteAsset(id: string): Promise<void>
-  saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[], masks?: MaskRecord[]): Promise<void>
-  getPack(id: string): Promise<PackRecord>
-  listPacks(): Promise<PackRecord[]>
-  savePack(record: PackRecord): Promise<void>
-  deletePack(id: string): Promise<void>
-  getMask(key: string): Promise<Blob>
-  saveMask(key: string, blob: Blob): Promise<void>
-  deleteMask(key: string): Promise<void>
-  /** Present only when an adapter has cloud work to drain. */
-  readonly sync?: RepositorySync
+	getProject(id: string): Promise<ProjectDocument>;
+	listProjects(): Promise<ProjectDocument[]>;
+	saveProject(document: ProjectDocument): Promise<void>;
+	deleteProject(id: string): Promise<void>;
+	getAsset(id: string): Promise<AssetRecord>;
+	listAssets(): Promise<Asset[]>;
+	saveAsset(record: AssetRecord): Promise<void>;
+	deleteAsset(id: string): Promise<void>;
+	saveProjectWithAssets(
+		document: ProjectDocument,
+		assets: AssetRecord[],
+		masks?: MaskRecord[]
+	): Promise<void>;
+	getPack(id: string): Promise<PackRecord>;
+	listPacks(): Promise<PackRecord[]>;
+	savePack(record: PackRecord): Promise<void>;
+	deletePack(id: string): Promise<void>;
+	getMask(key: string): Promise<Blob>;
+	saveMask(key: string, blob: Blob): Promise<void>;
+	deleteMask(key: string): Promise<void>;
+	/** Present only when an adapter has cloud work to drain. */
+	readonly sync?: RepositorySync;
 }
 
 /**
@@ -68,512 +91,655 @@ export interface StickerLabRepository {
  * references reject with the adapter's `PersistenceError` — one failure policy
  * for the editor, exports, thumbnails, cloud upload and sticker snapshots.
  */
-export async function loadProjectBundle(repository: StickerLabRepository, document: ProjectDocument): Promise<ProjectBundle> {
-  const assetIds = new Set(document.assetIds)
-  const maskKeys = new Set<string>()
-  for (const layer of document.layers) {
-    if (layer.kind !== 'image') continue
-    assetIds.add(layer.assetId)
-    if (layer.maskKey) maskKeys.add(layer.maskKey)
-  }
-  const [assets, masks] = await Promise.all([
-    Promise.all([...assetIds].map(async (id) => [id, await repository.getAsset(id)] as const)),
-    Promise.all([...maskKeys].map(async (key) => [key, await repository.getMask(key)] as const)),
-  ])
-  return { assets: new Map(assets), masks: new Map(masks) }
+export async function loadProjectBundle(
+	repository: StickerLabRepository,
+	document: ProjectDocument
+): Promise<ProjectBundle> {
+	const assetIds = new Set(document.assetIds);
+	const maskKeys = new Set<string>();
+	for (const layer of document.layers) {
+		if (layer.kind !== 'image') continue;
+		assetIds.add(layer.assetId);
+		if (layer.maskKey) maskKeys.add(layer.maskKey);
+	}
+	const [assets, masks] = await Promise.all([
+		Promise.all([...assetIds].map(async (id) => [id, await repository.getAsset(id)] as const)),
+		Promise.all([...maskKeys].map(async (key) => [key, await repository.getMask(key)] as const))
+	]);
+	return { assets: new Map(assets), masks: new Map(masks) };
 }
 
 export class MemoryRepository implements StickerLabRepository {
-  private projects = new Map<string, unknown>()
-  private assets = new Map<string, AssetRecord>()
-  private packs = new Map<string, PackRecord>()
-  private masks = new Map<string, Blob>()
-  private failNextWrite = false
+	private projects = new Map<string, unknown>();
+	private assets = new Map<string, AssetRecord>();
+	private packs = new Map<string, PackRecord>();
+	private masks = new Map<string, Blob>();
+	private failNextWrite = false;
 
-  injectWriteFailure(): void {
-    this.failNextWrite = true
-  }
+	injectWriteFailure(): void {
+		this.failNextWrite = true;
+	}
 
-  /** Test seam: write an unvalidated value as if it came off disk. */
-  seedRawProject(id: string, value: unknown): void {
-    this.projects.set(id, value)
-  }
+	/** Test seam: write an unvalidated value as if it came off disk. */
+	seedRawProject(id: string, value: unknown): void {
+		this.projects.set(id, value);
+	}
 
-  async getProject(id: string): Promise<ProjectDocument> {
-    if (!this.projects.has(id)) throw new PersistenceError('not_found', `Project ${id} was not found`)
-    return parseProjectDocument(this.projects.get(id))
-  }
+	async getProject(id: string): Promise<ProjectDocument> {
+		if (!this.projects.has(id))
+			throw new PersistenceError('not_found', `Project ${id} was not found`);
+		return parseProjectDocument(this.projects.get(id));
+	}
 
-  async listProjects(): Promise<ProjectDocument[]> {
-    const documents: ProjectDocument[] = []
-    for (const value of this.projects.values()) {
-      try {
-        documents.push(parseProjectDocument(value))
-      } catch {
-        // Skip unreadable rows so one corrupt record cannot hide the rest.
-      }
-    }
-    return sortProjects(documents)
-  }
+	async listProjects(): Promise<ProjectDocument[]> {
+		const documents: ProjectDocument[] = [];
+		for (const value of this.projects.values()) {
+			try {
+				documents.push(parseProjectDocument(value));
+			} catch {
+				// Skip unreadable rows so one corrupt record cannot hide the rest.
+			}
+		}
+		return sortProjects(documents);
+	}
 
-  async saveProject(document: ProjectDocument): Promise<void> {
-    await this.saveProjectWithAssets(document, [])
-  }
+	async saveProject(document: ProjectDocument): Promise<void> {
+		await this.saveProjectWithAssets(document, []);
+	}
 
-  async deleteProject(id: string): Promise<void> {
-    this.guardWrite()
-    this.projects.delete(id)
-  }
+	async deleteProject(id: string): Promise<void> {
+		this.guardWrite();
+		this.projects.delete(id);
+	}
 
-  async getAsset(id: string): Promise<AssetRecord> {
-    const record = this.assets.get(id)
-    if (!record) throw new PersistenceError('not_found', `Asset ${id} was not found`)
-    return { asset: parseAsset(record.asset), blob: record.blob }
-  }
+	async getAsset(id: string): Promise<AssetRecord> {
+		const record = this.assets.get(id);
+		if (!record) throw new PersistenceError('not_found', `Asset ${id} was not found`);
+		return { asset: parseAsset(record.asset), blob: record.blob };
+	}
 
-  async listAssets(): Promise<Asset[]> {
-    return [...this.assets.values()].map((record) => parseAsset(record.asset))
-  }
+	async listAssets(): Promise<Asset[]> {
+		return [...this.assets.values()].map((record) => parseAsset(record.asset));
+	}
 
-  async saveAsset(record: AssetRecord): Promise<void> {
-    this.guardWrite()
-    const next = new Map(this.assets)
-    next.set(record.asset.id, cloneAssetRecord(record))
-    this.assets = next
-  }
+	async saveAsset(record: AssetRecord): Promise<void> {
+		this.guardWrite();
+		const next = new Map(this.assets);
+		next.set(record.asset.id, cloneAssetRecord(record));
+		this.assets = next;
+	}
 
-  async deleteAsset(id: string): Promise<void> {
-    this.guardWrite()
-    this.assets.delete(id)
-  }
+	async deleteAsset(id: string): Promise<void> {
+		this.guardWrite();
+		this.assets.delete(id);
+	}
 
-  async saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[], masks: MaskRecord[] = []): Promise<void> {
-    this.guardWrite()
-    const clean = serializeProjectDocument(document)
-    const nextAssets = new Map(this.assets)
-    for (const record of assets) nextAssets.set(record.asset.id, cloneAssetRecord(record))
-    const nextMasks = new Map(this.masks)
-    for (const record of masks) nextMasks.set(record.key, record.blob)
-    assertProjectReferences(clean, (id) => nextAssets.has(id), (key) => nextMasks.has(key))
-    const nextProjects = new Map(this.projects)
-    nextProjects.set(clean.id, clean)
-    this.assets = nextAssets
-    this.masks = nextMasks
-    this.projects = nextProjects
-  }
+	async saveProjectWithAssets(
+		document: ProjectDocument,
+		assets: AssetRecord[],
+		masks: MaskRecord[] = []
+	): Promise<void> {
+		this.guardWrite();
+		const clean = serializeProjectDocument(document);
+		const nextAssets = new Map(this.assets);
+		for (const record of assets) nextAssets.set(record.asset.id, cloneAssetRecord(record));
+		const nextMasks = new Map(this.masks);
+		for (const record of masks) nextMasks.set(record.key, record.blob);
+		assertProjectReferences(
+			clean,
+			(id) => nextAssets.has(id),
+			(key) => nextMasks.has(key)
+		);
+		const nextProjects = new Map(this.projects);
+		nextProjects.set(clean.id, clean);
+		this.assets = nextAssets;
+		this.masks = nextMasks;
+		this.projects = nextProjects;
+	}
 
-  async getMask(key: string): Promise<Blob> {
-    const blob = this.masks.get(key)
-    if (!blob) throw new PersistenceError('not_found', `Mask ${key} was not found`)
-    return blob
-  }
+	async getMask(key: string): Promise<Blob> {
+		const blob = this.masks.get(key);
+		if (!blob) throw new PersistenceError('not_found', `Mask ${key} was not found`);
+		return blob;
+	}
 
-  async saveMask(key: string, blob: Blob): Promise<void> {
-    this.guardWrite()
-    this.masks.set(key, blob)
-  }
+	async saveMask(key: string, blob: Blob): Promise<void> {
+		this.guardWrite();
+		this.masks.set(key, blob);
+	}
 
-  async deleteMask(key: string): Promise<void> {
-    this.guardWrite()
-    this.masks.delete(key)
-  }
+	async deleteMask(key: string): Promise<void> {
+		this.guardWrite();
+		this.masks.delete(key);
+	}
 
-  async getPack(id: string): Promise<PackRecord> {
-    const pack = this.packs.get(id)
-    if (!pack) throw new PersistenceError('not_found', `Pack ${id} was not found`)
-    return clonePackRecord(pack)
-  }
+	async getPack(id: string): Promise<PackRecord> {
+		const pack = this.packs.get(id);
+		if (!pack) throw new PersistenceError('not_found', `Pack ${id} was not found`);
+		return clonePackRecord(pack);
+	}
 
-  async listPacks(): Promise<PackRecord[]> {
-    return [...this.packs.values()].map(clonePackRecord).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-  }
+	async listPacks(): Promise<PackRecord[]> {
+		return [...this.packs.values()]
+			.map(clonePackRecord)
+			.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+	}
 
-  async savePack(record: PackRecord): Promise<void> {
-    this.guardWrite()
-    this.packs.set(record.id, clonePackRecord(record))
-  }
+	async savePack(record: PackRecord): Promise<void> {
+		this.guardWrite();
+		this.packs.set(record.id, clonePackRecord(record));
+	}
 
-  async deletePack(id: string): Promise<void> {
-    this.guardWrite()
-    this.packs.delete(id)
-  }
+	async deletePack(id: string): Promise<void> {
+		this.guardWrite();
+		this.packs.delete(id);
+	}
 
-  private guardWrite(): void {
-    if (!this.failNextWrite) return
-    this.failNextWrite = false
-    throw new PersistenceError('transaction_failed', 'Save failed')
-  }
+	private guardWrite(): void {
+		if (!this.failNextWrite) return;
+		this.failNextWrite = false;
+		throw new PersistenceError('transaction_failed', 'Save failed');
+	}
 }
 
 export class IdbRepository implements StickerLabRepository {
-  private openPromise: Promise<IDBDatabase> | undefined
+	private openPromise: Promise<IDBDatabase> | undefined;
 
-  /**
-   * `trackChanges` records pending sync entries; `writeBase` answers "which
-   * revision did the writer last read?" for a record, which is a cloud adapter's
-   * concern injected at construction rather than a protected method to override.
-   */
-  constructor(
-    private readonly dbName = DEFAULT_DB_NAME,
-    private readonly trackChanges = false,
-    private readonly writeBase?: (kind: ResourceKind, id: string) => number | undefined,
-  ) {}
+	/**
+	 * `trackChanges` records pending sync entries; `writeBase` answers "which
+	 * revision did the writer last read?" for a record, which is a cloud adapter's
+	 * concern injected at construction rather than a protected method to override.
+	 */
+	constructor(
+		private readonly dbName = DEFAULT_DB_NAME,
+		private readonly trackChanges = false,
+		private readonly writeBase?: (kind: ResourceKind, id: string) => number | undefined
+	) {}
 
-  async getProject(id: string): Promise<ProjectDocument> {
-    const value = await this.transact([PROJECTS_STORE], 'readonly', (tx) => idbRequest<unknown>(tx.objectStore(PROJECTS_STORE).get(id)))
-    if (value === undefined) throw new PersistenceError('not_found', `Project ${id} was not found`)
-    return parseProjectDocument(value)
-  }
+	async getProject(id: string): Promise<ProjectDocument> {
+		const value = await this.transact([PROJECTS_STORE], 'readonly', (tx) =>
+			idbRequest<unknown>(tx.objectStore(PROJECTS_STORE).get(id))
+		);
+		if (value === undefined) throw new PersistenceError('not_found', `Project ${id} was not found`);
+		return parseProjectDocument(value);
+	}
 
-  async listProjects(): Promise<ProjectDocument[]> {
-    const rows = await this.transact([PROJECTS_STORE], 'readonly', (tx) => idbRequest<unknown[]>(tx.objectStore(PROJECTS_STORE).getAll()))
-    const documents: ProjectDocument[] = []
-    for (const row of rows ?? []) {
-      try {
-        documents.push(parseProjectDocument(row))
-      } catch {
-        // Same as memory: listing must not crash on one bad row.
-      }
-    }
-    return sortProjects(documents)
-  }
+	async listProjects(): Promise<ProjectDocument[]> {
+		const rows = await this.transact([PROJECTS_STORE], 'readonly', (tx) =>
+			idbRequest<unknown[]>(tx.objectStore(PROJECTS_STORE).getAll())
+		);
+		const documents: ProjectDocument[] = [];
+		for (const row of rows ?? []) {
+			try {
+				documents.push(parseProjectDocument(row));
+			} catch {
+				// Same as memory: listing must not crash on one bad row.
+			}
+		}
+		return sortProjects(documents);
+	}
 
-  async saveProject(document: ProjectDocument): Promise<void> {
-    await this.saveProjectWithAssets(document, [])
-  }
+	async saveProject(document: ProjectDocument): Promise<void> {
+		await this.saveProjectWithAssets(document, []);
+	}
 
-  async deleteProject(id: string): Promise<void> {
-    await this.deleteProjectAtRevision(id)
-  }
+	async deleteProject(id: string): Promise<void> {
+		await this.deleteProjectAtRevision(id);
+	}
 
-  protected async deleteProjectAtRevision(id: string, baseRevision?: number): Promise<void> {
-    await this.transact([PROJECTS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
-      await idbRequest(tx.objectStore(PROJECTS_STORE).delete(id))
-      await this.enqueue(tx, 'project', id, null, baseRevision)
-    })
-  }
+	protected async deleteProjectAtRevision(id: string, baseRevision?: number): Promise<void> {
+		await this.transact([PROJECTS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
+			await idbRequest(tx.objectStore(PROJECTS_STORE).delete(id));
+			await this.enqueue(tx, 'project', id, null, baseRevision);
+		});
+	}
 
-  async getAsset(id: string): Promise<AssetRecord> {
-    const row = await this.transact([ASSETS_STORE], 'readonly', (tx) => idbRequest<unknown>(tx.objectStore(ASSETS_STORE).get(id)))
-    if (row === undefined) throw new PersistenceError('not_found', `Asset ${id} was not found`)
-    return parseStoredAsset(row)
-  }
+	async getAsset(id: string): Promise<AssetRecord> {
+		const row = await this.transact([ASSETS_STORE], 'readonly', (tx) =>
+			idbRequest<unknown>(tx.objectStore(ASSETS_STORE).get(id))
+		);
+		if (row === undefined) throw new PersistenceError('not_found', `Asset ${id} was not found`);
+		return parseStoredAsset(row);
+	}
 
-  async listAssets(): Promise<Asset[]> {
-    const rows = await this.transact([ASSETS_STORE], 'readonly', (tx) => idbRequest<unknown[]>(tx.objectStore(ASSETS_STORE).getAll()))
-    const assets: Asset[] = []
-    for (const row of rows ?? []) {
-      try {
-        assets.push(parseStoredAsset(row).asset)
-      } catch {
-        // Skip unreadable asset rows in catalog listings.
-      }
-    }
-    return assets
-  }
+	async listAssets(): Promise<Asset[]> {
+		const rows = await this.transact([ASSETS_STORE], 'readonly', (tx) =>
+			idbRequest<unknown[]>(tx.objectStore(ASSETS_STORE).getAll())
+		);
+		const assets: Asset[] = [];
+		for (const row of rows ?? []) {
+			try {
+				assets.push(parseStoredAsset(row).asset);
+			} catch {
+				// Skip unreadable asset rows in catalog listings.
+			}
+		}
+		return assets;
+	}
 
-  async saveAsset(record: AssetRecord): Promise<void> {
-    const stored = await toStoredAsset(record)
-    await this.transact([ASSETS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(ASSETS_STORE).put(stored)))
-  }
+	async saveAsset(record: AssetRecord): Promise<void> {
+		const stored = await toStoredAsset(record);
+		await this.transact([ASSETS_STORE], 'readwrite', (tx) =>
+			idbRequest(tx.objectStore(ASSETS_STORE).put(stored))
+		);
+	}
 
-  async deleteAsset(id: string): Promise<void> {
-    await this.transact([ASSETS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(ASSETS_STORE).delete(id)))
-  }
+	async deleteAsset(id: string): Promise<void> {
+		await this.transact([ASSETS_STORE], 'readwrite', (tx) =>
+			idbRequest(tx.objectStore(ASSETS_STORE).delete(id))
+		);
+	}
 
-  async getPack(id: string): Promise<PackRecord> {
-    const row = await this.transact([PACKS_STORE], 'readonly', (tx) => idbRequest<unknown>(tx.objectStore(PACKS_STORE).get(id)))
-    if (row === undefined) throw new PersistenceError('not_found', `Pack ${id} was not found`)
-    return parsePackRecord(row)
-  }
+	async getPack(id: string): Promise<PackRecord> {
+		const row = await this.transact([PACKS_STORE], 'readonly', (tx) =>
+			idbRequest<unknown>(tx.objectStore(PACKS_STORE).get(id))
+		);
+		if (row === undefined) throw new PersistenceError('not_found', `Pack ${id} was not found`);
+		return parsePackRecord(row);
+	}
 
-  async listPacks(): Promise<PackRecord[]> {
-    const rows = await this.transact([PACKS_STORE], 'readonly', (tx) => idbRequest<unknown[]>(tx.objectStore(PACKS_STORE).getAll()))
-    const packs: PackRecord[] = []
-    for (const row of rows ?? []) {
-      try {
-        packs.push(parsePackRecord(row))
-      } catch {
-        // Skip unreadable rows
-      }
-    }
-    return packs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-  }
+	async listPacks(): Promise<PackRecord[]> {
+		const rows = await this.transact([PACKS_STORE], 'readonly', (tx) =>
+			idbRequest<unknown[]>(tx.objectStore(PACKS_STORE).getAll())
+		);
+		const packs: PackRecord[] = [];
+		for (const row of rows ?? []) {
+			try {
+				packs.push(parsePackRecord(row));
+			} catch {
+				// Skip unreadable rows
+			}
+		}
+		return packs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+	}
 
-  async savePack(record: PackRecord): Promise<void> {
-    await this.savePackAtRevision(record)
-  }
+	async savePack(record: PackRecord): Promise<void> {
+		await this.savePackAtRevision(record);
+	}
 
-  protected async savePackAtRevision(record: PackRecord, baseRevision?: number): Promise<void> {
-    const clean = parsePackRecord(record)
-    await this.transact([PACKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
-      await idbRequest(tx.objectStore(PACKS_STORE).put(clean))
-      await this.enqueue(tx, 'pack', clean.id, clean, baseRevision)
-    })
-  }
+	protected async savePackAtRevision(record: PackRecord, baseRevision?: number): Promise<void> {
+		const clean = parsePackRecord(record);
+		await this.transact([PACKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
+			await idbRequest(tx.objectStore(PACKS_STORE).put(clean));
+			await this.enqueue(tx, 'pack', clean.id, clean, baseRevision);
+		});
+	}
 
-  async deletePack(id: string): Promise<void> {
-    await this.deletePackAtRevision(id)
-  }
+	async deletePack(id: string): Promise<void> {
+		await this.deletePackAtRevision(id);
+	}
 
-  protected async deletePackAtRevision(id: string, baseRevision?: number): Promise<void> {
-    await this.transact([PACKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
-      await idbRequest(tx.objectStore(PACKS_STORE).delete(id))
-      await this.enqueue(tx, 'pack', id, null, baseRevision)
-    })
-  }
+	protected async deletePackAtRevision(id: string, baseRevision?: number): Promise<void> {
+		await this.transact([PACKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
+			await idbRequest(tx.objectStore(PACKS_STORE).delete(id));
+			await this.enqueue(tx, 'pack', id, null, baseRevision);
+		});
+	}
 
-  async getMask(key: string): Promise<Blob> {
-    const row = await this.transact([MASKS_STORE], 'readonly', (tx) =>
-      idbRequest<{ key: string; blob: ArrayBuffer } | undefined>(tx.objectStore(MASKS_STORE).get(key)),
-    )
-    if (row === undefined) throw new PersistenceError('not_found', `Mask ${key} was not found`)
-    return parseStoredMask(row)
-  }
+	async getMask(key: string): Promise<Blob> {
+		const row = await this.transact([MASKS_STORE], 'readonly', (tx) =>
+			idbRequest<{ key: string; blob: ArrayBuffer } | undefined>(
+				tx.objectStore(MASKS_STORE).get(key)
+			)
+		);
+		if (row === undefined) throw new PersistenceError('not_found', `Mask ${key} was not found`);
+		return parseStoredMask(row);
+	}
 
-  async saveMask(key: string, blob: Blob): Promise<void> {
-    const stored = { key, blob: await readAssetBlob(blob) }
-    await this.transact([MASKS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(MASKS_STORE).put(stored)))
-  }
+	async saveMask(key: string, blob: Blob): Promise<void> {
+		const stored = { key, blob: await readAssetBlob(blob) };
+		await this.transact([MASKS_STORE], 'readwrite', (tx) =>
+			idbRequest(tx.objectStore(MASKS_STORE).put(stored))
+		);
+	}
 
-  async deleteMask(key: string): Promise<void> {
-    await this.transact([MASKS_STORE], 'readwrite', (tx) => idbRequest(tx.objectStore(MASKS_STORE).delete(key)))
-  }
+	async deleteMask(key: string): Promise<void> {
+		await this.transact([MASKS_STORE], 'readwrite', (tx) =>
+			idbRequest(tx.objectStore(MASKS_STORE).delete(key))
+		);
+	}
 
-  async saveProjectWithAssets(document: ProjectDocument, assets: AssetRecord[], masks: MaskRecord[] = []): Promise<void> {
-    const clean = serializeProjectDocument(document)
-    const storedAssets = await Promise.all(assets.map(toStoredAsset))
-    const storedMasks = await Promise.all(
-      masks.map(async (m) => ({ key: m.key, blob: await readAssetBlob(m.blob) })),
-    )
-    await this.transact([PROJECTS_STORE, ASSETS_STORE, MASKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
-      const assetStore = tx.objectStore(ASSETS_STORE)
-      const maskStore = tx.objectStore(MASKS_STORE)
-      for (const stored of storedAssets) await idbRequest(assetStore.put(stored))
-      for (const stored of storedMasks) await idbRequest(maskStore.put(stored))
-      // The stored row shape is an adapter concern; reference integrity is shared.
-      const storedAssetIds = new Set<string>()
-      for (const assetId of clean.assetIds) {
-        const row = await idbRequest<unknown>(assetStore.get(assetId))
-        if (row !== undefined) {
-          parseStoredAsset(row)
-          storedAssetIds.add(assetId)
-        }
-      }
-      const storedMaskKeys = new Set<string>()
-      for (const layer of clean.layers) {
-        if (layer.kind === 'image' && layer.maskKey) {
-          const row = await idbRequest<unknown>(maskStore.get(layer.maskKey))
-          if (row !== undefined) storedMaskKeys.add(layer.maskKey)
-        }
-      }
-      assertProjectReferences(clean, (id) => storedAssetIds.has(id), (key) => storedMaskKeys.has(key))
-      await idbRequest(tx.objectStore(PROJECTS_STORE).put(clean))
-      await this.enqueue(tx, 'project', clean.id, clean)
-    })
-  }
+	async saveProjectWithAssets(
+		document: ProjectDocument,
+		assets: AssetRecord[],
+		masks: MaskRecord[] = []
+	): Promise<void> {
+		const clean = serializeProjectDocument(document);
+		const storedAssets = await Promise.all(assets.map(toStoredAsset));
+		const storedMasks = await Promise.all(
+			masks.map(async (m) => ({ key: m.key, blob: await readAssetBlob(m.blob) }))
+		);
+		await this.transact(
+			[PROJECTS_STORE, ASSETS_STORE, MASKS_STORE, SYNC_STORE],
+			'readwrite',
+			async (tx) => {
+				const assetStore = tx.objectStore(ASSETS_STORE);
+				const maskStore = tx.objectStore(MASKS_STORE);
+				for (const stored of storedAssets) await idbRequest(assetStore.put(stored));
+				for (const stored of storedMasks) await idbRequest(maskStore.put(stored));
+				// The stored row shape is an adapter concern; reference integrity is shared.
+				const storedAssetIds = new Set<string>();
+				for (const assetId of clean.assetIds) {
+					const row = await idbRequest<unknown>(assetStore.get(assetId));
+					if (row !== undefined) {
+						parseStoredAsset(row);
+						storedAssetIds.add(assetId);
+					}
+				}
+				const storedMaskKeys = new Set<string>();
+				for (const layer of clean.layers) {
+					if (layer.kind === 'image' && layer.maskKey) {
+						const row = await idbRequest<unknown>(maskStore.get(layer.maskKey));
+						if (row !== undefined) storedMaskKeys.add(layer.maskKey);
+					}
+				}
+				assertProjectReferences(
+					clean,
+					(id) => storedAssetIds.has(id),
+					(key) => storedMaskKeys.has(key)
+				);
+				await idbRequest(tx.objectStore(PROJECTS_STORE).put(clean));
+				await this.enqueue(tx, 'project', clean.id, clean);
+			}
+		);
+	}
 
-  async listSyncEntries(): Promise<SyncEntry[]> {
-    return this.transact([SYNC_STORE], 'readonly', (tx) => idbRequest(tx.objectStore(SYNC_STORE).getAll()))
-  }
+	async listSyncEntries(): Promise<SyncEntry[]> {
+		return this.transact([SYNC_STORE], 'readonly', (tx) =>
+			idbRequest(tx.objectStore(SYNC_STORE).getAll())
+		);
+	}
 
-  async projectWithRevision(id: string): Promise<{ document: ProjectDocument; baseRevision: number }> {
-    return this.transact([PROJECTS_STORE, SYNC_STORE], 'readonly', async (tx) => {
-      const value: unknown = await idbRequest(tx.objectStore(PROJECTS_STORE).get(id))
-      if (value === undefined) throw new PersistenceError('not_found', `Project ${id} was not found`)
-      const entry: SyncEntry | undefined = await idbRequest(tx.objectStore(SYNC_STORE).get(`project:${id}`))
-      return { document: parseProjectDocument(value), baseRevision: entry?.baseRevision ?? 0 }
-    })
-  }
+	async projectWithRevision(
+		id: string
+	): Promise<{ document: ProjectDocument; baseRevision: number }> {
+		return this.transact([PROJECTS_STORE, SYNC_STORE], 'readonly', async (tx) => {
+			const value: unknown = await idbRequest(tx.objectStore(PROJECTS_STORE).get(id));
+			if (value === undefined)
+				throw new PersistenceError('not_found', `Project ${id} was not found`);
+			const entry: SyncEntry | undefined = await idbRequest(
+				tx.objectStore(SYNC_STORE).get(`project:${id}`)
+			);
+			return { document: parseProjectDocument(value), baseRevision: entry?.baseRevision ?? 0 };
+		});
+	}
 
-  async packsWithRevisions(): Promise<Array<{ pack: PackRecord; baseRevision: number; pendingIds: string[] }>> {
-    return this.transact([PACKS_STORE, SYNC_STORE], 'readonly', async (tx) => {
-      const rows: unknown[] = await idbRequest(tx.objectStore(PACKS_STORE).getAll())
-      const result: Array<{ pack: PackRecord; baseRevision: number; pendingIds: string[] }> = []
-      for (const row of rows) {
-        try {
-          const pack = parsePackRecord(row)
-          const entry: SyncEntry | undefined = await idbRequest(tx.objectStore(SYNC_STORE).get(`pack:${pack.id}`))
-          result.push({ pack, baseRevision: entry?.baseRevision ?? 0, pendingIds: entry?.pending.map((operation) => operation.operationId) ?? [] })
-        } catch { /* An unreadable pack must not hide other packs. */ }
-      }
-      return result
-    })
-  }
+	async packsWithRevisions(): Promise<
+		Array<{ pack: PackRecord; baseRevision: number; pendingIds: string[] }>
+	> {
+		return this.transact([PACKS_STORE, SYNC_STORE], 'readonly', async (tx) => {
+			const rows: unknown[] = await idbRequest(tx.objectStore(PACKS_STORE).getAll());
+			const result: Array<{ pack: PackRecord; baseRevision: number; pendingIds: string[] }> = [];
+			for (const row of rows) {
+				try {
+					const pack = parsePackRecord(row);
+					const entry: SyncEntry | undefined = await idbRequest(
+						tx.objectStore(SYNC_STORE).get(`pack:${pack.id}`)
+					);
+					result.push({
+						pack,
+						baseRevision: entry?.baseRevision ?? 0,
+						pendingIds: entry?.pending.map((operation) => operation.operationId) ?? []
+					});
+				} catch {
+					/* An unreadable pack must not hide other packs. */
+				}
+			}
+			return result;
+		});
+	}
 
-  private async enqueue(tx: IDBTransaction, kind: ResourceKind, id: string, value: SyncValue | null, baseRevision?: number) {
-    if (!this.trackChanges) return
-    const store = tx.objectStore(SYNC_STORE)
-    const key = `${kind}:${id}`
-    const entry: SyncEntry = await idbRequest(store.get(key)) ?? { key, kind, id, baseRevision: 0, pending: [] }
-    if (!entry.pending.length) entry.baseRevision = baseRevision ?? this.writeBase?.(kind, id) ?? entry.baseRevision
-    // The head may have reached the server. Never change its identity or snapshot.
-    // Only the not-yet-sent tail is coalesced, bounding the queue to two snapshots.
-    if (JSON.stringify(entry.pending.at(-1)?.value) === JSON.stringify(value)) return
-    entry.pending = [...entry.pending.slice(0, 1), { operationId: crypto.randomUUID(), value }]
-    await idbRequest(store.put(entry))
-  }
+	private async enqueue(
+		tx: IDBTransaction,
+		kind: ResourceKind,
+		id: string,
+		value: SyncValue | null,
+		baseRevision?: number
+	) {
+		if (!this.trackChanges) return;
+		const store = tx.objectStore(SYNC_STORE);
+		const key = `${kind}:${id}`;
+		const entry: SyncEntry = (await idbRequest(store.get(key))) ?? {
+			key,
+			kind,
+			id,
+			baseRevision: 0,
+			pending: []
+		};
+		if (!entry.pending.length)
+			entry.baseRevision = baseRevision ?? this.writeBase?.(kind, id) ?? entry.baseRevision;
+		// The head may have reached the server. Never change its identity or snapshot.
+		// Only the not-yet-sent tail is coalesced, bounding the queue to two snapshots.
+		if (JSON.stringify(entry.pending.at(-1)?.value) === JSON.stringify(value)) return;
+		entry.pending = [...entry.pending.slice(0, 1), { operationId: crypto.randomUUID(), value }];
+		await idbRequest(store.put(entry));
+	}
 
-  /** Cache only fully downloaded resources; never overwrite pending local work. */
-  async cacheRemote(resource: RemoteResource, assets: AssetRecord[] = [], masks: MaskRecord[] = []): Promise<void> {
-    const value = resource.kind === 'project' ? serializeProjectDocument(resource.value as ProjectDocument) : parsePackRecord(resource.value)
-    const storedAssets = await Promise.all(assets.map(toStoredAsset))
-    const storedMasks = await Promise.all(masks.map(async (mask) => ({ key: mask.key, blob: await readAssetBlob(mask.blob) })))
-    await this.transact([PROJECTS_STORE, PACKS_STORE, ASSETS_STORE, MASKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
-      const key = `${resource.kind}:${resource.id}`
-      const entry: SyncEntry | undefined = await idbRequest(tx.objectStore(SYNC_STORE).get(key))
-      if (entry?.pending.length || (entry && entry.baseRevision > resource.revision)) return
-      for (const asset of storedAssets) await idbRequest(tx.objectStore(ASSETS_STORE).put(asset))
-      for (const mask of storedMasks) await idbRequest(tx.objectStore(MASKS_STORE).put(mask))
-      const store = tx.objectStore(resource.kind === 'project' ? PROJECTS_STORE : PACKS_STORE)
-      if (resource.deleted) await idbRequest(store.delete(resource.id))
-      else await idbRequest(store.put(value))
-      await idbRequest(tx.objectStore(SYNC_STORE).put({ key, kind: resource.kind, id: resource.id, baseRevision: resource.revision, pending: [], notice: entry?.notice } satisfies SyncEntry))
-    })
-  }
+	/** Cache only fully downloaded resources; never overwrite pending local work. */
+	async cacheRemote(
+		resource: RemoteResource,
+		assets: AssetRecord[] = [],
+		masks: MaskRecord[] = []
+	): Promise<void> {
+		const value =
+			resource.kind === 'project'
+				? serializeProjectDocument(resource.value as ProjectDocument)
+				: parsePackRecord(resource.value);
+		const storedAssets = await Promise.all(assets.map(toStoredAsset));
+		const storedMasks = await Promise.all(
+			masks.map(async (mask) => ({ key: mask.key, blob: await readAssetBlob(mask.blob) }))
+		);
+		await this.transact(
+			[PROJECTS_STORE, PACKS_STORE, ASSETS_STORE, MASKS_STORE, SYNC_STORE],
+			'readwrite',
+			async (tx) => {
+				const key = `${resource.kind}:${resource.id}`;
+				const entry: SyncEntry | undefined = await idbRequest(tx.objectStore(SYNC_STORE).get(key));
+				if (entry?.pending.length || (entry && entry.baseRevision > resource.revision)) return;
+				for (const asset of storedAssets) await idbRequest(tx.objectStore(ASSETS_STORE).put(asset));
+				for (const mask of storedMasks) await idbRequest(tx.objectStore(MASKS_STORE).put(mask));
+				const store = tx.objectStore(resource.kind === 'project' ? PROJECTS_STORE : PACKS_STORE);
+				if (resource.deleted) await idbRequest(store.delete(resource.id));
+				else await idbRequest(store.put(value));
+				await idbRequest(
+					tx.objectStore(SYNC_STORE).put({
+						key,
+						kind: resource.kind,
+						id: resource.id,
+						baseRevision: resource.revision,
+						pending: [],
+						notice: entry?.notice
+					} satisfies SyncEntry)
+				);
+			}
+		);
+	}
 
-  /** Acknowledge exactly the sent snapshot, leaving any later edit pending. */
-  async acknowledge(key: string, operationId: string, result: CommitResult): Promise<void> {
-    await this.transact([PROJECTS_STORE, PACKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
-      const sync = tx.objectStore(SYNC_STORE)
-      const entry: SyncEntry | undefined = await idbRequest(sync.get(key))
-      if (!entry || entry.pending[0]?.operationId !== operationId) return
-      entry.pending.shift()
-      const original = result.original ?? result.resource
-      if (!result.conflict) entry.baseRevision = original.revision
-      if (result.conflict) entry.notice = result.original ? `Conflict copy saved: ${result.resource.value.title}` : 'Deletion was not applied: the cloud version changed. Refresh and review it.'
-      const store = tx.objectStore(entry.kind === 'project' ? PROJECTS_STORE : PACKS_STORE)
-      if (result.original) {
-        const copyKey = `${entry.kind}:${result.resource.id}`
-        const copy: SyncEntry | undefined = await idbRequest(sync.get(copyKey))
-        if (!copy?.pending.length && (!copy || copy.baseRevision <= result.resource.revision)) {
-          await idbRequest(store.put(result.resource.value))
-          await idbRequest(sync.put({ key: copyKey, kind: entry.kind, id: result.resource.id, baseRevision: result.resource.revision, pending: [] } satisfies SyncEntry))
-        }
-      }
-      if (!entry.pending.length) {
-        if (original.deleted) await idbRequest(store.delete(original.id))
-        else await idbRequest(store.put(original.value))
-        entry.baseRevision = original.revision
-      }
-      await idbRequest(sync.put(entry))
-    })
-  }
+	/** Acknowledge exactly the sent snapshot, leaving any later edit pending. */
+	async acknowledge(key: string, operationId: string, result: CommitResult): Promise<void> {
+		await this.transact([PROJECTS_STORE, PACKS_STORE, SYNC_STORE], 'readwrite', async (tx) => {
+			const sync = tx.objectStore(SYNC_STORE);
+			const entry: SyncEntry | undefined = await idbRequest(sync.get(key));
+			if (!entry || entry.pending[0]?.operationId !== operationId) return;
+			entry.pending.shift();
+			const original = result.original ?? result.resource;
+			if (!result.conflict) entry.baseRevision = original.revision;
+			if (result.conflict)
+				entry.notice = result.original
+					? `Conflict copy saved: ${result.resource.value.title}`
+					: 'Deletion was not applied: the cloud version changed. Refresh and review it.';
+			const store = tx.objectStore(entry.kind === 'project' ? PROJECTS_STORE : PACKS_STORE);
+			if (result.original) {
+				const copyKey = `${entry.kind}:${result.resource.id}`;
+				const copy: SyncEntry | undefined = await idbRequest(sync.get(copyKey));
+				if (!copy?.pending.length && (!copy || copy.baseRevision <= result.resource.revision)) {
+					await idbRequest(store.put(result.resource.value));
+					await idbRequest(
+						sync.put({
+							key: copyKey,
+							kind: entry.kind,
+							id: result.resource.id,
+							baseRevision: result.resource.revision,
+							pending: []
+						} satisfies SyncEntry)
+					);
+				}
+			}
+			if (!entry.pending.length) {
+				if (original.deleted) await idbRequest(store.delete(original.id));
+				else await idbRequest(store.put(original.value));
+				entry.baseRevision = original.revision;
+			}
+			await idbRequest(sync.put(entry));
+		});
+	}
 
-  private async transact<T>(storeNames: string[], mode: IDBTransactionMode, work: (tx: IDBTransaction) => Promise<T>): Promise<T> {
-    const db = await this.open()
-    return runTransaction(db, storeNames, mode, work)
-  }
+	private async transact<T>(
+		storeNames: string[],
+		mode: IDBTransactionMode,
+		work: (tx: IDBTransaction) => Promise<T>
+	): Promise<T> {
+		const db = await this.open();
+		return runTransaction(db, storeNames, mode, work);
+	}
 
-  private open(): Promise<IDBDatabase> {
-    if (!this.openPromise) {
-      this.openPromise = openStickerLabDatabase(this.dbName).catch((error) => {
-        this.openPromise = undefined
-        throw error
-      })
-    }
-    return this.openPromise
-  }
+	private open(): Promise<IDBDatabase> {
+		if (!this.openPromise) {
+			this.openPromise = openStickerLabDatabase(this.dbName).catch((error) => {
+				this.openPromise = undefined;
+				throw error;
+			});
+		}
+		return this.openPromise;
+	}
 }
 
 export function createMemoryRepository(): MemoryRepository {
-  return new MemoryRepository()
+	return new MemoryRepository();
 }
 
 export function createIdbRepository(dbName = DEFAULT_DB_NAME): IdbRepository {
-  return new IdbRepository(dbName)
+	return new IdbRepository(dbName);
 }
 
-let localRepository: StickerLabRepository | undefined
+let localRepository: StickerLabRepository | undefined;
 
 export function getLocalRepository(): StickerLabRepository {
-  if (!localRepository) localRepository = createIdbRepository()
-  return localRepository
+	if (!localRepository) localRepository = createIdbRepository();
+	return localRepository;
 }
 
 export function parsePackRecord(value: unknown): PackRecord {
-  if (typeof value !== 'object' || value === null) throw new PersistenceError('malformed_data', 'Pack must be an object')
-  const raw = value as Record<string, unknown>
-  const id = typeof raw.id === 'string' && raw.id ? raw.id : undefined
-  const title = typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : undefined
-  if (!id || !title) throw new PersistenceError('malformed_data', 'Pack must have id and title')
-  const description = typeof raw.description === 'string' ? raw.description : ''
-  const visibility = raw.visibility === 'private' ? 'private' : 'local'
-  const projectIds = Array.isArray(raw.projectIds) ? raw.projectIds.filter((p): p is string => typeof p === 'string') : []
-  const createdAt = typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString()
-  const updatedAt = typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString()
-  const record: PackRecord = { id, title, description, visibility, projectIds, createdAt, updatedAt }
-  if (typeof raw.coverAssetId === 'string') record.coverAssetId = raw.coverAssetId
-  return record
+	if (typeof value !== 'object' || value === null)
+		throw new PersistenceError('malformed_data', 'Pack must be an object');
+	const raw = value as Record<string, unknown>;
+	const id = typeof raw.id === 'string' && raw.id ? raw.id : undefined;
+	const title = typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : undefined;
+	if (!id || !title) throw new PersistenceError('malformed_data', 'Pack must have id and title');
+	const description = typeof raw.description === 'string' ? raw.description : '';
+	const visibility = raw.visibility === 'private' ? 'private' : 'local';
+	const projectIds = Array.isArray(raw.projectIds)
+		? raw.projectIds.filter((p): p is string => typeof p === 'string')
+		: [];
+	const createdAt = typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString();
+	const updatedAt = typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString();
+	const record: PackRecord = {
+		id,
+		title,
+		description,
+		visibility,
+		projectIds,
+		createdAt,
+		updatedAt
+	};
+	if (typeof raw.coverAssetId === 'string') record.coverAssetId = raw.coverAssetId;
+	return record;
 }
 
 function clonePackRecord(record: PackRecord): PackRecord {
-  return { ...record, projectIds: [...record.projectIds] }
+	return { ...record, projectIds: [...record.projectIds] };
 }
 
 function cloneAssetRecord(record: AssetRecord): AssetRecord {
-  if (!(record.blob instanceof Blob) || record.blob.size <= 0) {
-    throw new PersistenceError('invalid_asset', `Asset ${record.asset.id} is missing blob data`)
-  }
-  return { asset: parseAsset(record.asset), blob: record.blob }
+	if (!(record.blob instanceof Blob) || record.blob.size <= 0) {
+		throw new PersistenceError('invalid_asset', `Asset ${record.asset.id} is missing blob data`);
+	}
+	return { asset: parseAsset(record.asset), blob: record.blob };
 }
 
 async function toStoredAsset(record: AssetRecord): Promise<Asset & { blob: ArrayBuffer }> {
-  const asset = cloneAssetRecord(record).asset
-  return { ...asset, blob: await readAssetBlob(record.blob) }
+	const asset = cloneAssetRecord(record).asset;
+	return { ...asset, blob: await readAssetBlob(record.blob) };
 }
 
 function parseStoredMask(value: unknown): Blob {
-  if (typeof value !== 'object' || value === null) throw new PersistenceError('invalid_asset', 'Stored mask must be an object')
-  const { blob } = value as { blob?: unknown }
-  return restoreBlob(blob, 'image/png')
+	if (typeof value !== 'object' || value === null)
+		throw new PersistenceError('invalid_asset', 'Stored mask must be an object');
+	const { blob } = value as { blob?: unknown };
+	return restoreBlob(blob, 'image/png');
 }
 
 function parseStoredAsset(value: unknown): AssetRecord {
-  if (typeof value !== 'object' || value === null) throw new PersistenceError('invalid_asset', 'Stored asset must be an object')
-  const { blob, ...rest } = value as { blob?: unknown }
-  const asset = parseAsset(rest)
-  return { asset, blob: restoreBlob(blob, asset.mimeType) }
+	if (typeof value !== 'object' || value === null)
+		throw new PersistenceError('invalid_asset', 'Stored asset must be an object');
+	const { blob, ...rest } = value as { blob?: unknown };
+	const asset = parseAsset(rest);
+	return { asset, blob: restoreBlob(blob, asset.mimeType) };
 }
 
 function restoreBlob(value: unknown, mimeType: string): Blob {
-  if (typeof Blob !== 'undefined' && value instanceof Blob) {
-    if (value.size <= 0) throw new PersistenceError('invalid_asset', 'Stored asset is missing blob data')
-    return value
-  }
-  if (isArrayBufferValue(value) && value.byteLength > 0) return new Blob([value], { type: mimeType })
-  if (ArrayBuffer.isView(value) && value.byteLength > 0) {
-    return new Blob([value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength)], { type: mimeType })
-  }
-  throw new PersistenceError('invalid_asset', 'Stored asset is missing blob data')
+	if (typeof Blob !== 'undefined' && value instanceof Blob) {
+		if (value.size <= 0)
+			throw new PersistenceError('invalid_asset', 'Stored asset is missing blob data');
+		return value;
+	}
+	if (isArrayBufferValue(value) && value.byteLength > 0)
+		return new Blob([value], { type: mimeType });
+	if (ArrayBuffer.isView(value) && value.byteLength > 0) {
+		// Copy through a view: `ArrayBufferView.buffer` is ArrayBufferLike, and the bytes are copied either way.
+		const bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength).slice();
+		return new Blob([bytes], { type: mimeType });
+	}
+	throw new PersistenceError('invalid_asset', 'Stored asset is missing blob data');
 }
 
 function isArrayBufferValue(value: unknown): value is ArrayBuffer {
-  return isArrayBuffer(value)
+	return isArrayBuffer(value);
 }
 
 /** Reference integrity both adapters must enforce: assets by id, masks by key. */
 /** A failed blob read while storing is an invalid asset, not a generic failure. */
 async function readAssetBlob(blob: Blob): Promise<ArrayBuffer> {
-  try {
-    return await blobToArrayBuffer(blob)
-  } catch (error) {
-    if (error instanceof PersistenceError) throw error
-    throw new PersistenceError('invalid_asset', 'Could not read asset blob')
-  }
+	try {
+		return await blobToArrayBuffer(blob);
+	} catch (error) {
+		if (error instanceof PersistenceError) throw error;
+		throw new PersistenceError('invalid_asset', 'Could not read asset blob');
+	}
 }
 
-function assertProjectReferences(document: ProjectDocument, hasAsset: (id: string) => boolean, hasMask: (key: string) => boolean): void {
-  for (const assetId of document.assetIds) {
-    if (!hasAsset(assetId)) throw new PersistenceError('missing_asset', `Project ${document.id} references missing asset ${assetId}`)
-  }
-  for (const layer of document.layers) {
-    if (layer.kind === 'image' && layer.maskKey && !hasMask(layer.maskKey)) {
-      throw new PersistenceError('missing_mask', `Project ${document.id} references missing mask ${layer.maskKey}`)
-    }
-  }
+function assertProjectReferences(
+	document: ProjectDocument,
+	hasAsset: (id: string) => boolean,
+	hasMask: (key: string) => boolean
+): void {
+	for (const assetId of document.assetIds) {
+		if (!hasAsset(assetId))
+			throw new PersistenceError(
+				'missing_asset',
+				`Project ${document.id} references missing asset ${assetId}`
+			);
+	}
+	for (const layer of document.layers) {
+		if (layer.kind === 'image' && layer.maskKey && !hasMask(layer.maskKey)) {
+			throw new PersistenceError(
+				'missing_mask',
+				`Project ${document.id} references missing mask ${layer.maskKey}`
+			);
+		}
+	}
 }
 
 function sortProjects(documents: ProjectDocument[]): ProjectDocument[] {
-  return documents.sort(byUpdatedAtDescending)
+	return documents.sort(byUpdatedAtDescending);
 }

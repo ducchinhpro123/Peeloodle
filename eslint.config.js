@@ -1,6 +1,52 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-export default tseslint.config(js.configs.recommended, ...tseslint.configs.recommended, { ignores: ['dist'] }, { files: ['**/*.{ts,tsx}'], languageOptions: { globals: globals.browser }, plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh }, rules: { ...reactHooks.configs.recommended.rules, 'react-refresh/only-export-components': ['warn', { allowConstantExport: true }] } }, { files: ['server/**/*.ts', 'api/**/*.ts'], languageOptions: { globals: globals.node } }, { files: ['scripts/**/*.mjs'], languageOptions: { globals: globals.node } })
+import prettier from 'eslint-config-prettier';
+import path from 'node:path';
+import js from '@eslint/js';
+import svelte from 'eslint-plugin-svelte';
+import { defineConfig, includeIgnoreFile } from 'eslint/config';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+
+const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
+
+export default defineConfig([
+	includeIgnoreFile(gitignorePath),
+	// React-era proof harness imported from the source repository: kept byte-identical
+	// to what it proved, so it is neither reformatted nor linted here.
+	{ ignores: ['proofs/**'] },
+	js.configs.recommended,
+	svelte.configs.recommended,
+	prettier,
+	svelte.configs.prettier,
+	{
+		languageOptions: { globals: { ...globals.browser, ...globals.node } }
+	},
+
+	{
+		// TypeScript modules: parse with the TS parser and use its type-aware
+		// no-unused-vars instead of the core rule, which misreads type-only names.
+		files: ['**/*.ts'],
+		languageOptions: { parser: tseslint.parser },
+		plugins: { '@typescript-eslint': tseslint.plugin },
+		rules: {
+			'no-unused-vars': 'off',
+			'no-undef': 'off',
+			'@typescript-eslint/no-unused-vars': [
+				'error',
+				{ argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
+			]
+		}
+	},
+
+	{
+		files: ['**/*.svelte', '**/*.svelte.js'],
+		languageOptions: { parserOptions: {} }
+	},
+
+	{
+		rules: {
+			// This app never configures `paths.base`, so plain absolute app links are
+			// already correct; route adapters call `goto()` with the same paths.
+			'svelte/no-navigation-without-resolve': 'off'
+		}
+	}
+]);

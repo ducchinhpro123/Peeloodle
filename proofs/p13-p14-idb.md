@@ -4,11 +4,11 @@ Date: 2026-09-10.
 
 ## What changed
 
-| File | Purpose |
-| --- | --- |
-| `src/lib/persistence/idb.ts` | Shared opener and transaction helpers. `STICKERLAB_DB_VERSION = 5` adds `presentations` and `presentationMedia`; the upgrade only creates missing stores, so existing sticker rows are never rewritten. Also exports `idbRequest`, `transactionDone`, `runTransaction`, `blobToArrayBuffer`, `arrayBufferToBytes`, `bytesEqual`. |
-| `src/lib/persistence/repository.ts` | Sticker adapter now uses the shared helpers (behaviour unchanged; version bump is additive). |
-| `src/lib/persistence/presentations/idb.ts` | `IdbPresentationRepository` implementing the P12 contract: summaries, load, atomic save with validation and revision checks, delete, independent duplicate, media access. |
+| File                                       | Purpose                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/persistence/idb.ts`               | Shared opener and transaction helpers. `STICKERLAB_DB_VERSION = 5` adds `presentations` and `presentationMedia`; the upgrade only creates missing stores, so existing sticker rows are never rewritten. Also exports `idbRequest`, `transactionDone`, `runTransaction`, `blobToArrayBuffer`, `arrayBufferToBytes`, `bytesEqual`. |
+| `src/lib/persistence/repository.ts`        | Sticker adapter now uses the shared helpers (behaviour unchanged; version bump is additive).                                                                                                                                                                                                                                     |
+| `src/lib/persistence/presentations/idb.ts` | `IdbPresentationRepository` implementing the P12 contract: summaries, load, atomic save with validation and revision checks, delete, independent duplicate, media access.                                                                                                                                                        |
 
 A save validates the document, checks revisions inside the transaction, verifies
 submitted media against the document and stored rows (referenced asset, MIME

@@ -20,24 +20,24 @@ judgement of effort/risk/fit is marked **Inference**.
 
 ## Part 0 — What is actually in this repo right now (verified locally this session)
 
-| Fact | Evidence (file read this session) |
-| --- | --- |
-| No animation, toast, DnD, forms, virtualisation, i18n, command-palette, analytics/observability, or a11y-testing dependency exists. | `package.json` — full dependency and devDependency lists contain none. |
-| No `eslint-plugin-jsx-a11y` (and no `eslint-plugin-react`) installed: lint is `@eslint/js` + `typescript-eslint` + `react-hooks` + `react-refresh`. | `package.json` scripts/deps. |
-| Konva canvas is code-split with `React.lazy(() => import('./KonvaCanvas'))`. | `src/features/editor/EditorPage.tsx:37`. |
-| The layer stack is hand-rolled: per-row kind tag, **rename `<input>`**, visibility, lock, **`ArrowUp`/`ArrowDown` reorder**, duplicate, delete. No drag reorder. | `EditorPage.tsx` `LayersInspector` (`reorderLayer(layer.id, 'up' \| 'down')`). |
-| A second, simpler layer list exists in the Position tab as `<ul className="layer-list">` buttons. | `EditorPage.tsx` `Inspector` → `Tabs.Content value="position"`. |
-| Upload validation is hand-rolled and strict: 15 MB / 25 MP caps, magic-byte sniffing, declared-vs-sniffed MIME agreement, animated-PNG and animated-WebP detection, GIF rejection, SVG rejection by label *and* by prefix markup sniff, decode via `createImageBitmap` with `HTMLImageElement` fallback. | `src/features/assets/validateUpload.ts`. |
-| Reduced motion is **already handled**, twice: a global `@media (prefers-reduced-motion: reduce)` rule killing all transitions/scroll-behavior, and the only keyframe animation (dialog `reveal`, 180 ms opacity) wrapped in `@media (prefers-reduced-motion: no-preference)`. | `src/styles.css`. |
-| Everything else animates with 120–160 ms CSS `transition`s (buttons, features, inspector switch). | `src/styles.css`. |
-| The header advertises a search affordance with a `<kbd>` hint and a global-search result list, but search is documented as not implemented. | `src/styles.css` (`.search kbd`, `.global-search-input`, `.global-search-result`); `docs/ui-audit.md` ("Search and notifications still honestly explain that they are not implemented"). |
-| Sticker tray is a horizontal flex rail with fixed-basis thumbs — small, fixed catalogue, not a growing grid. | `src/styles.css` (`.asset-items`, `.asset-item`s, `.catalog-asset`); `src/features/editor/catalog.ts` (`STICKER_CATALOG = [...ILLUSTRATIONS, ...TEMPLATE_PHOTOS, ...25 named cutouts]`). Exact entry count **TODO-VERIFY** (counts of `ILLUSTRATIONS`/`TEMPLATE_PHOTOS` not read); `docs/ui-audit.md` describes 25 cutouts + 8 illustrations + 6 photo stand-ins ⇒ ≈39 — **Inference**. |
-| Pack detail renders `.pack-sticker-row` items in a scroll-bounded list (240 px). | `src/styles.css` (`.pack-stickers-list`, `.pack-sticker-row`, `.pack-detail`). Whether member order is user-editable **TODO-VERIFY** (ordering component not read). |
-| Presentation editor already has a slide rail rendered as `.presentation-slide-card` with `aria-current`; slide add/duplicate is P22, **reorder/delete is P23 and unchecked**. | `src/styles.css`; `docs/slides-implementation-plan.md` (P22/P23 rows). |
-| Canvas zoom/fit has exactly one clamp (0.25–4) in `viewGeometry.ts`, and the handoff forbids a second zoom implementation. | `HANDOFF.md` guardrails. |
-| Document parsing/validation is hand-rolled and unit-tested at every boundary (`validatePresentationDocument`, `serializePresentationDocument`, duplicate-ID/geometry/reference rejection). | `HANDOFF.md` interfaces table; `docs/slides-implementation-plan.md` P10. |
-| Verification today: Vitest + jsdom + `fake-indexeddb`, Playwright specs, plus a real-cloud script (`npm run test:cloud`). Screenshot comparisons are stored in `/tmp/**` and are **not** committed; `proofs/baseline.md` records 12 pre-existing failing desktop overflow checks in `e2e/ui-polish.spec.ts`. | `package.json`; `docs/ui-audit.md`; `HANDOFF.md`; `AGENTS.md` verification section. |
-| Product rules that constrain any UI dependency: one document model, commands through the store, one undo entry per completed gesture, view state never dirties, no second zoom/dialog/toast system, honest feature states, offline-first with no cloud credentials, no unapproved purchases. | `AGENTS.md`; `docs/core-tools-plan.md`; `HANDOFF.md`. |
+| Fact                                                                                                                                                                                                                                                                                                         | Evidence (file read this session)                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No animation, toast, DnD, forms, virtualisation, i18n, command-palette, analytics/observability, or a11y-testing dependency exists.                                                                                                                                                                          | `package.json` — full dependency and devDependency lists contain none.                                                                                                                                                                                                                                                                                                                  |
+| No `eslint-plugin-jsx-a11y` (and no `eslint-plugin-react`) installed: lint is `@eslint/js` + `typescript-eslint` + `react-hooks` + `react-refresh`.                                                                                                                                                          | `package.json` scripts/deps.                                                                                                                                                                                                                                                                                                                                                            |
+| Konva canvas is code-split with `React.lazy(() => import('./KonvaCanvas'))`.                                                                                                                                                                                                                                 | `src/features/editor/EditorPage.tsx:37`.                                                                                                                                                                                                                                                                                                                                                |
+| The layer stack is hand-rolled: per-row kind tag, **rename `<input>`**, visibility, lock, **`ArrowUp`/`ArrowDown` reorder**, duplicate, delete. No drag reorder.                                                                                                                                             | `EditorPage.tsx` `LayersInspector` (`reorderLayer(layer.id, 'up' \| 'down')`).                                                                                                                                                                                                                                                                                                          |
+| A second, simpler layer list exists in the Position tab as `<ul className="layer-list">` buttons.                                                                                                                                                                                                            | `EditorPage.tsx` `Inspector` → `Tabs.Content value="position"`.                                                                                                                                                                                                                                                                                                                         |
+| Upload validation is hand-rolled and strict: 15 MB / 25 MP caps, magic-byte sniffing, declared-vs-sniffed MIME agreement, animated-PNG and animated-WebP detection, GIF rejection, SVG rejection by label _and_ by prefix markup sniff, decode via `createImageBitmap` with `HTMLImageElement` fallback.     | `src/features/assets/validateUpload.ts`.                                                                                                                                                                                                                                                                                                                                                |
+| Reduced motion is **already handled**, twice: a global `@media (prefers-reduced-motion: reduce)` rule killing all transitions/scroll-behavior, and the only keyframe animation (dialog `reveal`, 180 ms opacity) wrapped in `@media (prefers-reduced-motion: no-preference)`.                                | `src/styles.css`.                                                                                                                                                                                                                                                                                                                                                                       |
+| Everything else animates with 120–160 ms CSS `transition`s (buttons, features, inspector switch).                                                                                                                                                                                                            | `src/styles.css`.                                                                                                                                                                                                                                                                                                                                                                       |
+| The header advertises a search affordance with a `<kbd>` hint and a global-search result list, but search is documented as not implemented.                                                                                                                                                                  | `src/styles.css` (`.search kbd`, `.global-search-input`, `.global-search-result`); `docs/ui-audit.md` ("Search and notifications still honestly explain that they are not implemented").                                                                                                                                                                                                |
+| Sticker tray is a horizontal flex rail with fixed-basis thumbs — small, fixed catalogue, not a growing grid.                                                                                                                                                                                                 | `src/styles.css` (`.asset-items`, `.asset-item`s, `.catalog-asset`); `src/features/editor/catalog.ts` (`STICKER_CATALOG = [...ILLUSTRATIONS, ...TEMPLATE_PHOTOS, ...25 named cutouts]`). Exact entry count **TODO-VERIFY** (counts of `ILLUSTRATIONS`/`TEMPLATE_PHOTOS` not read); `docs/ui-audit.md` describes 25 cutouts + 8 illustrations + 6 photo stand-ins ⇒ ≈39 — **Inference**. |
+| Pack detail renders `.pack-sticker-row` items in a scroll-bounded list (240 px).                                                                                                                                                                                                                             | `src/styles.css` (`.pack-stickers-list`, `.pack-sticker-row`, `.pack-detail`). Whether member order is user-editable **TODO-VERIFY** (ordering component not read).                                                                                                                                                                                                                     |
+| Presentation editor already has a slide rail rendered as `.presentation-slide-card` with `aria-current`; slide add/duplicate is P22, **reorder/delete is P23 and unchecked**.                                                                                                                                | `src/styles.css`; `docs/slides-implementation-plan.md` (P22/P23 rows).                                                                                                                                                                                                                                                                                                                  |
+| Canvas zoom/fit has exactly one clamp (0.25–4) in `viewGeometry.ts`, and the handoff forbids a second zoom implementation.                                                                                                                                                                                   | `HANDOFF.md` guardrails.                                                                                                                                                                                                                                                                                                                                                                |
+| Document parsing/validation is hand-rolled and unit-tested at every boundary (`validatePresentationDocument`, `serializePresentationDocument`, duplicate-ID/geometry/reference rejection).                                                                                                                   | `HANDOFF.md` interfaces table; `docs/slides-implementation-plan.md` P10.                                                                                                                                                                                                                                                                                                                |
+| Verification today: Vitest + jsdom + `fake-indexeddb`, Playwright specs, plus a real-cloud script (`npm run test:cloud`). Screenshot comparisons are stored in `/tmp/**` and are **not** committed; `proofs/baseline.md` records 12 pre-existing failing desktop overflow checks in `e2e/ui-polish.spec.ts`. | `package.json`; `docs/ui-audit.md`; `HANDOFF.md`; `AGENTS.md` verification section.                                                                                                                                                                                                                                                                                                     |
+| Product rules that constrain any UI dependency: one document model, commands through the store, one undo entry per completed gesture, view state never dirties, no second zoom/dialog/toast system, honest feature states, offline-first with no cloud credentials, no unapproved purchases.                 | `AGENTS.md`; `docs/core-tools-plan.md`; `HANDOFF.md`.                                                                                                                                                                                                                                                                                                                                   |
 
 ---
 
@@ -51,7 +51,7 @@ Effort and risk are **Inference** unless they quote a verified repo fact.
 **(a1) `motion` (the Framer Motion successor) — recommend against for now.**
 Replaces: nothing. Adds: a React animation runtime and a second, JS-driven style-authoring path for
 transform/opacity.
-The decisive repo fact is that reduced motion is *already implemented in CSS* — a global
+The decisive repo fact is that reduced motion is _already implemented in CSS_ — a global
 `@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important } }`
 (`src/styles.css`). **Inference:** a JS animation library drives `element.style`/WAAPI rather than CSS
 `transition`, so that existing global rule would not neutralise it; adopting one means adding
@@ -65,13 +65,13 @@ transition previews, editor first-run reveal, palette open/close). **Inference:*
 buy nothing for 120–160 ms UI transitions. Effort S, risk of two animation idioms. **skip.**
 
 **(a3) `@formkit/auto-animate` — watch, do not adopt yet.** It adds FLIP animation to a list/container with
-one hook or attribute. Here the natural targets are exactly the two lists whose order changes by *user
-command*: the sticker layer stack and (later) the slide rail. **Inference:** the honest lazy answer is that
+one hook or attribute. Here the natural targets are exactly the two lists whose order changes by _user
+command_: the sticker layer stack and (later) the slide rail. **Inference:** the honest lazy answer is that
 CSS transitions on list reorder are hard, so auto-animate is the cheapest way to get "item moved" feedback —
 but layer reorder today is a button click with an immediate DOM re-render, and the value is cosmetic.
 Effort S. **Defer** until drag reorder (item b) actually lands, then re-evaluate as a single deliberate
 addition, and make sure the added animation is suppressed by the existing reduce rule (**Inference:** it is
-JS-driven, so it will *not* be — it needs its own guard).
+JS-driven, so it will _not_ be — it needs its own guard).
 
 **(a4) CSS-only — the default here.** `AGENTS.md` asks for "lively, vivid, engaging" but also "decoration must
 not obscure content or controls", and the editor is explicitly the calm surface. The repo already has the
@@ -107,7 +107,7 @@ own my list" instinct. **TODO-VERIFY: the package count** — this library is di
 (core, React adapter, hitbox, auto-scroll, drop-indicator) (recall, unverified), so "one small dependency" may
 not describe it; the aggregate bundle cost is **TODO-VERIFY** and must be measured before adoption. Effort
 **M**. Risk: **M**, mostly learning a different event model plus the drop-indicator UI needing token-based
-restyling. **Inference:** choose this over dnd-kit only if a real performance problem appears on a *large* list
+restyling. **Inference:** choose this over dnd-kit only if a real performance problem appears on a _large_ list
 (the admin grid), not for a 10-slide rail or a 20-layer stack.
 
 **(b3) React Aria drag and drop — recommend against here.** Adds collection components (`useDragAndDrop` with
@@ -152,7 +152,7 @@ unverified) is what the repo's conventions would pull in.
 **(c2) `react-hotkeys-hook` — conditional, not now.** Replaces the hand-rolled `keydown` handling in
 `EditorPage.tsx` (which already encodes a real rule: exclude dialog targets so Delete/arrows can't mutate the
 canvas behind a modal). **Inference:** swapping working, tested shortcut isolation for a hook that must be
-configured to *not* fire in form fields is net churn; adopt only when the shortcut table grows past what a
+configured to _not_ fire in form fields is net churn; adopt only when the shortcut table grows past what a
 single hand-rolled dispatch reads cleanly. Effort S, risk S–M. **TODO-VERIFY:** whether this package is a
 wrapper over `hotkeys-js` (recall, unverified) — matters because it determines whether `hotkeys-js` is also
 implied.
@@ -174,7 +174,7 @@ outside React state; in a React-strict, token-driven shell it is the least compo
 to 240 px, and the slide rail is 8–10 cards per template by design. **Inference:** at those sizes
 virtualisation buys nothing measurable and costs a windowing abstraction plus measurement bugs. The one place
 it can earn its keep is the **admin asset grid (P59) and student catalog panel (P62)**, where the plan
-explicitly targets "hundreds of files" and "paged filters" — and even there the plan's own answer is *paging*
+explicitly targets "hundreds of files" and "paged filters" — and even there the plan's own answer is _paging_
 ("stable cursors", "no fetching every full image"), which is cheaper than windowing.
 
 - **`@tanstack/react-virtual`** — headless, works with any scroll container, good grid/list support. Effort M
@@ -186,7 +186,7 @@ explicitly targets "hundreds of files" and "paged filters" — and even there th
 
 **Verdict: no virtualization dependency now.** Evidence I looked: measured list scopes in `src/styles.css` and
 the P58/P59/P62 acceptance criteria in `docs/slides-implementation-plan.md`. Revisit when a real catalogue page
-renders hundreds of assets *and* paging has already been ruled out.
+renders hundreds of assets _and_ paging has already been ruled out.
 
 ### 5. Forms and validation
 
@@ -202,7 +202,7 @@ missing references).
   server-validated forms (Remix/React Router actions). This app is a client-only, offline-first editor whose
   forms write through store commands; there is no action/server-form boundary to enhance. Effort S, risk M.
 - **`zod` / `valibot` — plausible later, not now, and not as a forms tool.** The honest use case is the
-  *boundary parsers* (`validatePresentationDocument`, backup-ZIP manifest parsing in P42, catalog payloads in
+  _boundary parsers_ (`validatePresentationDocument`, backup-ZIP manifest parsing in P42, catalog payloads in
   P49) where hand-rolled validation keeps growing. Trade-off to weigh in the fact pass: runtime cost and
   bundle cost versus a tested hand-rolled parser you already own; and **Inference:** a schema library expresses
   cross-field invariants (unique element IDs, asset-reference closure, ordered slides) less directly than the
@@ -217,14 +217,14 @@ missing references).
 
 **Repo reality:** status is inline and truthful by convention — `saveStatusLabel` with
 `data-state="saving" | "saved-locally" | "save-failed"` styling, `.asset-error`, `.presentation-canvas-error`,
-`.presentation-local-status`, plus a shared `NoticeDialog`. The audit explicitly *removed* nonfunctional
+`.presentation-local-status`, plus a shared `NoticeDialog`. The audit explicitly _removed_ nonfunctional
 controls rather than faking them; the presentation editor's pill honestly says `Unsaved changes` until P19.
 
 - **`sonner` — adopt later, for the deferred long-running flows only.** It adds stacked toasts with a promise
   (loading → success/error) API. Landing sites where the result is genuinely off-screen or asynchronous:
   pack ZIP export, PPTX/PDF export progress + cancellation (**P40**), backup/restore (**P43**), bulk catalog
   upload per-file status/retry (**P58**), publish/archive (**P60**). Effort S, risk M — **Inference:** the risk
-  is not the library, it's ending up with two feedback systems (inline status pill *and* toast) for the same
+  is not the library, it's ending up with two feedback systems (inline status pill _and_ toast) for the same
   event, which is the exact redundancy `docs/ui-audit.md` spent a pass removing. Rule to write down before
   adopting: toasts only for background/long-running results, never for save state.
 - **`react-hot-toast` — acceptable alternative, no strong reason over sonner.** Smaller and older;
@@ -249,7 +249,7 @@ controls rather than faking them; the presentation editor's pill honestly says `
   styling; **Inference:** restyling to mint tokens plus keeping steps valid across the three verified
   viewports is more work than the tour is worth.
 - **`intro.js` — do not use without a licence review; the licence is the primary risk, not the code.**
-  Flagged by the task itself for licence checking. **TODO-VERIFY: read the repository LICENSE file *and* the
+  Flagged by the task itself for licence checking. **TODO-VERIFY: read the repository LICENSE file _and_ the
   published package metadata** (a package.json `license` field can read `SEE LICENSE IN ...`, so the package
   field alone is not evidence). Until that is read, treat intro.js as **licence-unknown and excluded**.
 
@@ -276,13 +276,13 @@ spent on the per-tool empty states that already exist.
   purchase, session data).
 
 **The honest gap isn't a library.** Local failure handling (quota exhaustion, corrupt document versions,
-failed writes preserving work) is already specified and unit-tested; what is missing is a *destination* for
+failed writes preserving work) is already specified and unit-tested; what is missing is a _destination_ for
 diagnostics, and the repo's existing answer (committed `proofs/` artifacts + Playwright traces) is the right
 one until cloud work (P46+) exists.
 
 ### 9. i18n
 
-**Repo reality:** the UI is English; the *content* problem (English + Vietnamese text inside presentations)
+**Repo reality:** the UI is English; the _content_ problem (English + Vietnamese text inside presentations)
 is already solved at the font/metrics layer — `ensurePresentationFonts()` with Be Vietnam Pro / Spectral, and
 a documented rule that Latin-only sticker fonts must never be used for presentation text.
 
@@ -299,7 +299,7 @@ a documented rule that Latin-only sticker fonts must never be used for presentat
   a mostly-static UI; **Inference:** introduced by a compiler plugin/config, so it needs the same build
   review as Lingui. Effort M, risk M.
 
-**Verdict: add nothing now.** This is a *product* decision (is the UI Vietnamese?), not a tooling gap, and the
+**Verdict: add nothing now.** This is a _product_ decision (is the UI Vietnamese?), not a tooling gap, and the
 repo's Vietnamese requirement is currently a content/font requirement that is already implemented. When it is
 decided, prefer a compile-time approach over a runtime one, and keep localisation strictly out of
 `ProjectDocument`/`PresentationDocument`.
@@ -315,7 +315,7 @@ decided, prefer a compile-time approach over a runtime one, and keep localisatio
   count and on expressing "optional unless cloud tests run".
 - **MSW — plausible, not needed for P18/P19.** The repo's local flows are already testable with
   `fake-indexeddb`, and the cloud path is deliberately tested against a real project (`npm run test:cloud`).
-  MSW earns its keep when you must induce *hostile* cloud behaviour that a real backend can't produce on
+  MSW earns its keep when you must induce _hostile_ cloud behaviour that a real backend can't produce on
   demand: storage 403s, expired tokens, quota errors, partial failures, offline transitions — all of which the
   P46–P60 catalog work needs, and none of which exists yet. Effort M, risk M (an extra mock layer that can
   drift from the real API). **Adopt at P46+, not before.**
@@ -336,7 +336,7 @@ decided, prefer a compile-time approach over a runtime one, and keep localisatio
   compatibility.
 - **`knip` — worth a trial.** 19k LOC with in-flight refactors (sticker vs presentation families, template/
   pack surfaces) is exactly where dead exports and unused files accumulate. Effort S to run, **M** to triage
-  (false positives around dynamic imports — and note this repo *does* have a dynamic `import()` of
+  (false positives around dynamic imports — and note this repo _does_ have a dynamic `import()` of
   `KonvaCanvas`, which analyzers routinely get wrong). **TODO-VERIFY** current version and whether it
   understands Vite entry points out of the box.
 - **`@total-typescript/ts-reset` — small, optional.** Tightens ambient types (e.g. `JSON.parse`,
@@ -349,6 +349,7 @@ decided, prefer a compile-time approach over a runtime one, and keep localisatio
 ### 11. Accessibility helpers beyond Radix
 
 **Verified gaps and the cheap wins:**
+
 - **`eslint-plugin-jsx-a11y` is not installed** (`package.json` devDependencies list: `@eslint/js`,
   `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, plus config packages).
   It is the cheapest possible a11y addition — static checks for missing labels, ARIA misuse, click handlers on
@@ -378,7 +379,7 @@ implementation.
 
 - **`react-easy-crop` — reject.** It provides a DOM-based single-image crop with aspect lock, zoom, and
   rotation. Adopting it would introduce a **second crop coordinate system** outside the document, and the
-  crop result would then have to be reverse-mapped back into the layer's non-destructive crop fields *and*
+  crop result would then have to be reverse-mapped back into the layer's non-destructive crop fields _and_
   stay consistent with the image-local mask and the alpha-outline pass. Effort M to wire, **H** to keep
   correct. **Inference:** this directly collides with the repo's stated invariants (masks survive transforms;
   preview = export; one compositor).
@@ -392,14 +393,14 @@ implementation.
 - **What is genuinely not covered by any library** (and is therefore product code, consistent with
   `docs/editor-library-research.md`): crop + image-local erase mask + alpha-silhouette outline + filters, all
   transformed together and shared between preview and export.
-- **Where a library *idea* is still useful:** the crop UX itself (rule-of-thirds guides, aspect presets,
+- **Where a library _idea_ is still useful:** the crop UX itself (rule-of-thirds guides, aspect presets,
   rotate-with-grid, reset). Those are cheap hand-built overlays on top of the existing Transformer and are the
   actual quality gap, not missing packages.
 
 ### 13. File-upload UX (judged against the existing validation)
 
 **Repo reality:** `validateUpload.ts` does magic-byte sniffing, declared-vs-sniffed MIME agreement, animated
-PNG/WebP rejection, GIF rejection, SVG rejection by name *and* by markup prefix, 15 MB / 25 MP caps, and
+PNG/WebP rejection, GIF rejection, SVG rejection by name _and_ by markup prefix, 15 MB / 25 MP caps, and
 `createImageBitmap` decode with a fallback — all with typed error codes. The tray has a real "upload" button
 (`.asset-upload`) and presentations plan "Import Photos"; P54/P58 plan hundreds-file batch uploads with
 per-file status and retry.
@@ -423,8 +424,8 @@ per-file status and retry.
 - **No library covers the validation.** Evidence: I read `validateUpload.ts` in full this session and its
   guarantees are format-animation-aware byte/MIME/decode checks; neither dropzone nor Uppy is positioned to
   provide those (their scopes are described in their own docs — **TODO-VERIFY** the exact wording). Keep the
-  hand-rolled validator as the gate and, if a dropzone library is added, make it a *front-end for the same
-  function*.
+  hand-rolled validator as the gate and, if a dropzone library is added, make it a _front-end for the same
+  function_.
 
 ---
 
@@ -454,24 +455,24 @@ per-file status and retry.
 
 ## Anti-recommendations (popular, examined, rejected — with the reason)
 
-| Rejected | Reason |
-| --- | --- |
-| `motion` / `react-spring` (now) | CSS already covers every current transition, and reduced motion is *already* implemented as a global CSS rule; JS-driven animation escapes that rule and needs its own guard. Value today ≈ 0. |
-| `@formkit/auto-animate` (now) | Defer until drag reorder exists; it is a cosmetic add for a list that reorders by button click. |
-| `sortablejs` | Mutates the DOM list directly; conflicts with the store-as-source-of-truth model. |
-| React Aria drag-and-drop / collections | Would introduce a second component/collection system beside Radix + hand-rolled primitives, against the reuse rule. |
-| `kbar`, `hotkeys-js`, `ninja-keys` | Heavier or less composable than cmdk + the existing hand-rolled shortcut isolation. |
-| `react-hook-form`, `@conform-to/react` | Two-field dialogs; conform additionally assumes an action/server-form architecture this app does not have. |
-| `zod`/`valibot` (now) | Boundary parsing is hand-rolled and already tested against the real invariants; adding a runtime for that is a later, evidence-driven decision. |
-| `react-hot-toast` (as first choice) | Sonner's promise/stack ergonomics fit export progress better; but the real constraint is not having two feedback systems. |
-| `react-joyride`, `intro.js` | Joyride owns a parallel state machine + overlay styling; intro.js is **licence-unknown and excluded pending a LICENSE read** (the task flagged its licence, and I could not verify it). |
-| `@sentry/react`, Highlight.io, OpenTelemetry web | Network, account, purchase and session-data implications in an app whose promise is offline-with-no-credentials; no collector or authorized service exists. |
-| `i18next`, Lingui, typesafe-i18n, Paraglide (now) | UI translation is an unmade product decision; the current Vietnamese requirement is content/font-level and already implemented. |
-| `react-easy-crop`, `react-advanced-cropper`, `react-zoom-pan-pinch` | Each introduces a second crop/zoom coordinate system or DOM transform wrapper, contradicting the non-destructive, mask-aligned, single-clamp invariants. |
-| `uppy` | A second upload state machine overlapping the planned durable server job model (P54/P55); UI competes with token-driven admin surfaces. Check supabase-js resumable upload first. |
-| `react-dropzone` (for P18) | The one-image drop target is ~15 lines; its file filters are not a trust boundary, so the strict validator stays. Reconsider for P58 folder drops. |
-| Generic typed-fetch client | Only two network surfaces exist; typing belongs at the repository boundary that already exists. |
-| `ts-reset`, Vitest browser mode, MSW | Optional/later: ts-reset is a team-preference change, browser mode adds a second browser runner beside Playwright, and MSW's value starts at P46. |
+| Rejected                                                            | Reason                                                                                                                                                                                         |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `motion` / `react-spring` (now)                                     | CSS already covers every current transition, and reduced motion is _already_ implemented as a global CSS rule; JS-driven animation escapes that rule and needs its own guard. Value today ≈ 0. |
+| `@formkit/auto-animate` (now)                                       | Defer until drag reorder exists; it is a cosmetic add for a list that reorders by button click.                                                                                                |
+| `sortablejs`                                                        | Mutates the DOM list directly; conflicts with the store-as-source-of-truth model.                                                                                                              |
+| React Aria drag-and-drop / collections                              | Would introduce a second component/collection system beside Radix + hand-rolled primitives, against the reuse rule.                                                                            |
+| `kbar`, `hotkeys-js`, `ninja-keys`                                  | Heavier or less composable than cmdk + the existing hand-rolled shortcut isolation.                                                                                                            |
+| `react-hook-form`, `@conform-to/react`                              | Two-field dialogs; conform additionally assumes an action/server-form architecture this app does not have.                                                                                     |
+| `zod`/`valibot` (now)                                               | Boundary parsing is hand-rolled and already tested against the real invariants; adding a runtime for that is a later, evidence-driven decision.                                                |
+| `react-hot-toast` (as first choice)                                 | Sonner's promise/stack ergonomics fit export progress better; but the real constraint is not having two feedback systems.                                                                      |
+| `react-joyride`, `intro.js`                                         | Joyride owns a parallel state machine + overlay styling; intro.js is **licence-unknown and excluded pending a LICENSE read** (the task flagged its licence, and I could not verify it).        |
+| `@sentry/react`, Highlight.io, OpenTelemetry web                    | Network, account, purchase and session-data implications in an app whose promise is offline-with-no-credentials; no collector or authorized service exists.                                    |
+| `i18next`, Lingui, typesafe-i18n, Paraglide (now)                   | UI translation is an unmade product decision; the current Vietnamese requirement is content/font-level and already implemented.                                                                |
+| `react-easy-crop`, `react-advanced-cropper`, `react-zoom-pan-pinch` | Each introduces a second crop/zoom coordinate system or DOM transform wrapper, contradicting the non-destructive, mask-aligned, single-clamp invariants.                                       |
+| `uppy`                                                              | A second upload state machine overlapping the planned durable server job model (P54/P55); UI competes with token-driven admin surfaces. Check supabase-js resumable upload first.              |
+| `react-dropzone` (for P18)                                          | The one-image drop target is ~15 lines; its file filters are not a trust boundary, so the strict validator stays. Reconsider for P58 folder drops.                                             |
+| Generic typed-fetch client                                          | Only two network surfaces exist; typing belongs at the repository boundary that already exists.                                                                                                |
+| `ts-reset`, Vitest browser mode, MSW                                | Optional/later: ts-reset is a team-preference change, browser mode adds a second browser runner beside Playwright, and MSW's value starts at P46.                                              |
 
 ## Where NO good library exists (with the evidence that I looked)
 
@@ -506,57 +507,57 @@ per-file status and retry.
 The five left-hand fact columns are unverified in this session and must be filled by the Part 3 pass.
 "Replaces/adds here", "Landing site", "Effort" and "Risk" are **Inference** unless quoted from a repo file.
 
-| Candidate | Dimension | Licence | Latest version + release date | React 18 support | Bundle/runtime cost | Maintenance signal | Replaces / adds in THIS repo | Landing site | Effort | Risk |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `motion` | motion | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Adds JS animation runtime over CSS transitions | none yet | S | M |
-| `react-spring` | motion | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Same, larger concept surface | none | S | M |
-| `@formkit/auto-animate` | motion | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | FLIP feedback on list reorder | layer stack, slide rail | S | M |
-| CSS-only (baseline) | motion | n/a | n/a | n/a | 0 | n/a | Already in place; reduced motion already global | `src/styles.css` | — | — |
-| `@dnd-kit/core` + `@dnd-kit/sortable` | dnd | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Replaces up/down reorder; adds drag + announcements | layer stack, P23 rail, P30 list | M | M |
-| `@atlaskit/pragmatic-drag-and-drop` (+ react/hitbox/auto-scroll/drop-indicator) | dnd | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Same, perf-oriented, multi-package (recall, unverified) | large lists only | M | M |
-| `react-aria` (`useDragAndDrop`) | dnd | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Adds a second collection/component system | P30 list | L | M |
-| `sortablejs` | dnd | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Imperative DOM ordering | any list | S | M |
-| Native HTML5 DnD | dnd | n/a (platform) | n/a | n/a | 0 | n/a | Zero-dep desktop-only reorder; no touch | desktop lists | S | M |
-| `cmdk` | palette | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Implements the advertised-but-unbuilt global search + keyboard path | header/app shell | S–M | S/M |
-| `kbar` | palette | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Owns palette UI + animation | header | S | M |
-| `react-hotkeys-hook` | shortcuts | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Replaces hand-rolled keydown isolation | editor shell | S | S/M |
-| `hotkeys-js` | shortcuts | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Vanilla globals, no React lifecycle | editor shell | S | M |
-| `ninja-keys` | palette | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Web-component palette outside React state | header | S | M |
-| `@tanstack/react-virtual` | virtual | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Windowing for large grids | P59/P62 catalog | M | M |
-| `virtua` | virtual | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Same, smaller API | P59/P62 | M | M |
-| `react-window` | virtual | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Same, conservative | P59/P62 | M | M |
-| `react-hook-form` | forms | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Owns form state over 1–3 field dialogs | pack/dialog forms | S | M |
-| `@conform-to/react` | forms | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Action/server-form progressive enhancement | n/a here | S | M |
-| `zod` | validation | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Possible replacement for boundary parsers | `model/parse.ts`, P42/P49 | M | M |
-| `valibot` | validation | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Same, tree-shakeable option | same | M | M |
-| `standard-schema` | validation | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Spec only (swap safety) | n/a | — | — |
-| `sonner` | feedback | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Adds toasts for async/long flows | P40/P43/P58/P60 | S | M |
-| `react-hot-toast` | feedback | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Same, older/smaller | same | S | M |
-| `driver.js` | tours | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Adds walkthrough steps | presentation editor | S | M |
-| `react-joyride` | tours | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Same + own state machine | presentation editor | S | M |
-| `intro.js` | tours | TODO-VERIFY (licence is the risk) | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Same | presentation editor | S | H (licence) |
-| `@sentry/react` | observability | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Hosted error reporting | app shell | S | H (privacy/offline) |
-| `web-vitals` | observability | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Field perf metrics (needs a sink) | app shell | S | S |
-| `@opentelemetry/sdk-trace-web` | observability | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Trace export (needs a collector) | n/a | L | M |
-| `i18next` + `react-i18next` | i18n | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Runtime UI translation | app shell | M | M |
-| `@lingui/core` + `@lingui/react` | i18n | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Compile-time catalogues | app shell | M | M |
-| `typesafe-i18n` | i18n | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Codegen + typed keys | app shell | M | S/M |
-| `@inlang/paraglide-js` | i18n | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Compile-time, tree-shaken messages | app shell | M | M |
-| `@t3-oss/env-core` | dev velocity | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Validated `VITE_*` env | `src/app/` config | S | S |
-| `msw` | dev velocity | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Induces hostile cloud behaviour in tests | P46+ tests | M | M |
-| `@vitest/browser` (browser mode) | dev velocity | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Real browser for jsdom-limited tests | test config | M | M |
-| `rollup-plugin-visualizer` | dev velocity | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Chunk visibility | `vite.config.ts` | S | S |
-| `knip` | dev velocity | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Dead files/exports/deps | repo-wide | S | S/M |
-| `@total-typescript/ts-reset` | dev velocity | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Stricter ambient types | `src/` typing | S | S/M |
-| `eslint-plugin-jsx-a11y` | a11y | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Static a11y lint (absent today) | `eslint.config.js` | S | S |
-| `@axe-core/playwright` | a11y | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Automated a11y checks in e2e | `e2e/` | S/M | S |
-| `vitest-axe` / `jest-axe` | a11y | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Component-level a11y assertions | unit tests | S | S |
-| `react-easy-crop` | crop UX | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Second DOM crop coordinate system | editor canvas | M | H |
-| `react-advanced-cropper` | crop UX | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Same, larger surface | editor canvas | M | H |
-| `react-zoom-pan-pinch` | pan/zoom UX | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | DOM pan/zoom wrapper (second zoom impl.) | editor canvas | S | M |
-| `react-dropzone` | upload UX | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Drop plumbing + folder drops; not validation | editor workspace / P58 | S | S |
-| `uppy` | upload UX | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | TODO-VERIFY | Full uploader state machine + UI | conflicts with P54/P55 | M | M/H |
-| `@playwright/test` snapshot assertions | dev velocity | TODO-VERIFY (already installed) | TODO-VERIFY | n/a | 0 (already a devDep) | TODO-VERIFY | Committed visual regression evidence | `e2e/`, `proofs/` | S | S |
+| Candidate                                                                       | Dimension     | Licence                           | Latest version + release date | React 18 support | Bundle/runtime cost  | Maintenance signal | Replaces / adds in THIS repo                                        | Landing site                    | Effort | Risk                |
+| ------------------------------------------------------------------------------- | ------------- | --------------------------------- | ----------------------------- | ---------------- | -------------------- | ------------------ | ------------------------------------------------------------------- | ------------------------------- | ------ | ------------------- |
+| `motion`                                                                        | motion        | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Adds JS animation runtime over CSS transitions                      | none yet                        | S      | M                   |
+| `react-spring`                                                                  | motion        | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Same, larger concept surface                                        | none                            | S      | M                   |
+| `@formkit/auto-animate`                                                         | motion        | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | FLIP feedback on list reorder                                       | layer stack, slide rail         | S      | M                   |
+| CSS-only (baseline)                                                             | motion        | n/a                               | n/a                           | n/a              | 0                    | n/a                | Already in place; reduced motion already global                     | `src/styles.css`                | —      | —                   |
+| `@dnd-kit/core` + `@dnd-kit/sortable`                                           | dnd           | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Replaces up/down reorder; adds drag + announcements                 | layer stack, P23 rail, P30 list | M      | M                   |
+| `@atlaskit/pragmatic-drag-and-drop` (+ react/hitbox/auto-scroll/drop-indicator) | dnd           | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Same, perf-oriented, multi-package (recall, unverified)             | large lists only                | M      | M                   |
+| `react-aria` (`useDragAndDrop`)                                                 | dnd           | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Adds a second collection/component system                           | P30 list                        | L      | M                   |
+| `sortablejs`                                                                    | dnd           | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Imperative DOM ordering                                             | any list                        | S      | M                   |
+| Native HTML5 DnD                                                                | dnd           | n/a (platform)                    | n/a                           | n/a              | 0                    | n/a                | Zero-dep desktop-only reorder; no touch                             | desktop lists                   | S      | M                   |
+| `cmdk`                                                                          | palette       | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Implements the advertised-but-unbuilt global search + keyboard path | header/app shell                | S–M    | S/M                 |
+| `kbar`                                                                          | palette       | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Owns palette UI + animation                                         | header                          | S      | M                   |
+| `react-hotkeys-hook`                                                            | shortcuts     | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Replaces hand-rolled keydown isolation                              | editor shell                    | S      | S/M                 |
+| `hotkeys-js`                                                                    | shortcuts     | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Vanilla globals, no React lifecycle                                 | editor shell                    | S      | M                   |
+| `ninja-keys`                                                                    | palette       | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Web-component palette outside React state                           | header                          | S      | M                   |
+| `@tanstack/react-virtual`                                                       | virtual       | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Windowing for large grids                                           | P59/P62 catalog                 | M      | M                   |
+| `virtua`                                                                        | virtual       | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Same, smaller API                                                   | P59/P62                         | M      | M                   |
+| `react-window`                                                                  | virtual       | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Same, conservative                                                  | P59/P62                         | M      | M                   |
+| `react-hook-form`                                                               | forms         | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Owns form state over 1–3 field dialogs                              | pack/dialog forms               | S      | M                   |
+| `@conform-to/react`                                                             | forms         | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Action/server-form progressive enhancement                          | n/a here                        | S      | M                   |
+| `zod`                                                                           | validation    | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Possible replacement for boundary parsers                           | `model/parse.ts`, P42/P49       | M      | M                   |
+| `valibot`                                                                       | validation    | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Same, tree-shakeable option                                         | same                            | M      | M                   |
+| `standard-schema`                                                               | validation    | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Spec only (swap safety)                                             | n/a                             | —      | —                   |
+| `sonner`                                                                        | feedback      | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Adds toasts for async/long flows                                    | P40/P43/P58/P60                 | S      | M                   |
+| `react-hot-toast`                                                               | feedback      | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Same, older/smaller                                                 | same                            | S      | M                   |
+| `driver.js`                                                                     | tours         | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Adds walkthrough steps                                              | presentation editor             | S      | M                   |
+| `react-joyride`                                                                 | tours         | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Same + own state machine                                            | presentation editor             | S      | M                   |
+| `intro.js`                                                                      | tours         | TODO-VERIFY (licence is the risk) | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Same                                                                | presentation editor             | S      | H (licence)         |
+| `@sentry/react`                                                                 | observability | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Hosted error reporting                                              | app shell                       | S      | H (privacy/offline) |
+| `web-vitals`                                                                    | observability | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Field perf metrics (needs a sink)                                   | app shell                       | S      | S                   |
+| `@opentelemetry/sdk-trace-web`                                                  | observability | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Trace export (needs a collector)                                    | n/a                             | L      | M                   |
+| `i18next` + `react-i18next`                                                     | i18n          | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Runtime UI translation                                              | app shell                       | M      | M                   |
+| `@lingui/core` + `@lingui/react`                                                | i18n          | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Compile-time catalogues                                             | app shell                       | M      | M                   |
+| `typesafe-i18n`                                                                 | i18n          | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Codegen + typed keys                                                | app shell                       | M      | S/M                 |
+| `@inlang/paraglide-js`                                                          | i18n          | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Compile-time, tree-shaken messages                                  | app shell                       | M      | M                   |
+| `@t3-oss/env-core`                                                              | dev velocity  | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Validated `VITE_*` env                                              | `src/app/` config               | S      | S                   |
+| `msw`                                                                           | dev velocity  | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Induces hostile cloud behaviour in tests                            | P46+ tests                      | M      | M                   |
+| `@vitest/browser` (browser mode)                                                | dev velocity  | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Real browser for jsdom-limited tests                                | test config                     | M      | M                   |
+| `rollup-plugin-visualizer`                                                      | dev velocity  | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Chunk visibility                                                    | `vite.config.ts`                | S      | S                   |
+| `knip`                                                                          | dev velocity  | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Dead files/exports/deps                                             | repo-wide                       | S      | S/M                 |
+| `@total-typescript/ts-reset`                                                    | dev velocity  | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Stricter ambient types                                              | `src/` typing                   | S      | S/M                 |
+| `eslint-plugin-jsx-a11y`                                                        | a11y          | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Static a11y lint (absent today)                                     | `eslint.config.js`              | S      | S                   |
+| `@axe-core/playwright`                                                          | a11y          | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Automated a11y checks in e2e                                        | `e2e/`                          | S/M    | S                   |
+| `vitest-axe` / `jest-axe`                                                       | a11y          | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Component-level a11y assertions                                     | unit tests                      | S      | S                   |
+| `react-easy-crop`                                                               | crop UX       | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Second DOM crop coordinate system                                   | editor canvas                   | M      | H                   |
+| `react-advanced-cropper`                                                        | crop UX       | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Same, larger surface                                                | editor canvas                   | M      | H                   |
+| `react-zoom-pan-pinch`                                                          | pan/zoom UX   | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | DOM pan/zoom wrapper (second zoom impl.)                            | editor canvas                   | S      | M                   |
+| `react-dropzone`                                                                | upload UX     | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Drop plumbing + folder drops; not validation                        | editor workspace / P58          | S      | S                   |
+| `uppy`                                                                          | upload UX     | TODO-VERIFY                       | TODO-VERIFY                   | TODO-VERIFY      | TODO-VERIFY          | TODO-VERIFY        | Full uploader state machine + UI                                    | conflicts with P54/P55          | M      | M/H                 |
+| `@playwright/test` snapshot assertions                                          | dev velocity  | TODO-VERIFY (already installed)   | TODO-VERIFY                   | n/a              | 0 (already a devDep) | TODO-VERIFY        | Committed visual regression evidence                                | `e2e/`, `proofs/`               | S      | S                   |
 
 ---
 
@@ -604,17 +605,17 @@ done
 
 **2. URL shapes to open for the decision-critical ones.**
 
-| Need | URL shape |
-| --- | --- |
-| npm metadata (licence, version, peers) | `https://registry.npmjs.org/<pkg>` and `https://registry.npmjs.org/<pkg>/latest` |
-| Release date map | `https://registry.npmjs.org/<pkg>` → `time` object |
-| Repo licence + activity | `https://github.com/<owner>/<repo>` → `LICENSE`, `/releases/latest`, `/commits` |
-| Machine-readable repo facts | `https://api.github.com/repos/<owner>/<repo>` |
-| Bundle size | `https://bundlephobia.com/package/<pkg>@<version>` |
-| Weekly downloads | `https://api.npmjs.org/downloads/point/last-week/<pkg>` |
-| Accessibility plugin config | flat-config usage docs for `eslint-plugin-jsx-a11y`; `@axe-core/playwright` README |
-| Playwright snapshots | installed version's docs for `toHaveScreenshot` + `--update-snapshots` |
-| Supabase resumable uploads (Uppy decision gate) | installed `@supabase/supabase-js` Storage docs for resumable/TUS support |
+| Need                                            | URL shape                                                                          |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------- |
+| npm metadata (licence, version, peers)          | `https://registry.npmjs.org/<pkg>` and `https://registry.npmjs.org/<pkg>/latest`   |
+| Release date map                                | `https://registry.npmjs.org/<pkg>` → `time` object                                 |
+| Repo licence + activity                         | `https://github.com/<owner>/<repo>` → `LICENSE`, `/releases/latest`, `/commits`    |
+| Machine-readable repo facts                     | `https://api.github.com/repos/<owner>/<repo>`                                      |
+| Bundle size                                     | `https://bundlephobia.com/package/<pkg>@<version>`                                 |
+| Weekly downloads                                | `https://api.npmjs.org/downloads/point/last-week/<pkg>`                            |
+| Accessibility plugin config                     | flat-config usage docs for `eslint-plugin-jsx-a11y`; `@axe-core/playwright` README |
+| Playwright snapshots                            | installed version's docs for `toHaveScreenshot` + `--update-snapshots`             |
+| Supabase resumable uploads (Uppy decision gate) | installed `@supabase/supabase-js` Storage docs for resumable/TUS support           |
 
 **3. Repo-side checks that need no network (cheap, do them in the same pass).**
 

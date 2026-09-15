@@ -6,16 +6,16 @@ Date: 2026-09-10. Scope: P01–P07 completed with evidence; P08 blocked.
 
 All additions are additive; no sticker behavior or saved sticker data changed.
 
-| Area | Files |
-| --- | --- |
-| Presentation model + fixture | `src/features/presentations/model/{types,geometry}.ts`, `model/fixtures/{fixture,png,stress}.ts` |
-| Text layout + DOM bridge + Konva text | `src/features/presentations/rendering/{textLayout,fonts,konvaText}.ts`, `editor/textBridge.ts`, `rendering/presentation-fonts.css` |
-| Exports | `src/features/presentations/exports/{pdf,backup}.ts` |
-| Node processing | `server/processing/{limits,errors,raster,svg,index}.ts` |
-| Shared byte helpers | `src/lib/imageFormat.ts` (also used by `validateUpload.ts`) |
-| Proofs / evidence | `proofs/**`, `e2e/proofs/{text-bridge,pdf-backup}.spec.ts` |
-| Build/tooling | `tsconfig.server.json`, Node ESLint override, Vite watch/optimizeDeps, `pdf-lib`, `fflate`, `pptxgenjs`, `sharp`, `@resvg/resvg-js`, `fast-xml-parser` deps |
-| Docs | `docs/assets-provenance.md` (font provenance), plan checkboxes P01–P07 |
+| Area                                  | Files                                                                                                                                                       |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Presentation model + fixture          | `src/features/presentations/model/{types,geometry}.ts`, `model/fixtures/{fixture,png,stress}.ts`                                                            |
+| Text layout + DOM bridge + Konva text | `src/features/presentations/rendering/{textLayout,fonts,konvaText}.ts`, `editor/textBridge.ts`, `rendering/presentation-fonts.css`                          |
+| Exports                               | `src/features/presentations/exports/{pdf,backup}.ts`                                                                                                        |
+| Node processing                       | `server/processing/{limits,errors,raster,svg,index}.ts`                                                                                                     |
+| Shared byte helpers                   | `src/lib/imageFormat.ts` (also used by `validateUpload.ts`)                                                                                                 |
+| Proofs / evidence                     | `proofs/**`, `e2e/proofs/{text-bridge,pdf-backup}.spec.ts`                                                                                                  |
+| Build/tooling                         | `tsconfig.server.json`, Node ESLint override, Vite watch/optimizeDeps, `pdf-lib`, `fflate`, `pptxgenjs`, `sharp`, `@resvg/resvg-js`, `fast-xml-parser` deps |
+| Docs                                  | `docs/assets-provenance.md` (font provenance), plan checkboxes P01–P07                                                                                      |
 
 ## Verification (exact commands)
 
@@ -77,14 +77,14 @@ route (P15–P16). The foundation below is complete and tested.
 
 Added after the Milestone 0 proofs; no user-facing route yet.
 
-| Task | Deliverable | Tests |
-| --- | --- | --- |
-| P09 | `model/factories.ts`: blank document/slide/text/shape/image factories, `DEFAULT_THEME`, `clonePresentationDocumentWithNewIds`, `nextSlideName` | `factories.test.ts` (4) |
-| P10 | `model/limits.ts` + `model/parse.ts`: versioned parser/serializer and non-throwing `validatePresentationDocument`; rejects versions, duplicate IDs, non-finite geometry, bad runs/colors, unsafe links (`model/links.ts`), missing asset refs and oversized input | `parse.test.ts` (13) |
-| P11 | `editor/store.ts`: Zustand command store, view state, revision-bumping commands, grouped/bounded undo-redo (50 entries + byte ceiling) | `store.test.ts` (17) |
-| P12 | `lib/persistence/presentations/repository.ts`: `PresentationRepository` contract + memory adapter with atomic save, media completeness, base-revision conflicts, independent duplicate, delete | `repository.test.ts` (14) |
-| P13 | `lib/persistence/idb.ts` + `presentations/idb.ts`: shared v5 additive upgrade of `stickerlab-local` (presentation stores added, sticker rows untouched) and the IndexedDB adapter | `idb.test.ts` (8, incl. populated v4 fixture) |
-| P14 | Atomic media+document transactions, stored-media immutability, revision/stale-tab conflicts, rollback on write failure | same suite |
+| Task | Deliverable                                                                                                                                                                                                                                                       | Tests                                         |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| P09  | `model/factories.ts`: blank document/slide/text/shape/image factories, `DEFAULT_THEME`, `clonePresentationDocumentWithNewIds`, `nextSlideName`                                                                                                                    | `factories.test.ts` (4)                       |
+| P10  | `model/limits.ts` + `model/parse.ts`: versioned parser/serializer and non-throwing `validatePresentationDocument`; rejects versions, duplicate IDs, non-finite geometry, bad runs/colors, unsafe links (`model/links.ts`), missing asset refs and oversized input | `parse.test.ts` (13)                          |
+| P11  | `editor/store.ts`: Zustand command store, view state, revision-bumping commands, grouped/bounded undo-redo (50 entries + byte ceiling)                                                                                                                            | `store.test.ts` (17)                          |
+| P12  | `lib/persistence/presentations/repository.ts`: `PresentationRepository` contract + memory adapter with atomic save, media completeness, base-revision conflicts, independent duplicate, delete                                                                    | `repository.test.ts` (14)                     |
+| P13  | `lib/persistence/idb.ts` + `presentations/idb.ts`: shared v5 additive upgrade of `stickerlab-local` (presentation stores added, sticker rows untouched) and the IndexedDB adapter                                                                                 | `idb.test.ts` (8, incl. populated v4 fixture) |
+| P14  | Atomic media+document transactions, stored-media immutability, revision/stale-tab conflicts, rollback on write failure                                                                                                                                            | same suite                                    |
 
 Verification: `npm run typecheck`, `npm run lint` (0 errors),
 `npm test` (326 tests), `npm run build`, focused browser specs — all pass.

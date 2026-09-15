@@ -19,12 +19,12 @@ No dependency change (pdf-lib already present from the P06 proof).
 
 ## Acceptance, as verified
 
-| Criterion | Evidence |
-| --- | --- |
-| Page count and size | `pdf.test.ts`: a 3-slide snapshot produces 3 pages at 960×540pt; the low-level builder tests already assert exact 16:9 sizes and distinct embedded images. |
-| Order | The injected rasterizer records slide ids and the test asserts `slide-0, slide-1, slide-2`. |
-| No partial file | A rasterizer that throws rejects the build; an empty document reports `no_pages` instead of writing a zero-page file. |
-| Limitation documented | Module header and dialog description. |
+| Criterion             | Evidence                                                                                                                                                   |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page count and size   | `pdf.test.ts`: a 3-slide snapshot produces 3 pages at 960×540pt; the low-level builder tests already assert exact 16:9 sizes and distinct embedded images. |
+| Order                 | The injected rasterizer records slide ids and the test asserts `slide-0, slide-1, slide-2`.                                                                |
+| No partial file       | A rasterizer that throws rejects the build; an empty document reports `no_pages` instead of writing a zero-page file.                                      |
+| Limitation documented | Module header and dialog description.                                                                                                                      |
 
 ## Checks run
 

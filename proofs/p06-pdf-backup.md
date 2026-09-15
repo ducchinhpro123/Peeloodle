@@ -5,12 +5,12 @@ backup/restore using the fixture."
 
 ## Artifacts
 
-| File | Produced by |
-| --- | --- |
-| `proofs/out/p06-fixture-render.pdf` | `e2e/proofs/pdf-backup.spec.ts` → production `buildRasterPdf` |
-| `proofs/out/p06-backup.zip` | production `createBackupArchive` |
-| `proofs/out/p06-page-1.png`, `p06-page-2.png` | `pdftoppm -r 72` inspection of the PDF |
-| `proofs/out/p06-report.json` | sizes/paths summary from the proof |
+| File                                          | Produced by                                                   |
+| --------------------------------------------- | ------------------------------------------------------------- |
+| `proofs/out/p06-fixture-render.pdf`           | `e2e/proofs/pdf-backup.spec.ts` → production `buildRasterPdf` |
+| `proofs/out/p06-backup.zip`                   | production `createBackupArchive`                              |
+| `proofs/out/p06-page-1.png`, `p06-page-2.png` | `pdftoppm -r 72` inspection of the PDF                        |
+| `proofs/out/p06-report.json`                  | sizes/paths summary from the proof                            |
 
 Code under test: `src/features/presentations/exports/pdf.ts` (pdf-lib 1.17.1)
 and `src/features/presentations/exports/backup.ts` (fflate 0.8.3).
@@ -24,7 +24,7 @@ Page size:  960 x 540 pts
 ```
 
 - Two pages in slide order; each slide rendered at 1920×1080 with Konva and
-  embedded as a single PNG per page (no full-slide flattening of the *source*
+  embedded as a single PNG per page (no full-slide flattening of the _source_
   document; rasterization is inherent to this image-based PDF contract).
 - Rendered pages inspected visually: background, rounded panel, ellipse,
   transparent sticker image (soft alpha edge), Vietnamese text, bullets,

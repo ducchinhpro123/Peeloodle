@@ -10,31 +10,31 @@ dependency.
 
 ## What was built
 
-| File | Change |
-| --- | --- |
-| `editor/alignmentGuides.ts` | `snapToAlignment` snaps a moving rectangle's left/centre/right and top/middle/bottom to other elements and the page axes within a threshold and returns the matched lines; `alignToSlide` computes the explicit left/centre/right/top/middle/bottom position. Pure geometry, no DOM or store. |
-| `editor/store.ts` | `view.guides` (view state) and `setGuides`; cleared on commit, on undo/redo and on slide change, so guides can never reach the document. |
-| `editor/PresentationCanvas.tsx` | Move gestures pass the preview through `snapToAlignment` against visible sibling elements and the page, and set the guide lines; resize/rotate keep exact pointer geometry. Guides render as DOM lines positioned through the shared viewport mapping, so zoom and pan apply the same way as the selection frame. |
-| `editor/ElementGeometryInspector.tsx` | Six explicit align buttons (Left/Center/Right/Top/Middle/Bottom) that commit one history entry each and are disabled for locked elements. |
+| File                                  | Change                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `editor/alignmentGuides.ts`           | `snapToAlignment` snaps a moving rectangle's left/centre/right and top/middle/bottom to other elements and the page axes within a threshold and returns the matched lines; `alignToSlide` computes the explicit left/centre/right/top/middle/bottom position. Pure geometry, no DOM or store.                     |
+| `editor/store.ts`                     | `view.guides` (view state) and `setGuides`; cleared on commit, on undo/redo and on slide change, so guides can never reach the document.                                                                                                                                                                          |
+| `editor/PresentationCanvas.tsx`       | Move gestures pass the preview through `snapToAlignment` against visible sibling elements and the page, and set the guide lines; resize/rotate keep exact pointer geometry. Guides render as DOM lines positioned through the shared viewport mapping, so zoom and pan apply the same way as the selection frame. |
+| `editor/ElementGeometryInspector.tsx` | Six explicit align buttons (Left/Center/Right/Top/Middle/Bottom) that commit one history entry each and are disabled for locked elements.                                                                                                                                                                         |
 
 ## Acceptance, as verified
 
-| Criterion | Evidence |
-| --- | --- |
-| Snap geometry | 11 unit tests: edge, centre and page-centre snaps, inside/outside threshold, both axes at once, no-snap identity, no input mutation, and every `alignToSlide` value. |
-| Zoom independence | Guides are stored in document units and converted through `presentationViewport`, the same mapping the selection frame uses; store test asserts `setGuides` neither dirties nor revises the document. |
-| Guides never enter saves/exports | Guides live in `view`, never in the document; `commitTransform` clears them, and `ensureView` resets them on undo/redo. The store test asserts the document reference and revision are untouched. |
-| Explicit alignment | UI test aligns the fixture ellipse left/middle/bottom, reads the values back and undoes the last alignment as one entry. |
+| Criterion                        | Evidence                                                                                                                                                                                              |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Snap geometry                    | 11 unit tests: edge, centre and page-centre snaps, inside/outside threshold, both axes at once, no-snap identity, no input mutation, and every `alignToSlide` value.                                  |
+| Zoom independence                | Guides are stored in document units and converted through `presentationViewport`, the same mapping the selection frame uses; store test asserts `setGuides` neither dirties nor revises the document. |
+| Guides never enter saves/exports | Guides live in `view`, never in the document; `commitTransform` clears them, and `ensureView` resets them on undo/redo. The store test asserts the document reference and revision are untouched.     |
+| Explicit alignment               | UI test aligns the fixture ellipse left/middle/bottom, reads the values back and undoes the last alignment as one entry.                                                                              |
 
 ## Checks run
 
-| Command | Result |
-| --- | --- |
-| `npm run typecheck` | clean |
-| `npm run lint` | 0 errors, 4 pre-existing `react-refresh` warnings |
-| `npx vitest run --environment jsdom ... alignmentGuides.test.ts` | 11 passed |
-| `npm test` | **541 passed / 39 files** |
-| `npm run build` | verified at the end of the milestone increment |
+| Command                                                          | Result                                            |
+| ---------------------------------------------------------------- | ------------------------------------------------- |
+| `npm run typecheck`                                              | clean                                             |
+| `npm run lint`                                                   | 0 errors, 4 pre-existing `react-refresh` warnings |
+| `npx vitest run --environment jsdom ... alignmentGuides.test.ts` | 11 passed                                         |
+| `npm test`                                                       | **541 passed / 39 files**                         |
+| `npm run build`                                                  | verified at the end of the milestone increment    |
 
 ## Known gaps and deliberate ceilings
 

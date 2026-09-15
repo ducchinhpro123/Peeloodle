@@ -10,18 +10,18 @@ This plan distinguishes **observed** defects (code + real browser) from **hypoth
 
 One editor, one Zustand store (`src/features/editor/store.ts`), one document schema (`src/types/domain.ts`), one IndexedDB repository. Konva is a view. Mutations go through commands/history.
 
-| Surface | What exists |
-| --- | --- |
-| Routes | `/`, `/create`, `/editor/:projectId`, `/templates`, `/my-stickers` |
-| Draft mint | `CreateEditor` persists dirty work if needed, then `createDraft()` and `replace`s to `/editor/:id` |
+| Surface          | What exists                                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Routes           | `/`, `/create`, `/editor/:projectId`, `/templates`, `/my-stickers`                                                                               |
+| Draft mint       | `CreateEditor` persists dirty work if needed, then `createDraft()` and `replace`s to `/editor/:id`                                               |
 | Background erase | `activeTool` `erase` / `restore`; `useMaskBrush` + `maskPainter` + `maskUtils` in image-local coordinates; Reset Mask; brush size; dashed cursor |
-| Text | `addTextLayer`, DOM/Konva editing, bundled fonts, text-style presets |
-| Emoji / stickers | `STICKER_CATALOG` image layers (licensed local WebP), distinct from text |
-| Filters | brightness / contrast / saturation / grayscale on image layers; Reset Filters |
-| Outlines | alpha silhouette, not the rectangle; shared `paintImage` for preview and export |
-| Export | artwork-bounded PNG (longest edge 512 or 1024); pack ZIP up to 512 with `manifest.json`; fail-fast on member errors |
-| Share | honest “not WhatsApp/Telegram” copy + notice dialog |
-| Autosave | debounce + leave flush; workspace reset on account switch |
+| Text             | `addTextLayer`, DOM/Konva editing, bundled fonts, text-style presets                                                                             |
+| Emoji / stickers | `STICKER_CATALOG` image layers (licensed local WebP), distinct from text                                                                         |
+| Filters          | brightness / contrast / saturation / grayscale on image layers; Reset Filters                                                                    |
+| Outlines         | alpha silhouette, not the rectangle; shared `paintImage` for preview and export                                                                  |
+| Export           | artwork-bounded PNG (longest edge 512 or 1024); pack ZIP up to 512 with `manifest.json`; fail-fast on member errors                              |
+| Share            | honest “not WhatsApp/Telegram” copy + notice dialog                                                                                              |
+| Autosave         | debounce + leave flush; workspace reset on account switch                                                                                        |
 
 Desktop editor chrome: left tool rail, full-panel checkerboard, right inspector, bottom tray. Application sidebar is hidden on `.editor-layout` (intentional). Mobile: header sheet, tool rail, properties dialog.
 
@@ -78,12 +78,12 @@ Desktop editor chrome: left tool rail, full-panel checkerboard, right inspector,
 
 Shared typed intent `erase | text | effects | export` as `?tool=` on existing `/create` and `/editor/:id` routes.
 
-| Entry | Opens |
-| --- | --- |
-| Background Eraser | Image upload/select + erase controls |
-| Text & Emoji | Text inspector + sticker/emoji tray; **does not** insert a layer by itself |
+| Entry             | Opens                                                                        |
+| ----------------- | ---------------------------------------------------------------------------- |
+| Background Eraser | Image upload/select + erase controls                                         |
+| Text & Emoji      | Text inspector + sticker/emoji tray; **does not** insert a layer by itself   |
 | Filters & Effects | Effects tab for a selected compatible image layer (or an honest empty state) |
-| Export & Share | Export dialog for the intended document |
+| Export & Share    | Export dialog for the intended document                                      |
 
 Acceptance: existing work is never silently replaced; create/reopen when a project must be chosen; empty states explain requirements; reload/back does not duplicate layers; pending edits persist; workspace/account boundaries unchanged (existing flush + `workspaceEpoch` reset). Create a Sticker (`/create` without `tool`) still mints a new document.
 
@@ -107,13 +107,13 @@ Keep artwork-bounded PNG/ZIP contracts. Inspect files, not click events. Share: 
 
 **Decision: do not implement automatic background removal now.** Recommend browser-local, self-hosted, commercially licensed weights later; never a fake cutout.
 
-| Option | License (official) | Quality | Size / runtime | Privacy | Cost | Verdict |
-| --- | --- | --- | --- | --- | --- | --- |
-| Manual erase | App code | User-controlled | Existing | Local | $0 | **Ship / harden** |
-| MediaPipe Image Segmenter | Apache 2.0 code samples; [docs](https://developers.google.com/edge/mediapipe/solutions/vision/image_segmenter) | Selfie/person, not pets/objects | Small `.tflite` | Local if self-hosted | $0 | Legal but product-unfit |
-| `@imgly/background-removal` ISNet | [AGPL-3.0](https://github.com/imgly/background-removal-js/blob/main/LICENSE.md); commercial license from IMG.LY | General matting; still needs cleanup on hair/fur/glass | ~40–80 MB ONNX + WASM | Local if self-hosted | Paid commercial license | Blocked (AGPL / purchase) |
-| BRIA RMBG-1.4 / 2.0 | [Non-commercial](https://huggingface.co/briaai/RMBG-1.4); [CC BY-NC 4.0](https://huggingface.co/briaai/RMBG-2.0) + paid agreement | Strong general photos | ~0.2B params / 1024 | Local if self-hosted | Paid for commercial | Blocked |
-| remove.bg API | [TOS](https://www.remove.bg/tos) free = non-commercial; [API](https://www.remove.bg/api) paid credits; 50 free calls/month | Strong people/products/animals | Hosted, rate-limited | **Uploads photos** | Paid | Blocked (upload + purchase) |
+| Option                            | License (official)                                                                                                                | Quality                                                | Size / runtime        | Privacy              | Cost                    | Verdict                     |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | --------------------- | -------------------- | ----------------------- | --------------------------- |
+| Manual erase                      | App code                                                                                                                          | User-controlled                                        | Existing              | Local                | $0                      | **Ship / harden**           |
+| MediaPipe Image Segmenter         | Apache 2.0 code samples; [docs](https://developers.google.com/edge/mediapipe/solutions/vision/image_segmenter)                    | Selfie/person, not pets/objects                        | Small `.tflite`       | Local if self-hosted | $0                      | Legal but product-unfit     |
+| `@imgly/background-removal` ISNet | [AGPL-3.0](https://github.com/imgly/background-removal-js/blob/main/LICENSE.md); commercial license from IMG.LY                   | General matting; still needs cleanup on hair/fur/glass | ~40–80 MB ONNX + WASM | Local if self-hosted | Paid commercial license | Blocked (AGPL / purchase)   |
+| BRIA RMBG-1.4 / 2.0               | [Non-commercial](https://huggingface.co/briaai/RMBG-1.4); [CC BY-NC 4.0](https://huggingface.co/briaai/RMBG-2.0) + paid agreement | Strong general photos                                  | ~0.2B params / 1024   | Local if self-hosted | Paid for commercial     | Blocked                     |
+| remove.bg API                     | [TOS](https://www.remove.bg/tos) free = non-commercial; [API](https://www.remove.bg/api) paid credits; 50 free calls/month        | Strong people/products/animals                         | Hosted, rate-limited  | **Uploads photos**   | Paid                    | Blocked (upload + purchase) |
 
 **Unresolved approvals:** commercial model license, redistributing weights, any hosted API seeing user photos, mobile memory budget.
 

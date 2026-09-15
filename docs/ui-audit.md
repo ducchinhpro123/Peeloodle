@@ -6,19 +6,19 @@ The Dashboard hero is a scrapbook panel: original torn cream/mint paper, polaroi
 
 ## Findings and fixes
 
-| Observed issue | Change |
-| --- | --- |
-| Heroes touched the header; artwork was a single flat collage | Inset, rounded hero panels with individually positioned transparent cat stickers, paper shapes, lettering, and decorative accents. Original headlines and layouts distinguish the app from the references. |
-| Section headings crowded cards; gaps and corner treatments varied | Central spacing/radius tokens, predictable section margins, wider cards, consistent tool and pack grids. |
-| Dialog headings looked like body text; description CSS targeted an attribute that was never rendered | Shared title/description slot styles, readable line heights, mint-tinted surface, unified form fields and action footers. |
-| Pack deletion used a browser confirmation unrelated to the other dialogs | Styled confirmation with non-destructive initial focus, focus restoration, clear preservation of stickers, and visible errors. |
-| Long dialogs could scroll the close control out of reach | Separate scrollable content inside a viewport-bounded dialog; fixed 44px close control and wrapping long titles. |
-| Pack details and actions disappeared below 1150px | Stack the detail panel below the pack grid instead of hiding it. |
-| Editor had both application and tool sidebars, squeezing the canvas | Remove the redundant application sidebar from the editor; retain header/mobile navigation. Add tool icons and a working upload prompt on the blank canvas. |
-| Generic active-tab CSS also styled the asset panel | Scope active styling to tab triggers only. |
-| Template preview was a custom keyboard button containing a favorite button | Use separate native preview/favorite buttons with accessible names. |
-| Canvas shortcuts remained active on dialog buttons | Exclude dialog targets from editor keyboard shortcuts so Delete/arrow keys cannot mutate the canvas behind a modal. |
-| Obsolete premium promotion and disabled filter controls took up space | Replace promotion with a creative prompt, remove nonfunctional sort/style controls, retain actual category/search functionality and accurate template counts. |
+| Observed issue                                                                                       | Change                                                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Heroes touched the header; artwork was a single flat collage                                         | Inset, rounded hero panels with individually positioned transparent cat stickers, paper shapes, lettering, and decorative accents. Original headlines and layouts distinguish the app from the references. |
+| Section headings crowded cards; gaps and corner treatments varied                                    | Central spacing/radius tokens, predictable section margins, wider cards, consistent tool and pack grids.                                                                                                   |
+| Dialog headings looked like body text; description CSS targeted an attribute that was never rendered | Shared title/description slot styles, readable line heights, mint-tinted surface, unified form fields and action footers.                                                                                  |
+| Pack deletion used a browser confirmation unrelated to the other dialogs                             | Styled confirmation with non-destructive initial focus, focus restoration, clear preservation of stickers, and visible errors.                                                                             |
+| Long dialogs could scroll the close control out of reach                                             | Separate scrollable content inside a viewport-bounded dialog; fixed 44px close control and wrapping long titles.                                                                                           |
+| Pack details and actions disappeared below 1150px                                                    | Stack the detail panel below the pack grid instead of hiding it.                                                                                                                                           |
+| Editor had both application and tool sidebars, squeezing the canvas                                  | Remove the redundant application sidebar from the editor; retain header/mobile navigation. Add tool icons and a working upload prompt on the blank canvas.                                                 |
+| Generic active-tab CSS also styled the asset panel                                                   | Scope active styling to tab triggers only.                                                                                                                                                                 |
+| Template preview was a custom keyboard button containing a favorite button                           | Use separate native preview/favorite buttons with accessible names.                                                                                                                                        |
+| Canvas shortcuts remained active on dialog buttons                                                   | Exclude dialog targets from editor keyboard shortcuts so Delete/arrow keys cannot mutate the canvas behind a modal.                                                                                        |
+| Obsolete premium promotion and disabled filter controls took up space                                | Replace promotion with a creative prompt, remove nonfunctional sort/style controls, retain actual category/search functionality and accurate template counts.                                              |
 
 ## Verification
 

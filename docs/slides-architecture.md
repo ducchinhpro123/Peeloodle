@@ -4,16 +4,16 @@ Planning baseline: 2026-09-10. Product scope was confirmed after the interview. 
 
 ## Boundaries and stack
 
-| Boundary | Choice | Responsibility |
-| --- | --- | --- |
-| Student interface | Existing React, TypeScript, Vite, Router, shared Radix/shadcn-style components and tokens | Presentation library, editor, exports, backup restore |
-| Presentation interaction | Konva/react-konva plus DOM text editing; Zustand commands | Slide interaction and view state; never the persisted document |
-| Local persistence | Typed presentation repository backed by IndexedDB | Atomic document/media saves; independent of student sign-in |
-| Catalog/admin | Existing Supabase Auth, PostgreSQL and Storage; React admin routes | Curated assets, collections, presentation templates, admin authorization |
-| Trusted media processing | Small TypeScript Node function on the existing Vercel deployment; Sharp for raster decoding and derivatives, SVG parser/renderer selected in the processing proof | Validate and normalize one staged asset per invocation |
-| PPTX | PptxGenJS adapter, added after the export proof | Editable text, pictures and basic shapes |
-| PDF | pdf-lib adapter | Initially one fixed-visual raster slide per PDF page |
-| Portable backup | Versioned JSON + media ZIP; fflate candidate | Download and restore complete local editable work |
+| Boundary                 | Choice                                                                                                                                                            | Responsibility                                                           |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Student interface        | Existing React, TypeScript, Vite, Router, shared Radix/shadcn-style components and tokens                                                                         | Presentation library, editor, exports, backup restore                    |
+| Presentation interaction | Konva/react-konva plus DOM text editing; Zustand commands                                                                                                         | Slide interaction and view state; never the persisted document           |
+| Local persistence        | Typed presentation repository backed by IndexedDB                                                                                                                 | Atomic document/media saves; independent of student sign-in              |
+| Catalog/admin            | Existing Supabase Auth, PostgreSQL and Storage; React admin routes                                                                                                | Curated assets, collections, presentation templates, admin authorization |
+| Trusted media processing | Small TypeScript Node function on the existing Vercel deployment; Sharp for raster decoding and derivatives, SVG parser/renderer selected in the processing proof | Validate and normalize one staged asset per invocation                   |
+| PPTX                     | PptxGenJS adapter, added after the export proof                                                                                                                   | Editable text, pictures and basic shapes                                 |
+| PDF                      | pdf-lib adapter                                                                                                                                                   | Initially one fixed-visual raster slide per PDF page                     |
+| Portable backup          | Versioned JSON + media ZIP; fflate candidate                                                                                                                      | Download and restore complete local editable work                        |
 
 Use npm and commit lockfile changes when implementation adds dependencies. No new frontend framework, ORM, Redis, generic CMS, separate Express/Nest application, or cloud student-document schema is needed for this release. The Node endpoint is specifically required for trusted image processing; it is not a second general backend. Keep native processing dependencies out of the browser bundle.
 
@@ -99,15 +99,15 @@ Start with two font families with regular/bold/italic coverage and English/Vietn
 
 ## Save, backup and export contracts
 
-| Operation | Required behavior |
-| --- | --- |
-| Local save | Debounced ~750 ms after completed edits; explicit Save flushes pending text/gestures and media writes. Report saving/saved locally/failed accurately. |
-| Reload/reopen | Rehydrate media and font dependencies before display/export; preserve composition and slide order. |
-| Backup | ZIP containing manifest, presentation JSON and every required image; font identity/version/license information and permitted font bytes where needed for portable restoration. |
-| Restore | Validate everything before committing; create a new presentation with remapped IDs. Invalid/oversized archives leave existing work untouched. |
-| PDF | Ordered 16:9 pages, initially rendered at 1920×1080 per slide; full background/composition, no editor controls. This version is image-based: text selection and PDF hyperlinks are not promised. |
-| PPTX | Native editable text, basic shapes and individually movable image objects; background and order preserved. SVG and personal sticker artwork become PNG pictures. |
-| All exports | Freeze a coherent snapshot after flushing edits; await assets/fonts; show progress/failure and release resources. A partial failure never downloads a misleading complete file. |
+| Operation     | Required behavior                                                                                                                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Local save    | Debounced ~750 ms after completed edits; explicit Save flushes pending text/gestures and media writes. Report saving/saved locally/failed accurately.                                            |
+| Reload/reopen | Rehydrate media and font dependencies before display/export; preserve composition and slide order.                                                                                               |
+| Backup        | ZIP containing manifest, presentation JSON and every required image; font identity/version/license information and permitted font bytes where needed for portable restoration.                   |
+| Restore       | Validate everything before committing; create a new presentation with remapped IDs. Invalid/oversized archives leave existing work untouched.                                                    |
+| PDF           | Ordered 16:9 pages, initially rendered at 1920×1080 per slide; full background/composition, no editor controls. This version is image-based: text selection and PDF hyperlinks are not promised. |
+| PPTX          | Native editable text, basic shapes and individually movable image objects; background and order preserved. SVG and personal sticker artwork become PNG pictures.                                 |
+| All exports   | Freeze a coherent snapshot after flushing edits; await assets/fonts; show progress/failure and release resources. A partial failure never downloads a misleading complete file.                  |
 
 Keep each exported image's aspect ratio and alpha. Crop/flip/opacity that cannot be represented consistently may be baked into that image's pixels, while it remains an independently movable picture. Never flatten the entire PPTX slide. Contents outside the slide are intentionally clipped to the fixed page in visual output; constrain/validate native PPTX objects so on-slide appearance remains consistent. Warn about text overflow and unresolved media before export.
 
@@ -117,16 +117,16 @@ Local-first means already downloaded presentation media survive a catalog outage
 
 ## Admin catalog data and authorization
 
-| Table/concept | Core fields and invariants |
-| --- | --- |
-| `catalog_admins` | Backend-controlled user ID membership; no self-enrollment or profile-based role assignment |
-| `catalog_collections` | Stable ID, name, description, tags, order, state, revision |
-| `catalog_assets` | Stable item ID, collection ID, searchable metadata, published-version pointer, state, revision |
-| `catalog_asset_versions` | Immutable version ID, validated source hash/metadata, derivative paths/hashes/dimensions, provenance, validation result |
-| `catalog_templates` | Stable template ID, use case, title/tags, publication state, published-version pointer, revision |
-| `catalog_template_versions` | Immutable presentation snapshot, copied asset/version dependencies, rendered previews and font requirements |
-| `catalog_upload_batches` / `catalog_upload_jobs` | Batch ID, item ID, source path, stage, progress, attempt, lease/token, errors, timestamps |
-| `catalog_events` | Actor, operation, item/version and outcome for publish/archive/processing diagnostics; no image bytes or credentials |
+| Table/concept                                    | Core fields and invariants                                                                                              |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `catalog_admins`                                 | Backend-controlled user ID membership; no self-enrollment or profile-based role assignment                              |
+| `catalog_collections`                            | Stable ID, name, description, tags, order, state, revision                                                              |
+| `catalog_assets`                                 | Stable item ID, collection ID, searchable metadata, published-version pointer, state, revision                          |
+| `catalog_asset_versions`                         | Immutable version ID, validated source hash/metadata, derivative paths/hashes/dimensions, provenance, validation result |
+| `catalog_templates`                              | Stable template ID, use case, title/tags, publication state, published-version pointer, revision                        |
+| `catalog_template_versions`                      | Immutable presentation snapshot, copied asset/version dependencies, rendered previews and font requirements             |
+| `catalog_upload_batches` / `catalog_upload_jobs` | Batch ID, item ID, source path, stage, progress, attempt, lease/token, errors, timestamps                               |
+| `catalog_events`                                 | Actor, operation, item/version and outcome for publish/archive/processing diagnostics; no image bytes or credentials    |
 
 Ordinary and anonymous users may read published catalog metadata and approved derivatives only. Admins may edit catalog drafts. Student private sticker tables/buckets stay private and separate. Supabase supports Auth-backed row policies and Storage access policies; design and test both rather than relying on route hiding. [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Storage access](https://supabase.com/docs/guides/storage/security/access-control).
 

@@ -1,112 +1,112 @@
 {
-  "titleReport": {
-    "layoutLineCount": 2,
-    "domLineCount": 2,
-    "comparisons": [
-      {
-        "index": 0,
-        "layoutText": "Nghiên cứu và trình bày",
-        "domText": "Nghiên cứu và trình bày",
-        "textMatches": true,
-        "centerDelta": 0,
-        "leftDelta": -0.001983642578125,
-        "rightDelta": 0.001983642578125
-      },
-      {
-        "index": 1,
-        "layoutText": "Building a sticker presentation",
-        "domText": "Building a sticker presentation",
-        "textMatches": true,
-        "centerDelta": 0.09062500000001705,
-        "leftDelta": -0.01854705810546875,
-        "rightDelta": 0.00292205810546875
-      }
-    ]
-  },
-  "bulletsReport": {
-    "layoutLineCount": 4,
-    "domLineCount": 4,
-    "comparisons": [
-      {
-        "index": 0,
-        "layoutText": "Tóm tắt kết quả: ấn tượng, rõ ràng và dễ",
-        "domText": "Tóm tắt kết quả: ấn tượng, rõ ràng và dễ",
-        "textMatches": true,
-        "centerDelta": 0,
-        "leftDelta": 0,
-        "rightDelta": 0.0096282958984375
-      },
-      {
-        "index": 1,
-        "layoutText": "đọc.",
-        "domText": "đọc.",
-        "textMatches": true,
-        "centerDelta": -0.003124999999997158,
-        "leftDelta": 0,
-        "rightDelta": 0.006378173828125
-      },
-      {
-        "index": 2,
-        "layoutText": "Xem hướng dẫn trước khi nộp bài.",
-        "domText": "Xem hướng dẫn trước khi nộp bài.",
-        "textMatches": true,
-        "centerDelta": 0.19374999999999432,
-        "leftDelta": 0,
-        "rightDelta": 0.0093994140625
-      },
-      {
-        "index": 3,
-        "layoutText": "Kết luận và đề xuất.",
-        "domText": "Kết luận và đề xuất.",
-        "textMatches": true,
-        "centerDelta": -0.01562500000001421,
-        "leftDelta": 0,
-        "rightDelta": 0.0106964111328125
-      }
-    ]
-  },
-  "nestedBullet": {
-    "x": 32,
-    "indent": 58,
-    "marker": "•"
-  },
-  "konvaComparisons": [
-    {
-      "text": "Nghiên cứu và trình bày",
-      "layoutWidth": 793.1522827148438,
-      "konvaWidth": 793.1522827148438,
-      "measureWidth": 793.1522827148438,
-      "widthDelta": 0
-    },
-    {
-      "text": "Building a ",
-      "layoutWidth": 179.74806213378906,
-      "konvaWidth": 179.74806213378906,
-      "measureWidth": 179.74806213378906,
-      "widthDelta": 0
-    },
-    {
-      "text": "sticker",
-      "layoutWidth": 117.5040283203125,
-      "konvaWidth": 117.5040283203125,
-      "measureWidth": 117.5040283203125,
-      "widthDelta": 0
-    },
-    {
-      "text": " presentation",
-      "layoutWidth": 241.9920654296875,
-      "konvaWidth": 241.9920654296875,
-      "measureWidth": 241.9920654296875,
-      "widthDelta": 0
-    }
-  ],
-  "caretAtEnd": true,
-  "afterTyping": "Kết quả mới",
-  "commitsAfterTyping": 1,
-  "afterComposition": "Kết quả mớiế",
-  "commitsAfterComposition": 2,
-  "pastedText": "Pasted bold italic bad",
-  "pastedBold": true,
-  "pastedItalic": true,
-  "pastedUnsafeLink": null
+	"titleReport": {
+		"layoutLineCount": 2,
+		"domLineCount": 2,
+		"comparisons": [
+			{
+				"index": 0,
+				"layoutText": "Nghiên cứu và trình bày",
+				"domText": "Nghiên cứu và trình bày",
+				"textMatches": true,
+				"centerDelta": 0,
+				"leftDelta": -0.001983642578125,
+				"rightDelta": 0.001983642578125
+			},
+			{
+				"index": 1,
+				"layoutText": "Building a sticker presentation",
+				"domText": "Building a sticker presentation",
+				"textMatches": true,
+				"centerDelta": 0.09062500000001705,
+				"leftDelta": -0.01854705810546875,
+				"rightDelta": 0.00292205810546875
+			}
+		]
+	},
+	"bulletsReport": {
+		"layoutLineCount": 4,
+		"domLineCount": 4,
+		"comparisons": [
+			{
+				"index": 0,
+				"layoutText": "Tóm tắt kết quả: ấn tượng, rõ ràng và dễ",
+				"domText": "Tóm tắt kết quả: ấn tượng, rõ ràng và dễ",
+				"textMatches": true,
+				"centerDelta": 0,
+				"leftDelta": 0,
+				"rightDelta": 0.0096282958984375
+			},
+			{
+				"index": 1,
+				"layoutText": "đọc.",
+				"domText": "đọc.",
+				"textMatches": true,
+				"centerDelta": -0.003124999999997158,
+				"leftDelta": 0,
+				"rightDelta": 0.006378173828125
+			},
+			{
+				"index": 2,
+				"layoutText": "Xem hướng dẫn trước khi nộp bài.",
+				"domText": "Xem hướng dẫn trước khi nộp bài.",
+				"textMatches": true,
+				"centerDelta": 0.19374999999999432,
+				"leftDelta": 0,
+				"rightDelta": 0.0093994140625
+			},
+			{
+				"index": 3,
+				"layoutText": "Kết luận và đề xuất.",
+				"domText": "Kết luận và đề xuất.",
+				"textMatches": true,
+				"centerDelta": -0.01562500000001421,
+				"leftDelta": 0,
+				"rightDelta": 0.0106964111328125
+			}
+		]
+	},
+	"nestedBullet": {
+		"x": 32,
+		"indent": 58,
+		"marker": "•"
+	},
+	"konvaComparisons": [
+		{
+			"text": "Nghiên cứu và trình bày",
+			"layoutWidth": 793.1522827148438,
+			"konvaWidth": 793.1522827148438,
+			"measureWidth": 793.1522827148438,
+			"widthDelta": 0
+		},
+		{
+			"text": "Building a ",
+			"layoutWidth": 179.74806213378906,
+			"konvaWidth": 179.74806213378906,
+			"measureWidth": 179.74806213378906,
+			"widthDelta": 0
+		},
+		{
+			"text": "sticker",
+			"layoutWidth": 117.5040283203125,
+			"konvaWidth": 117.5040283203125,
+			"measureWidth": 117.5040283203125,
+			"widthDelta": 0
+		},
+		{
+			"text": " presentation",
+			"layoutWidth": 241.9920654296875,
+			"konvaWidth": 241.9920654296875,
+			"measureWidth": 241.9920654296875,
+			"widthDelta": 0
+		}
+	],
+	"caretAtEnd": true,
+	"afterTyping": "Kết quả mới",
+	"commitsAfterTyping": 1,
+	"afterComposition": "Kết quả mớiế",
+	"commitsAfterComposition": 2,
+	"pastedText": "Pasted bold italic bad",
+	"pastedBold": true,
+	"pastedItalic": true,
+	"pastedUnsafeLink": null
 }

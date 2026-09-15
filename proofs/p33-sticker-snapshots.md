@@ -9,30 +9,30 @@ in `PresentationEditorPage.tsx`, `src/app/repository.tsx` (`useOptionalRepositor
 
 ## What was built
 
-| File | Change |
-| --- | --- |
-| `editor/insertStickerSnapshot.ts` | Loads one sticker project, its referenced assets and masks, composes it once through the same `renderDocument` pipeline used for user PNG exports, and prepares the result as a presentation image (content-addressed id, SHA-256, bytes). |
-| `editor/StickerPickerDialog.tsx` | Lists the real local sticker projects (newest first) with layer counts; empty and unreadable states are explicit. |
-| `editor/PresentationEditorPage.tsx` | Add sticker flows through the same `runImageWrite` persist-then-adopt path as uploads, so the presentation and the snapshot bytes are written in one transaction. |
+| File                                | Change                                                                                                                                                                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `editor/insertStickerSnapshot.ts`   | Loads one sticker project, its referenced assets and masks, composes it once through the same `renderDocument` pipeline used for user PNG exports, and prepares the result as a presentation image (content-addressed id, SHA-256, bytes). |
+| `editor/StickerPickerDialog.tsx`    | Lists the real local sticker projects (newest first) with layer counts; empty and unreadable states are explicit.                                                                                                                          |
+| `editor/PresentationEditorPage.tsx` | Add sticker flows through the same `runImageWrite` persist-then-adopt path as uploads, so the presentation and the snapshot bytes are written in one transaction.                                                                          |
 
 ## Acceptance, as verified
 
-| Criterion | Evidence |
-| --- | --- |
-| Snapshot is composed, not referenced | Module test injects a renderer, asserts it receives the project with its assets and masks, and reads the prepared bytes back as a valid PNG. |
-| Presentation owns its bytes | UI test seeds a sticker project, places it, and asserts the presentation's stored assets contain only the snapshot id and its media bytes; the source sticker's layer still points at its own asset. |
-| Source stays editable | The presentation never stores a sticker reference; the UI test asserts the source project is unchanged after placement. |
-| Each asset/mask loaded once | Module test with two layers sharing one asset and mask asserts one `getAsset` and one `getMask` call. |
+| Criterion                            | Evidence                                                                                                                                                                                             |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Snapshot is composed, not referenced | Module test injects a renderer, asserts it receives the project with its assets and masks, and reads the prepared bytes back as a valid PNG.                                                         |
+| Presentation owns its bytes          | UI test seeds a sticker project, places it, and asserts the presentation's stored assets contain only the snapshot id and its media bytes; the source sticker's layer still points at its own asset. |
+| Source stays editable                | The presentation never stores a sticker reference; the UI test asserts the source project is unchanged after placement.                                                                              |
+| Each asset/mask loaded once          | Module test with two layers sharing one asset and mask asserts one `getAsset` and one `getMask` call.                                                                                                |
 
 ## Checks run
 
-| Command | Result |
-| --- | --- |
-| `npm run typecheck` | clean |
-| `npm run lint` | 0 errors, 4 pre-existing `react-refresh` warnings |
-| `npx vitest run --environment jsdom ... insertStickerSnapshot.test.ts` | 3 passed |
-| `npm test` | **549 passed / 40 files** |
-| `npm run build` | `✓ built in 2.32s` |
+| Command                                                                | Result                                            |
+| ---------------------------------------------------------------------- | ------------------------------------------------- |
+| `npm run typecheck`                                                    | clean                                             |
+| `npm run lint`                                                         | 0 errors, 4 pre-existing `react-refresh` warnings |
+| `npx vitest run --environment jsdom ... insertStickerSnapshot.test.ts` | 3 passed                                          |
+| `npm test`                                                             | **549 passed / 40 files**                         |
+| `npm run build`                                                        | `✓ built in 2.32s`                                |
 
 ## Known gaps and deliberate ceilings
 

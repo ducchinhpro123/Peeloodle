@@ -1,0 +1,58 @@
+/* Presentation typefaces (P05). Files and licenses live in static/fonts/presentations/. */
+
+@font-face {
+	font-family: 'Be Vietnam Pro';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('/fonts/presentations/BeVietnamPro-Regular.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Be Vietnam Pro';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/presentations/BeVietnamPro-Bold.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Be Vietnam Pro';
+	font-style: italic;
+	font-weight: 400;
+	font-display: swap;
+	src: url('/fonts/presentations/BeVietnamPro-Italic.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Be Vietnam Pro';
+	font-style: italic;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/presentations/BeVietnamPro-BoldItalic.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Spectral';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('/fonts/presentations/Spectral-Regular.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Spectral';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/presentations/Spectral-Bold.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Spectral';
+	font-style: italic;
+	font-weight: 400;
+	font-display: swap;
+	src: url('/fonts/presentations/Spectral-Italic.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Spectral';
+	font-style: italic;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/presentations/Spectral-BoldItalic.ttf') format('truetype');
+}

@@ -9,13 +9,20 @@
  */
 
 /** Extra bitmap hints beyond the shared orientation policy. */
-export type DecodeImageBitmapOptions = Pick<ImageBitmapOptions, 'resizeQuality' | 'premultiplyAlpha'>
+export type DecodeImageBitmapOptions = Pick<
+	ImageBitmapOptions,
+	'resizeQuality' | 'premultiplyAlpha'
+>;
 
-export async function decodeImageBitmap(blob: Blob, options?: DecodeImageBitmapOptions): Promise<ImageBitmap> {
-  if (typeof createImageBitmap !== 'function') throw new Error('This browser cannot decode image files')
-  try {
-    return await createImageBitmap(blob, { imageOrientation: 'from-image', ...options })
-  } catch {
-    return await createImageBitmap(blob)
-  }
+export async function decodeImageBitmap(
+	blob: Blob,
+	options?: DecodeImageBitmapOptions
+): Promise<ImageBitmap> {
+	if (typeof createImageBitmap !== 'function')
+		throw new Error('This browser cannot decode image files');
+	try {
+		return await createImageBitmap(blob, { imageOrientation: 'from-image', ...options });
+	} catch {
+		return await createImageBitmap(blob);
+	}
 }

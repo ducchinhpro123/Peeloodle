@@ -3,7 +3,7 @@
 All items retrieved by the **lead** agent on **2026-09-12** and recorded here verbatim so a
 read-only reviewer can cross-check the brief's quotations and numbers. **These are not independent
 re-fetches** — a value that matches this file has been checked against the lead's stored source
-data, not re-verified from the network. Values that appear in the brief but *not* in this file have
+data, not re-verified from the network. Values that appear in the brief but _not_ in this file have
 no stored support and should be reported as unsupported.
 
 ## 1. npm registry packuments
@@ -26,7 +26,7 @@ date, weekly downloads, peerDependencies. Retrieved via
   > [support@img.ly](mailto:support@img.ly?subject=Background-Removal%20License) for questions about
   > other licensing options."
 - Registry record for the same package: `license` field reads `SEE LICENSE IN LICENSE.md`
-  (i.e. the registry field alone is *not* evidence of the licence — the `LICENSE.md` above is).
+  (i.e. the registry field alone is _not_ evidence of the licence — the `LICENSE.md` above is).
 
 ## 3. BRIA RMBG-1.4 — non-commercial
 
@@ -110,16 +110,16 @@ date, weekly downloads, peerDependencies. Retrieved via
 
 Read from `node_modules/<pkg>/package.json` (`license` field):
 
-| Package | licence |
-| --- | --- |
+| Package            | licence        |
+| ------------------ | -------------- |
 | `@playwright/test` | **Apache-2.0** |
-| `vitest` | MIT |
-| `fflate` | MIT |
-| `pptxgenjs` | MIT |
-| `pdf-lib` | MIT |
-| `react` | MIT |
-| `konva` | MIT |
-| `zustand` | MIT |
+| `vitest`           | MIT            |
+| `fflate`           | MIT            |
+| `pptxgenjs`        | MIT            |
+| `pdf-lib`          | MIT            |
+| `react`            | MIT            |
+| `konva`            | MIT            |
+| `zustand`          | MIT            |
 
 The repository pins `vitest ^2.1.8` in `package.json` (lockfile resolves 2.1.9), which is the premise
 of the brief's rejection of `@vitest/browser` 5.0.0 (peer `vitest: 5.0.0`).

@@ -1,13 +1,7 @@
 {
-  "pdfBytes": 128460,
-  "backupBytes": 10152,
-  "renderSizes": [
-    140877,
-    93821
-  ],
-  "backupPaths": [
-    "document.json",
-    "media/fixture-asset-transparent.png"
-  ],
-  "restoredSlideCount": 2
+	"pdfBytes": 128460,
+	"backupBytes": 10152,
+	"renderSizes": [140877, 93821],
+	"backupPaths": ["document.json", "media/fixture-asset-transparent.png"],
+	"restoredSlideCount": 2
 }

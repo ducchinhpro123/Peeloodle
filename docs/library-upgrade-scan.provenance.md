@@ -9,11 +9,11 @@
 
 ## Sources
 
-| | Count | Notes |
-| --- | --- | --- |
-| Sources consulted | 90 packages (registry packuments + weekly downloads) plus 8 first-party documentation/model pages plus ~35 repository files | Every registry value is stored verbatim in `research/library-upgrade-scan/registry-facts.tsv` |
-| Sources accepted | 90 registry rows; 7 first-party pages quoted verbatim in `fetched-quotes.md`; 1 deployed-header capture; repository files | |
-| Sources rejected or unusable | 5 | See below |
+|                              | Count                                                                                                                       | Notes                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Sources consulted            | 90 packages (registry packuments + weekly downloads) plus 8 first-party documentation/model pages plus ~35 repository files | Every registry value is stored verbatim in `research/library-upgrade-scan/registry-facts.tsv` |
+| Sources accepted             | 90 registry rows; 7 first-party pages quoted verbatim in `fetched-quotes.md`; 1 deployed-header capture; repository files   |                                                                                               |
+| Sources rejected or unusable | 5                                                                                                                           | See below                                                                                     |
 
 **Rejected / unusable sources, with the reason:**
 

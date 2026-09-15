@@ -1,0 +1,75 @@
+<script>
+	import { PRESENTATION_FONT_FAMILIES } from '$lib/presentations/rendering/fonts';
+
+	/**
+	 * Document theme controls (P32). The theme is the default for new slides and
+	 * text, never a retroactive restyle: changing it leaves existing elements
+	 * exactly as they are. Each editing session groups into one undo entry.
+	 *
+	 * @type {{
+	 *   theme: import('$lib/presentations/model/types').Theme,
+	 *   onchange: (theme: import('$lib/presentations/model/types').Theme) => void,
+	 *   onendgroup: () => void
+	 * }}
+	 */
+	let { theme, onchange, onendgroup } = $props();
+
+	const COLOR_FIELDS = [
+		{ key: 'text', label: 'Text' },
+		{ key: 'accent', label: 'Accent' },
+		{ key: 'background', label: 'Background' }
+	];
+
+	/** @param {Partial<import('$lib/presentations/model/types').Theme> & { colors?: Record<string, string> }} patch */
+	function update(patch) {
+		onchange({
+			...theme,
+			...patch,
+			colors: { ...theme.colors, ...patch.colors }
+		});
+	}
+</script>
+
+<div class="presentation-theme-fields">
+	<label>
+		Heading font
+		<select
+			aria-label="Heading font"
+			value={theme.headingFontId}
+			onchange={(event) => update({ headingFontId: event.currentTarget.value })}
+			onblur={onendgroup}
+		>
+			{#each PRESENTATION_FONT_FAMILIES as family (family.id)}
+				<option value={family.id}>{family.displayName}</option>
+			{/each}
+		</select>
+	</label>
+	<label>
+		Body font
+		<select
+			aria-label="Body font"
+			value={theme.bodyFontId}
+			onchange={(event) => update({ bodyFontId: event.currentTarget.value })}
+			onblur={onendgroup}
+		>
+			{#each PRESENTATION_FONT_FAMILIES as family (family.id)}
+				<option value={family.id}>{family.displayName}</option>
+			{/each}
+		</select>
+	</label>
+	{#each COLOR_FIELDS as field (field.key)}
+		<label>
+			{field.label}
+			<input
+				type="color"
+				aria-label="{field.label} color"
+				value={theme.colors[field.key] ?? '#ffffff'}
+				oninput={(event) => update({ colors: { [field.key]: event.currentTarget.value } })}
+				onblur={onendgroup}
+			/>
+		</label>
+	{/each}
+	<p class="muted">
+		These are defaults for new slides and text. Existing elements keep their own styles.
+	</p>
+</div>

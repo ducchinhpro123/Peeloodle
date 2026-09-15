@@ -1,210 +1,208 @@
 {
-  "generatedAt": "2026-09-14T05:14:21.018Z",
-  "fingerprint": {
-    "gitRevision": "e215ce8e019b84b13d3208d7a1b456c90948a17a",
-    "workingTreeDirty": true,
-    "assets": [
-      {
-        "name": "EditorPage-BNT4eaNO.js",
-        "bytes": 78096
-      },
-      {
-        "name": "KonvaCanvas-I7_v88cX.js",
-        "bytes": 119199
-      },
-      {
-        "name": "PresentationCanvas-BfxUz9AH.js",
-        "bytes": 25670
-      },
-      {
-        "name": "PresentationEditorPage-NJaz0IeL.js",
-        "bytes": 50538
-      },
-      {
-        "name": "PresentationsPage-CEfUG3Lb.js",
-        "bytes": 15357
-      },
-      {
-        "name": "TextEditSessionContext-BgtoY7rq.js",
-        "bytes": 19744
-      },
-      {
-        "name": "__vite-browser-external-BIHI7g3E.js",
-        "bytes": 33
-      },
-      {
-        "name": "backup-D0eJc9VZ.js",
-        "bytes": 20150
-      },
-      {
-        "name": "cloud-bIvh4CUD.js",
-        "bytes": 8595
-      },
-      {
-        "name": "cloudRemote-DmalTtgB.js",
-        "bytes": 4124
-      },
-      {
-        "name": "decodedArtwork-BmPxfwuR.js",
-        "bytes": 6245
-      },
-      {
-        "name": "geometry-DLKiByQZ.js",
-        "bytes": 191
-      },
-      {
-        "name": "hash-CYQd-kSx.js",
-        "bytes": 274
-      },
-      {
-        "name": "index-C45eyn4h.js",
-        "bytes": 193980
-      },
-      {
-        "name": "index-HbnSoS0S.css",
-        "bytes": 108195
-      },
-      {
-        "name": "index-xqMzz0ts.js",
-        "bytes": 179844
-      },
-      {
-        "name": "konvaText-vhMeV9OE.js",
-        "bytes": 817
-      },
-      {
-        "name": "pdf-C460OTV2.js",
-        "bytes": 432342
-      },
-      {
-        "name": "pptx-BhmYJzBo.js",
-        "bytes": 376523
-      },
-      {
-        "name": "rasterizeSlide-CbpS9Qtp.js",
-        "bytes": 1345
-      },
-      {
-        "name": "renderDocument-31Id718L.js",
-        "bytes": 12261
-      },
-      {
-        "name": "renderSlide-BYW0mIod.js",
-        "bytes": 2509
-      },
-      {
-        "name": "snapshot-BP0SerYS.js",
-        "bytes": 2604
-      },
-      {
-        "name": "supabase-Buqg5CVw.js",
-        "bytes": 227797
-      },
-      {
-        "name": "textLayout-DVlybGqJ.js",
-        "bytes": 3633
-      },
-      {
-        "name": "textMeasure-Db5ap1li.js",
-        "bytes": 239
-      },
-      {
-        "name": "undo-2-CxA1NgMh.js",
-        "bytes": 3738
-      },
-      {
-        "name": "vendor-sTN_aHGS.js",
-        "bytes": 237021
-      },
-      {
-        "name": "zipExport-DVWs6_mZ.js",
-        "bytes": 2348
-      }
-    ]
-  },
-  "environment": {
-    "build": "production (`npm run build` + `vite preview`)",
-    "viewport": "1440×900",
-    "note": "The idle callback the warm-up runs on was stubbed by the test to fire 8 s after mount, so the disconnect provably happened before readiness started. The test added this stub to the page; the app shipped no test hook. The report is written after the test’s assertions."
-  },
-  "preReadinessDisconnect": {
-    "label": "Offline use needs one online load. Reconnect and reload the page. Your saved work is not affected.",
-    "builderChunksAttempted": 0,
-    "scriptsStartedWhileOffline": [],
-    "note": "No fetch was attempted, which is why a later reconnect can still load those chunks in this page."
-  },
-  "afterReconnectSamePage": {
-    "localEditingAndSaving": true,
-    "firstExportProducedBytes": 255037,
-    "pdfPages": 1,
-    "note": "The readiness record stays failed for the session; the export itself went online."
-  },
-  "reloadedSessionOfflineReopen": {
-    "fontFilesFetched": [
-      "BeVietnamPro-Bold.ttf",
-      "BeVietnamPro-BoldItalic.ttf",
-      "BeVietnamPro-Italic.ttf",
-      "BeVietnamPro-Regular.ttf",
-      "Spectral-Bold.ttf",
-      "Spectral-BoldItalic.ttf",
-      "Spectral-Italic.ttf",
-      "Spectral-Regular.ttf"
-    ],
-    "fontFaces": [
-      {
-        "family": "Be Vietnam Pro",
-        "style": "italic",
-        "weight": "400",
-        "status": "loaded"
-      },
-      {
-        "family": "Be Vietnam Pro",
-        "style": "italic",
-        "weight": "700",
-        "status": "loaded"
-      },
-      {
-        "family": "Be Vietnam Pro",
-        "style": "normal",
-        "weight": "400",
-        "status": "loaded"
-      },
-      {
-        "family": "Be Vietnam Pro",
-        "style": "normal",
-        "weight": "700",
-        "status": "loaded"
-      },
-      {
-        "family": "Spectral",
-        "style": "italic",
-        "weight": "400",
-        "status": "loaded"
-      },
-      {
-        "family": "Spectral",
-        "style": "italic",
-        "weight": "700",
-        "status": "loaded"
-      },
-      {
-        "family": "Spectral",
-        "style": "normal",
-        "weight": "400",
-        "status": "loaded"
-      },
-      {
-        "family": "Spectral",
-        "style": "normal",
-        "weight": "700",
-        "status": "loaded"
-      }
-    ],
-    "paintedPixels": 26383,
-    "note": "The reloaded page warmed while online — all eight font files were fetched before the disconnect — then the network was disabled and the library reopened the document from IndexedDB."
-  },
-  "downloads": [
-    "Untitled presentation.pdf"
-  ],
-  "pageErrors": []
+	"generatedAt": "2026-09-14T05:14:21.018Z",
+	"fingerprint": {
+		"gitRevision": "e215ce8e019b84b13d3208d7a1b456c90948a17a",
+		"workingTreeDirty": true,
+		"assets": [
+			{
+				"name": "EditorPage-BNT4eaNO.js",
+				"bytes": 78096
+			},
+			{
+				"name": "KonvaCanvas-I7_v88cX.js",
+				"bytes": 119199
+			},
+			{
+				"name": "PresentationCanvas-BfxUz9AH.js",
+				"bytes": 25670
+			},
+			{
+				"name": "PresentationEditorPage-NJaz0IeL.js",
+				"bytes": 50538
+			},
+			{
+				"name": "PresentationsPage-CEfUG3Lb.js",
+				"bytes": 15357
+			},
+			{
+				"name": "TextEditSessionContext-BgtoY7rq.js",
+				"bytes": 19744
+			},
+			{
+				"name": "__vite-browser-external-BIHI7g3E.js",
+				"bytes": 33
+			},
+			{
+				"name": "backup-D0eJc9VZ.js",
+				"bytes": 20150
+			},
+			{
+				"name": "cloud-bIvh4CUD.js",
+				"bytes": 8595
+			},
+			{
+				"name": "cloudRemote-DmalTtgB.js",
+				"bytes": 4124
+			},
+			{
+				"name": "decodedArtwork-BmPxfwuR.js",
+				"bytes": 6245
+			},
+			{
+				"name": "geometry-DLKiByQZ.js",
+				"bytes": 191
+			},
+			{
+				"name": "hash-CYQd-kSx.js",
+				"bytes": 274
+			},
+			{
+				"name": "index-C45eyn4h.js",
+				"bytes": 193980
+			},
+			{
+				"name": "index-HbnSoS0S.css",
+				"bytes": 108195
+			},
+			{
+				"name": "index-xqMzz0ts.js",
+				"bytes": 179844
+			},
+			{
+				"name": "konvaText-vhMeV9OE.js",
+				"bytes": 817
+			},
+			{
+				"name": "pdf-C460OTV2.js",
+				"bytes": 432342
+			},
+			{
+				"name": "pptx-BhmYJzBo.js",
+				"bytes": 376523
+			},
+			{
+				"name": "rasterizeSlide-CbpS9Qtp.js",
+				"bytes": 1345
+			},
+			{
+				"name": "renderDocument-31Id718L.js",
+				"bytes": 12261
+			},
+			{
+				"name": "renderSlide-BYW0mIod.js",
+				"bytes": 2509
+			},
+			{
+				"name": "snapshot-BP0SerYS.js",
+				"bytes": 2604
+			},
+			{
+				"name": "supabase-Buqg5CVw.js",
+				"bytes": 227797
+			},
+			{
+				"name": "textLayout-DVlybGqJ.js",
+				"bytes": 3633
+			},
+			{
+				"name": "textMeasure-Db5ap1li.js",
+				"bytes": 239
+			},
+			{
+				"name": "undo-2-CxA1NgMh.js",
+				"bytes": 3738
+			},
+			{
+				"name": "vendor-sTN_aHGS.js",
+				"bytes": 237021
+			},
+			{
+				"name": "zipExport-DVWs6_mZ.js",
+				"bytes": 2348
+			}
+		]
+	},
+	"environment": {
+		"build": "production (`npm run build` + `vite preview`)",
+		"viewport": "1440×900",
+		"note": "The idle callback the warm-up runs on was stubbed by the test to fire 8 s after mount, so the disconnect provably happened before readiness started. The test added this stub to the page; the app shipped no test hook. The report is written after the test’s assertions."
+	},
+	"preReadinessDisconnect": {
+		"label": "Offline use needs one online load. Reconnect and reload the page. Your saved work is not affected.",
+		"builderChunksAttempted": 0,
+		"scriptsStartedWhileOffline": [],
+		"note": "No fetch was attempted, which is why a later reconnect can still load those chunks in this page."
+	},
+	"afterReconnectSamePage": {
+		"localEditingAndSaving": true,
+		"firstExportProducedBytes": 255037,
+		"pdfPages": 1,
+		"note": "The readiness record stays failed for the session; the export itself went online."
+	},
+	"reloadedSessionOfflineReopen": {
+		"fontFilesFetched": [
+			"BeVietnamPro-Bold.ttf",
+			"BeVietnamPro-BoldItalic.ttf",
+			"BeVietnamPro-Italic.ttf",
+			"BeVietnamPro-Regular.ttf",
+			"Spectral-Bold.ttf",
+			"Spectral-BoldItalic.ttf",
+			"Spectral-Italic.ttf",
+			"Spectral-Regular.ttf"
+		],
+		"fontFaces": [
+			{
+				"family": "Be Vietnam Pro",
+				"style": "italic",
+				"weight": "400",
+				"status": "loaded"
+			},
+			{
+				"family": "Be Vietnam Pro",
+				"style": "italic",
+				"weight": "700",
+				"status": "loaded"
+			},
+			{
+				"family": "Be Vietnam Pro",
+				"style": "normal",
+				"weight": "400",
+				"status": "loaded"
+			},
+			{
+				"family": "Be Vietnam Pro",
+				"style": "normal",
+				"weight": "700",
+				"status": "loaded"
+			},
+			{
+				"family": "Spectral",
+				"style": "italic",
+				"weight": "400",
+				"status": "loaded"
+			},
+			{
+				"family": "Spectral",
+				"style": "italic",
+				"weight": "700",
+				"status": "loaded"
+			},
+			{
+				"family": "Spectral",
+				"style": "normal",
+				"weight": "400",
+				"status": "loaded"
+			},
+			{
+				"family": "Spectral",
+				"style": "normal",
+				"weight": "700",
+				"status": "loaded"
+			}
+		],
+		"paintedPixels": 26383,
+		"note": "The reloaded page warmed while online — all eight font files were fetched before the disconnect — then the network was disabled and the library reopened the document from IndexedDB."
+	},
+	"downloads": ["Untitled presentation.pdf"],
+	"pageErrors": []
 }

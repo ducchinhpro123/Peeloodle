@@ -9,22 +9,22 @@ run.
 
 ## Focused coverage, by acceptance area
 
-| Area | Evidence |
-| --- | --- |
-| Multi-slide gestures | `transformGeometry.test.ts` (move/resize/rotate math, zoom equivalence, clamping), `alignmentGuides.test.ts` (snap geometry), `store.test.ts` (one entry per completed gesture, undo across slides, locked elements refuse transforms). |
-| Keyboard access | Layer list UI test drives select, move up/down, duplicate, lock, hide and delete through labelled buttons; element geometry inputs and align buttons are keyboard-reachable; every toolbar control has an accessible name. |
-| Long content | Overflow UI test lays out 600 characters, shows the measured overflow and grows the box to fit; `textLayout.test.ts` covers wrapping, justify, bullets and missing fonts. |
-| Delayed fonts | The editor awaits `ensurePresentationFonts()` before it reports ready, and export/render paths await fonts before measuring (P15/P18 behaviour, unchanged). The layout service reports unknown font ids instead of silently substituting. No new delayed-font test was added. |
-| No canvas shortcuts in dialogs/text input | `presentations.test.tsx` P34 test: Ctrl+Z inside the Theme dialog and inside a dialog field never touches history; P25 covers the text field; the shortcut handler exempts fields, sliders and dialogs. |
+| Area                                      | Evidence                                                                                                                                                                                                                                                                      |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Multi-slide gestures                      | `transformGeometry.test.ts` (move/resize/rotate math, zoom equivalence, clamping), `alignmentGuides.test.ts` (snap geometry), `store.test.ts` (one entry per completed gesture, undo across slides, locked elements refuse transforms).                                       |
+| Keyboard access                           | Layer list UI test drives select, move up/down, duplicate, lock, hide and delete through labelled buttons; element geometry inputs and align buttons are keyboard-reachable; every toolbar control has an accessible name.                                                    |
+| Long content                              | Overflow UI test lays out 600 characters, shows the measured overflow and grows the box to fit; `textLayout.test.ts` covers wrapping, justify, bullets and missing fonts.                                                                                                     |
+| Delayed fonts                             | The editor awaits `ensurePresentationFonts()` before it reports ready, and export/render paths await fonts before measuring (P15/P18 behaviour, unchanged). The layout service reports unknown font ids instead of silently substituting. No new delayed-font test was added. |
+| No canvas shortcuts in dialogs/text input | `presentations.test.tsx` P34 test: Ctrl+Z inside the Theme dialog and inside a dialog field never touches history; P25 covers the text field; the shortcut handler exempts fields, sliders and dialogs.                                                                       |
 
 ## Commands run
 
-| Command | Result |
-| --- | --- |
-| `npm run typecheck` | clean |
-| `npm run lint` | 0 errors, 4 pre-existing `react-refresh` warnings |
-| `npm test` | **549 passed / 40 files** |
-| `npm run build` | `✓ built in 2.32s` |
+| Command             | Result                                            |
+| ------------------- | ------------------------------------------------- |
+| `npm run typecheck` | clean                                             |
+| `npm run lint`      | 0 errors, 4 pre-existing `react-refresh` warnings |
+| `npm test`          | **549 passed / 40 files**                         |
+| `npm run build`     | `✓ built in 2.32s`                                |
 
 ## Browser evidence still to run (one critical journey)
 

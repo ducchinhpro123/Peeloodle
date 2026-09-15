@@ -9,17 +9,17 @@ listening for every element kind, scoped styles. No dependency added.
 
 ## What changed
 
-| File | Change |
-| --- | --- |
-| `editor/transformGeometry.ts` (new) | Pointer→document conversion, frame→view conversion, move/resize/rotate math, and `normalizeTransform` (the guard that keeps geometry finite and positive). |
-| `editor/store.ts` | `view.transformPreview` (live gesture, view state only), `setTransformPreview`, `commitTransform` (one grouped history entry, refuses locked elements and unusable geometry). |
-| `editor/PresentationCanvas.tsx` | Hit-tests the element under the pointer, starts move/resize/rotate gestures, previews them on the Konva group (rendering layer only), and draws the frame. Background drags still pan. |
-| `editor/PresentationSelectionFrame.tsx` (new) | DOM frame, four corner resize handles, one rotate handle; locked elements get the frame without handles. |
-| `editor/ElementGeometryInspector.tsx` (new) | X/Y/Width/Height/Rotation fields; they read the live preview and write through `commitTransform`. This is also the keyboard path to the same values. Locked elements show the numbers disabled rather than offering a command that would be refused. |
-| `rendering/renderSlide.ts` | Every visible element kind is hit-testable when `listening` is on (was text only). |
-| `styles.css` | Handle/field/frame styles inside the existing `.presentation-*` block, using existing tokens. |
-| `e2e/presentations-transform.spec.ts` (new) | Browser evidence: zoom equivalence, handle/numeric agreement, transient preview, kinds, locks, persistence. |
-| `e2e/presentations.spec.ts` | The P16 pan test now pans from the slide background: dragging an element moves it (below). |
+| File                                          | Change                                                                                                                                                                                                                                               |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `editor/transformGeometry.ts` (new)           | Pointer→document conversion, frame→view conversion, move/resize/rotate math, and `normalizeTransform` (the guard that keeps geometry finite and positive).                                                                                           |
+| `editor/store.ts`                             | `view.transformPreview` (live gesture, view state only), `setTransformPreview`, `commitTransform` (one grouped history entry, refuses locked elements and unusable geometry).                                                                        |
+| `editor/PresentationCanvas.tsx`               | Hit-tests the element under the pointer, starts move/resize/rotate gestures, previews them on the Konva group (rendering layer only), and draws the frame. Background drags still pan.                                                               |
+| `editor/PresentationSelectionFrame.tsx` (new) | DOM frame, four corner resize handles, one rotate handle; locked elements get the frame without handles.                                                                                                                                             |
+| `editor/ElementGeometryInspector.tsx` (new)   | X/Y/Width/Height/Rotation fields; they read the live preview and write through `commitTransform`. This is also the keyboard path to the same values. Locked elements show the numbers disabled rather than offering a command that would be refused. |
+| `rendering/renderSlide.ts`                    | Every visible element kind is hit-testable when `listening` is on (was text only).                                                                                                                                                                   |
+| `styles.css`                                  | Handle/field/frame styles inside the existing `.presentation-*` block, using existing tokens.                                                                                                                                                        |
+| `e2e/presentations-transform.spec.ts` (new)   | Browser evidence: zoom equivalence, handle/numeric agreement, transient preview, kinds, locks, persistence.                                                                                                                                          |
+| `e2e/presentations.spec.ts`                   | The P16 pan test now pans from the slide background: dragging an element moves it (below).                                                                                                                                                           |
 
 Behaviour change worth stating: **dragging an element moves it; dragging the slide background still
 pans.** The P16 fixture's panel shape covers almost the whole slide, so its pan step was updated to
@@ -74,11 +74,11 @@ Browser cycle (`e2e/presentations-transform.spec.ts`, run before the UI existed)
 
 Mutation evidence (applied in this worktree, observed, then reverted byte-identically):
 
-| Mutation | Failure it produced |
-| --- | --- |
-| `renderSlide` listening back to text-only | browser test 2: expected `data-selected-element` `fixture-image-sticker`, received `""` |
-| `commitTransform` without `endHistoryGroup()` | store unit test: expected history 3, got 2; browser test 1: `expect(moved.history).toBe(start.history + 1)` got the previous entry merged |
-| `documentPointFromView` without `/ viewport.scale` | unit test: expected `{100,200}`, got `{75,150}`; browser test 1: move off by 17 units (expected ≤1) |
+| Mutation                                           | Failure it produced                                                                                                                       |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `renderSlide` listening back to text-only          | browser test 2: expected `data-selected-element` `fixture-image-sticker`, received `""`                                                   |
+| `commitTransform` without `endHistoryGroup()`      | store unit test: expected history 3, got 2; browser test 1: `expect(moved.history).toBe(start.history + 1)` got the previous entry merged |
+| `documentPointFromView` without `/ viewport.scale` | unit test: expected `{100,200}`, got `{75,150}`; browser test 1: move off by 17 units (expected ≤1)                                       |
 
 ## Commands run
 
@@ -180,7 +180,7 @@ max channel delta 2 (re-rendering noise), so they were restored byte-identically
 
 ## Fix round 2 — the handle pointer target was 40px/42px, not 44px
 
-The reviewer was right. Global `* { box-sizing: border-box }` puts the handle's 2px border *inside*
+The reviewer was right. Global `* { box-sizing: border-box }` puts the handle's 2px border _inside_
 its border box, and an absolutely positioned child resolves against its parent's **padding** box. So
 `::before { inset: -15px }` grew the target to 10 + 30 = **40px** on the 14px corner handles and
 12 + 30 = **42px** on the 16px rotate handle, not 44px. The round-1 test pressed 16px out along each
@@ -238,7 +238,7 @@ sidebars, so `.presentation-transform-nw` sat over the text and swallowed the do
 the DOM text editor.
 
 - **RED** (before any source change): `npx playwright test e2e/presentations.spec.ts --workers=1 -g
-  "inserts, edits, saves, and reopens a text box without moving it"` → `1 failed`, “Test timeout of
+"inserts, edits, saves, and reopens a text box without moving it"` → `1 failed`, “Test timeout of
   30000ms exceeded … `<span data-testid="presentation-handle-nw"> from
   <div data-testid="presentation-selection-frame"> subtree intercepts pointer events`”, pointing at
   `e2e/presentations.spec.ts:298` (`canvasHost.dblclick`).

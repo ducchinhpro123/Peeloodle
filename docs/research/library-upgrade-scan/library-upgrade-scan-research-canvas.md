@@ -15,11 +15,11 @@ This subagent ran with **file-read and file-write tools only. No `web_search`, n
 `source_check`, no shell.** Therefore:
 
 - **Every external fact** (licence, latest version, release date, maintenance signal, model size,
-  bundle size, benchmark) is marked **`TODO-VERIFY`** and is *not* asserted. The parent
+  bundle size, benchmark) is marked **`TODO-VERIFY`** and is _not_ asserted. The parent
   orchestrator has web tools and owns that fact pass; a mechanical checklist for it is in
   [§9](#9-mechanical-verification-checklist).
 - **No URL is cited as verified.** Candidate external URLs are listed in
-  [§10](#10-external-urls-to-verify-parent-fact-pass) as *unverified leads copied from repo docs*,
+  [§10](#10-external-urls-to-verify-parent-fact-pass) as _unverified leads copied from repo docs_,
   not as sources. Per the brief's rule ("verify every URL resolves before citing it"), they are
   not numbered sources.
 - **Fetch date** is therefore unavailable for this run. All numbered sources are local
@@ -35,33 +35,33 @@ This subagent ran with **file-read and file-write tools only. No `web_search`, n
 Local repository files under `/home/vdc/Projects/Peeloodle`, source type **repo file**, all read
 in this session (path is the URL-equivalent; no HTTP fetch occurred).
 
-| ID | Path | Type | Read scope | File's own date |
-| --- | --- | --- | --- | --- |
-| [S1] | `AGENTS.md` | repo file (project instructions = binding constraints) | full | n/a |
-| [S2] | `CONTEXT.md` | repo file (glossary) | full | n/a |
-| [S3] | `HANDOFF.md` | repo file (current increment) | full | "Updated 2026-09-11" |
-| [S4] | `package.json` | repo file (dependency manifest) | full | n/a |
-| [S5] | `package-lock.json` | repo file (lockfile) | first 40 lines only (root dependency block) | lockfileVersion 3 |
-| [S6] | `docs/editor-library-research.md` | repo file (prior research, engine decision) | full | "Researched 2026-09-10" |
-| [S7] | `docs/core-tools-plan.md` | repo file (sticker tool plan + cutout audit table) | full | "Audit date: 2026-09-08" |
-| [S8] | `docs/slides-implementation-plan.md` | repo file (presentation plan P01–P83) | full | "scope confirmed… 2026-09-10" |
-| [S9] | `docs/ui-audit.md` | repo file (UI/verification evidence) | first 80 lines | dated sections up to presentation follow-ups |
-| [S10] | `README.md` | repo file (behaviour + verification claims) | full | n/a |
-| [S11] | `src/features/exports/renderDocument.ts` | source (shared compositor: crop→mask→filter→outline, trim, PNG) | full (~580 lines) | n/a |
-| [S12] | `src/features/editor/maskPainter.ts` | source (tiled alpha painting + per-stroke diff) | full | n/a |
-| [S13] | `src/features/editor/useMaskBrush.ts` | source (pointer lifetime, stroke commit, mask write) | full | n/a |
-| [S14] | `src/features/editor/maskUtils.ts` | source (image-local mapping, brush radii, mask encode) | full | n/a |
-| [S15] | `src/features/editor/KonvaCanvas.tsx` | source (Konva view layer, preview rasters, text overlay) | full | n/a |
-| [S16] | `src/features/assets/validateUpload.ts` | source (upload validation + decode sizing) | full | n/a |
-| [S17] | `src/lib/imageFormat.ts` | source (byte-level format sniff/validate, header dimensions) | full | n/a |
-| [S18] | `src/features/exports/zipExport.ts` | source (hand-rolled ZIP + pack manifest) | full | n/a |
-| [S19] | `src/features/presentations/exports/backup.ts` | source (fflate-based bounded ZIP) | first 40 lines only | n/a |
-| [S20] | `src/types/domain.ts` | source (serializable document contract) | first 30 lines only | n/a |
-| [S21] | `vite.config.ts` | source (build config) | full | n/a |
-| [S22] | `node_modules/konva/package.json` | installed dependency manifest | version field + head | version `9.3.20` |
-| [S23] | `proofs/p07-processing.md` | repo file (measured Node processing proof) | full | "Date: 2026-09-10" |
-| [S24] | `proofs/baseline.md` | repo file (recorded build/runtime baseline) | first 60 lines | "P01 — Repository baseline (2026-09-10)" |
-| [S25] | `server/processing/probe.ts` | source (P08 preview probe, not mounted) | full | n/a |
+| ID    | Path                                           | Type                                                            | Read scope                                  | File's own date                              |
+| ----- | ---------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------- | -------------------------------------------- |
+| [S1]  | `AGENTS.md`                                    | repo file (project instructions = binding constraints)          | full                                        | n/a                                          |
+| [S2]  | `CONTEXT.md`                                   | repo file (glossary)                                            | full                                        | n/a                                          |
+| [S3]  | `HANDOFF.md`                                   | repo file (current increment)                                   | full                                        | "Updated 2026-09-11"                         |
+| [S4]  | `package.json`                                 | repo file (dependency manifest)                                 | full                                        | n/a                                          |
+| [S5]  | `package-lock.json`                            | repo file (lockfile)                                            | first 40 lines only (root dependency block) | lockfileVersion 3                            |
+| [S6]  | `docs/editor-library-research.md`              | repo file (prior research, engine decision)                     | full                                        | "Researched 2026-09-10"                      |
+| [S7]  | `docs/core-tools-plan.md`                      | repo file (sticker tool plan + cutout audit table)              | full                                        | "Audit date: 2026-09-08"                     |
+| [S8]  | `docs/slides-implementation-plan.md`           | repo file (presentation plan P01–P83)                           | full                                        | "scope confirmed… 2026-09-10"                |
+| [S9]  | `docs/ui-audit.md`                             | repo file (UI/verification evidence)                            | first 80 lines                              | dated sections up to presentation follow-ups |
+| [S10] | `README.md`                                    | repo file (behaviour + verification claims)                     | full                                        | n/a                                          |
+| [S11] | `src/features/exports/renderDocument.ts`       | source (shared compositor: crop→mask→filter→outline, trim, PNG) | full (~580 lines)                           | n/a                                          |
+| [S12] | `src/features/editor/maskPainter.ts`           | source (tiled alpha painting + per-stroke diff)                 | full                                        | n/a                                          |
+| [S13] | `src/features/editor/useMaskBrush.ts`          | source (pointer lifetime, stroke commit, mask write)            | full                                        | n/a                                          |
+| [S14] | `src/features/editor/maskUtils.ts`             | source (image-local mapping, brush radii, mask encode)          | full                                        | n/a                                          |
+| [S15] | `src/features/editor/KonvaCanvas.tsx`          | source (Konva view layer, preview rasters, text overlay)        | full                                        | n/a                                          |
+| [S16] | `src/features/assets/validateUpload.ts`        | source (upload validation + decode sizing)                      | full                                        | n/a                                          |
+| [S17] | `src/lib/imageFormat.ts`                       | source (byte-level format sniff/validate, header dimensions)    | full                                        | n/a                                          |
+| [S18] | `src/features/exports/zipExport.ts`            | source (hand-rolled ZIP + pack manifest)                        | full                                        | n/a                                          |
+| [S19] | `src/features/presentations/exports/backup.ts` | source (fflate-based bounded ZIP)                               | first 40 lines only                         | n/a                                          |
+| [S20] | `src/types/domain.ts`                          | source (serializable document contract)                         | first 30 lines only                         | n/a                                          |
+| [S21] | `vite.config.ts`                               | source (build config)                                           | full                                        | n/a                                          |
+| [S22] | `node_modules/konva/package.json`              | installed dependency manifest                                   | version field + head                        | version `9.3.20`                             |
+| [S23] | `proofs/p07-processing.md`                     | repo file (measured Node processing proof)                      | full                                        | "Date: 2026-09-10"                           |
+| [S24] | `proofs/baseline.md`                           | repo file (recorded build/runtime baseline)                     | first 60 lines                              | "P01 — Repository baseline (2026-09-10)"     |
+| [S25] | `server/processing/probe.ts`                   | source (P08 preview probe, not mounted)                         | full                                        | n/a                                          |
 
 Negative-evidence probe: `node_modules/comlink/package.json` → `ENOENT` in this session, i.e. no
 Comlink installed; `node_modules/konva/package.json` → present, so `node_modules` is populated
@@ -71,30 +71,30 @@ and the ENOENT is meaningful rather than a missing install tree.
 
 ## 2. What the repo already does (grounding for every recommendation)
 
-| Concern | Current implementation | Evidence |
-| --- | --- | --- |
-| Decode | `createImageBitmap(blob, { imageOrientation: 'from-image', resizeQuality: 'high', premultiplyAlpha: 'none' })`, falling back to plain `createImageBitmap`, then `HTMLImageElement` | [S11] `defaultDecodeImage` |
-| Decode (validation) | same `imageOrientation: 'from-image'` first, then plain bitmap, then `Image` | [S16] `decodeImageSize` |
-| Encode | `canvas.toBlob(..., 'image/png')` on an `HTMLCanvasElement`; the compositor's duck type also accepts `convertToBlob` | [S11] `canvasToPng`; [S14] `canvasToPngBlob` |
-| Canvas injection | `createCanvas` and `decodeImage` are callables on `RenderDocumentOptions`; `CanvasLike` only needs `width`, `height`, `getContext`, `toBlob` **or** `convertToBlob` | [S11] |
-| Compositing | one 2D path shared by canvas preview and PNG/ZIP export: crop → destination-in mask → CSS `ctx.filter` → alpha-silhouette outline → layer opacity → transform | [S11] `paintImage`/`createImageSurface`; compose order documented in [S7] |
-| Filters | `formatCssFilter()` emits `brightness()/contrast()/saturate()/grayscale()` strings assigned to `ctx.filter` | [S11]; filter fields in [S20] |
-| Outline | hand-rolled separable **box-max dilation** over the alpha plane, ring built as `dilated - coverage`, source bounds inflated by `ceil(outline.width)` | [S11] `dilateMaxAlpha`, `drawOutlinedImage`, `measureArtwork` |
-| Outline perf comment | code carries an explicit `ponytail:` note: "separable box max (O(WH)); Euclidean DT if round corners matter" | [S11] |
-| Mask model | image-local white-on-transparent alpha canvas at **full asset resolution**; defaults opaque white; mask dims must equal asset dims | [S14] `createDefaultMaskCanvas`; [S11] `assertMaskDimensions` |
-| Mask painting | 128 px tile diffing via `getImageData` on first touch, stroke painted with round caps in inverse-scaled space, one `hasChanges()` sweep at stroke end | [S12] |
-| Mask persistence | one `canvas.toBlob` PNG per completed stroke, then `applyMask(layerId, uuid, blob)` | [S13] `finish()` |
-| Preview raster cap | preview rasters capped at 1024 px longest edge; "mask data and exports remain full-resolution" | [S15] `previewRatio`; [S10] |
-| Upload allowlist | PNG / JPEG / static WebP only; 15 MB; 25 MP; GIF, SVG, APNG, animated WebP actively rejected; sniffed bytes must match declared MIME | [S16], [S17] |
-| Header dims | `pngDimensions` / `webpDimensions` / `jpegDimensions` / `inspectImageBytes` parse **container headers only**; PNG chunk CRCs verified; JPEG requires SOF + EOI trailer | [S17] |
-| EXIF | no EXIF/APP1 parsing anywhere in `imageFormat.ts` (whole file read) | [S17] |
-| Pack archive | hand-rolled STORE-only ZIP writer + `manifest.json`, fail-fast on any member error | [S18] |
-| Other archive | presentation backup uses `fflate` `zipSync`/`unzipSync` with bounded expansion limits | [S19] |
-| Dependencies | `fflate ^0.8.3`, `pdf-lib ^1.17.1`, `konva ^9.3.20` (installed 9.3.20 [S22]), `react-konva ^18.2.10`, `sharp ^0.35.4` (server/probe only) | [S4], [S5], [S22] |
-| Server processing | sharp 0.35.4 (libvips 8.18.6) + @resvg/resvg-js 2.2.6, Node 24.21.0; JPEG **rejected** as `unsupported_type` server-side; probe route intentionally unmounted | [S23], [S25] |
-| Workers | no worker entry, no worker plugin/config in `vite.config.ts` (whole file read); no worker-helper library installed; README never mentions a worker | [S21], [S10], ENOENT probe |
-| Bundle baseline | largest chunk `KonvaCanvas` 314 kB (97 kB gzip), 1873 modules | [S24] |
-| Auto cutout | not implemented and intentionally unavailable; "never a fake cutout" | [S1], [S7], [S10] |
+| Concern              | Current implementation                                                                                                                                                             | Evidence                                                                  |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Decode               | `createImageBitmap(blob, { imageOrientation: 'from-image', resizeQuality: 'high', premultiplyAlpha: 'none' })`, falling back to plain `createImageBitmap`, then `HTMLImageElement` | [S11] `defaultDecodeImage`                                                |
+| Decode (validation)  | same `imageOrientation: 'from-image'` first, then plain bitmap, then `Image`                                                                                                       | [S16] `decodeImageSize`                                                   |
+| Encode               | `canvas.toBlob(..., 'image/png')` on an `HTMLCanvasElement`; the compositor's duck type also accepts `convertToBlob`                                                               | [S11] `canvasToPng`; [S14] `canvasToPngBlob`                              |
+| Canvas injection     | `createCanvas` and `decodeImage` are callables on `RenderDocumentOptions`; `CanvasLike` only needs `width`, `height`, `getContext`, `toBlob` **or** `convertToBlob`                | [S11]                                                                     |
+| Compositing          | one 2D path shared by canvas preview and PNG/ZIP export: crop → destination-in mask → CSS `ctx.filter` → alpha-silhouette outline → layer opacity → transform                      | [S11] `paintImage`/`createImageSurface`; compose order documented in [S7] |
+| Filters              | `formatCssFilter()` emits `brightness()/contrast()/saturate()/grayscale()` strings assigned to `ctx.filter`                                                                        | [S11]; filter fields in [S20]                                             |
+| Outline              | hand-rolled separable **box-max dilation** over the alpha plane, ring built as `dilated - coverage`, source bounds inflated by `ceil(outline.width)`                               | [S11] `dilateMaxAlpha`, `drawOutlinedImage`, `measureArtwork`             |
+| Outline perf comment | code carries an explicit `ponytail:` note: "separable box max (O(WH)); Euclidean DT if round corners matter"                                                                       | [S11]                                                                     |
+| Mask model           | image-local white-on-transparent alpha canvas at **full asset resolution**; defaults opaque white; mask dims must equal asset dims                                                 | [S14] `createDefaultMaskCanvas`; [S11] `assertMaskDimensions`             |
+| Mask painting        | 128 px tile diffing via `getImageData` on first touch, stroke painted with round caps in inverse-scaled space, one `hasChanges()` sweep at stroke end                              | [S12]                                                                     |
+| Mask persistence     | one `canvas.toBlob` PNG per completed stroke, then `applyMask(layerId, uuid, blob)`                                                                                                | [S13] `finish()`                                                          |
+| Preview raster cap   | preview rasters capped at 1024 px longest edge; "mask data and exports remain full-resolution"                                                                                     | [S15] `previewRatio`; [S10]                                               |
+| Upload allowlist     | PNG / JPEG / static WebP only; 15 MB; 25 MP; GIF, SVG, APNG, animated WebP actively rejected; sniffed bytes must match declared MIME                                               | [S16], [S17]                                                              |
+| Header dims          | `pngDimensions` / `webpDimensions` / `jpegDimensions` / `inspectImageBytes` parse **container headers only**; PNG chunk CRCs verified; JPEG requires SOF + EOI trailer             | [S17]                                                                     |
+| EXIF                 | no EXIF/APP1 parsing anywhere in `imageFormat.ts` (whole file read)                                                                                                                | [S17]                                                                     |
+| Pack archive         | hand-rolled STORE-only ZIP writer + `manifest.json`, fail-fast on any member error                                                                                                 | [S18]                                                                     |
+| Other archive        | presentation backup uses `fflate` `zipSync`/`unzipSync` with bounded expansion limits                                                                                              | [S19]                                                                     |
+| Dependencies         | `fflate ^0.8.3`, `pdf-lib ^1.17.1`, `konva ^9.3.20` (installed 9.3.20 [S22]), `react-konva ^18.2.10`, `sharp ^0.35.4` (server/probe only)                                          | [S4], [S5], [S22]                                                         |
+| Server processing    | sharp 0.35.4 (libvips 8.18.6) + @resvg/resvg-js 2.2.6, Node 24.21.0; JPEG **rejected** as `unsupported_type` server-side; probe route intentionally unmounted                      | [S23], [S25]                                                              |
+| Workers              | no worker entry, no worker plugin/config in `vite.config.ts` (whole file read); no worker-helper library installed; README never mentions a worker                                 | [S21], [S10], ENOENT probe                                                |
+| Bundle baseline      | largest chunk `KonvaCanvas` 314 kB (97 kB gzip), 1873 modules                                                                                                                      | [S24]                                                                     |
+| Auto cutout          | not implemented and intentionally unavailable; "never a fake cutout"                                                                                                               | [S1], [S7], [S10]                                                         |
 
 ---
 
@@ -102,64 +102,64 @@ and the ENOENT is meaningful rather than a missing install tree.
 
 Per the supervisor's steer and the brief's hard rule, **no cell below asserts a licence, version,
 release date, maintenance signal or size that I could not fetch.** Repo-asserted values are quoted
-as *repo claims* in the caveats column only, never promoted into the fact cells.
+as _repo claims_ in the caveats column only, never promoted into the fact cells.
 
 ### (a) Decode / encode / high-resolution processing / worker offload
 
-| Option | Licence | Latest version + release date | Maintenance signal | What it replaces or adds in THIS repo | Effort | Risk and caveats |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Platform: `createImageBitmap` + `OffscreenCanvas`/`convertToBlob`** (already used) | `TODO-VERIFY` (platform feature, no dependency licence) | `TODO-VERIFY` (browser support matrix) | `TODO-VERIFY` | Nothing to add — already the decode path [S11][S16]; `CanvasLike` already accepts `convertToBlob` [S11] | S | Off-main-thread encode is achievable with zero dependencies; **Inference:** benefit is bounded by full-res copies (~100 MB RGBA at 25 MP) |
-| `comlink` | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Only sugar over `postMessage` for a single encode worker; not installed today | S | Adds a dependency for ~30 lines of hand-written message plumbing; requires `transfer` care |
-| `workerpool` / `threads` / `p-queue` (worker pools) | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | A pool only matters for multi-image batch work (pack ZIP export) [S18] | M | Pool + 25 MP rasters multiplies peak memory; the repo's own ZIP export is currently sequential and fail-fast [S18] |
-| `jimp` (`@jimp/core`) | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Would duplicate PNG/JPEG codecs; no replacement target in [S11]/[S16] | M | **Inference:** pure-JS codecs cannot beat the native decoder already in use; extra decode path must re-prove alpha/premultiply and ImageBitmap cleanup contracts (covered by `renderDocument.test.ts` per [S10]) |
-| `wasm-vips` (libvips → wasm) | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Would add browser equivalents of the sharp operations the server already performs [S23] | L | Offline/first-load cost vs the local-first guarantee [S1]; server already has native libvips 8.18.6 [S23], so the browser build would be a second imaging stack |
-| WebCodecs `ImageDecoder` | `TODO-VERIFY` (spec/browser) | `TODO-VERIFY` | `TODO-VERIFY` | Alternative decode path returning `VideoFrame` | M | Adds a second decode path for **zero** required format gain: the allowlist is PNG/JPEG/WebP with tests asserting APNG/animated-WebP rejection [S16][S17] |
+| Option                                                                               | Licence                                                 | Latest version + release date          | Maintenance signal | What it replaces or adds in THIS repo                                                                   | Effort | Risk and caveats                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------- | -------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Platform: `createImageBitmap` + `OffscreenCanvas`/`convertToBlob`** (already used) | `TODO-VERIFY` (platform feature, no dependency licence) | `TODO-VERIFY` (browser support matrix) | `TODO-VERIFY`      | Nothing to add — already the decode path [S11][S16]; `CanvasLike` already accepts `convertToBlob` [S11] | S      | Off-main-thread encode is achievable with zero dependencies; **Inference:** benefit is bounded by full-res copies (~100 MB RGBA at 25 MP)                                                                        |
+| `comlink`                                                                            | `TODO-VERIFY`                                           | `TODO-VERIFY`                          | `TODO-VERIFY`      | Only sugar over `postMessage` for a single encode worker; not installed today                           | S      | Adds a dependency for ~30 lines of hand-written message plumbing; requires `transfer` care                                                                                                                       |
+| `workerpool` / `threads` / `p-queue` (worker pools)                                  | `TODO-VERIFY`                                           | `TODO-VERIFY`                          | `TODO-VERIFY`      | A pool only matters for multi-image batch work (pack ZIP export) [S18]                                  | M      | Pool + 25 MP rasters multiplies peak memory; the repo's own ZIP export is currently sequential and fail-fast [S18]                                                                                               |
+| `jimp` (`@jimp/core`)                                                                | `TODO-VERIFY`                                           | `TODO-VERIFY`                          | `TODO-VERIFY`      | Would duplicate PNG/JPEG codecs; no replacement target in [S11]/[S16]                                   | M      | **Inference:** pure-JS codecs cannot beat the native decoder already in use; extra decode path must re-prove alpha/premultiply and ImageBitmap cleanup contracts (covered by `renderDocument.test.ts` per [S10]) |
+| `wasm-vips` (libvips → wasm)                                                         | `TODO-VERIFY`                                           | `TODO-VERIFY`                          | `TODO-VERIFY`      | Would add browser equivalents of the sharp operations the server already performs [S23]                 | L      | Offline/first-load cost vs the local-first guarantee [S1]; server already has native libvips 8.18.6 [S23], so the browser build would be a second imaging stack                                                  |
+| WebCodecs `ImageDecoder`                                                             | `TODO-VERIFY` (spec/browser)                            | `TODO-VERIFY`                          | `TODO-VERIFY`      | Alternative decode path returning `VideoFrame`                                                          | M      | Adds a second decode path for **zero** required format gain: the allowlist is PNG/JPEG/WebP with tests asserting APNG/animated-WebP rejection [S16][S17]                                                         |
 
 ### (b) Cutout / background removal / alpha matting
 
-| Option | Licence | Latest version + release date | Maintenance signal | What it adds in THIS repo | Effort | Risk and caveats |
-| --- | --- | --- | --- | --- | --- | --- |
-| `@imgly/background-removal` | `TODO-VERIFY` — repo audit claims AGPL-3.0 with commercial licensing via IMG.LY [S7] | `TODO-VERIFY` | `TODO-VERIFY` | Could *initialize* an image-local mask through `applyMask` [S13] | L | Repo audit already recorded it as **blocked** on AGPL/purchase, ~40–80 MB ONNX+WASM **(repo claim, unverified here)**, and hair/fur/glass cleanup [S7] |
-| `@mediapipe/tasks-vision` Image Segmenter | `TODO-VERIFY` — repo audit claims Apache-2.0 code, selfie/person only [S7] | `TODO-VERIFY` | `TODO-VERIFY` | Person/selfie mask seeding | M | Repo audit verdict: "legal but product-unfit" for pets/objects [S7] — StickerLab's own sample artwork is cats/dogs/drinks [S9][S10] |
-| `transformers.js` + RMBG-1.4 / RMBG-2.0 | `TODO-VERIFY` (library and *both* model licences are separately relevant) | `TODO-VERIFY` | `TODO-VERIFY` | General-object matte | L | Repo audit records RMBG-1.4 non-commercial and RMBG-2.0 CC BY-NC 4.0 + paid agreement: **weights licence, not library licence, decides this** [S7] |
-| `onnxruntime-web` + MODNet / U²-Net ports | `TODO-VERIFY` (runtime, and each port's weights licence) | `TODO-VERIFY` | `TODO-VERIFY` | Portrait matting (MODNet) / salient-object (U²-Net) | L | Model size, first-run download and offline caching must be verified; multithreaded WASM may require cross-origin isolation — `TODO-VERIFY` (headers on the Vercel static deploy) [S10] |
-| Hosted APIs (remove.bg et al.) | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | None acceptable | — | Uploads user photos and requires credentials; contradicts local-first/offline core [S1] and the repo's own audit [S7] |
+| Option                                    | Licence                                                                              | Latest version + release date | Maintenance signal | What it adds in THIS repo                                        | Effort | Risk and caveats                                                                                                                                                                       |
+| ----------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------- | ------------------ | ---------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@imgly/background-removal`               | `TODO-VERIFY` — repo audit claims AGPL-3.0 with commercial licensing via IMG.LY [S7] | `TODO-VERIFY`                 | `TODO-VERIFY`      | Could _initialize_ an image-local mask through `applyMask` [S13] | L      | Repo audit already recorded it as **blocked** on AGPL/purchase, ~40–80 MB ONNX+WASM **(repo claim, unverified here)**, and hair/fur/glass cleanup [S7]                                 |
+| `@mediapipe/tasks-vision` Image Segmenter | `TODO-VERIFY` — repo audit claims Apache-2.0 code, selfie/person only [S7]           | `TODO-VERIFY`                 | `TODO-VERIFY`      | Person/selfie mask seeding                                       | M      | Repo audit verdict: "legal but product-unfit" for pets/objects [S7] — StickerLab's own sample artwork is cats/dogs/drinks [S9][S10]                                                    |
+| `transformers.js` + RMBG-1.4 / RMBG-2.0   | `TODO-VERIFY` (library and _both_ model licences are separately relevant)            | `TODO-VERIFY`                 | `TODO-VERIFY`      | General-object matte                                             | L      | Repo audit records RMBG-1.4 non-commercial and RMBG-2.0 CC BY-NC 4.0 + paid agreement: **weights licence, not library licence, decides this** [S7]                                     |
+| `onnxruntime-web` + MODNet / U²-Net ports | `TODO-VERIFY` (runtime, and each port's weights licence)                             | `TODO-VERIFY`                 | `TODO-VERIFY`      | Portrait matting (MODNet) / salient-object (U²-Net)              | L      | Model size, first-run download and offline caching must be verified; multithreaded WASM may require cross-origin isolation — `TODO-VERIFY` (headers on the Vercel static deploy) [S10] |
+| Hosted APIs (remove.bg et al.)            | `TODO-VERIFY`                                                                        | `TODO-VERIFY`                 | `TODO-VERIFY`      | None acceptable                                                  | —      | Uploads user photos and requires credentials; contradicts local-first/offline core [S1] and the repo's own audit [S7]                                                                  |
 
 ### (c) Outline / contour / feathering / blur / filters
 
-| Option | Licence | Latest version + release date | Maintenance signal | What it replaces or adds in THIS repo | Effort | Risk and caveats |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Exact Euclidean distance transform (algorithm, no package)** | n/a | n/a | n/a | Replaces the box-max dilation in `dilateMaxAlpha` [S11] | S | **Inference:** fixes square-footprint artefacts at large outline widths; must preserve preview ≡ export pixels (primary invariant, [S1], [S7]) |
-| `glfx` / `webgl-filter` / `filterous` (WebGL filter libs) | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Effect variety (blur, hue, drop-shadow-like effects) beyond `ctx.filter` | M | **Inference:** introduces a second compositor, which breaks the "one compositing path for preview and export" invariant [S11] and M4's "Preview = saved = PNG = ZIP" [S7]; browser `ctx.filter` already exposes `blur()`/`drop-shadow()`/`hue-rotate()` if wanted |
-| `d3-contour` / marching-squares SVG contour tracing | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Vector silhouette paths (SVG outline export, cut-lines) | M | No requirement exists for either vector outline export or cut-line sheets in [S2], [S7] or [S8] |
-| `potrace`-style vectorization | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Same as above | L | Wrong job for a raster sticker export pipeline; SVG upload is actively rejected [S16][S17] |
+| Option                                                         | Licence       | Latest version + release date | Maintenance signal | What it replaces or adds in THIS repo                                    | Effort | Risk and caveats                                                                                                                                                                                                                                                  |
+| -------------------------------------------------------------- | ------------- | ----------------------------- | ------------------ | ------------------------------------------------------------------------ | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Exact Euclidean distance transform (algorithm, no package)** | n/a           | n/a                           | n/a                | Replaces the box-max dilation in `dilateMaxAlpha` [S11]                  | S      | **Inference:** fixes square-footprint artefacts at large outline widths; must preserve preview ≡ export pixels (primary invariant, [S1], [S7])                                                                                                                    |
+| `glfx` / `webgl-filter` / `filterous` (WebGL filter libs)      | `TODO-VERIFY` | `TODO-VERIFY`                 | `TODO-VERIFY`      | Effect variety (blur, hue, drop-shadow-like effects) beyond `ctx.filter` | M      | **Inference:** introduces a second compositor, which breaks the "one compositing path for preview and export" invariant [S11] and M4's "Preview = saved = PNG = ZIP" [S7]; browser `ctx.filter` already exposes `blur()`/`drop-shadow()`/`hue-rotate()` if wanted |
+| `d3-contour` / marching-squares SVG contour tracing            | `TODO-VERIFY` | `TODO-VERIFY`                 | `TODO-VERIFY`      | Vector silhouette paths (SVG outline export, cut-lines)                  | M      | No requirement exists for either vector outline export or cut-line sheets in [S2], [S7] or [S8]                                                                                                                                                                   |
+| `potrace`-style vectorization                                  | `TODO-VERIFY` | `TODO-VERIFY`                 | `TODO-VERIFY`      | Same as above                                                            | L      | Wrong job for a raster sticker export pipeline; SVG upload is actively rejected [S16][S17]                                                                                                                                                                        |
 
 ### (d) Sticker sheet / collage / sprite sheet / print sheet
 
-| Option | Licence | Latest version + release date | Maintenance signal | What it replaces or adds in THIS repo | Effort | Risk and caveats |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Hand-rolled grid sheet over `renderDocument`** | n/a | n/a | n/a | New: N-up sheet of already-exportable stickers | S | **Inference:** ~40 lines (nested loop + `drawImage`), reuses the audited compositor rather than forking it |
-| `pdf-lib` (already a client dependency) | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Printable A4/Letter sticker sheet with cut marks | S | Already in `dependencies` for the presentation PDF path [S4][S8] — reuse, no new dependency |
-| `fflate` (already a dependency, used by backup) | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Consolidate the pack ZIP writer [S18] onto the library already used in [S19] | S | Two ZIP implementations already exist in-repo (`zipExport.ts` hand-rolled vs `backup.ts` fflate) — that is duplication, not a library gap |
-| `spritesmith` / `free-tex-packer-core` / atlas builders | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Packed atlases with rect metadata | M | Build/Node-time tools for game atlases; StickerLab needs runtime uniform-grid sheets with a manifest that [S18] already defines |
+| Option                                                  | Licence       | Latest version + release date | Maintenance signal | What it replaces or adds in THIS repo                                        | Effort | Risk and caveats                                                                                                                          |
+| ------------------------------------------------------- | ------------- | ----------------------------- | ------------------ | ---------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hand-rolled grid sheet over `renderDocument`**        | n/a           | n/a                           | n/a                | New: N-up sheet of already-exportable stickers                               | S      | **Inference:** ~40 lines (nested loop + `drawImage`), reuses the audited compositor rather than forking it                                |
+| `pdf-lib` (already a client dependency)                 | `TODO-VERIFY` | `TODO-VERIFY`                 | `TODO-VERIFY`      | Printable A4/Letter sticker sheet with cut marks                             | S      | Already in `dependencies` for the presentation PDF path [S4][S8] — reuse, no new dependency                                               |
+| `fflate` (already a dependency, used by backup)         | `TODO-VERIFY` | `TODO-VERIFY`                 | `TODO-VERIFY`      | Consolidate the pack ZIP writer [S18] onto the library already used in [S19] | S      | Two ZIP implementations already exist in-repo (`zipExport.ts` hand-rolled vs `backup.ts` fflate) — that is duplication, not a library gap |
+| `spritesmith` / `free-tex-packer-core` / atlas builders | `TODO-VERIFY` | `TODO-VERIFY`                 | `TODO-VERIFY`      | Packed atlases with rect metadata                                            | M      | Build/Node-time tools for game atlases; StickerLab needs runtime uniform-grid sheets with a manifest that [S18] already defines           |
 
 ### (e) Konva-layer helpers only
 
-| Option | Licence | Latest version + release date | Maintenance signal | What it replaces or adds in THIS repo | Effort | Risk and caveats |
-| --- | --- | --- | --- | --- | --- | --- |
-| `use-image` (react-konva image loader) | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Would replace the ~14-line `useHtmlImage` hook [S15] | S | **Inference:** repository hook returns an `HTMLImageElement` deliberately so Konva draws it directly; a helper must not change that or the preview/export parity tests [S10] would have to be re-proven |
-| `react-konva-utils` | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Possible conveniences (HTML overlay, pixel-ratio helper) | S | The editor's DOM text overlay is an absolutely-positioned `textarea` outside the stage [S15]; no remaining need identified. **TODO-VERIFY** its current API before final dismissal |
-| `konva` `Konva.Filters.*` + `node.cache()` | `TODO-VERIFY` (same package as installed 9.3.20 [S22]) | `TODO-VERIFY` | `TODO-VERIFY` | GPU/CPU filter pipeline inside the Konva node | M | **Inference:** would be a *second* filter implementation alongside `formatCssFilter`+`ctx.filter` [S11] — directly conflicts with [S7] M4 and [S1]'s shared-compositing rule |
-| `perfect-freehand` and brush-style helpers | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | Variable-width tapered ink strokes | M | The brush is an alpha erase/restore mask with inverse-scaled circular radii [S14]; taper is the wrong model and would fight mask parity tests [S10] |
-| Konva documented perf patterns (`batchDraw`, `listening=false`, `perfectDrawEnabled`, `node.cache`) | `TODO-VERIFY` (Konva docs) | `TODO-VERIFY` | `TODO-VERIFY` | Guidance, not code | S | Repo already uses `batchDraw()` after raster swaps, one `Layer`, pre-rendered per-layer rasters, `Transformer` handles [S15]; `node.cache()` is **Inference**-risky here because caching bakes transforms and the repo deliberately re-rasterizes at `previewRatio` instead [S15] |
+| Option                                                                                              | Licence                                                | Latest version + release date | Maintenance signal | What it replaces or adds in THIS repo                    | Effort | Risk and caveats                                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------- | ------------------ | -------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `use-image` (react-konva image loader)                                                              | `TODO-VERIFY`                                          | `TODO-VERIFY`                 | `TODO-VERIFY`      | Would replace the ~14-line `useHtmlImage` hook [S15]     | S      | **Inference:** repository hook returns an `HTMLImageElement` deliberately so Konva draws it directly; a helper must not change that or the preview/export parity tests [S10] would have to be re-proven                                                                           |
+| `react-konva-utils`                                                                                 | `TODO-VERIFY`                                          | `TODO-VERIFY`                 | `TODO-VERIFY`      | Possible conveniences (HTML overlay, pixel-ratio helper) | S      | The editor's DOM text overlay is an absolutely-positioned `textarea` outside the stage [S15]; no remaining need identified. **TODO-VERIFY** its current API before final dismissal                                                                                                |
+| `konva` `Konva.Filters.*` + `node.cache()`                                                          | `TODO-VERIFY` (same package as installed 9.3.20 [S22]) | `TODO-VERIFY`                 | `TODO-VERIFY`      | GPU/CPU filter pipeline inside the Konva node            | M      | **Inference:** would be a _second_ filter implementation alongside `formatCssFilter`+`ctx.filter` [S11] — directly conflicts with [S7] M4 and [S1]'s shared-compositing rule                                                                                                      |
+| `perfect-freehand` and brush-style helpers                                                          | `TODO-VERIFY`                                          | `TODO-VERIFY`                 | `TODO-VERIFY`      | Variable-width tapered ink strokes                       | M      | The brush is an alpha erase/restore mask with inverse-scaled circular radii [S14]; taper is the wrong model and would fight mask parity tests [S10]                                                                                                                               |
+| Konva documented perf patterns (`batchDraw`, `listening=false`, `perfectDrawEnabled`, `node.cache`) | `TODO-VERIFY` (Konva docs)                             | `TODO-VERIFY`                 | `TODO-VERIFY`      | Guidance, not code                                       | S      | Repo already uses `batchDraw()` after raster swaps, one `Layer`, pre-rendered per-layer rasters, `Transformer` handles [S15]; `node.cache()` is **Inference**-risky here because caching bakes transforms and the repo deliberately re-rasterizes at `previewRatio` instead [S15] |
 
 ### (f) Metadata and format support
 
-| Option | Licence | Latest version + release date | Maintenance signal | What it replaces or adds in THIS repo | Effort | Risk and caveats |
-| --- | --- | --- | --- | --- | --- | --- |
-| `exifr` | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | EXIF read (orientation, camera, GPS) in the browser | S | Orientation is already applied at decode via `imageOrientation: 'from-image'` in **both** decode paths [S11][S16]; a metadata library is only justified by a real UI/metadata requirement, and it does **not** resolve the server header-vs-decode question below |
-| `heic-decode` / `libheif-wasm` | `TODO-VERIFY` | `TODO-VERIFY` | `TODO-VERIFY` | HEIC support | M | Adds a format the allowlist deliberately excludes [S16][S17]; multi-MB wasm; must be verified against the offline guarantee [S1] |
-| AVIF (platform decode) | Platform feature — `TODO-VERIFY` browser support matrix | n/a | n/a | Wider input | S | Would require re-proving the sniff/animation tests that currently assert the PNG/JPEG/WebP contract [S16][S17][S10] |
+| Option                         | Licence                                                 | Latest version + release date | Maintenance signal | What it replaces or adds in THIS repo               | Effort | Risk and caveats                                                                                                                                                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------- | ----------------------------- | ------------------ | --------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `exifr`                        | `TODO-VERIFY`                                           | `TODO-VERIFY`                 | `TODO-VERIFY`      | EXIF read (orientation, camera, GPS) in the browser | S      | Orientation is already applied at decode via `imageOrientation: 'from-image'` in **both** decode paths [S11][S16]; a metadata library is only justified by a real UI/metadata requirement, and it does **not** resolve the server header-vs-decode question below |
+| `heic-decode` / `libheif-wasm` | `TODO-VERIFY`                                           | `TODO-VERIFY`                 | `TODO-VERIFY`      | HEIC support                                        | M      | Adds a format the allowlist deliberately excludes [S16][S17]; multi-MB wasm; must be verified against the offline guarantee [S1]                                                                                                                                  |
+| AVIF (platform decode)         | Platform feature — `TODO-VERIFY` browser support matrix | n/a                           | n/a                | Wider input                                         | S      | Would require re-proving the sniff/animation tests that currently assert the PNG/JPEG/WebP contract [S16][S17][S10]                                                                                                                                               |
 
 ---
 
@@ -175,14 +175,14 @@ as *repo claims* in the caveats column only, never promoted into the fact cells.
 2. **Claim:** the compositor's canvas abstraction is duck-typed and already accepts
    `OffscreenCanvas` (`convertToBlob`) plus injectable `createCanvas`/`decodeImage`. **Sources:**
    [S11] `CanvasLike`, `RenderDocumentOptions`. **Support:** direct evidence.
-   **Inference:** worker offload is therefore an *injection + worker entry* change, not a rewrite of
+   **Inference:** worker offload is therefore an _injection + worker entry_ change, not a rewrite of
    `renderDocument`. **Confidence:** high (evidence) / medium (effort estimate).
 
 3. **Claim:** the mask pipeline is the plausible high-resolution hotspot, not the paint loop. Each
    stroke paints at **full asset resolution** [S14], then encodes with `HTMLCanvasElement.toBlob`
    on the **main thread** [S14, called from S13], then writes the blob to IndexedDB. **Support:**
    direct evidence for the code paths; **Inference** for the cost ranking (no measured encode-path
-   benchmark exists — the recorded measurements cover the *preview raster* path only [S10], and
+   benchmark exists — the recorded measurements cover the _preview raster_ path only [S10], and
    README explicitly states masks/exports stay full-resolution [S10]). **Confidence:** high
    (mechanism) / medium (that it is user-visible).
 
@@ -204,7 +204,7 @@ as *repo claims* in the caveats column only, never promoted into the fact cells.
    `@imgly/background-removal` AGPL-3.0 → commercial licence via IMG.LY, BRIA RMBG-1.4
    non-commercial / RMBG-2.0 CC BY-NC + paid agreement, remove.bg paid + uploads photos), [S1]
    (never fake a cutout; licensing review required), [S10] (feature is honestly unavailable).
-   **Support:** direct evidence *of what this repo recorded*; the underlying licence text, versions
+   **Support:** direct evidence _of what this repo recorded_; the underlying licence text, versions
    and model sizes are **TODO-VERIFY**. **Confidence:** high that this is the shape of the
    blocker; medium on any specific licence until the fact pass runs.
 
@@ -235,7 +235,7 @@ as *repo claims* in the caveats column only, never promoted into the fact cells.
     evidence. **Confidence:** high. **Inference:** this is already the cheap correct structure, so
     the only real upgrade is the distance metric, not the architecture.
 
-11. **Claim:** a WebGL/WASM filter library would not beat the hand-rolled path for the *documented*
+11. **Claim:** a WebGL/WASM filter library would not beat the hand-rolled path for the _documented_
     filter set, and would break an invariant. **Sources:** [S11] `formatCssFilter` + `ctx.filter`
     shared by preview and export; [S20] filter fields are exactly brightness/contrast/saturation/
     grayscale; [S7] M4 "Preview = saved = PNG = ZIP"; [S1] "Reuse compositing logic for editor
@@ -306,47 +306,47 @@ as *repo claims* in the caveats column only, never promoted into the fact cells.
 ## 5. Top recommendations (max 5, highest confidence first)
 
 1. **Add zero dependencies; keep the native decode/encode path.**
-   *Impact:* avoids a whole class of regressions (second codec path, alpha/premultiply
+   _Impact:_ avoids a whole class of regressions (second codec path, alpha/premultiply
    differences, ImageBitmap cleanup contract in `renderDocument.test.ts` [S10]).
-   *Effort:* none (decision only).
-   *Why highest confidence:* the decode path and its fallbacks are already correct and tested
+   _Effort:_ none (decision only).
+   _Why highest confidence:_ the decode path and its fallbacks are already correct and tested
    [S11][S16][S10]; no candidate library replaces an existing capability.
 
 2. **Measure the stroke-end encode before touching the worker story.**
-   *Impact:* decides the single largest unresolved canvas-perf question (full-res mask PNG encode
+   _Impact:_ decides the single largest unresolved canvas-perf question (full-res mask PNG encode
    on the main thread [S14][S13]).
-   *Effort:* S — extend the existing measurement pattern
+   _Effort:_ S — extend the existing measurement pattern
    (`npx playwright test e2e/mask-regressions.spec.ts -g '30 layers' --workers=1` records frame and
    pointer metrics [S10]) with one 25 MP mask stroke and record stroke-end latency + peak memory.
-   *Confidence:* high that this is the right next step, regardless of which way it lands.
+   _Confidence:_ high that this is the right next step, regardless of which way it lands.
 
 3. **If (and only if) that measurement shows a real stall: move the encode off the main thread with
    Vite's built-in module worker — no library.**
-   *Impact:* M (interaction latency at stroke end).
-   *Effort:* S — the compositor already accepts an injected canvas factory and `convertToBlob`
+   _Impact:_ M (interaction latency at stroke end).
+   _Effort:_ S — the compositor already accepts an injected canvas factory and `convertToBlob`
    [S11]; the mask painter only needs the encode boundary (`canvasToPngBlob` [S14]) to move.
-   *Risk:* **Inference** — copying a 25 MP raster for the worker increases peak memory (~100 MB per
+   _Risk:_ **Inference** — copying a 25 MP raster for the worker increases peak memory (~100 MB per
    RGBA plane); prefer `createImageBitmap(canvas)` + transfer over `getImageData` copies, and
    re-run the mask parity/undo suites [S10].
-   *Documented alternative if memory, not CPU, is the binding constraint:* cap the mask raster
+   _Documented alternative if memory, not CPU, is the binding constraint:_ cap the mask raster
    resolution at a stated ceiling (a `ponytail:`-style documented limit), which touches
    `assertMaskDimensions` [S11], `createDefaultMaskCanvas` [S14] and the brush-radius maths [S14].
 
 4. **Upgrade the outline dilation to an exact Euclidean distance transform (algorithm, no
    package).**
-   *Impact:* M — removes square-footprint artefacts at larger outline widths; the mask brush is
+   _Impact:_ M — removes square-footprint artefacts at larger outline widths; the mask brush is
    round-capped [S12], so round rings are the visually consistent result.
-   *Effort:* S — one function in `renderDocument.ts` [S11], retaining the existing
+   _Effort:_ S — one function in `renderDocument.ts` [S11], retaining the existing
    `measureArtwork` bounds inflation.
-   *Risk:* preview/export pixel parity is a hard invariant [S1][S7]; re-run
+   _Risk:_ preview/export pixel parity is a hard invariant [S1][S7]; re-run
    `e2e/render-parity.spec.ts` and `e2e/outline.spec.ts` [S24].
-   *Confidence:* high (the code itself names this upgrade [S11]).
+   _Confidence:_ high (the code itself names this upgrade [S11]).
 
 5. **Sheets and archives: build them from what is already here.**
-   *Impact:* M — a sticker sheet/print sheet and a single ZIP strategy, with no new dependency.
-   *Effort:* S — grid compositor over `renderDocument` [S11]; `pdf-lib` for a printable sheet
+   _Impact:_ M — a sticker sheet/print sheet and a single ZIP strategy, with no new dependency.
+   _Effort:_ S — grid compositor over `renderDocument` [S11]; `pdf-lib` for a printable sheet
    (already a client dependency [S4]); consolidate `zipExport.ts` [S18] onto `fflate` [S19].
-   *Confidence:* high on "no library needed", medium on the exact effort.
+   _Confidence:_ high on "no library needed", medium on the exact effort.
 
 **Not ranked as a recommendation, deliberately:** automatic cutout. It stays unavailable until a
 licence decision, self-hosted weights, progress/cancel UX and quality expectations are settled
@@ -356,22 +356,22 @@ licence decision, self-hosted weights, progress/cancel UX and quality expectatio
 
 ## 6. Anti-recommendations
 
-| Rejected | Reason | Evidence |
-| --- | --- | --- |
-| `jimp` | Would duplicate codecs already handled natively; **Inference:** pure-JS decode cannot beat the native path the repo already uses, and it adds a second alpha/premultiply behaviour to re-verify | [S11], [S16], [S10] |
-| `wasm-vips` / libvips-wasm in the browser | The server already runs native libvips (sharp 0.35.4 / libvips 8.18.6) behind an unmounted probe; a second imaging stack conflicts with the offline/local-first core and the small-footprint constraint | [S23], [S25], [S1] |
-| WebCodecs `ImageDecoder` for now | Adds a decode path for zero required format gain; the allowlist and its rejection tests are explicit | [S16], [S17], [S10] |
-| WebGL filter libs (`glfx`, `webgl-filter`, `filterous`) | **Inference:** introduces a second compositor and breaks "one compositing path for preview and export" and M4 parity; `ctx.filter` already covers the documented filter set | [S11], [S7], [S1] |
-| `Konva.Filters.*` + `node.cache()` | Same second-implementation problem inside the view layer; caching bakes transforms, while the repo deliberately re-rasterizes at `previewRatio` | [S11], [S15], [S7] M4 |
-| `perfect-freehand` / tapered-brush helpers | Wrong model: the brush is an alpha erase/restore mask with inverse-scaled circular radii, not ink | [S14], [S12] |
-| `react-konva-utils`, `use-image` | The repo's own equivalents are ~14 lines and return the exact types the view layer needs (`HTMLImageElement`) | [S15] |
-| `potrace` / `d3-contour` / marching squares | No vector-outline or cut-line requirement exists; SVG input is actively rejected | [S2], [S8], [S16] |
-| Atlas/sprite-sheet builders (`spritesmith`, `free-tex-packer-core`) | Build-time atlas tools for packed rects; the need is a runtime uniform grid plus the manifest [S18] already defines | [S18] |
-| `JSZip` / `archiver` | `fflate` is already a dependency and already used for a bounded ZIP | [S4], [S19] |
-| `exifr` for the browser path | Orientation is already applied at decode in both browser decode paths; a metadata library only helps if the UI must *display* metadata | [S11], [S16], [S17] |
-| `@imgly/background-removal` **as a now-decision** | Repo audit recorded AGPL-3.0 → commercial licence required, plus unverified weight size and edge-quality caveats | [S7], [S1] |
-| Any hosted cutout API | Uploads user photos and needs credentials; contradicts local-first/offline core | [S1], [S7] |
-| A worker-pool library (`workerpool`, `threads`, `p-queue`) up front | YAGNI: one encode worker covers the plausible use; pooling multiplies peak memory for 25 MP rasters | [S16], [S14] |
+| Rejected                                                            | Reason                                                                                                                                                                                                  | Evidence              |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `jimp`                                                              | Would duplicate codecs already handled natively; **Inference:** pure-JS decode cannot beat the native path the repo already uses, and it adds a second alpha/premultiply behaviour to re-verify         | [S11], [S16], [S10]   |
+| `wasm-vips` / libvips-wasm in the browser                           | The server already runs native libvips (sharp 0.35.4 / libvips 8.18.6) behind an unmounted probe; a second imaging stack conflicts with the offline/local-first core and the small-footprint constraint | [S23], [S25], [S1]    |
+| WebCodecs `ImageDecoder` for now                                    | Adds a decode path for zero required format gain; the allowlist and its rejection tests are explicit                                                                                                    | [S16], [S17], [S10]   |
+| WebGL filter libs (`glfx`, `webgl-filter`, `filterous`)             | **Inference:** introduces a second compositor and breaks "one compositing path for preview and export" and M4 parity; `ctx.filter` already covers the documented filter set                             | [S11], [S7], [S1]     |
+| `Konva.Filters.*` + `node.cache()`                                  | Same second-implementation problem inside the view layer; caching bakes transforms, while the repo deliberately re-rasterizes at `previewRatio`                                                         | [S11], [S15], [S7] M4 |
+| `perfect-freehand` / tapered-brush helpers                          | Wrong model: the brush is an alpha erase/restore mask with inverse-scaled circular radii, not ink                                                                                                       | [S14], [S12]          |
+| `react-konva-utils`, `use-image`                                    | The repo's own equivalents are ~14 lines and return the exact types the view layer needs (`HTMLImageElement`)                                                                                           | [S15]                 |
+| `potrace` / `d3-contour` / marching squares                         | No vector-outline or cut-line requirement exists; SVG input is actively rejected                                                                                                                        | [S2], [S8], [S16]     |
+| Atlas/sprite-sheet builders (`spritesmith`, `free-tex-packer-core`) | Build-time atlas tools for packed rects; the need is a runtime uniform grid plus the manifest [S18] already defines                                                                                     | [S18]                 |
+| `JSZip` / `archiver`                                                | `fflate` is already a dependency and already used for a bounded ZIP                                                                                                                                     | [S4], [S19]           |
+| `exifr` for the browser path                                        | Orientation is already applied at decode in both browser decode paths; a metadata library only helps if the UI must _display_ metadata                                                                  | [S11], [S16], [S17]   |
+| `@imgly/background-removal` **as a now-decision**                   | Repo audit recorded AGPL-3.0 → commercial licence required, plus unverified weight size and edge-quality caveats                                                                                        | [S7], [S1]            |
+| Any hosted cutout API                                               | Uploads user photos and needs credentials; contradicts local-first/offline core                                                                                                                         | [S1], [S7]            |
+| A worker-pool library (`workerpool`, `threads`, `p-queue`) up front | YAGNI: one encode worker covers the plausible use; pooling multiplies peak memory for 25 MP rasters                                                                                                     | [S16], [S14]          |
 
 ---
 
@@ -399,7 +399,7 @@ licence decision, self-hosted weights, progress/cancel UX and quality expectatio
    option satisfying all of {permissive licence, self-hosted weights, offline, general quality}
    [S7]. Evidence I looked: the full option table and "Unresolved approvals" list in [S7], plus
    [S1]'s licensing/never-fake-a-cutout rules. Underlying licences and model sizes: **TODO-VERIFY.**
-   → **Honest answer: no good library exists *yet* for this combination.** This is a licensing and
+   → **Honest answer: no good library exists _yet_ for this combination.** This is a licensing and
    weights-distribution wall, not an npm gap [S7].
 
 5. **Runtime sticker-sheet/print-sheet assembly.** Atlas tools are build-time and rect-packed
@@ -412,7 +412,7 @@ market (10 named libraries compared against 17 capability rows). [S7] is a full 
 cutout market (5 named options with licence, quality, size/runtime, privacy, cost). [S8] enumerates
 the presentation pipeline where PDF/PPTX/backup/sheet work lands. **Gap:** I could not search npm,
 GitHub, caniuse or model hubs in this runtime, so claims of the form "no library exists for X"
-are limited to *the libraries reviewed by the repo* plus my own domain knowledge, and are labelled
+are limited to _the libraries reviewed by the repo_ plus my own domain knowledge, and are labelled
 as such. The parent's fact pass should specifically try to falsify items 1–5 above.
 
 ---
@@ -420,13 +420,15 @@ as such. The parent's fact pass should specifically try to falsify items 1–5 a
 ## 8. Contradictions and missing evidence
 
 **Contradictions found:**
-- None *within* the repo files read. The repo is internally consistent, and this brief's
+
+- None _within_ the repo files read. The repo is internally consistent, and this brief's
   recommendations do not contradict [S6]'s "keep Konva / keep the custom editor" conclusion or
   [S7]'s "auto-removal stays unavailable".
 
 **Missing evidence (unresolved):**
+
 1. Any measurement of the **mask encode path** (full-res `toBlob` + IDB write) at 25 MP. The only
-   recorded browser numbers cover the *preview raster* path (16.6 ms median / 17.3 ms p95 frame
+   recorded browser numbers cover the _preview raster_ path (16.6 ms median / 17.3 ms p95 frame
    interval, 0.9 ms p95 pointer handler, 1440×900, one 2048 px photo + 29 shape layers) [S10].
    Those numbers do **not** transfer to the encode path; do not cite them for it.
 2. Peak memory for a 25 MP asset + full-res mask + worker copy. **Inference only** in this brief.

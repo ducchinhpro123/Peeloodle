@@ -14,27 +14,27 @@ Working tree before this work:
 
 ## Scripts (from `package.json`, actual)
 
-| Script | Command |
-| --- | --- |
-| `npm run dev` | `vite` |
-| `npm run build` | `tsc -b && vite build` |
-| `npm run typecheck` | `tsc -b --pretty false` |
-| `npm run lint` | `eslint .` |
-| `npm test` | `vitest run --environment jsdom --exclude 'e2e/**'` |
-| `npm run test:browser` | `playwright test` |
-| `npm run test:cloud` | `node --env-file=.env.cloud-test scripts/run-cloud-tests.mjs` |
+| Script                 | Command                                                       |
+| ---------------------- | ------------------------------------------------------------- |
+| `npm run dev`          | `vite`                                                        |
+| `npm run build`        | `tsc -b && vite build`                                        |
+| `npm run typecheck`    | `tsc -b --pretty false`                                       |
+| `npm run lint`         | `eslint .`                                                    |
+| `npm test`             | `vitest run --environment jsdom --exclude 'e2e/**'`           |
+| `npm run test:browser` | `playwright test`                                             |
+| `npm run test:cloud`   | `node --env-file=.env.cloud-test scripts/run-cloud-tests.mjs` |
 
 ## Routes (from `src/main.tsx`)
 
-| Route | Element |
-| --- | --- |
-| `/` | Dashboard |
-| `/create` | Sticker editor shell (tool intents via `?tool=`) |
-| `/editor/:projectId` | Sticker editor |
-| `/templates` | Template browser |
-| `/my-stickers` | Packs / local stickers |
-| `/auth/callback` | Supabase auth callback |
-| `*` | Dashboard fallback |
+| Route                | Element                                          |
+| -------------------- | ------------------------------------------------ |
+| `/`                  | Dashboard                                        |
+| `/create`            | Sticker editor shell (tool intents via `?tool=`) |
+| `/editor/:projectId` | Sticker editor                                   |
+| `/templates`         | Template browser                                 |
+| `/my-stickers`       | Packs / local stickers                           |
+| `/auth/callback`     | Supabase auth callback                           |
+| `*`                  | Dashboard fallback                               |
 
 ## Recorded checks
 

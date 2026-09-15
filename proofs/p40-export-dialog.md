@@ -23,15 +23,15 @@ stays usable.
 
 ## Acceptance, as verified
 
-| Criterion | Evidence |
-| --- | --- |
-| No partial downloads | Hook tests: a rejected build and a cancelled build both leave the download spy uncalled; dispose still runs. |
-| Progress | Hook test asserts `onProgress` values flow into `completed/total`; the dialog renders them. |
-| One at a time | Hook test starts two exports; only one build and one download happen. |
-| Cleanup | Dispose is asserted on success, failure and cancellation. |
-| Editor stays usable | The hook is page-level state; the dialog only disables its own buttons. |
-| Lazy loading | Each format is a dynamic import; production build emits `renderDocument`/ppt library chunks separately (build output inspected). |
-| Recovery after save failure | UI test asserts the "Download backup" button appears with the failure status. |
+| Criterion                   | Evidence                                                                                                                         |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| No partial downloads        | Hook tests: a rejected build and a cancelled build both leave the download spy uncalled; dispose still runs.                     |
+| Progress                    | Hook test asserts `onProgress` values flow into `completed/total`; the dialog renders them.                                      |
+| One at a time               | Hook test starts two exports; only one build and one download happen.                                                            |
+| Cleanup                     | Dispose is asserted on success, failure and cancellation.                                                                        |
+| Editor stays usable         | The hook is page-level state; the dialog only disables its own buttons.                                                          |
+| Lazy loading                | Each format is a dynamic import; production build emits `renderDocument`/ppt library chunks separately (build output inspected). |
+| Recovery after save failure | UI test asserts the "Download backup" button appears with the failure status.                                                    |
 
 ## Checks run
 

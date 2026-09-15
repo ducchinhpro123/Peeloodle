@@ -12,23 +12,23 @@ in `editor/usePresentationExport.ts`, the "Download backup" recovery action and
 
 ## What was built
 
-| File | Change |
-| --- | --- |
-| `exports/backup.ts` | Unchanged writer/parser: versioned ZIP with manifest, per-entry SHA-256 and bounded extraction (`archive_too_large`, `too_many_entries`, `expanded_too_large`, `invalid_path`, `duplicate_path`, `nested_archive`, `missing_manifest`, hash-verified entries, `unsupported_version`). |
-| `library/restoreBackup.ts` | Parses with `parsePresentationDocument` + `browserMediaVerifier`, clones with fresh ids via `clonePresentationDocumentWithNewIds`, re-keys media by content hash, and saves as a NEW presentation; parse/save failures leave existing work untouched. |
-| `library/PresentationsPage.tsx` | "Restore backup" file input, restoring state, success note and error alert. |
-| `editor/usePresentationExport.ts` | A `backup` format in the same lazy/progress/cancel/cleanup controller, downloading `<title>.stickerlab.zip`. |
-| `editor/PresentationEditorPage.tsx` | "Download backup" beside a failed save, so unsaved work can still leave the browser. |
+| File                                | Change                                                                                                                                                                                                                                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `exports/backup.ts`                 | Unchanged writer/parser: versioned ZIP with manifest, per-entry SHA-256 and bounded extraction (`archive_too_large`, `too_many_entries`, `expanded_too_large`, `invalid_path`, `duplicate_path`, `nested_archive`, `missing_manifest`, hash-verified entries, `unsupported_version`). |
+| `library/restoreBackup.ts`          | Parses with `parsePresentationDocument` + `browserMediaVerifier`, clones with fresh ids via `clonePresentationDocumentWithNewIds`, re-keys media by content hash, and saves as a NEW presentation; parse/save failures leave existing work untouched.                                 |
+| `library/PresentationsPage.tsx`     | "Restore backup" file input, restoring state, success note and error alert.                                                                                                                                                                                                           |
+| `editor/usePresentationExport.ts`   | A `backup` format in the same lazy/progress/cancel/cleanup controller, downloading `<title>.stickerlab.zip`.                                                                                                                                                                          |
+| `editor/PresentationEditorPage.tsx` | "Download backup" beside a failed save, so unsaved work can still leave the browser.                                                                                                                                                                                                  |
 
 ## Acceptance, as verified
 
-| Criterion | Evidence |
-| --- | --- |
-| Writer contents | Existing P06 backup suite (19 tests): manifest entries match document + media, hashes verified, archive sizes bounded. |
-| Parser safety | Same suite: corrupt, oversized, duplicate-path, nested and future-version archives fail closed; the new restore test asserts a corrupt archive leaves the stored list unchanged. |
-| Restore as a new deck | Test: a backup restores to a different document id, "(restored)" title, fresh asset id with the same SHA-256, two slides, and byte-identical stored media. |
-| Restore UI | UI test drives the file input and asserts the new card, the status note and the stored row. |
-| Recovery guidance | UI test asserts "Download backup" appears with the failed-save status. |
+| Criterion             | Evidence                                                                                                                                                                         |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Writer contents       | Existing P06 backup suite (19 tests): manifest entries match document + media, hashes verified, archive sizes bounded.                                                           |
+| Parser safety         | Same suite: corrupt, oversized, duplicate-path, nested and future-version archives fail closed; the new restore test asserts a corrupt archive leaves the stored list unchanged. |
+| Restore as a new deck | Test: a backup restores to a different document id, "(restored)" title, fresh asset id with the same SHA-256, two slides, and byte-identical stored media.                       |
+| Restore UI            | UI test drives the file input and asserts the new card, the status note and the stored row.                                                                                      |
+| Recovery guidance     | UI test asserts "Download backup" appears with the failed-save status.                                                                                                           |
 
 ## Checks run
 

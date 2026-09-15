@@ -60,7 +60,6 @@ Clearing pack membership before delete used to leave a surviving sticker out of 
 
 `src/features/editor/LocalProjectList.tsx` now distinguishes browser-local guest deletion from removal across the private account and explains that pack membership is removed while other stickers remain.
 
-
 ## Release-verification gaps
 
 ### G1 — Real magic-link authentication is not demonstrated
@@ -112,20 +111,20 @@ The three selected unconfigured guest browser journeys also passed: dashboard cr
 
 ### Spec coverage summary
 
-| User stories | Assessment |
-| --- | --- |
-| 1–2: guest operation/data retention | Guest browser flows and atomic local persistence passed; a dedicated pre-upgrade IndexedDB migration fixture was not run. |
-| 3–5: magic-link request/callback/errors | UI and code exist; invalid callback checked; real delivery and successful callback remain a release gate. |
+| User stories                                         | Assessment                                                                                                                                                                                                                                  |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1–2: guest operation/data retention                  | Guest browser flows and atomic local persistence passed; a dedicated pre-upgrade IndexedDB migration fixture was not run.                                                                                                                   |
+| 3–5: magic-link request/callback/errors              | UI and code exist; invalid callback checked; real delivery and successful callback remain a release gate.                                                                                                                                   |
 | 6–9: drafts, identity, sign-out, workspace isolation | Flush/epoch/scoped-client mechanisms implemented; same-page in-flight load/upload/save/import isolation passed with one-shot seeding, B session assertions, held-response completion, and a visible B fixture before asserting A is absent. |
-| 10–13: explicit repeat-safe guest import | Consent, retry, original retention, and ordered mappings implemented; browser and repository tests passed for covered cases. |
-| 14–18: local-first/offline/status/session failure | Repository tests plus real offline/reload/retry journey passed; session-expiry error handling tested at repository level. |
-| 19–21: second-device restoration/export | Real second-browser mask/font/PNG and ZIP parity passed with configuration supplied. |
-| 22–24: packs/order/deletion/conflicts | Real RPC conflicts and ordering passed; pack deletion retains stickers; stale project deletion is covered, including rejected-delete-in-a-pack membership restore. Successful-delete-after-clearing-membership remains covered separately. |
-| 25–26: conflicts/idempotence | Real RPC compare-and-set and receipt checks passed; lost-response client recovery unit test passed. |
-| 27: corrupt/unsupported remote data | Client validation and recoverable error paths inspected; not every corrupt remote-record/binary scenario was browser-injected. |
-| 28: cross-user privacy | Real authorization tests and live grants/policies checked; no cross-user access observed. |
-| 29: accessible cloud controls | Account/import UI and invalid callback checked at desktop/tablet/mobile; transition coverage runs at the mobile workspace where account switching is most constrained. |
-| 30: migrations/config/security tests | Schema/types/setup/tests present; production configuration and real inbox verification remain owner actions. |
+| 10–13: explicit repeat-safe guest import             | Consent, retry, original retention, and ordered mappings implemented; browser and repository tests passed for covered cases.                                                                                                                |
+| 14–18: local-first/offline/status/session failure    | Repository tests plus real offline/reload/retry journey passed; session-expiry error handling tested at repository level.                                                                                                                   |
+| 19–21: second-device restoration/export              | Real second-browser mask/font/PNG and ZIP parity passed with configuration supplied.                                                                                                                                                        |
+| 22–24: packs/order/deletion/conflicts                | Real RPC conflicts and ordering passed; pack deletion retains stickers; stale project deletion is covered, including rejected-delete-in-a-pack membership restore. Successful-delete-after-clearing-membership remains covered separately.  |
+| 25–26: conflicts/idempotence                         | Real RPC compare-and-set and receipt checks passed; lost-response client recovery unit test passed.                                                                                                                                         |
+| 27: corrupt/unsupported remote data                  | Client validation and recoverable error paths inspected; not every corrupt remote-record/binary scenario was browser-injected.                                                                                                              |
+| 28: cross-user privacy                               | Real authorization tests and live grants/policies checked; no cross-user access observed.                                                                                                                                                   |
+| 29: accessible cloud controls                        | Account/import UI and invalid callback checked at desktop/tablet/mobile; transition coverage runs at the mobile workspace where account switching is most constrained.                                                                      |
+| 30: migrations/config/security tests                 | Schema/types/setup/tests present; production configuration and real inbox verification remain owner actions.                                                                                                                                |
 
 ### Security Advisor interpretation
 

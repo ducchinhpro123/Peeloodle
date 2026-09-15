@@ -7,7 +7,7 @@ Axis: **are the tests real** — would each fail if the production logic regress
 
 ### Correct — tests that are real (would fail on regression)
 
-- `usePresentationSave.test.ts:29-45` extends `MemoryPresentationRepository` and delegates to `super.savePresentation`, so the real revision/media rules run; it records the store's state *at call time*. No fake repository bypass.
+- `usePresentationSave.test.ts:29-45` extends `MemoryPresentationRepository` and delegates to `super.savePresentation`, so the real revision/media rules run; it records the store's state _at call time_. No fake repository bypass.
 - `usePresentationSave.test.ts:82-102` — dirty → saving → saved: pins `{revision: 1, baseRevision: 0, saving: true, dirty: true}` and reads the stored document back (`storedSlideName`). Fails if autosave, `baseRevision`, or `markSaved` regress.
 - `usePresentationSave.test.ts:104-132` and `:295-320` — induced write failure (`injectWriteFailure` is the repo's own seam): message in words, `dirty` retained, stored row unchanged (read back), recovery through the Save control persists the edit. Fails if failures were swallowed or the edit dropped.
 - `usePresentationSave.test.ts:134-158` — stale `baseRevision` → conflict, and the newer stored revision/name is read back unchanged. Real conflict test.
@@ -73,7 +73,7 @@ Every hook test either has no open history group or calls `saveNow()` directly, 
 5. **"Save conflict" copy in the status region** (`PresentationEditorPage.tsx:195`) — hook state only.
 6. **Explicit Save in a browser** — unit-only (`usePresentationSave.test.ts:265-293`); no e2e click. Soft gap.
 
-Covered and *not* on this list: dirty → saving → saved locally (unit + browser), failed write retains editable work and recovers, conflict does not overwrite the newer revision, `baseRevision` is passed, coalescing, media selection for an undone insert.
+Covered and _not_ on this list: dirty → saving → saved locally (unit + browser), failed write retains editable work and recovers, conflict does not overwrite the newer revision, `baseRevision` is passed, coalescing, media selection for an undone insert.
 
 ### Checks a supervisor must run (I have no shell)
 

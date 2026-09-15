@@ -1,170 +1,114 @@
-# StickerLab
+# Peeloodle / StickerLab — SvelteKit port
 
-Mint-green local sticker editor. Create a sticker, upload a photo, edit, save, reopen, and export a transparent PNG — no cloud credentials required.
+Local-first sticker editor, ported from the React app in `../Peeloodle` one vertical slice at a
+time. This target is the SvelteKit application: `/` dashboard → `/templates` → `/my-stickers` →
+`/create` → `/editor/<projectId>`, plus the local `/presentations` library and its
+`/presentations/<id>` editor (canvas editing plus PDF, editable-PPTX and backup exports), with
+versioned documents, packs and asset blobs stored in IndexedDB.
 
-The [university presentations implementation plan](docs/slides-implementation-plan.md) is in progress, with [architecture](docs/slides-architecture.md) and an admin dashboard design concept. The current app can create, list, rename, duplicate, delete, and reopen local 16:9 presentations with real first-slide thumbnails, edit slide text with selection bold/italic and font family, size and color controls, apply paragraph alignment, bullets, numbering and line spacing, add safe hyperlinks, see actionable text-overflow feedback, add/duplicate/reorder/delete slides, insert and style shapes, move/resize/rotate/align elements through the canvas, layer list or a numeric inspector, snap moves to alignment guides, undo and redo with toolbar and keyboard shortcuts, set per-slide backgrounds and document theme defaults, place saved stickers as immutable snapshots, and insert, flip, crop and atomically replace personal images with autosave, an explicit Save, conflict recovery and a guarded editor exit, then export the deck as PDF, editable PPTX or a restorable .stickerlab.zip backup; templates and catalog administration remain planned increments.
+Binding scope is `docs/superpowers/specs/2026-09-14-react-to-svelte-design.md`; current status,
+checks and known limitations are recorded in `docs/migration-progress.md`.
 
-![StickerLab overview of Dashboard, Create Sticker, and Templates](readme-included.png)
+## What works today
 
-## Design previews
+- Browse the **template catalog** (`/templates`): source categories and search (`?q=` lives in the
+  URL), generated previews, localStorage favorites, a preview dialog, and "Use Template" copies
+  that clone the composition into an independent editable sticker (its own document, layer and
+  asset ids, real bundled artwork and caption fonts) saved locally before the editor opens.
+- Organize saved stickers into **packs** (`/my-stickers`): the source hero and view pills
+  (`?view=` lives in the URL), `?pack=<id>` deep links, search + Recent/Name sort, pack covers built
+  from sticker thumbnails, add/reorder/remove membership, edit/duplicate/delete (deleting a pack
+  keeps its stickers), and an ordered transparent PNG ZIP export (`manifest.json` plus
+  `NN_title.png`, generation order = membership order). The same view shows the local sticker
+  drawer (`#local-stickers`) and, when favorites exist, the Favorite Templates rail.
+- Upload a PNG/JPEG/static-WebP photo through the validated upload path.
+- Move, scale and rotate on the Konva artboard; undo/redo per completed gesture.
+- Add and edit text layers, filters (brightness/contrast/saturation/grayscale), silhouette
+  outline, flip/rotate, and layer order/visibility/lock/rename/duplicate/delete.
+- **Erase / Restore brushing** on an image-local mask: brush size, Reset Mask, one undo entry per
+  stroke, live preview, and the same mask in PNG exports and pack ZIPs. The original photo is never
+  modified; automatic background removal is not available (there is no model/provider).
+- Autosave plus explicit save into IndexedDB, reload, and reopen a saved sticker.
+- Export a transparent PNG (512 or 1024 px) cropped to the artwork bounds.
+- Manage local **presentations** (`/presentations`): create a blank 16:9 deck, search, rename,
+  duplicate and delete; cards lazily render the stored first slide through the shared Konva
+  renderer. Restore validates a bounded `.stickerlab.zip` backup and saves it as an independent
+  deck with fresh IDs, without overwriting existing work.
+- Edit a presentation (`/presentations/<id>`): select, drag, resize and rotate elements on the
+  Konva canvas with zoom/pan and alignment guides; add shapes, photos and sticker snapshots; edit
+  rich text (bold/italic/underline/strike, size, colour, alignment, lists, spacing) in place; pick
+  a theme; reorder/hide/lock/duplicate/delete elements; add, duplicate, reorder and delete slides;
+  undo/redo per gesture; autosave locally with a leave guard, and recover a revision conflict by
+  keeping the local copy. A missing or unreadable deck gets an honest state instead of a crash.
+  Export the deck as a 960×540 pt image-based PDF, an editable PPTX (native text runs, hyperlinks,
+  bullets, preset shapes, cropped/flipped/rotated pictures) or a restorable `.stickerlab.zip`
+  backup; the editor shows live progress, can cancel between slides, and reports preflight warnings.
+  Once the presentation flow has been prepared, editing, saving and first-use exports keep working
+  after the connection drops (no service worker: a page that never opened the flow, or a reload
+  while offline, stays unsupported).
+- **Optional private cloud** (off by default): when the site is configured with public Supabase
+  values, the header's account button offers email-link sign-in (PKCE), a per-account private
+  workspace, cloud-saved stickers and packs, explicit guest-import consent, retry after a
+  disconnect, and conflict copies instead of overwriting another device's newer save. Local editing,
+  saving and export keep working with no account and while offline; presentations stay local.
 
-The supplied design mockups below show StickerLab’s visual direction—not screenshots of the current app. Sample accounts, statistics, subscription offers, and integrations are illustrative; see [Milestone status](#milestone-status) for implemented features.
+## Not implemented yet (do not expect these to work)
 
-### Dashboard
+- Automatic background removal (no model/provider is configured; the UI says so).
+- JPEG/WebP export for stickers. Cloud-only pack views (shared packs, cloud export history) stay
+  honest placeholders: packs are private or local, never shared.
+- Live cloud verification against a deployed backend: the cloud journeys run against a synthetic
+  in-process backend, so the deployed RLS policies and Storage rules are unverified here.
 
-Start a sticker and browse recent projects and templates.
+## Development
 
-![Dashboard design with a mint-green photo sticker banner, recent projects, and trending templates](design/ChatGPT%20Image%20Sep%207%2C%202026%2C%2006_55_49%20AM%20%281%29.png)
-
-### Create editor
-
-Compose photo stickers with a central canvas, editing tools, properties panel, and asset tray.
-
-![Create editor design with a dog sticker on a transparent canvas, left-hand tools, and right-hand properties](design/ChatGPT%20Image%20Sep%207%2C%202026%2C%2006_55_49%20AM%20%282%29.png)
-
-### Templates
-
-Browse sticker designs by category and find a starting point to customize.
-
-![Templates design with category filters and colorful sticker template cards](design/ChatGPT%20Image%20Sep%207%2C%202026%2C%2006_55_50%20AM%20%283%29.png)
-
-### My Sticker Packs
-
-Organize stickers into packs and review their contents before export.
-
-![My Sticker Packs design with pack cards, favorites, and a selected pack’s sticker preview](design/ChatGPT%20Image%20Sep%207%2C%202026%2C%2006_55_50%20AM%20%284%29.png)
-
-## Run
-
-```bash
-npm install
-npm run dev
-npm run typecheck
-npm run lint
-npm test
-npm run test:browser
-npm run build
-npm run board
+```sh
+npm install          # installs dependencies (prepare runs `svelte-kit sync`)
+npm run dev          # Vite dev server
+npm run dev -- --open
+npm run build        # production build
+npm run preview      # serve the production build
 ```
 
-`npm run board` regenerates the static task board at `tasks.html` from `docs/slides-implementation-plan.md` — open the file directly in a browser, no server needed. It is a local planning aid, not part of the app build or deployment (`tasks.html` is in `.vercelignore`). "Done" is read from the plan's checkboxes; the In Progress and Blocked columns are per-browser `localStorage` state and never write back to the plan.
+## Checks and tests
 
-Playwright uses Chromium at `/usr/bin/chromium` via `playwright.config.ts`. Firefox/WebKit are attempted only when those browsers are already available; this project does not download extra browser builds.
+| Command                      | What it runs                                                                     |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| `npm run check`              | `svelte-kit sync` + `svelte-check` (types, Svelte a11y/compile diagnostics)      |
+| `npm run lint`               | Prettier check + ESLint                                                          |
+| `npm run format`             | Prettier write                                                                   |
+| `npm run test:unit -- --run` | Vitest (node project for modules, headless Chromium for `*.svelte.test.ts`)      |
+| `npx playwright test`        | End-to-end journeys against `npm run build && npm run preview` (`e2e/*.spec.ts`) |
+| `npm run test:e2e`           | `playwright install` + `npx playwright test`                                     |
+| `npm run test:e2e:cloud`     | Optional-cloud journeys against a synthetic in-process Supabase backend          |
 
-## Draft saving
+`npx playwright test` uses an already-installed Chromium when one is cached; `npm run test:e2e`
+downloads browsers first. The Playwright web server builds and previews the production output.
 
-`src/features/editor/draftSaving.ts` owns manual saves, the 800 ms autosave debounce, and flushing before project or workspace replacement. It finishes pending edits, captures the document and referenced blobs before queuing a write, and reports whether replacement is safe. Captured writes keep their originating repository; older saves cannot clear newer revisions. `useDraftAutosave.ts` connects this module to browser lifecycle events.
+## Optional cloud configuration
 
-Project and workspace replacement wait for a safe flush. Leaving for Home starts saving without blocking navigation; failed work remains in memory. Page-hide saving is best effort, with an unload warning while work is pending. PNG export and cloud synchronization retain their existing behavior.
+Without public configuration the app is fully local: no auth, no cloud requests and no cloud chrome.
+Cloud turns on only when all three public values are valid for the served origin (see
+`.env.example`):
 
-## Editor tools
-
-- **Tool entry:** sidebar TOOLS, dashboard shortcuts, and mobile navigation for Background Eraser, Text & Emoji, Filters & Effects, and Export & Share open the existing editor with that tool active (`/create?tool=` or `/editor/:id?tool=`). They never mint a blank sticker on top of open work. If a document is required and saved stickers exist, a responsive gallery shows real artwork previews, project titles, and layer counts so you can choose create or reopen. Create a Sticker still starts a new document. Automatic background removal is not available.
-- **Canvas:** the checkerboard fills the entire workspace. Export bounds follow the outermost visible artwork—including masks, transformed layers, and outlines—not the viewport or an export square. PNGs preserve aspect ratio with a longest edge up to 512px or 1024px; pack ZIPs use up to 512px. Fully transparent margins are trimmed. Reset view never changes the composition.
-- **Fonts:** Fredoka, Baloo 2, Luckiest Guy, Chewy, Pacifico, and Bangers, alongside the existing fonts. Choose a family in Sticker Properties or insert one of six editable presets from **Text styles**.
-- **Photo templates:** 12 layered compositions with distinct layouts (orbit, big type, polaroid, speech bubble, stamp, and others), including Orbit Pop, Nope Energy, and Pet Bestie. Stand-in photos are the six user-supplied Sep 8 cutouts (cat, corgi, people, boba). Each has a replaceable photo, editable caption, and separate decorations. Select Layers → Your photo → Adjust → Replace photo; the replacement fits without stretching and retains the layout/effects. Undo restores the original crop and erasure. The eight illustrations can appear as template decorations and remain available in the sticker tray.
-- **Cute cutouts:** 39 cats, people, drinks, hearts, stars, space illustrations, and other decorations in **Stickers & decorations**. Add them as independent image layers; resize, rotate, flip, erase/restore, and apply outlines or filters. Image quarter-turns preserve the visible image center, including crops and flips.
-- **Save and export:** font choices, text styles, and inserted image blobs survive reopening. The canvas measures text after fonts load; PNG/ZIP exports await the required fonts and report failures instead of silently substituting a bundled font.
-
-Fonts and cutouts are served locally, with no extra credentials or dependencies. Font licenses and source-art limitations are listed in [asset provenance](docs/assets-provenance.md). Cutout lettering is part of the image; use a text preset when you want editable words. Large upscales can soften the modest-resolution sample artwork.
-
-## Milestone status
-
-- [x] React, strict TypeScript, Vite, React Router, Tailwind, and shadcn/ui-adapted Radix components (provenance in `docs/shadcn-provenance.md`)
-- [x] Responsive Dashboard (`/`), editor (`/create`, `/editor/:projectId`), Templates (`/templates`), and My Sticker Packs (`/my-stickers`)
-- [x] Versioned serializable `ProjectDocument` in `src/types/domain.ts` (1024×1024 transparent artboard)
-- [x] IndexedDB repository (`getLocalRepository`) with atomic `saveProjectWithAssets`
-- [x] Validated PNG/JPEG/static WebP upload (15 MB, 25 MP); original blob stored separately
-- [x] Konva canvas: move, resize, rotate; DOM text editing; zoom/pan are view-only
-- [x] Zustand commands, bounded undo, one history entry per completed drag/slider/text gesture
-- [x] Manual save and debounced autosave with Saving / Saved locally / Save failed
-- [x] Reopen from Dashboard and My Stickers; assets and fonts rehydrate
-- [x] Transparent PNG export cropped to visible artwork, with a longest edge up to 512px or 1024px (independent of viewport zoom/pan). Empty/fully erased artwork produces a recoverable export message.
-- [x] Template cloning into independent editable projects, preview dialogs, and template favorites
-- [x] Layer manager in editor: reorder, hide/show, lock/unlock, rename, duplicate, and delete with undo support
-- [x] Local sticker pack management (create, duplicate, delete without deleting stickers, add/remove stickers, reorder)
-- [x] Full pack ZIP export with numbered transparent PNGs and manifest.json
-- [x] Image filters (brightness, contrast, saturation, grayscale) with reset, shared between canvas preview and PNG exports
-- [x] Silhouette outlines & borders with customizable color and thickness on canvas and export
-- [x] Scrapbook-style Templates banner with textured paper, yellow headline highlights, and layered user-supplied cat stickers; responsive HTML text rather than a screenshot
-- [x] Packs scrapbook banner with torn pastel paper, taped illustrated polaroids, layered cats, and responsive New Pack / Import Photos controls; Playwright reference comparison documented in `docs/ui-audit.md`
-- [x] Shared scrapbook header with torn-paper navigation, supplied StickerLab wordmark, taped search/account controls, and accessible tablet/mobile navigation; header search finds templates by name/category/tags and saved packs by name/description, with Ctrl/Cmd+K access and navigable results; notifications retain an honest unavailable notice
-- [x] Sidebar, dashboard, and mobile tool shortcuts activate Background Eraser, Text & Emoji, Filters & Effects, and Export & Share on the existing editor without silently replacing open work. Choosing the same shortcut again re-applies that tool (for example reopening Export after closing it).
-- [x] Manual alpha mask erase / restore in image-local coordinates with continuous strokes, crop clipping, matching cursor geometry, and undo/redo
-- [x] Email magic-link sign-in UI, session restoration, and private cloud saving backed by Supabase Auth, PostgreSQL, and private Storage (live inbox delivery unverified until custom SMTP)
-- [x] Local-first save/reopen, offline editing, retry queue across reload, and explicit guest collection import
-- [x] Atomic compare-and-set concurrency revision checks with automatic conflict copies for stickers and packs
-- [x] Local presentation library (`/presentations`), blank creation/reopen, recoverable load states, and a fixed 1280×720 slide preview with view-only fit/zoom/pan
-- [x] Slide text boxes: insert, select on the canvas, and edit English/Vietnamese through the proven DOM text bridge, with one undo entry per text session
-- [x] Presentation image insertion (atomic: the document and its bytes are written in one transaction, with a 200 MB media budget per presentation), autosave/explicit Save with truthful state, conflict copies, and a guarded editor exit
-- [x] Presentation library operations: rename, duplicate, safe delete, and real first-slide thumbnails
-- [x] Multi-slide editing: a slide rail with add, duplicate, reorder and safe delete, plus element move/resize/rotate in document coordinates that agree with a numeric geometry inspector
-- [x] Undo/redo across slides through toolbar buttons and Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y, with one history entry per completed gesture and bounded in-memory media retention
-- [x] Selection text formatting: bold/italic toggles, font family, font size and color, committed through the paragraph/run model so it survives undo, save and reopen
-- [x] Paragraph controls: alignment, bullets/numbering with indent levels, line spacing, safe http/https/mailto links, and actionable overflow feedback that grows the box to fit
-- [x] Shape insertion: rectangle, rounded rectangle, ellipse, line and arrow with fill/stroke/stroke-width controls, persisted and undoable
-- [x] Image adjust: flip horizontal/vertical, non-destructive percentage crop, reset, and atomic replace-in-place that keeps placement and aspect
-- [x] Layer list: top-first element list with select, show/hide, lock/unlock, reorder, duplicate and delete, all as labelled keyboard-reachable controls
-- [x] Alignment guides: moves snap to sibling elements and the page with visible guide lines, plus explicit align-to-slide controls; guides are view-only and never saved
-- [x] Slide backgrounds and theme defaults: a per-slide background color and document heading/body font plus text/accent/background defaults for new slides and text, without restyling existing elements
-- [x] Sticker snapshots: saved stickers are composed through the export renderer and placed as immutable presentation images, so editing or deleting the source sticker leaves the placed copy untouched
-- [x] Export: one lazy export controller runs PDF (fixed visual pages), editable PPTX (native text, shapes, cropped/flipped/rotated images) and a restorable `.stickerlab.zip` backup, with progress, cancellation, preflight warnings and no partial downloads
-- [x] Backup restore: the library restores a `.stickerlab.zip` as a new presentation with fresh ids, and a failed local save still offers "Download backup"
-- [ ] Presentation templates and the administrator catalog workflows
-- [ ] Full reader compatibility, large-document and offline verification (P44/P45)
-- [ ] Public/read-only cloud sharing and native WhatsApp/Telegram installation
-
-Deferred actions open an explanation or stay disabled. They do not report success. Automatic background removal and public sharing are unavailable.
-
-## Hosting
-
-Production is a Vite static app on Vercel: [https://stickerlab-eta.vercel.app](https://stickerlab-eta.vercel.app). Client routes (`/templates`, `/editor/:id`, and so on) fall back to `index.html` via `vercel.json`. Cloud auth is optional; the site works fully locally in the browser without `VITE_SUPABASE_*` keys.
-
-```bash
-npx vercel --prod
+```sh
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+VITE_AUTH_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:4173,https://your-deployment.example
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, lint, unit tests, and the production build on pushes and pull requests to `main`. Vercel deploys production from `main` on `ducchinhpro123/Peeloodle`.
+Only a publishable (or legacy anon) key is accepted; a service-role key must never reach the browser.
+`npm run test:e2e:cloud` builds with synthetic public values and answers every auth/REST/Storage
+request in-process, so no project or credentials are needed for that suite.
 
-## Cloud configuration
+## Local-first data
 
-StickerLab operates fully local-only when cloud configuration is absent. To enable private cloud saving:
+Without an account, projects, asset blobs and masks live in the origin-scoped IndexedDB database
+`stickerlab-local`, so local work does not transfer between origins (dev server, preview port,
+deployed origin). With an account, each account gets its own `stickerlab-account-<id>` cache: work is
+written there first and synced to the private account when the connection allows, and signing out
+only hides that cache on this device. Guest work is never uploaded unless the user chooses import.
 
-1. Copy `.env.example` to `.env.local` and provide your project's URL and publishable key (`sb_publishable_...` or legacy `anon` key; never service-role secrets):
-   ```bash
-   cp .env.example .env.local
-   ```
-2. In Supabase Dashboard → Authentication → URL Configuration, set your Site URL and add each authorized redirect origin (e.g. `http://localhost:5173/auth/callback`, `http://127.0.0.1:4173/auth/callback`). Set matching comma-separated origins in `VITE_AUTH_ALLOWED_ORIGINS`.
-3. Migrations in `supabase/migrations/` apply the PostgreSQL schema, JSON schema document validators, owner-based RLS policies, private bucket configuration, and transactional `commit_sticker_resource` RPC.
-4. Default Supabase SMTP allows only authorized team members and has a 2/hour rate limit. For production delivery to any address, configure custom SMTP in Supabase Auth settings. Magic-link *request*, invalid/expired callback UI, and synthetic-session journeys are covered; a live inbox round-trip is not verified on the default SMTP service. The owner checklist (Vercel variables, redirects, SMTP, magic-link gate) is [docs/production-release.md](docs/production-release.md).
-5. Image/mask bytes upload to private Storage at `ownerId/sha256` and are verified before `commit_sticker_resource` publishes database rows. PostgreSQL and Storage are not one transaction: a failed RPC can leave unused objects. They are never public, never referenced by a committed project, and retries reuse the same hash (HTTP 409). This milestone does not delete orphans; add a bounded owner-scoped sweeper if storage quota matters.
-6. Verification suite for real cloud authorization (ordinary user clients, not service-role):
-   ```bash
-   node --env-file=.env.cloud-test scripts/verify-cloud.mjs
-   npm run test:cloud
-   ```
-   `test:cloud` loads dedicated credentials only into the test process, derives the public Vite variables for that process, and starts a separate cloud-enabled server on `127.0.0.1:4174` with server reuse disabled. It fails before Playwright starts when a dedicated test variable is missing. Ordinary local development, CI, and `npm run test:browser` remain local-only and do not require cloud secrets.
-
-## Design mapping
-
-The four supplied images are inspiration, not a pixel-for-pixel target. The current UI uses original layered cat-sticker collages, playful copy, pastel cards, and a calmer editor workspace. Shared tokens in `src/styles.css` define the spacing rhythm, navy `#08152f`, primary emerald `#00875e`, near-white `#fafbf8`, and mint `#ddf7ed`. Plus Jakarta Sans is bundled locally (OFL).
-
-Dialogs share typography, fields, footers, 44px close controls, and scroll containment; pack deletion uses the same confirmation style. Pack details remain available on tablet/mobile. See [UI audit](docs/ui-audit.md) for findings and [asset provenance](docs/assets-provenance.md) for supplied artwork and licensing limitations.
-
-## Verification
-
-`src/features/editor/commands.test.ts` covers undo/gesture history, rotated flips, and runtime asset retention. `src/features/exports/renderDocument.test.ts` covers PNG size/transparency, multiline text, and ImageBitmap cleanup. `src/features/editor/editor.test.tsx` covers upload → text → save → reopen, leave-before-debounce flush, snapshot saves, stale upload discard, and slider/typing-safe shortcuts. `src/features/assets/validateUpload.test.ts` rejects APNG and mislabeled BMP. `src/features/exports/zipExport.test.ts` covers ZIP binary generation and pack manifest bundling. `src/features/editor/maskUtils.test.ts` covers inverse transform mapping, singular transforms, and inverse-scaled brush radii. Actual brush rasterization is checked in Chromium rather than mocked canvas calls. `npm run test:browser` starts from the Dashboard CTA, edits the canvas, reloads multiline text, inspects downloaded 512 and 1024 PNG dimensions, alpha, and composition, clones templates, creates/exports sticker pack ZIPs, and tests the manual erase/restore brush workflow with transparent hole verification.
-
-`e2e/render-parity.spec.ts` uploads a probe photo, applies brightness/contrast/saturation/grayscale, silhouette outline, rotation, and flip through the live inspector, then compares the on-canvas artwork to a downloaded 1024px PNG. A catalog cutout export is decoded for ink and transparency. Image-local compositing is cached independently of transforms. ZIP exports fail explicitly if any member cannot load or render, rather than silently downloading incomplete packs. Pack/template write failures remain visible and recoverable; pack deletion requires confirmation and preserves stickers. Favorite template cards stay synchronized across rails.
-
-`e2e/mask-regressions.spec.ts` covers successive strokes, no-op/redo preservation, non-uniform scale, crop clipping, rotation/flips with zoom/pan, original-alpha restoration, cancellation/secondary pointers, corrupt masks, encoding failures and retries, save/export/navigation races, and touch erase/restore at 390×844. It compares real masked preview/PNG pixels and every decoded pixel of the corresponding pack ZIP image. Save/export await pending strokes; the active editor warns before unloading unsaved work. Masks and assets remain atomically saved with the document in the existing IndexedDB v3 schema; no new migration is required.
-
-Brush movement updates only the active raster and DOM cursor, with no React commits, document revisions, or PNG encoding during pointer movement. Preview rasters are capped at 1024px (high zoom may look softer); mask data and exports remain full-resolution. On this Linux x86_64 machine, headless Chromium 151 at 1440×900, one photo plus 29 shape layers, and 30 synthetic pen moves: the 2048px photo's median frame interval fell from about 32ms to 16.7ms after bounding preview raster work. The final suite measured 16.6ms median / 17.3ms p95 frame intervals and 0.9ms p95 pointer-handler time for that case. These are local observations, not a universal 60 FPS guarantee; maximum-size 25MP photos and physical pen hardware were not profiled. Rerun `npx playwright test e2e/mask-regressions.spec.ts -g '30 layers' --workers=1` for measurements and JSON attachments.
-
-Verification commands: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, and `npm run test:browser -- --workers=2`. Lint retains the existing repository-provider Fast Refresh warning. Firefox/WebKit and physical devices are unverified.
-
-`e2e/illustrated-templates.spec.ts` verifies all 12 previews against rendered document pixels, photo replacement, editable captions, undo/redo, independent copies, save/reopen, transparent PNGs, and failure recovery at desktop/tablet/mobile sizes. Regenerate previews after changing template definitions: start Vite on port 4173, then run `node scripts/generate-template-previews.mjs`.
-
-`e2e/fonts-stickers.spec.ts` verifies all six font faces through the editor UI, downloaded PNG pixels after save/reopen, delayed and failed font loads, and cutout + text preset → rotate/outline → save/reopen → transparent PNG at desktop/tablet/mobile widths. These specs do not import the editor store; they drive the live document and inspect files. Run them against the production preview with `npx playwright test e2e/fonts-stickers.spec.ts e2e/render-parity.spec.ts --config playwright.preview.config.ts`.
-
-`e2e/ui-polish.spec.ts` checks all four sticker routes and representative dialogs at 1440×900, 1024×768, and 390×844, plus a short 390×480 viewport. It covers image loading, overflow, keyboard focus trapping/restoration, mobile pack controls, and isolation of editor shortcuts from dialogs. Refresh screenshots are generated outside the repository at `/tmp/stickerlab-ui-audit/`; foundation screenshots remain at `/tmp/stickerlab-browser-verification/`. The `/presentations` route family has its own specs and committed captures: `e2e/presentations.spec.ts` (10 tests at 1440×900, 1280×768, 1024×768, and 390×844, including the slide-rail add/duplicate/reorder/delete journey, the undo/redo toolbar and keyboard path, selection text formatting, and paragraph formatting/links/overflow) with evidence in `proofs/out/p15-*`, `proofs/out/p16-*`, and `proofs/out/p17-*` (see `proofs/p15-p16-basic-presentations.md`, `proofs/p17-text-editing.md`, `proofs/p22-p23-slide-rail.md`, `proofs/p25-history-and-retention.md`, `proofs/p26-text-formatting.md`, and `proofs/p27-paragraphs-links-overflow.md`), plus the P18/P19 evidence specs `e2e/presentations-image.spec.ts` (real upload, canvas pixels, bytes in IndexedDB, reload/reopen), `e2e/presentations-save-guard.spec.ts` (leaving mid-edit persists), and `e2e/presentations-shell-guard.spec.ts` (shell nav links persist too), all recorded in `proofs/p18-p19-image-and-save.md`. Stop any dev server before running them: they import app modules inside the page, and a server that has been running through edits serves those modules with HMR version queries, which resolves to a second store instance.
+Bundled artwork, fonts and samples are served from `static/` under the same URL paths as the source
+app (`/art/...`, `/fonts/...`, `/samples/...`). Asset rights and provenance are documented in
+`docs/assets-provenance.md`.

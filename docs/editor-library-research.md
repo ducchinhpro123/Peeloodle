@@ -2,7 +2,7 @@
 
 **Question:** The Create Editor (`/create`, `/editor/:projectId`) already has a large custom implementation. Do existing libraries already cover it well enough to replace that code?
 
-**Answer:** No drop-in library matches StickerLab’s editor as a product. Konva is the right *engine* and is already in use. Full editor SDKs exist, but they replace the document model, UI, and licensing story rather than plugging into `ProjectDocument`. Open-source “image editors” are mostly single-photo tools with annotations, not a local-first layered sticker composer.
+**Answer:** No drop-in library matches StickerLab’s editor as a product. Konva is the right _engine_ and is already in use. Full editor SDKs exist, but they replace the document model, UI, and licensing story rather than plugging into `ProjectDocument`. Open-source “image editors” are mostly single-photo tools with annotations, not a local-first layered sticker composer.
 
 Researched 2026-09-10 against first-party docs and repositories. This is not a migration plan.
 
@@ -10,15 +10,15 @@ Researched 2026-09-10 against first-party docs and repositories. This is not a m
 
 The editor is not a generic canvas demo. It is a sticker document product:
 
-| Piece | Where it lives today |
-| --- | --- |
+| Piece                 | Where it lives today                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Serializable document | `src/types/domain.ts` — `ProjectDocument` with image / text / shape layers, crop, mask key, filters, alpha outline |
-| Commands + undo | `src/features/editor/store.ts` — Zustand, 50-entry history, one undo per completed gesture |
-| Canvas view | `src/features/editor/KonvaCanvas.tsx` — Konva is a renderer, not the persistence model |
-| Erase / restore | `maskPainter.ts`, `maskUtils.ts`, `useMaskBrush.ts` — image-local masks that survive scale, rotate, and zoom |
-| Shared preview + PNG | `src/features/exports/renderDocument.ts` — artwork-bounded transparent PNG, longest edge 512 or 1024 |
-| Chrome | `EditorPage.tsx` — left tools, checkerboard canvas, right inspector, bottom tray; mobile drawers |
-| Local save | IndexedDB via repository interfaces; autosave; guest editing without cloud keys |
+| Commands + undo       | `src/features/editor/store.ts` — Zustand, 50-entry history, one undo per completed gesture                         |
+| Canvas view           | `src/features/editor/KonvaCanvas.tsx` — Konva is a renderer, not the persistence model                             |
+| Erase / restore       | `maskPainter.ts`, `maskUtils.ts`, `useMaskBrush.ts` — image-local masks that survive scale, rotate, and zoom       |
+| Shared preview + PNG  | `src/features/exports/renderDocument.ts` — artwork-bounded transparent PNG, longest edge 512 or 1024               |
+| Chrome                | `EditorPage.tsx` — left tools, checkerboard canvas, right inspector, bottom tray; mobile drawers                   |
+| Local save            | IndexedDB via repository interfaces; autosave; guest editing without cloud keys                                    |
 
 Rough size: about 5.2k lines under `src/features/editor/` plus ~580 lines of compositing in `renderDocument.ts`. Dependencies already include `konva@^9.3.20` and `react-konva@^18.2.10` on React 18.
 
@@ -47,21 +47,21 @@ StickerLab is (1) plus a custom product layer. Most “we already have an editor
 
 ## Comparison against StickerLab needs
 
-| Need | Current app | Konva | Fabric.js | Polotno | CE.SDK | Pintura | Filerobot | TOAST UI | tldraw |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| React + TypeScript | Yes | Official `react-konva` | Community / manual | React components; 4.x wants React 19 | React package | React adapter | `react-filerobot-image-editor` | React wrapper | React SDK |
-| Layered image + text + shapes | Yes | You build it | Objects on canvas | Pages + elements | Blocks / scenes | Annotations on one image | Annotations on one image | Objects on one image | Custom shapes |
-| Move / resize / rotate | Yes | `Transformer` | Built-in controls | Workspace transformer | Transform APIs | Annotation tools | Konva transformers | Fabric controls | Selection + transform |
-| Non-destructive crop | Yes | You build it | Possible | `cropX/Y/Width/Height` | Crop | Core crop UX | Crop tab | Crop | Not a photo cropper |
-| Image-local erase / restore | Yes | You build it | Brushes exist; not this model | Not documented | Cutout *blocks* (print/mask), not this brush | Censor / blur, not sticker masks | Pen annotation, not alpha mask | “Mask filter” (apply a mask image) | No |
-| Alpha-silhouette outline | Yes | You build it | Rectangle/stroke | `borderSize` on the box; `clipSrc` for frames | Effects / cutout for print | Overlay shapes | Annotation stroke | Shape stroke | Shape stroke |
-| Filters | Brightness / contrast / saturation / grayscale | CSS filter in our compositor | Built-in image filters | Brightness + `setFilter` presets | Documented capability | Finetune | Finetune + filters | Many filters | Not photo filters |
-| Undo with gesture boundaries | Yes | You build it | You build it | Store undo/redo | Navigation undo/redo | Yes | History undo/redo | Undo/redo | Built-in |
-| Transparent PNG, no chrome | Artwork-bounded 512/1024 | `toDataURL` / own compositor | `toDataURL` | `toBlob` / `saveAsImage` | PNG with transparency | Output image | `onSave` image | Download | Export, different product |
-| Own serializable document | `ProjectDocument` | Encouraged | JSON of Fabric objects | Polotno JSON / MobX store | `.scene` / `.imgly` | Design/output, not our schema | Experimental `designState` | Internal | tldraw store |
-| Local-first, no vendor key | Yes | MIT | MIT | API key + paid license | License key + quote | Paid SDK | MIT | MIT | Production needs a key |
-| Mint StickerLab chrome | Custom shadcn | N/A | N/A | Own UI.css | Own design UI | Own UI | Own UI | Own themes | Own UI |
-| Packs / templates / IndexedDB | App layer | N/A | N/A | Templates, different model | Templates, different model | No | No | No | Persistence, different model |
+| Need                          | Current app                                    | Konva                        | Fabric.js                     | Polotno                                       | CE.SDK                                       | Pintura                          | Filerobot                      | TOAST UI                           | tldraw                       |
+| ----------------------------- | ---------------------------------------------- | ---------------------------- | ----------------------------- | --------------------------------------------- | -------------------------------------------- | -------------------------------- | ------------------------------ | ---------------------------------- | ---------------------------- |
+| React + TypeScript            | Yes                                            | Official `react-konva`       | Community / manual            | React components; 4.x wants React 19          | React package                                | React adapter                    | `react-filerobot-image-editor` | React wrapper                      | React SDK                    |
+| Layered image + text + shapes | Yes                                            | You build it                 | Objects on canvas             | Pages + elements                              | Blocks / scenes                              | Annotations on one image         | Annotations on one image       | Objects on one image               | Custom shapes                |
+| Move / resize / rotate        | Yes                                            | `Transformer`                | Built-in controls             | Workspace transformer                         | Transform APIs                               | Annotation tools                 | Konva transformers             | Fabric controls                    | Selection + transform        |
+| Non-destructive crop          | Yes                                            | You build it                 | Possible                      | `cropX/Y/Width/Height`                        | Crop                                         | Core crop UX                     | Crop tab                       | Crop                               | Not a photo cropper          |
+| Image-local erase / restore   | Yes                                            | You build it                 | Brushes exist; not this model | Not documented                                | Cutout _blocks_ (print/mask), not this brush | Censor / blur, not sticker masks | Pen annotation, not alpha mask | “Mask filter” (apply a mask image) | No                           |
+| Alpha-silhouette outline      | Yes                                            | You build it                 | Rectangle/stroke              | `borderSize` on the box; `clipSrc` for frames | Effects / cutout for print                   | Overlay shapes                   | Annotation stroke              | Shape stroke                       | Shape stroke                 |
+| Filters                       | Brightness / contrast / saturation / grayscale | CSS filter in our compositor | Built-in image filters        | Brightness + `setFilter` presets              | Documented capability                        | Finetune                         | Finetune + filters             | Many filters                       | Not photo filters            |
+| Undo with gesture boundaries  | Yes                                            | You build it                 | You build it                  | Store undo/redo                               | Navigation undo/redo                         | Yes                              | History undo/redo              | Undo/redo                          | Built-in                     |
+| Transparent PNG, no chrome    | Artwork-bounded 512/1024                       | `toDataURL` / own compositor | `toDataURL`                   | `toBlob` / `saveAsImage`                      | PNG with transparency                        | Output image                     | `onSave` image                 | Download                           | Export, different product    |
+| Own serializable document     | `ProjectDocument`                              | Encouraged                   | JSON of Fabric objects        | Polotno JSON / MobX store                     | `.scene` / `.imgly`                          | Design/output, not our schema    | Experimental `designState`     | Internal                           | tldraw store                 |
+| Local-first, no vendor key    | Yes                                            | MIT                          | MIT                           | API key + paid license                        | License key + quote                          | Paid SDK                         | MIT                            | MIT                                | Production needs a key       |
+| Mint StickerLab chrome        | Custom shadcn                                  | N/A                          | N/A                           | Own UI.css                                    | Own design UI                                | Own UI                           | Own UI                         | Own themes                         | Own UI                       |
+| Packs / templates / IndexedDB | App layer                                      | N/A                          | N/A                           | Templates, different model                    | Templates, different model                   | No                               | No                             | No                                 | Persistence, different model |
 
 Empty cells mean “not the library’s job” or “would still be custom code.”
 
@@ -73,7 +73,7 @@ Konva’s author positions it for design editors, annotation tools, and diagrams
 
 That matches this repo. `KonvaCanvas.tsx` treats nodes as a view. `renderDocument.ts` composites independently so export does not screenshot the stage.
 
-Konva’s own guidance for a *design editor product* is: look at Polotno first if you want a shipped Canva-style app; build on Konva when the editor *is* the product or you must own the document model.
+Konva’s own guidance for a _design editor product_ is: look at Polotno first if you want a shipped Canva-style app; build on Konva when the editor _is_ the product or you must own the document model.
 
 Sources: [Why Konva / library choice](https://konvajs.org/docs/guides/best-canvas-library.html), [Canvas Editor sandbox](https://konvajs.org/docs/sandbox/Canvas_Editor.html).
 
@@ -110,7 +110,7 @@ Integration cost is structural:
 - Current `polotno` 4.x targets React 19; this app is React 18.3. A 3.x line exists for React 18.
 - Pricing (self-serve page, 2026-09-10): grass-roots **$249/mo** or $2,490/year (reviewed, limited); self-serve **$899/mo** or $9,990/year per domain/brand family; enterprise custom. 60-day trial on a private dev server. License verification goes to Polotno; designs stay on your side unless you use their cloud render API.
 
-Polotno is what you buy *instead of writing* `EditorPage` + `store` + export. It is not a helper you drop into the existing document.
+Polotno is what you buy _instead of writing_ `EditorPage` + `store` + export. It is not a helper you drop into the existing document.
 
 Sources: [Overview](https://polotno.com/docs/overview), [Element API](https://polotno.com/docs/element), [Import/export](https://polotno.com/docs/import-and-export), [Pricing](https://polotno.com/pricing).
 
@@ -118,7 +118,7 @@ Sources: [Overview](https://polotno.com/docs/overview), [Element API](https://po
 
 CE.SDK is a full in-browser design editor: transform, templates, placeholders, asset libraries, text, collage, headless engine API, customizable UI, PNG export with transparency, and a background-removal plugin. Architecture is CreativeEngine scenes/blocks (`graphic`, `text`, `page`, `cutout`, …), not `ProjectDocument`.
 
-`cutout` blocks are for masking/print cut-out operations, not the current brush-in-image-space erase/restore loop. Stickers in CE.SDK terms are asset-library graphics in *their* scene graph.
+`cutout` blocks are for masking/print cut-out operations, not the current brush-in-image-space erase/restore loop. Stickers in CE.SDK terms are asset-library graphics in _their_ scene graph.
 
 Licensing is commercial with no public per-seat price; quotes are sales-led. Trial keys last 30 days. License validation plus an aggregate export count go to IMG.LY; image bytes are not sent. AI plugins may call third-party inference providers billed separately. Enterprise can disable server communication.
 
@@ -134,7 +134,7 @@ These overlap crop, filters, text, and “stickers” as decorations on one phot
 
 Commercial vanilla JS editor with React bindings. Strengths: crop guides, aspect lock, orientation, resize, color finetune, annotations (rect/circle/line/text/freedraw), watermarking, optional video extension. Marketing copy calls it a shortcut for “image cropping and stickers.” Background removal is via third-party AI, not a built-in local mask painter.
 
-Pintura’s unit of work is *an uploaded image and its output*, not a versioned layered `ProjectDocument` with independent image layers, pack membership, and artwork-bounded composition export.
+Pintura’s unit of work is _an uploaded image and its output_, not a versioned layered `ProjectDocument` with independent image layers, pack membership, and artwork-bounded composition export.
 
 Sources: [Pintura product](https://pqina.nl/pintura/), [docs index](https://pqina.nl/pintura/docs/).
 
@@ -148,7 +148,7 @@ Source: [scaleflex/filerobot-image-editor README](https://github.com/scaleflex/f
 
 ### TOAST UI Image Editor
 
-MIT, Fabric.js **4.2.0**, crop/flip/rotate/draw/shape/icon/text, “mask filter,” many image filters, undo/redo, React wrapper. Mask here means applying a mask *image* as a filter, not painting an alpha mask in image-local space. Minimum practical UI size is called out as 550×450. The stack is older than current Fabric 6/7 and this repo’s Konva 9.
+MIT, Fabric.js **4.2.0**, crop/flip/rotate/draw/shape/icon/text, “mask filter,” many image filters, undo/redo, React wrapper. Mask here means applying a mask _image_ as a filter, not painting an alpha mask in image-local space. Minimum practical UI size is called out as 550×450. The stack is older than current Fabric 6/7 and this repo’s Konva 9.
 
 Source: [nhn/tui.image-editor](https://github.com/nhn/tui.image-editor).
 
@@ -168,7 +168,7 @@ Automatic cutout is explicitly out of the current editor (`docs/core-tools-plan.
 
 **`@imgly/background-removal`** runs in-browser (ONNX) with a Node counterpart. Free under **AGPL**; other licenses via IMG.LY sales.
 
-AGPL would copyleft a shipped StickerLab frontend unless a commercial grant is obtained. The brief already requires licensing review, progress, cancellation, and failure handling — never a fake cutout. This package could *feed* the existing mask pipeline later; it does not replace the editor.
+AGPL would copyleft a shipped StickerLab frontend unless a commercial grant is obtained. The brief already requires licensing review, progress, cancellation, and failure handling — never a fake cutout. This package could _feed_ the existing mask pipeline later; it does not replace the editor.
 
 Source: [imgly/background-removal-js](https://github.com/imgly/background-removal-js).
 
@@ -177,7 +177,7 @@ Source: [imgly/background-removal-js](https://github.com/imgly/background-remova
 These StickerLab behaviors are product code either way:
 
 - Image-local erase/restore that remains aligned after scale, rotate, flip, crop, and zoom
-- Outline dilation of the *alpha silhouette*, shared by canvas preview and PNG
+- Outline dilation of the _alpha silhouette_, shared by canvas preview and PNG
 - Artwork-bounded export (trim transparent margins, longest edge 512/1024, keep aspect)
 - Versioned `ProjectDocument` + blob store + autosave + guest-to-cloud migration
 - Template clone isolation and pack membership that does not delete stickers
@@ -187,7 +187,7 @@ Buying Polotno or CE.SDK would delete most of `src/features/editor/` and `src/ty
 
 ## Recommendation
 
-**Keep the custom Konva editor.** The expensive, sticker-specific work is already written. Konva is the library that “already supported” the canvas half; Polotno/CE.SDK/Pintura support a *different product*.
+**Keep the custom Konva editor.** The expensive, sticker-specific work is already written. Konva is the library that “already supported” the canvas half; Polotno/CE.SDK/Pintura support a _different product_.
 
 Do not:
 
@@ -195,12 +195,12 @@ Do not:
 - Mount Polotno or CE.SDK beside the current store. Two document models violate `docs/core-tools-plan.md` (“one editor, one Zustand store, one document schema”).
 - Swap `EditorPage` for Filerobot or TOAST UI. They are single-photo UIs and would regress masks, outlines, and export.
 
-Consider later, as *add-ons*, only after an explicit product decision:
+Consider later, as _add-ons_, only after an explicit product decision:
 
-1. **`@imgly/background-removal`** (or a commercially licensed equivalent) to *initialize* a mask, then keep manual erase/restore. Blocked on AGPL vs paid license, model size, and UX for progress/cancel.
+1. **`@imgly/background-removal`** (or a commercially licensed equivalent) to _initialize_ a mask, then keep manual erase/restore. Blocked on AGPL vs paid license, model size, and UX for progress/cancel.
 2. Small focused helpers we already use or could use without changing the document: `react-colorful` (in use), Konva `Transformer` (in use). `react-moveable` is for DOM/CSS, not this canvas.
 
-If the goal is “write less editor code next time,” Polotno is the honest Konva-native SDK — paid, React 19 on current major, different schema. For *this* repository, the code that looks large is the product, not an accident of missing npm packages.
+If the goal is “write less editor code next time,” Polotno is the honest Konva-native SDK — paid, React 19 on current major, different schema. For _this_ repository, the code that looks large is the product, not an accident of missing npm packages.
 
 ## Sources
 
