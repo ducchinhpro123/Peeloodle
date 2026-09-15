@@ -4,9 +4,16 @@ Status: proposed written design for user review. No application implementation h
 
 ## Goal and authority
 
-Port the implemented behavior and visual identity of `../Peeloodle` into this SvelteKit application. Keep the React source unchanged. Retain Supabase Auth, PostgreSQL, private Storage, existing schemas and cloud protocols; this is not a backend migration. Preserve local-first operation without credentials. Do not copy secrets or modify production configuration/data. Preserve existing target user changes.
+Port the implemented behavior and visual identity of the React application (now git tag
+`react-final` in this repository; `git show react-final:<path>`) into this SvelteKit application.
+Keep the React application recoverable and unchanged. Retain Supabase Auth, PostgreSQL, private
+Storage, existing schemas and cloud protocols; this is not a backend migration. Preserve local-first
+operation without credentials. Do not copy secrets or modify production configuration/data. Preserve
+existing target user changes.
 
-Source reference: React main at `54eae61c6e93519f235dd91641da92ca000ae189` (clean, ahead 15 when inspected). The target is currently unversioned; do not initialize Git, commit or configure a remote without approval. Before implementation, capture a local recoverable scaffold backup excluding dependencies/build artifacts. Do not publish or deploy.
+Source reference: React commit `54eae61c6e93519f235dd91641da92ca000ae189` (tag `react-final`). The
+port was first built in an unversioned working copy and later committed onto this repository's
+history; the React sources remain recoverable from the tag, and nothing has been pushed or deployed.
 
 ## Routing and presentation
 

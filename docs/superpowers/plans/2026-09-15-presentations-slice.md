@@ -2,15 +2,16 @@
 
 Status: **complete as written** (2026-09-15). Increments 1–6 (model, local storage, rendering, the
 library route, the `/presentations/<id>` editor, its snapshot/PDF/PPTX/backup exports and every
-source presentation journey) are implemented and verified; 65 browser journeys are green. The only
+source presentation journey) are implemented and verified; 68 browser journeys are green. The only
 source item not ported is the P44 reader-fixture proof, which is source proof infrastructure, not
 app behaviour — see `docs/migration-progress.md`. This completion covers slice 3 of the design only;
 cloud/Supabase (slice 4) and parity hardening (slice 5) are separate work.
 
 Authority: `docs/superpowers/specs/2026-09-14-react-to-svelte-design.md` §"Implementation slices",
-item 3. Source: `../Peeloodle` (read-only) at `54eae61c`, feature root
-`../Peeloodle/src/features/presentations/` (~14.6k lines including tests) plus
-`../Peeloodle/src/lib/persistence/presentations/` (~640 lines) and `../Peeloodle/src/app/presentation*.ts*`.
+item 3. Source: the React application at git tag `react-final` (`54eae61c`), feature root
+`src/features/presentations/` (~14.6k lines including tests) plus
+`src/lib/persistence/presentations/` (~640 lines) and `src/app/presentation*.ts*` — read it with
+`git show react-final:<path>`.
 
 ## Why this is its own session
 

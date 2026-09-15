@@ -2,7 +2,8 @@
 
 Status: implementation handoff; application code has not been changed.
 Date: 2026-09-15.
-Scope: the current Peeloodle-Svelte workspace, inspected for this plan.
+Scope: the SvelteKit workspace (then `/home/vdc/Projects/Peeloodle-Svelte`, now this repository
+root), inspected for this plan.
 
 ## 1. Decision and intended result
 

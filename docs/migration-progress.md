@@ -17,11 +17,14 @@ checkpoint, the truthful-UI / accessibility / base-links checkpoint, the save/na
 recovery checkpoint and the independently reviewed P1 Konva preview fix recorded under "P1 fix —
 reused Konva image nodes" below.
 Authority: `docs/superpowers/specs/2026-09-14-react-to-svelte-design.md` (binding scope) and
-`docs/superpowers/plans/2026-09-14-sticker-vertical-slice.md` (task list). Behaviour reference:
-`../Peeloodle` main `54eae61c6e93519f235dd91641da92ca000ae189` (read-only, unchanged by this work).
+`docs/superpowers/plans/2026-09-14-sticker-vertical-slice.md` (task list). Behaviour reference: the
+React application at git tag `react-final` (`54eae61c6e93519f235dd91641da92ca000ae189`; the port
+landed on `main` as "Rewrite the app on SvelteKit").
 
-This target (`/home/vdc/Projects/Peeloodle-Svelte`) is **unversioned**: there is no Git repository,
-no remote, and nothing was staged, committed, pushed, published or deployed.
+This port began in an unversioned working copy (`/home/vdc/Projects/Peeloodle-Svelte`). On 2026-09-15
+that tree was grafted onto the source repository's history, so the app now lives in the Peeloodle
+repository (`/home/vdc/Projects/Peeloodle`; `main` = the rewrite, tag `react-final` = the React app).
+Nothing has been pushed, published or deployed — see the newest checkpoint.
 
 ## Honest status
 
@@ -74,6 +77,44 @@ prepared.
 
 Automatic background removal is **not available** and the UI says so: Erase/Restore edit a mask and
 the original photo stays unchanged (source parity).
+
+## Repository graft — the SvelteKit app becomes the Peeloodle repository (2026-09-15)
+
+Goal: keep the source repository's history, remote and tag while the working tree becomes the
+SvelteKit port, losing neither the React application nor the server-side material the port depends on.
+
+- Before anything moved: `git bundle create …/peeloodle-history-<ts>.bundle --all` captured the full
+  React history in one file, and a pre-graft archive of the verified port was taken
+  (`pre-git-graft-<ts>.tar.gz`).
+- The source repository's `.git` was moved **into** the verified SvelteKit tree — nothing was copied,
+  so `node_modules` and every verified file stayed byte-identical. The React paths then read as
+  deletions, and the rewrite was committed as "Rewrite the app on SvelteKit" on `main`; tag
+  `react-final` marks the React application, the `svelte-port` branch was fast-forwarded into `main`
+  and deleted.
+- Carried over because they are not app code and remain authoritative: `supabase/migrations/` (RLS
+  policies plus `commit_sticker_resource`), `docs/adr/`, `docs/research/`, `docs/design/` and the
+  other source-era `docs/*.md`, `proofs/` (byte-identical, excluded from formatting and linting so the
+  recorded proofs keep their exact bytes), `scripts/verify-cloud.mjs` (the framework-independent live
+  RLS/RPC verifier for the remaining cloud-verification item) and `.github/workflows/ci.yml`
+  (rewritten for this toolchain: check, lint, unit, build, both e2e suites).
+- Not carried over, all available at `react-final`: the React `src/`, its `e2e` specs, root configs
+  (`vite.config.ts`, `tsconfig*.json`, `components.json`, `playwright*.config.ts`), `public/`
+  (superseded by `static/`; verified file-for-file apart from one added `favicon.svg`),
+  `server/processing/` (catalog admin backend, not ported by design), `vercel.json` +
+  `.vercelignore` (deploy config for the React build — deployment needs its own review), `tasks.html`,
+  `readme-included.png`, and the React-only scripts. `.agents/` (vendored React-agent skills),
+  `skills-lock.json`, `design/`, `HANDOFF.md` and `StickerLab-Agent-Brief.md` were also left behind.
+- `.gitignore` merges both repositories (build output, env, Playwright artifacts, Paraglide);
+  `.prettierignore` is unchanged and ESLint excludes only `proofs/**`.
+- The former React checkout is at `/home/vdc/Projects/Peeloodle-React-archive` and can be deleted —
+  everything in it is recoverable from tag `react-final` or the history bundle.
+- Verification in the grafted tree: `svelte-check` 0 errors/0 warnings, `prettier --check .` and
+  ESLint clean, **59 files / 530 unit tests**, **68 main e2e journeys**, **6 synthetic-cloud
+  journeys**, and `npm run build` green.
+- Archives: `pre-git-graft-20260915T102807Z.tar.gz` (sha256
+  `4e742c986693a09008e85c0914bfe342a725e4b8a5f7117c410bb6f4db9adabf`) and the history bundle
+  `peeloodle-history-20260915T102807Z.bundle` (sha256
+  `65e4791a638a7138b3a45cf627a44212a1911fe7bef4774eff7fab8feb52a01b`).
 
 ## Slice 4 (cloud/Supabase) + slice 5 leftovers — cloud port, synthetic backend, reduced-motion and keyboard sweeps (2026-09-15)
 

@@ -1,7 +1,8 @@
 # Peeloodle / StickerLab — SvelteKit port
 
-Local-first sticker editor, ported from the React app in `../Peeloodle` one vertical slice at a
-time. This target is the SvelteKit application: `/` dashboard → `/templates` → `/my-stickers` →
+Local-first sticker editor, ported from the React application preserved in this repository at git tag
+`react-final` (`git show react-final:src/...`; the port is `git diff react-final..main`). This is the
+SvelteKit application: `/` dashboard → `/templates` → `/my-stickers` →
 `/create` → `/editor/<projectId>`, plus the local `/presentations` library and its
 `/presentations/<id>` editor (canvas editing plus PDF, editable-PPTX and backup exports), with
 versioned documents, packs and asset blobs stored in IndexedDB.

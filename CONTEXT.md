@@ -1,4 +1,4 @@
-# Peeloodle-Svelte — context and handoff
+# Peeloodle (SvelteKit) — context and handoff
 
 The SvelteKit port of the Peeloodle React sticker editor. This file is the entry point for the next
 AI session: what is implemented, what was verified and how, what is deliberately absent, and where the
@@ -7,12 +7,18 @@ long-lived documents (spec + progress) rather than duplicating them.
 
 ## Boundaries (non-negotiable for this port)
 
-**Target** = `/home/vdc/Projects/Peeloodle-Svelte` (this repo). **Source** = `../Peeloodle`
-(`/home/vdc/Projects/Peeloodle`), **read-only** behavioural reference at main
-`54eae61c6e93519f235dd91641da92ca000ae189`. Never edit the source; read it for parity.
+**Target** = `/home/vdc/Projects/Peeloodle` (this repository, branch `main`). **Source** = the React
+application this repo was ported from: now **git tag `react-final`** in this same repository
+(`54eae61c6e93519f235dd91641da92ca000ae189`), still on disk for reference at
+`/home/vdc/Projects/Peeloodle-React-archive`. Never edit the React tree; read it for parity.
+Provenance comments in `src/**` that mention `../Peeloodle/...` refer to that tag.
 
-- The target is **unversioned**: no Git repo, remote, or staging. No `git init`, commit, push, deploy,
-  production access or secrets in output. Do not touch production configuration or data.
+- The repository **is versioned now** (commit "Rewrite the app on SvelteKit" on `main`, remote
+  `origin` = `git@github.com:ducchinhpro123/Peeloodle.git`, ahead of `origin/main`, **not pushed**).
+  `git show react-final:<path>` reads the React app and `git diff react-final..main` is the port.
+  Commit locally when asked; **do not push, deploy, or touch production configuration or data
+  without explicit approval** — the repository is production-deployed and a push would attempt a
+  SvelteKit deploy.
 - **Cloud is implemented and optional** (slice 4). `@supabase/supabase-js` is installed and drives
   the browser integration only when valid **public** configuration exists for the page's origin
   (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_AUTH_ALLOWED_ORIGINS`); without it the
@@ -332,9 +338,10 @@ harness with direct tools should re-run the autofixer if that evidence form is r
 - **Long-lived progress, checkpoints, residuals, review paths:** `docs/migration-progress.md`
   (read "Honest status" first; the newest checkpoint is at the top, `P2 fix` sections record
   reviewer findings and their fixes)
-- **Behaviour reference (read-only):** `../Peeloodle` (`src/features/editor/{useMaskBrush,maskPainter,maskUtils}.ts`,
-  `src/features/packs/PacksPage.tsx`, `packActions.ts`, `src/features/exports/zipExport.ts`,
-  `src/features/presentations/`, `src/app/routes.tsx`)
+- **Behaviour reference:** git tag `react-final`
+  (`git show react-final:src/features/editor/useMaskBrush.ts`,
+  `src/features/packs/{PacksPage.tsx,packActions.ts}`, `src/features/exports/zipExport.ts`,
+  `src/features/presentations/`, `src/app/routes.tsx`), also on disk at `../Peeloodle-React-archive`
 - **Review artifacts** (under
   `/home/vdc/.pi/agent/sessions/--home-vdc-Projects--/subagent-artifacts/`):
   **packs review (PASS)** `outputs/44ceb52a-3d7e-4980-b1cb-bc2ca803296f/packs/independent-packs-review.md`;
@@ -355,8 +362,9 @@ harness with direct tools should re-run the autofixer if that evidence form is r
   `post-presentation-scale-and-offline-failures-20260915T091632Z.tar.gz` (increment 6 complete;
   sha256 `8b960b97c78da6a5d11458fd44665bef197410e592e041b44ef8579d544518a8`) and the newest,
   `post-cloud-and-a11y-sweeps-20260915T101537Z.tar.gz` (slices 4 + slice-5 leftovers; sha256
-  `eaca8a4d75d764ac5e21d19f669faec40a0336a9bdfa4dbacb3e005325ad8aab`); take a fresh archive before
-  starting the next increment.
+  `eaca8a4d75d764ac5e21d19f669faec40a0336a9bdfa4dbacb3e005325ad8aab`), `pre-git-graft-20260915T102807Z.tar.gz`
+  and `peeloodle-history-20260915T102807Z.bundle` (the full React history, taken before the graft);
+  take a fresh archive before starting the next increment.
 - Last verification: 2026-09-15, slices 1–4 + slice-5 leftovers — `npm run check`,
   `npm run lint`, `npm run build`, `npm run test:unit -- --run` (**59 files / 530 tests**),
   `npx playwright test` (**68 journeys**, serial via `workers: 1`) and
