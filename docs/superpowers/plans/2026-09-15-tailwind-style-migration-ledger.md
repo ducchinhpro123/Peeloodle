@@ -68,34 +68,49 @@ node -e "const p=require('postcss'),f=require('fs');p.parse(f.readFileSync('src/
 | `npm run build`                  | ok; 15 `@font-face`, three `--header-height` values present                                                                                    |
 | Visual diff, 5 routes × 5 widths | 19/25 pixel-identical; 5 sub-pixel AA; 1 was an offline-status timing race ("Ready for offline use." vs "Preparing offline use…"), not styling |
 
-## Remaining phases
+## Phases 2–5 — component ownership and cutover (done)
 
-Rows are opened as each phase starts. Source line numbers are from the pre-migration file and drift.
+Source line numbers below refer to the deleted pre-migration stylesheet.
 
-| Phase | Package                 | Legacy owners                                                                                   | Selector families                                                               | Status |
+| Phase | Package                 | Destination owners                                                                              | Selector families                                                               | Status |
 | ----- | ----------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------ |
-| 2     | Shared controls/dialogs | `Modal`, `Slider`, `ColorField`, `AccountDialog`, both `ExportDialog`                           | `.button`, `.primary`, `.slider*`, `.dialog*`, `.dialog-field`, `.export-sizes` | open   |
-| 2     | Shell                   | `AppShell`, `Header`, `Sidebar`, `CloudBanner`, root recovery banner                            | `.header`, `.brand`, `.topnav`, `.layout`, `.sidebar`, `.editor-layout`         | open   |
-| 3     | Dashboard and hero      | `DashboardPage`, `Hero`, `StickerCollage`                                                       | `.hero*`, `.collage*`, `.feature*`, `.split`, `.banner*`, `.walkthrough`        | open   |
-| 3     | Templates/projects      | `TemplatesPage`, `TemplateRail`, `TemplateCard`, `LocalProjectList`, `ProjectThumb`             | `.rail`, `.template-*`, `.pills`, `.filters`, `.project-*`, `.tool-choice*`     | open   |
-| 3     | Packs                   | `PacksPage` and embedded thumbnails                                                             | `.packs-*`, `.pack-*`, `.detail-cover`, `.local-stickers-section`               | open   |
-| 3     | Presentation library    | `PresentationsPage`, `PresentationThumb`                                                        | `.presentations-library`, `.presentations-hero`, `.presentation-library-*`      | open   |
-| 4     | Sticker editor          | `EditorWorkspace`, `EditorCanvas`, `EditorInspector`, `AssetTray`, `KonvaArtboard`, `DomCanvas` | `.editor*`, `.tool-*`, `.canvas-*`, `.inspector*`, `.layer-*`, `.asset-*`       | open   |
-| 4     | Presentation editor     | `presentation/PresentationEditorPage` and children                                              | `.presentation-editor*`, toolbars, slide rail, geometry, handles, text overlay  | open   |
-| 5     | Cutover                 | —                                                                                               | delete `layout.css`; `+layout.svelte` → `../app.css`; Prettier already updated  | open   |
+| 2     | Shared controls/dialogs | `Modal`, `Slider`, `ColorField`, `AccountDialog`, both `ExportDialog`                           | `.button`, `.primary`, `.slider*`, `.dialog*`, `.dialog-field`, `.export-sizes` | done   |
+| 2     | Shell                   | `AppShell`, `Header`, `Sidebar`, `CloudBanner`, root layout                                     | `.header`, `.brand`, `.topnav`, `.layout`, `.sidebar`, `.editor-layout`         | done   |
+| 3     | Dashboard and hero      | `DashboardPage`, `Hero`, `StickerCollage`                                                       | `.hero*`, `.collage*`, `.feature*`, `.split`, `.banner*`, `.walkthrough`        | done   |
+| 3     | Templates/projects      | `TemplatesPage`, `TemplateRail`, `TemplateCard`, `LocalProjectList`, `ProjectThumb`             | `.rail`, `.template-*`, `.pills`, `.filters`, `.project-*`, `.tool-choice*`     | done   |
+| 3     | Packs                   | `PacksPage`                                                                                     | `.packs-*`, `.pack-*`, `.detail-cover`, `.local-stickers-section`               | done   |
+| 3     | Presentation library    | `PresentationsPage`, `PresentationThumb`                                                        | `.presentations-library`, `.presentations-hero`, `.presentation-library-*`      | done   |
+| 4     | Sticker editor          | `EditorWorkspace`, `EditorCanvas`, `EditorInspector`, `AssetTray`, `KonvaArtboard`, `DomCanvas` | `.editor*`, `.tool-*`, `.canvas-*`, `.inspector*`, `.layer-*`, `.asset-*`       | done   |
+| 4     | Presentation editor     | `presentation/PresentationEditorPage` and children                                              | `.presentation-editor*`, toolbars, slide rail, geometry, handles, text overlay  | done   |
+| 5     | Cutover                 | `src/app.css` and component owners                                                              | deleted `layout.css`; root imports `../app.css`                                 | done   |
 
-### Deliberately deferred to their owning phase
+### Ownership decisions
 
-- `.mobile-only` and its two media overrides (`layout.css` 5025, 5354, 5379/5382) — shell, Phase 2.
-- `@media (prefers-reduced-motion: no-preference)` dialog reveal — `Modal.svelte`, Phase 2.
-- Prettier's `tailwindStylesheet` already points at `./src/app.css` (the real entrypoint), so Phase 5
-  only has to delete the file and switch the root import.
+- Repeated buttons use the small static recipes in `src/lib/ui/styles.js`; ordinary one-owner
+  declarations that map directly are Tailwind utilities in markup (including exact arbitrary values).
+- Responsive, pseudo-element, state-machine, container-query, canvas/Konva and decorative artwork
+  rules remain scoped in the owning component. This keeps the original behavior without creating a
+  utility abstraction for one-off artwork.
+- Snippet or child-component DOM uses owner-anchored `:global(...)` selectors only where Svelte scope
+  cannot cross the boundary. `StickerCollage` owns its positioning and click-through behavior.
+- `Hero` exposes only the three real visual variants (`dashboard`, `templates`, `packs`). Header
+  account chrome is an explicit `header` variant owned by `AccountDialog`.
+- The dialog reveal keyframes use Svelte's `-global-` keyframe escape so the browser-visible name
+  remains `reveal`; reduced-motion behavior is unchanged.
+- Verified dead `.inspector-switch`, notification/search header, and orphaned legacy selector rules
+  disappeared with `layout.css`; no speculative replacement UI was added.
 
-## Open questions
+### Final verification
 
-1. **`.inspector-switch` is dead CSS describing an intended toggle.** `EditorInspector.svelte` renders
-   `<label class="inspector-toggle">Outline <input class="inspector-switch-input" …/></label>` with no
-   wrapper. The CSS defines a 40×22 pill with a sliding knob, so the original design clearly wanted
-   one; today the control is an invisible checkbox you toggle by clicking the word "Outline".
-   Restoring the wrapper is a visible redesign, which this migration is not allowed to do. Awaiting a
-   product decision.
+| Check                                      | Result                                                                                          |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `src/routes/layout.css`                    | deleted; no production import remains                                                           |
+| `npm run check`                            | 0 errors, 0 warnings                                                                            |
+| `npm run lint`                             | clean                                                                                           |
+| `npm run test:unit -- --run`               | 530 passed                                                                                      |
+| `npx playwright test`                      | 68 passed                                                                                       |
+| `npm run build`                            | ok                                                                                              |
+| Svelte autofixer                           | run over every changed `.svelte` file; migration files introduced no compiler diagnostics       |
+| Visual spot check, 5 routes × 5 widths     | before/after captures reviewed at 390, 720, 721, 1150 and 1440px; no material layout regression |
+| Entry CSS chunk                            | 109,590 → 27,221 bytes; global CSS is now foundations and generated utilities only              |
+| Total emitted client CSS across all routes | 111,139 → 136,903 bytes; expected route-split scoped CSS duplication, not all loaded once       |

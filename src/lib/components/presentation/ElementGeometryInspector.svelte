@@ -1,4 +1,5 @@
 <script>
+	import { button } from '$lib/ui/styles.js';
 	import { alignToSlide } from '$lib/presentations/editor/alignmentGuides';
 	import { elementGeometry, withRotation } from '$lib/presentations/editor/transformGeometry';
 	import GeometryField from './GeometryField.svelte';
@@ -67,7 +68,9 @@
 	}
 </script>
 
-<div class="presentation-geometry-fields">
+<div
+	class="presentation-geometry-fields [display:grid] [grid-template-columns:repeat(2,_minmax(0,_1fr))] [gap:var(--space-3)]"
+>
 	{#each FIELDS as field (field.key)}
 		<GeometryField
 			label={field.label}
@@ -78,11 +81,15 @@
 		/>
 	{/each}
 </div>
-<div class="presentation-align-controls" role="group" aria-label="Align to slide">
+<div
+	class="presentation-align-controls [margin-top:var(--space-3)] [display:grid] [grid-template-columns:repeat(3,_minmax(0,_1fr))] [gap:var(--space-1)]"
+	role="group"
+	aria-label="Align to slide"
+>
 	{#each ALIGN_ACTIONS as action (action.key)}
 		<button
 			type="button"
-			class="button"
+			class={button}
 			aria-label="Align {action.label}"
 			title="Align {action.label}"
 			disabled={element.locked}
@@ -100,3 +107,37 @@
 {:else if element.kind === 'image'}
 	<ImageAdjustInspector {element} {store} onreplace={onreplaceimage} />
 {/if}
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.muted {
+		color: var(--muted);
+	}
+	:global(.presentation-geometry-fields label) {
+		display: grid;
+		gap: var(--space-1);
+		color: var(--muted);
+		font-size: 11px;
+		font-weight: 700;
+	}
+	:global(.presentation-geometry-fields input) {
+		min-width: 0;
+		width: 100%;
+		padding: 8px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: var(--surface);
+		color: var(--ink);
+		font-size: 12px;
+		font-weight: 700;
+	}
+	:global(.presentation-geometry-fields input):focus-visible {
+		outline: 2px solid var(--mint);
+		outline-offset: 1px;
+	}
+	.presentation-align-controls .button {
+		min-height: 32px;
+		padding: 6px 4px;
+		font-size: 11px;
+	}
+</style>

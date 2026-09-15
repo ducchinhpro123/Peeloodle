@@ -39,7 +39,8 @@
 	{#if url}
 		<img src={url} alt="" />
 	{:else}
-		<span class="project-preview-placeholder"
+		<span
+			class="project-preview-placeholder [padding:var(--space-2)] [text-align:center] [font-size:12px] [color:var(--muted)]"
 			>{project.layers.length === 0
 				? 'Blank canvas'
 				: failed
@@ -48,3 +49,12 @@
 		>
 	{/if}
 </div>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	:global(.card) {
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		background: #fff;
+	}
+</style>

@@ -1,4 +1,5 @@
 <script>
+	import { button, buttonPrimary } from '$lib/ui/styles.js';
 	/**
 	 * Sticker Properties panel, ported from the source `Inspector` in
 	 * `src/features/editor/EditorPage.tsx`. Tabs keep the source contract
@@ -75,12 +76,12 @@
 	}
 </script>
 
-<aside class="inspector">
+<aside class="inspector [min-height:0] [overflow:auto] [padding:12px]">
 	<h2>Sticker Properties</h2>
 	{#if imageLayer && doc}
 		<div class="layer-card">
 			<img class="layer-card-thumb" alt="" src={urls[imageLayer.assetId]} />
-			<div class="layer-card-meta">
+			<div class="layer-card-meta [display:grid] [min-width:0] [align-content:center] [gap:2px]">
 				<strong>{imageLayer.name}</strong>
 				<small>
 					{editor.assets[imageLayer.assetId]?.asset
@@ -88,10 +89,10 @@
 						: 'Image layer'}
 				</small>
 			</div>
-			<div class="layer-card-actions">
+			<div class="layer-card-actions [grid-column:1_/_-1] [display:flex] [gap:6px]">
 				<button
 					type="button"
-					class="button"
+					class={button}
 					title="Keeps position, rotation, and effects; resets crop and mask data. Backgrounds are not removed automatically."
 					disabled={imageLayer.locked || replacing}
 					onclick={() => document.getElementById('replacement-photo-input')?.click()}
@@ -99,7 +100,7 @@
 				>
 				<button
 					type="button"
-					class="button layer-delete"
+					class={[button, 'layer-delete']}
 					aria-label={`Delete ${imageLayer.name}`}
 					onclick={() => {
 						editor.selectLayer(imageLayer.id);
@@ -216,7 +217,9 @@
 				oninput={(value) => editor.updateText(text.id, { fontSize: value })}
 			/>
 		</label>
-		<div class="inspector-color">
+		<div
+			class="inspector-color [display:flex] [flex-wrap:wrap] [align-items:center] [justify-content:space-between] [gap:8px] [padding:8px_0] [font-size:13px] [border-bottom:1px_solid_#eef1f4]"
+		>
 			<span>Color</span>
 			<ColorField
 				label="Text color"
@@ -236,10 +239,10 @@
 {#snippet ImagePanel(/** @type {import('$lib/domain/domain').ImageLayer} */ image)}
 	{@const outline = image.outline ?? { enabled: false, color: '#ffffff', width: 12 }}
 	<div class="inspector-fields">
-		<label class="inspector-toggle">
+		<label class="inspector-toggle [font-weight:700]">
 			Outline
 			<input
-				class="inspector-switch-input"
+				class="inspector-switch-input [margin:0] [flex:none] [cursor:pointer] [appearance:none] [opacity:0] [border:0]"
 				type="checkbox"
 				aria-label="Toggle silhouette outline"
 				checked={outline.enabled}
@@ -247,7 +250,9 @@
 					editor.updateOutline(image.id, { enabled: event.currentTarget.checked })}
 			/>
 		</label>
-		<div class="inspector-color">
+		<div
+			class="inspector-color [display:flex] [flex-wrap:wrap] [align-items:center] [justify-content:space-between] [gap:8px] [padding:8px_0] [font-size:13px] [border-bottom:1px_solid_#eef1f4]"
+		>
 			<span>Color</span>
 			<ColorField
 				label="Outline color"
@@ -274,7 +279,7 @@
 				<small>{outline.width} px</small>
 			</span>
 		</label>
-		<p class="muted inspector-help">
+		<p class="muted inspector-help [margin:0] [font-size:12px]">
 			The outline follows visible pixels. An opaque photo outlines its rectangle; use Erase to make
 			a cutout.
 		</p>
@@ -282,13 +287,13 @@
 		<div class="inspector-section">
 			<b>Flip &amp; Rotate</b>
 			<div class="button-row flip-row">
-				<button type="button" class="button" onclick={() => editor.flipSelected('horizontal')}
+				<button type="button" class={button} onclick={() => editor.flipSelected('horizontal')}
 					><FlipHorizontal2 size={14} />Flip H</button
 				>
-				<button type="button" class="button" onclick={() => editor.flipSelected('vertical')}
+				<button type="button" class={button} onclick={() => editor.flipSelected('vertical')}
 					><FlipVertical2 size={14} />Flip V</button
 				>
-				<button type="button" class="button" onclick={() => editor.rotateSelected90()}
+				<button type="button" class={button} onclick={() => editor.rotateSelected90()}
 					><RotateCw size={14} />Rotate 90°</button
 				>
 			</div>
@@ -303,20 +308,20 @@
 			<div class="button-row">
 				<button
 					type="button"
-					class={editor.activeTool === 'erase' ? 'button primary' : 'button'}
+					class={editor.activeTool === 'erase' ? buttonPrimary : button}
 					onclick={() => editor.setTool(editor.activeTool === 'erase' ? 'select' : 'erase')}
 					>Erase</button
 				>
 				<button
 					type="button"
-					class={editor.activeTool === 'restore' ? 'button primary' : 'button'}
+					class={editor.activeTool === 'restore' ? buttonPrimary : button}
 					onclick={() => editor.setTool(editor.activeTool === 'restore' ? 'select' : 'restore')}
 					>Restore</button
 				>
 				{#if image.maskKey}
 					<button
 						type="button"
-						class="button"
+						class={button}
 						title="Reset mask to show full image"
 						onclick={() => editor.clearMask(image.id)}>Reset Mask</button
 					>
@@ -365,7 +370,7 @@
 			</label>
 		{/each}
 		<div class="button-row" style="margin-top: 12px">
-			<button type="button" class="button" onclick={() => editor.resetFilters(image.id)}
+			<button type="button" class={button} onclick={() => editor.resetFilters(image.id)}
 				>Reset Filters</button
 			>
 		</div>
@@ -378,29 +383,29 @@
 		<div class="button-row">
 			<button
 				type="button"
-				class="button"
+				class={button}
 				aria-label="Nudge left"
 				onclick={() => editor.nudgeSelected(-8, 0)}>←</button
 			>
 			<button
 				type="button"
-				class="button"
+				class={button}
 				aria-label="Nudge right"
 				onclick={() => editor.nudgeSelected(8, 0)}>→</button
 			>
 			<button
 				type="button"
-				class="button"
+				class={button}
 				aria-label="Nudge up"
 				onclick={() => editor.nudgeSelected(0, -8)}>↑</button
 			>
 			<button
 				type="button"
-				class="button"
+				class={button}
 				aria-label="Nudge down"
 				onclick={() => editor.nudgeSelected(0, 8)}>↓</button
 			>
-			<button type="button" class="button" onclick={() => editor.rotateSelected90()}
+			<button type="button" class={button} onclick={() => editor.rotateSelected90()}
 				>Rotate 90°</button
 			>
 		</div>
@@ -408,10 +413,10 @@
 			X {Math.round(transform.x)}, Y {Math.round(transform.y)}, {Math.round(transform.rotation)}°
 		</p>
 		<div class="button-row">
-			<button type="button" class="button" onclick={() => editor.duplicateSelected()}
+			<button type="button" class={button} onclick={() => editor.duplicateSelected()}
 				>Duplicate</button
 			>
-			<button type="button" class="button" onclick={() => editor.removeSelected()}>Delete</button>
+			<button type="button" class={button} onclick={() => editor.removeSelected()}>Delete</button>
 		</div>
 	</div>
 {/snippet}
@@ -425,7 +430,7 @@
 		{#if !doc || doc.layers.length === 0}
 			<p class="muted">No layers yet. Upload a photo or add text to start.</p>
 		{:else}
-			<div class="layer-stack">
+			<div class="layer-stack [display:grid] [gap:6px]">
 				{#each [...doc.layers].reverse() as layer, reversedIndex (layer.id)}
 					{@const originalIndex = doc.layers.length - 1 - reversedIndex}
 					{@const isSelected = layer.id === selected?.id}
@@ -447,7 +452,7 @@
 							oninput={(event) => editor.renameLayer(layer.id, event.currentTarget.value)}
 							onblur={() => editor.commitGesture()}
 						/>
-						<div class="layer-actions">
+						<div class="layer-actions [display:flex] [align-items:center] [gap:2px]">
 							<button
 								type="button"
 								class="layer-action-btn"
@@ -512,3 +517,268 @@
 		{/if}
 	</div>
 {/snippet}
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.muted {
+		color: var(--muted);
+	}
+	.inspector {
+		min-width: 0;
+		padding: var(--space-4);
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		background: #fff;
+	}
+	.inspector-fields {
+		display: grid;
+		gap: var(--space-3);
+	}
+	.inspector-fields label {
+		gap: var(--space-3);
+	}
+	.inspector-fields label:has(textarea) {
+		display: grid;
+		grid-template-columns: 1fr;
+	}
+	.inspector-fields label:has(select) {
+		display: grid;
+		grid-template-columns: 1fr;
+	}
+	.inspector-fields input {
+		min-width: 0;
+	}
+	.inspector-fields select {
+		min-width: 0;
+	}
+	.inspector-fields textarea {
+		min-width: 0;
+	}
+	.inspector textarea {
+		width: 100%;
+		padding: 8px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+	}
+	.inspector select {
+		width: 100%;
+		padding: 8px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+	}
+	:global(.inspector input[type='text']) {
+		width: 100%;
+		padding: 8px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+	}
+	.button-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.layer-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 8px;
+		border: 1px solid var(--line);
+		border-radius: 10px;
+		background: #fff;
+		cursor: pointer;
+	}
+	.layer-row.active {
+		background: var(--pale);
+		border-color: #9ddaca;
+	}
+	.layer-kind-tag {
+		padding: 2px 6px;
+		border-radius: 6px;
+		background: #f1f4f8;
+		color: #52627e;
+		font-size: 10px;
+		font-weight: 700;
+		text-transform: uppercase;
+	}
+	.layer-row-title {
+		flex: 1;
+		min-width: 0;
+		padding: 3px 6px;
+		border: 1px solid transparent;
+		border-radius: 6px;
+		background: transparent;
+		color: inherit;
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.layer-row-title:focus {
+		border-color: #9ddaca;
+		background: #fff;
+		outline: 0;
+	}
+	.layer-action-btn {
+		display: inline-flex;
+		width: 26px;
+		height: 26px;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		border: 0;
+		border-radius: 6px;
+		background: transparent;
+		color: #66758f;
+		cursor: pointer;
+	}
+	.layer-action-btn:hover:not(:disabled) {
+		background: #eef3f7;
+		color: var(--ink);
+	}
+	.layer-action-btn:disabled {
+		opacity: 0.3;
+		cursor: not-allowed;
+	}
+	.layer-action-btn.active {
+		color: #00875e;
+	}
+	.layer-action-btn.dimmed {
+		color: #a0aec0;
+	}
+	.inspector h2 {
+		margin: 0 0 10px;
+		font-size: 15px;
+	}
+	.inspector [role='tablist'] {
+		display: flex;
+		justify-content: space-between;
+		border-bottom: 1px solid var(--line);
+	}
+	.inspector [role='tab'] {
+		padding: 7px 2px;
+		border: 0;
+		background: transparent;
+		color: #445474;
+		font-size: 12px;
+	}
+	.inspector [role='tab'][data-state='active'] {
+		border-bottom: 2px solid var(--mint);
+		color: #008d62;
+	}
+	.inspector [role='tabpanel'] {
+		padding: 8px 0 0;
+	}
+	.inspector label {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		padding: 8px 0;
+		border-bottom: 1px solid #eef1f4;
+		font-size: 13px;
+	}
+	.layer-card {
+		display: grid;
+		grid-template-columns: 48px 1fr;
+		gap: 6px 8px;
+		padding: 8px;
+		margin-bottom: 8px;
+		border: 1px solid var(--line);
+		border-radius: 14px;
+		background: #f8fbf9;
+	}
+	.layer-card-thumb {
+		width: 48px;
+		height: 48px;
+		object-fit: contain;
+		border-radius: 10px;
+		background: #fff;
+	}
+	.layer-card-meta strong {
+		overflow: hidden;
+		font-size: 13px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.layer-card-meta small {
+		color: var(--muted);
+		font-size: 11px;
+	}
+	.layer-card-actions .button {
+		min-height: 30px;
+		padding: 4px 8px;
+		font-size: 12px;
+	}
+	.layer-delete {
+		border: 0;
+		background: transparent;
+		color: #c2414b;
+		box-shadow: none;
+	}
+	.layer-delete:hover:not(:disabled) {
+		background: var(--danger-tint);
+		color: #9f1239;
+		box-shadow: none;
+	}
+	/*
+ * NOTE: `.inspector-switch` (the 40x22 pill and its sliding ::after knob) has no
+ * matching element in EditorInspector.svelte — the intended wrapper is never
+ * rendered. This input therefore has no positioned ancestor, so its former
+ * `position: absolute; inset: 0; width/height: 100%` resolved against the
+ * initial containing block and produced a full-viewport invisible click catcher.
+ * It is kept in flow and sized by the base `input[type='checkbox']` rule instead.
+ * See docs/superpowers/plans/2026-09-15-tailwind-style-migration-ledger.md.
+ */
+	.inspector label small {
+		display: block;
+		color: var(--muted);
+		font-size: 11px;
+		font-weight: 400;
+	}
+	.inspector-slider-value {
+		display: inline-flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+		min-width: 0;
+	}
+	.inspector-section {
+		display: grid;
+		gap: 6px;
+		padding: 10px 0 4px;
+	}
+	.inspector-section > b {
+		font-size: 12px;
+	}
+	.flip-row .button {
+		min-height: 32px;
+		padding: 4px 8px;
+		font-size: 12px;
+	}
+	.inspector-slider-value .slider {
+		width: 108px;
+	}
+	.font-preview {
+		max-height: 120px;
+		overflow: auto;
+		padding: var(--space-4);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-sm);
+		background: var(--pale);
+		font-size: 28px;
+		line-height: 1.6;
+		font-weight: 400;
+		overflow-wrap: anywhere;
+		white-space: pre-wrap;
+	}
+	@media (max-width: 720px) {
+		.layer-row {
+			flex-wrap: wrap;
+		}
+		.layer-actions {
+			flex-wrap: wrap;
+		}
+		.layer-action-btn {
+			width: 36px;
+			height: 36px;
+		}
+	}
+</style>

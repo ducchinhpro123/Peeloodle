@@ -1,4 +1,5 @@
 <script>
+	import { button, buttonIcon, buttonPrimary } from '$lib/ui/styles.js';
 	import {
 		ArrowDown,
 		ArrowLeft,
@@ -567,12 +568,14 @@
 						? 'This saved file uses a document version this app cannot safely edit.'
 						: (loadMessage ?? 'This presentation could not be opened.')}
 		</p>
-		{#if loadState === 'error' && loadFailure}<p class="muted">{loadFailure.message}</p>{/if}
-		<div class="button-row">
-			<a class="button primary" href={backhref}>Back to presentations</a>
+		{#if loadState === 'error' && loadFailure}<p class="muted [color:var(--muted)]">
+				{loadFailure.message}
+			</p>{/if}
+		<div class="button-row [display:flex] [flex-wrap:wrap] [gap:8px]">
+			<a class={buttonPrimary} href={backhref}>Back to presentations</a>
 			{#if loadState !== 'missing' && loadState !== 'unsupported'}<button
 					type="button"
-					class="button"
+					class={button}
 					onclick={() => (attempt += 1)}>Try again</button
 				>{/if}
 		</div>
@@ -580,7 +583,7 @@
 {:else}
 	<div class="presentation-editor">
 		<header class="presentation-editor-bar">
-			<a class="button icon" aria-label="Back to presentations" href={backhref} onclick={leave}
+			<a class={buttonIcon} aria-label="Back to presentations" href={backhref} onclick={leave}
 				><ArrowLeft size={19} /></a
 			>
 			<div class="presentation-editor-title">
@@ -590,7 +593,7 @@
 			<div class="presentation-editor-actions">
 				<button
 					type="button"
-					class="button icon"
+					class={buttonIcon}
 					aria-label="Undo"
 					title="Undo (Ctrl+Z)"
 					disabled={!canUndo}
@@ -598,7 +601,7 @@
 				>
 				<button
 					type="button"
-					class="button icon"
+					class={buttonIcon}
 					aria-label="Redo"
 					title="Redo (Ctrl+Shift+Z)"
 					disabled={!canRedo}
@@ -623,12 +626,12 @@
 						></select
 					></label
 				>
-				<button type="button" class="button" onclick={addTextBox}
+				<button type="button" class={button} onclick={addTextBox}
 					><Type size={16} aria-hidden="true" /> Add text</button
 				>
 				<button
 					type="button"
-					class="button"
+					class={button}
 					disabled={inserting}
 					onclick={() => {
 						replaceTargetId = null;
@@ -660,7 +663,7 @@
 				/>
 				{#if selectedText}<button
 						type="button"
-						class="button"
+						class={button}
 						aria-label="Edit text: {selectedText.name}"
 						onclick={() => store.getState().startTextEdit(selectedText.id)}
 						><PenLine size={16} aria-hidden="true" /> Edit text</button
@@ -670,14 +673,14 @@
 					     stay reachable through the shared dialog at tablet and phone widths. -->
 					<button
 						type="button"
-						class="button properties-toggle"
+						class={[button, 'properties-toggle']}
 						bind:this={propertiesOpener}
 						onclick={() => (propertiesOpen = true)}>Element properties</button
 					>
 				{/if}
 				<button
 					type="button"
-					class="button"
+					class={button}
 					bind:this={themeOpener}
 					onclick={() => (themeOpen = true)}>Theme</button
 				>
@@ -688,12 +691,12 @@
 					onexport={(format) => void exportController.exportDeck(format)}
 					oncancel={() => exportController.cancel()}
 				/>
-				<button type="button" class="button" onclick={requestSave}
+				<button type="button" class={button} onclick={requestSave}
 					><Save size={16} aria-hidden="true" /> Save</button
 				>
 				{#if saveState.status === 'conflict'}<button
 						type="button"
-						class="button"
+						class={button}
 						disabled={recovering}
 						onclick={() => void recoverFromConflict()}
 						>{recovering ? 'Keeping your copy…' : 'Keep my copy'}</button
@@ -703,7 +706,7 @@
 					     the browser as a backup archive. -->
 					<button
 						type="button"
-						class="button"
+						class={button}
 						onclick={() => void exportController.exportDeck('backup')}>Download backup</button
 					>
 				{/if}
@@ -714,27 +717,34 @@
 		</header>
 		{#if editorState.view.editingElementId}<TextFormatToolbar session={textSession} />{/if}
 		{#if insertError}<p class="asset-error" role="alert">{insertError}</p>{/if}
-		<div class="presentation-mobile-note">
+		<div class="presentation-mobile-note [display:none]">
 			<MonitorUp size={18} aria-hidden="true" />
 			<span
 				>Presentation authoring is designed for a laptop or desktop. This preview remains available
 				on your phone.</span
 			>
 		</div>
-		<div class="presentation-workspace">
-			<aside class="presentation-slide-rail" aria-label="Slides">
+		<div
+			class="presentation-workspace [display:grid] [min-height:0] [min-width:0] [flex:1] [grid-template-columns:168px_minmax(0,_1fr)_220px]"
+		>
+			<aside
+				class="presentation-slide-rail [border-right:1px_solid_var(--line)]"
+				aria-label="Slides"
+			>
 				<p>Slides</p>
-				<div class="presentation-slide-rail-actions">
+				<div
+					class="presentation-slide-rail-actions [margin-bottom:var(--space-3)] [display:grid] [gap:var(--space-2)]"
+				>
 					<button
 						type="button"
-						class="button"
+						class={button}
 						aria-label="Add slide"
 						title="Add slide"
 						onclick={addSlide}><Plus size={16} aria-hidden="true" /><span>Add slide</span></button
 					>
 					<button
 						type="button"
-						class="button"
+						class={button}
 						aria-label="Duplicate active slide"
 						title="Duplicate active slide"
 						onclick={duplicateActiveSlide}
@@ -743,7 +753,7 @@
 				</div>
 				<div class="presentation-slide-list">
 					{#each presentation.slides as slide, index (slide.id)}
-						<div class="presentation-slide-item">
+						<div class="presentation-slide-item [display:grid] [min-width:0] [gap:var(--space-1)]">
 							<button
 								type="button"
 								class="presentation-slide-card"
@@ -755,10 +765,12 @@
 								<span aria-hidden="true">{index + 1}</span>
 								<b>{slide.name}</b>
 							</button>
-							<div class="presentation-slide-item-actions">
+							<div
+								class="presentation-slide-item-actions [display:grid] [grid-template-columns:repeat(3,_minmax(0,_1fr))] [gap:var(--space-1)]"
+							>
 								<button
 									type="button"
-									class="button presentation-slide-action"
+									class={[button, 'presentation-slide-action']}
 									aria-label="Move slide {index + 1} up"
 									title="Move slide {index + 1} up"
 									disabled={index === 0}
@@ -767,7 +779,7 @@
 								>
 								<button
 									type="button"
-									class="button presentation-slide-action"
+									class={[button, 'presentation-slide-action']}
 									aria-label="Move slide {index + 1} down"
 									title="Move slide {index + 1} down"
 									disabled={index === presentation.slides.length - 1}
@@ -776,7 +788,7 @@
 								>
 								<button
 									type="button"
-									class="button presentation-slide-action presentation-slide-delete"
+									class={[button, 'presentation-slide-action presentation-slide-delete']}
 									aria-label="Delete slide {index + 1}"
 									title="Delete slide {index + 1}"
 									disabled={presentation.slides.length <= 1}
@@ -791,7 +803,10 @@
 				<ElementLayerList {store} />
 			</aside>
 			<PresentationCanvas {store} {images} session={textSession} />
-			<aside class="presentation-inspector" aria-label="Presentation details">
+			<aside
+				class="presentation-inspector [border-left:1px_solid_var(--line)]"
+				aria-label="Presentation details"
+			>
 				<p>Page</p>
 				<dl>
 					<div>
@@ -808,7 +823,9 @@
 					</div>
 				</dl>
 				{#if activeSlide}
-					<label class="presentation-slide-background">
+					<label
+						class="presentation-slide-background [margin-bottom:var(--space-5)] [display:grid] [gap:var(--space-1)] [font-size:11px] [font-weight:700] [color:var(--muted)]"
+					>
 						Slide background
 						<input
 							type="color"
@@ -830,7 +847,7 @@
 						onreplaceimage={beginReplaceImage}
 					/>
 				{/if}
-				<p class="muted">
+				<p class="muted [color:var(--muted)]">
 					Drag an element on the slide to move it, use a corner handle to resize, and the round
 					handle to rotate. These values are the same document units — type one to place an element
 					exactly.
@@ -867,3 +884,322 @@
 		/>
 	</Modal>
 {/if}
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.card {
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		background: #fff;
+	}
+	.asset-error {
+		margin-bottom: var(--space-3);
+		padding: var(--space-3);
+		border-radius: var(--radius-sm);
+		background: var(--cream);
+		color: var(--ink);
+		font-size: 13px;
+	}
+
+	.presentation-route-state {
+		display: grid;
+		min-height: 100%;
+		place-content: center;
+		justify-items: center;
+		gap: var(--space-4);
+		padding: var(--space-7);
+		text-align: center;
+	}
+	.presentation-route-state h1 {
+		margin: 0;
+	}
+	.presentation-route-state p {
+		margin: 0;
+	}
+	.presentation-route-state p {
+		max-width: 58ch;
+		color: var(--muted);
+	}
+	.presentation-editor {
+		display: flex;
+		min-width: 0;
+		min-height: 0;
+		flex: 1;
+		flex-direction: column;
+		background: #f2f6f5;
+	}
+	/* The source's `44px minmax(0, 1fr) auto` grid lets the action row's own
+ * content eat the title column, so at tablet and laptop widths the deck's name
+ * collapses to nothing (the source's own journey fails that assertion at
+ * 1024px). A wrapping flex bar keeps the title visible: the actions drop onto
+ * their own line as soon as they would leave the title less than its basis.
+ *
+ * The actions take that second line unconditionally below 1421px. Whether they
+ * fit beside the title otherwise depends on the current selection ("Edit text"
+ * only exists for a text selection), and a bar that grows and shrinks that way
+ * shifts the canvas under the pointer whenever the selection or the autosave
+ * status changes. The widest action row (every tool plus "Edit text" and an
+ * "Unsaved changes" status) needs about 1414px including the title's basis, so
+ * above 1420px it always fits on one line and the natural wrapping is stable
+ * there too. */
+	.presentation-editor-bar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		border-bottom: 1px solid var(--line);
+		background: var(--surface);
+	}
+	.presentation-editor-actions {
+		display: flex;
+		flex: 1 1 auto;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-end;
+		gap: var(--space-2);
+	}
+	.presentation-editor-title {
+		flex: 1 1 14ch;
+		min-width: 0;
+	}
+	@media (max-width: 1420px) {
+		.presentation-editor-actions {
+			flex-basis: 100%;
+		}
+		/* The status shares that line only while it happens to fit, and "Saved
+	 * locally" and "Unsaved changes" are different widths: the row then gains or
+	 * loses a line on every autosave and moves the canvas. Its own line keeps the
+	 * buttons where they are; a long refusal message still wraps in full. */
+		.presentation-local-status {
+			flex-basis: 100%;
+			text-align: right;
+		}
+	}
+	.presentation-editor-title p {
+		margin: 0;
+	}
+	.presentation-editor-title h1 {
+		margin: 0;
+	}
+	.presentation-editor-title p {
+		color: var(--muted);
+		font-size: 10px;
+		font-weight: 800;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+	}
+	.presentation-editor-title h1 {
+		max-width: 100%;
+		overflow: hidden;
+		font-size: 18px;
+		line-height: 1.3;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.presentation-local-status {
+		margin: 0;
+		color: #007b55;
+		font-size: 12px;
+		font-weight: 800;
+	}
+	.presentation-add-shape select {
+		min-height: 36px;
+		padding: 6px 8px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: var(--surface);
+		color: var(--ink);
+		font-size: 12px;
+		font-weight: 700;
+	}
+	.presentation-slide-background input {
+		width: 100%;
+		min-height: 36px;
+		padding: 2px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: var(--surface);
+	}
+	.presentation-slide-rail {
+		min-height: 0;
+		padding: var(--space-4);
+		overflow: auto;
+		background: var(--surface);
+	}
+	.presentation-inspector {
+		min-height: 0;
+		padding: var(--space-4);
+		overflow: auto;
+		background: var(--surface);
+	}
+	.presentation-slide-rail > p {
+		margin: 0 0 var(--space-3);
+		color: var(--muted);
+		font-size: 11px;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+	.presentation-inspector > p:not(.muted) {
+		margin: 0 0 var(--space-3);
+		color: var(--muted);
+		font-size: 11px;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+	.presentation-slide-rail-actions .button {
+		width: 100%;
+		min-height: 38px;
+		justify-content: flex-start;
+		padding: 8px;
+		font-size: 11px;
+	}
+	.presentation-slide-list {
+		display: grid;
+		gap: var(--space-3);
+	}
+	.presentation-slide-card {
+		display: grid;
+		width: 100%;
+		gap: var(--space-2);
+		padding: var(--space-2);
+		border: 2px solid var(--line);
+		border-radius: var(--radius-sm);
+		background: var(--surface);
+		color: var(--ink);
+		text-align: left;
+	}
+	.presentation-slide-card:hover {
+		border-color: var(--mint);
+	}
+	.presentation-slide-card[aria-current] {
+		border-color: var(--mint);
+		background: var(--pale);
+	}
+	.presentation-slide-card:focus-visible {
+		outline: 2px solid var(--mint);
+		outline-offset: 2px;
+	}
+	.presentation-slide-card span {
+		display: grid;
+		aspect-ratio: 16 / 9;
+		place-items: center;
+		border-radius: 6px;
+		background: #fff;
+		color: var(--muted);
+		font-size: 12px;
+	}
+	.presentation-slide-card b {
+		overflow: hidden;
+		font-size: 12px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.presentation-slide-action {
+		min-width: 0;
+		min-height: 32px;
+		padding: 6px 2px;
+		border-radius: 8px;
+	}
+	.presentation-slide-delete {
+		color: var(--danger);
+	}
+	.presentation-slide-delete:hover:not(:disabled) {
+		border-color: var(--danger-line);
+		background: var(--danger-tint);
+		color: var(--danger-strong);
+	}
+	.presentation-inspector dl {
+		display: grid;
+		gap: var(--space-3);
+		margin: 0 0 var(--space-5);
+	}
+	.presentation-inspector dl div {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding-bottom: var(--space-2);
+		border-bottom: 1px solid var(--line);
+		font-size: 12px;
+	}
+	.presentation-inspector dt {
+		color: var(--muted);
+	}
+	.presentation-inspector dd {
+		margin: 0;
+		font-weight: 800;
+	}
+	.presentation-inspector .muted {
+		margin-top: var(--space-5);
+		font-size: 12px;
+	}
+	.presentation-guide.is-x {
+		width: 1px;
+	}
+	.presentation-guide.is-y {
+		height: 1px;
+	}
+	@media (max-width: 1150px) {
+		.presentation-workspace {
+			grid-template-columns: 148px minmax(0, 1fr);
+		}
+		.presentation-inspector {
+			display: none;
+		}
+	}
+	@media (max-width: 720px) {
+		.presentation-editor {
+			min-height: calc(100dvh - var(--header-height));
+		}
+		.presentation-editor-title h1 {
+			display: -webkit-box;
+			overflow: hidden;
+			white-space: normal;
+			overflow-wrap: anywhere;
+			-webkit-box-orient: vertical;
+			line-clamp: 2;
+			-webkit-line-clamp: 2;
+		}
+		.presentation-mobile-note {
+			display: flex;
+			align-items: flex-start;
+			gap: var(--space-2);
+			padding: var(--space-3) var(--space-4);
+			border-bottom: 1px solid #d8e4df;
+			background: var(--pale);
+			color: #315b4e;
+			font-size: 12px;
+			line-height: 1.5;
+		}
+		.presentation-workspace {
+			display: block;
+			min-height: 0;
+			flex: 1;
+		}
+		.presentation-slide-rail {
+			display: block;
+			padding: var(--space-3) var(--space-4);
+			border-right: 0;
+			border-bottom: 1px solid var(--line);
+		}
+		.presentation-inspector {
+			display: none;
+		}
+		.presentation-slide-rail-actions {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+		.presentation-slide-list {
+			display: flex;
+			min-width: 0;
+			gap: var(--space-3);
+			overflow-x: auto;
+			padding-bottom: var(--space-1);
+			scrollbar-width: thin;
+		}
+		.presentation-slide-item {
+			flex: 0 0 144px;
+		}
+	}
+</style>

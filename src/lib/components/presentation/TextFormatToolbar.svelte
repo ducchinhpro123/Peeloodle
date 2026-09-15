@@ -1,4 +1,5 @@
 <script>
+	import { button, buttonIcon } from '$lib/ui/styles.js';
 	import {
 		AlignCenter,
 		AlignJustify,
@@ -140,10 +141,14 @@
 		role="toolbar"
 		aria-label="Text formatting"
 	>
-		<div class="presentation-text-toolbar-group" role="group" aria-label="Character">
+		<div
+			class="presentation-text-toolbar-group [display:flex] [flex-wrap:wrap] [align-items:center] [gap:var(--space-2)]"
+			role="group"
+			aria-label="Character"
+		>
 			<button
 				type="button"
-				class="button icon"
+				class={buttonIcon}
 				aria-label="Bold"
 				aria-pressed={format.bold}
 				title="Bold"
@@ -152,7 +157,7 @@
 			>
 			<button
 				type="button"
-				class="button icon"
+				class={buttonIcon}
 				aria-label="Italic"
 				aria-pressed={format.italic}
 				title="Italic"
@@ -202,12 +207,16 @@
 			</label>
 		</div>
 
-		<div class="presentation-text-toolbar-group" role="group" aria-label="Paragraph">
+		<div
+			class="presentation-text-toolbar-group [display:flex] [flex-wrap:wrap] [align-items:center] [gap:var(--space-2)]"
+			role="group"
+			aria-label="Paragraph"
+		>
 			{#each ALIGNMENTS as alignment (alignment)}
 				{@const Icon = ALIGN_ICONS[alignment]}
 				<button
 					type="button"
-					class="button icon"
+					class={buttonIcon}
 					aria-label="Align {alignment}"
 					aria-pressed={paragraph.alignment === alignment}
 					title="Align {alignment}"
@@ -218,7 +227,7 @@
 			{/each}
 			<button
 				type="button"
-				class="button icon"
+				class={buttonIcon}
 				aria-label="Bulleted list"
 				aria-pressed={paragraph.bullet === 'bullet'}
 				title="Bulleted list"
@@ -229,7 +238,7 @@
 			>
 			<button
 				type="button"
-				class="button icon"
+				class={buttonIcon}
 				aria-label="Numbered list"
 				aria-pressed={paragraph.bullet === 'number'}
 				title="Numbered list"
@@ -240,7 +249,7 @@
 			>
 			<button
 				type="button"
-				class="button icon"
+				class={buttonIcon}
 				aria-label="Decrease indent"
 				title="Decrease indent"
 				disabled={paragraph.bullet === 'none' || level === 0}
@@ -251,7 +260,7 @@
 			>
 			<button
 				type="button"
-				class="button icon"
+				class={buttonIcon}
 				aria-label="Increase indent"
 				title="Increase indent"
 				disabled={level === 2}
@@ -282,7 +291,7 @@
 		</div>
 
 		<form
-			class="presentation-text-toolbar-group presentation-text-toolbar-link"
+			class="presentation-text-toolbar-group presentation-text-toolbar-link [display:flex] [flex-wrap:wrap] [align-items:center] [gap:var(--space-2)]"
 			onsubmit={submitLink}
 		>
 			<label class="presentation-text-toolbar-field">
@@ -301,7 +310,7 @@
 			</label>
 			<button
 				type="submit"
-				class="button"
+				class={button}
 				title="Add link"
 				onmousedown={(event) => event.preventDefault()}
 				><Link2 size={16} aria-hidden="true" /> Add link</button
@@ -309,7 +318,7 @@
 			{#if format.link}
 				<button
 					type="button"
-					class="button icon"
+					class={buttonIcon}
 					aria-label="Remove link"
 					title="Remove link"
 					onmousedown={(event) => event.preventDefault()}
@@ -320,3 +329,63 @@
 		</form>
 	</div>
 {/if}
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.presentation-text-toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-4);
+		border-bottom: 1px solid var(--line);
+		background: var(--surface-warm);
+	}
+	.presentation-text-toolbar-group + .presentation-text-toolbar-group {
+		padding-left: var(--space-2);
+		border-left: 1px solid var(--line);
+	}
+	.presentation-text-toolbar .button.icon {
+		width: 36px;
+		min-height: 36px;
+	}
+	.presentation-text-toolbar .button[aria-pressed='true'] {
+		background: var(--pale);
+		color: #00764f;
+		box-shadow: inset 0 0 0 2px var(--mint);
+	}
+	.presentation-text-toolbar-field select {
+		min-height: 36px;
+		padding: 6px 8px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: var(--surface);
+		color: var(--ink);
+		font-size: 12px;
+		font-weight: 700;
+	}
+	.presentation-text-toolbar-field input {
+		min-height: 36px;
+		padding: 6px 8px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: var(--surface);
+		color: var(--ink);
+		font-size: 12px;
+		font-weight: 700;
+	}
+	.presentation-text-toolbar-color input {
+		width: 44px;
+		padding: 2px;
+	}
+	.presentation-text-toolbar-link input {
+		min-width: 170px;
+	}
+	.presentation-text-toolbar-error {
+		flex-basis: 100%;
+		margin: 0;
+		color: var(--danger);
+		font-size: 12px;
+		font-weight: 700;
+	}
+</style>

@@ -1,4 +1,5 @@
 <script>
+	import { button, buttonPrimary } from '$lib/ui/styles.js';
 	/**
 	 * `/auth/callback` — finishes a PKCE email sign-in (ported from the source
 	 * `AuthCallback`). The route shows its own state instead of the milestone error
@@ -56,7 +57,7 @@
 	}
 </script>
 
-<section class="empty">
+<section class="empty [margin-top:20px] [min-height:250px]">
 	<h1>Finish signing in</h1>
 	<p>
 		Continue only if you requested a StickerLab sign-in link in this browser. Guest work is kept
@@ -70,12 +71,46 @@
 	{:else}
 		<button
 			type="button"
-			class="button primary"
+			class={buttonPrimary}
 			disabled={busy}
 			onclick={() => void continueSignIn()}>Continue sign-in</button
 		>
 	{/if}
 	{#if error}<p role="alert">{error}</p>{/if}
 	<AccountDialog />
-	<p><a class="button" href={shellHref('/')}>Return to local editing</a></p>
+	<p><a class={button} href={shellHref('/')}>Return to local editing</a></p>
 </section>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.empty {
+		display: flex;
+		min-height: 208px;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-3);
+		padding: var(--space-5);
+		border: 1px dashed #abd3c3;
+		border-radius: var(--radius);
+		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
+		color: #55708c;
+		text-align: center;
+	}
+	:global(.empty h2) {
+		color: var(--ink);
+	}
+	.empty p {
+		max-width: 480px;
+		font-size: 14px;
+	}
+	:global(.empty > svg) {
+		padding: 12px;
+		width: 56px;
+		height: 56px;
+		border-radius: 18px;
+		background: var(--pale);
+		color: #00875e;
+		transform: rotate(-8deg);
+	}
+</style>

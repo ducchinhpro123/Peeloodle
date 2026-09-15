@@ -24,7 +24,9 @@
 	}
 </script>
 
-<div class="presentation-shape-fields">
+<div
+	class="presentation-shape-fields [margin-top:var(--space-3)] [display:grid] [gap:var(--space-3)]"
+>
 	{#if !linear}
 		<label>
 			Fill
@@ -37,7 +39,9 @@
 				onblur={endGroup}
 			/>
 		</label>
-		<label class="presentation-shape-toggle">
+		<label
+			class="presentation-shape-toggle [display:flex] [align-items:center] [gap:var(--space-2)]"
+		>
 			<input
 				type="checkbox"
 				aria-label="No fill"
@@ -60,7 +64,9 @@
 		/>
 	</label>
 	{#if !linear}
-		<label class="presentation-shape-toggle">
+		<label
+			class="presentation-shape-toggle [display:flex] [align-items:center] [gap:var(--space-2)]"
+		>
 			<input
 				type="checkbox"
 				aria-label="No stroke"
@@ -89,3 +95,32 @@
 		/>
 	</label>
 </div>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.presentation-shape-fields label {
+		display: grid;
+		gap: var(--space-1);
+		color: var(--muted);
+		font-size: 11px;
+		font-weight: 700;
+	}
+	.presentation-shape-fields input[type='color'] {
+		width: 100%;
+		min-height: 36px;
+		padding: 2px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: var(--surface);
+	}
+	.presentation-shape-fields input[type='number'] {
+		min-height: 36px;
+		padding: 6px 8px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: var(--surface);
+		color: var(--ink);
+		font-size: 12px;
+		font-weight: 700;
+	}
+</style>

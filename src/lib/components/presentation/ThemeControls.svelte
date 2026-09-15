@@ -30,7 +30,7 @@
 	}
 </script>
 
-<div class="presentation-theme-fields">
+<div class="presentation-theme-fields [display:grid] [gap:var(--space-3)]">
 	<label>
 		Heading font
 		<select
@@ -69,7 +69,45 @@
 			/>
 		</label>
 	{/each}
-	<p class="muted">
+	<p class="muted [color:var(--muted)]">
 		These are defaults for new slides and text. Existing elements keep their own styles.
 	</p>
 </div>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.presentation-theme-fields label {
+		display: grid;
+		gap: var(--space-1);
+		color: var(--muted);
+		font-size: 11px;
+		font-weight: 700;
+	}
+	.presentation-theme-fields select {
+		min-height: 36px;
+		padding: 6px 8px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: var(--surface);
+		color: var(--ink);
+		font-size: 12px;
+		font-weight: 700;
+	}
+	.presentation-theme-fields input {
+		min-height: 36px;
+		padding: 6px 8px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: var(--surface);
+		color: var(--ink);
+		font-size: 12px;
+		font-weight: 700;
+	}
+	.presentation-theme-fields input[type='color'] {
+		width: 100%;
+		padding: 2px;
+	}
+	.presentation-theme-fields .muted {
+		margin: 0;
+	}
+</style>

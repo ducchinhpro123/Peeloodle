@@ -1,4 +1,5 @@
 <script>
+	import { buttonPrimary } from '$lib/ui/styles.js';
 	/**
 	 * `/create` is a redirect surface, as in the source: flush pending work first,
 	 * keep an already-open reusable draft, otherwise mint one draft id and hand off
@@ -73,10 +74,16 @@
 </script>
 
 {#if choice && intent}
-	<section class="tool-choice" data-testid="tool-document-choice">
+	<section
+		class="tool-choice [margin:0_auto] [max-width:1440px] [padding:var(--space-5)]"
+		data-testid="tool-document-choice"
+	>
 		<header class="tool-choice-header">
 			<div>
-				<span class="tool-choice-eyebrow">YOUR NEXT LITTLE MASTERPIECE</span>
+				<span
+					class="tool-choice-eyebrow [font-size:11px] [font-weight:800] [letter-spacing:0.12em] [color:var(--scrapbook-green)]"
+					>YOUR NEXT LITTLE MASTERPIECE</span
+				>
 				<h1>{TOOL_INTENT_LABELS[intent]}</h1>
 				<p>
 					Pick a sticker to keep creating, or start with something new. Your saved work stays yours.
@@ -84,7 +91,7 @@
 			</div>
 			<button
 				type="button"
-				class="button primary"
+				class={buttonPrimary}
 				onclick={() => onnavigate(editorPathWithIntent(takeCreateDraftId(), intent))}
 				><Upload size={18} />Create new sticker</button
 			>
@@ -97,7 +104,9 @@
 				<h2>Pick up where you left off</h2>
 				<span>{choice.length} saved {choice.length === 1 ? 'sticker' : 'stickers'}</span>
 			</div>
-			<ul class="tool-choice-grid">
+			<ul
+				class="tool-choice-grid [margin:0] [display:grid] [grid-template-columns:repeat(auto-fill,_minmax(min(100%,_240px),_1fr))] [gap:var(--space-5)] [padding:0] [list-style:none]"
+			>
 				{#each choice as project (project.id)}
 					<li>
 						<button
@@ -107,7 +116,9 @@
 							onclick={() => onnavigate(editorPathWithIntent(project.id, intent))}
 						>
 							<ProjectThumb {project} {repository} />
-							<span class="tool-choice-card-body">
+							<span
+								class="tool-choice-card-body [display:block] [padding:var(--space-4)_var(--space-2)_var(--space-2)]"
+							>
 								<strong>{project.title}</strong>
 								<span
 									>{project.layers.length}
@@ -123,5 +134,105 @@
 		{/if}
 	</section>
 {:else}
-	<p class="muted" style="padding: 24px"><ImagePlus size={16} /> Opening sticker…</p>
+	<p class="muted [color:var(--muted)]" style="padding: 24px">
+		<ImagePlus size={16} /> Opening sticker…
+	</p>
 {/if}
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.tool-choice-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: var(--space-5);
+		padding: clamp(24px, 4vw, 48px);
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		background: linear-gradient(120deg, var(--pale), var(--paper));
+	}
+	.tool-choice-header > div {
+		flex: 1 1 320px;
+	}
+	.tool-choice-header h1 {
+		margin: var(--space-3) 0;
+		font-size: clamp(28px, 3vw, 42px);
+		line-height: 1.15;
+	}
+	.tool-choice-header p {
+		max-width: 55ch;
+		color: var(--muted);
+		margin: 0;
+	}
+	.tool-choice-heading {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-3);
+		flex-wrap: wrap;
+		margin: var(--space-6) 0 var(--space-4);
+	}
+	.tool-choice-heading h2 {
+		margin: 0;
+		font-size: 20px;
+	}
+	.tool-choice-heading > span {
+		color: var(--muted);
+		font-size: 13px;
+	}
+	.tool-choice-grid li {
+		min-width: 0;
+	}
+	.tool-choice-card {
+		display: block;
+		width: 100%;
+		height: 100%;
+		text-align: left;
+		padding: var(--space-3);
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		background: var(--surface);
+		box-shadow: var(--shadow);
+		color: var(--ink);
+	}
+	.tool-choice-card:hover {
+		border-color: var(--mint);
+		box-shadow: var(--shadow-hover);
+	}
+	:global(.tool-choice-card .project-thumb) {
+		height: auto;
+		aspect-ratio: 4 / 3;
+		border-radius: var(--radius-sm);
+		padding: var(--space-5);
+	}
+	:global(.tool-choice-card .project-thumb img) {
+		width: 100%;
+		height: 100%;
+		min-height: 0;
+		object-fit: contain;
+	}
+	.tool-choice-card-body strong {
+		display: block;
+		overflow-wrap: anywhere;
+	}
+	.tool-choice-card-body > span {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2);
+		margin-top: var(--space-3);
+		color: var(--muted);
+		font-size: 12px;
+	}
+	.tool-choice-open {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		color: var(--scrapbook-green);
+		font-weight: 800;
+	}
+	:global(.tool-choice-open svg) {
+		transform: rotate(180deg);
+	}
+</style>

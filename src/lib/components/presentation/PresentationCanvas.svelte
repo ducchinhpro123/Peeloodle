@@ -530,7 +530,7 @@
 	<section class="presentation-canvas-panel" aria-label="Slide canvas">
 		<PresentationCanvasControls {store} />
 		<div
-			class="presentation-canvas"
+			class="presentation-canvas [position:absolute] [inset:0] [cursor:grab] [touch-action:none]"
 			class:is-panning={panning}
 			data-ready={ready}
 			data-testid="presentation-canvas"
@@ -598,3 +598,89 @@
 		{/each}
 	</section>
 {/if}
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.empty {
+		display: flex;
+		min-height: 208px;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-3);
+		padding: var(--space-5);
+		border: 1px dashed #abd3c3;
+		border-radius: var(--radius);
+		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
+		color: #55708c;
+		text-align: center;
+	}
+	:global(.empty h2) {
+		color: var(--ink);
+	}
+	:global(.empty p) {
+		max-width: 480px;
+		font-size: 14px;
+	}
+	:global(.empty > svg) {
+		padding: 12px;
+		width: 56px;
+		height: 56px;
+		border-radius: 18px;
+		background: var(--pale);
+		color: #00875e;
+		transform: rotate(-8deg);
+	}
+	.empty {
+		min-height: 250px;
+		margin-top: 20px;
+	}
+	.presentation-guide {
+		position: absolute;
+		z-index: 3;
+		background: var(--icon-pink);
+		pointer-events: none;
+	}
+	.presentation-canvas-panel {
+		position: relative;
+		min-width: 0;
+		min-height: 0;
+		overflow: hidden;
+		background: #dfe8e6;
+	}
+	.presentation-canvas-error {
+		position: absolute;
+		z-index: 2;
+		inset: auto var(--space-4) var(--space-7);
+		margin: 0;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid var(--warning-line);
+		border-radius: var(--radius-sm);
+		background: var(--warning-bg);
+		color: var(--warning-ink);
+		font-size: 12px;
+		font-weight: 600;
+	}
+	.presentation-canvas.is-panning {
+		cursor: grabbing;
+	}
+	:global(.presentation-canvas canvas) {
+		filter: drop-shadow(0 12px 28px #08152f2b);
+	}
+	.presentation-blank-slide {
+		position: absolute;
+		z-index: 1;
+		inset: 50% auto auto 50%;
+		margin: 0;
+		color: #9aa7b7;
+		font-size: 12px;
+		pointer-events: none;
+		transform: translate(-50%, -50%);
+	}
+	@media (max-width: 720px) {
+		.presentation-canvas-panel {
+			min-height: min(62dvh, 560px);
+			height: 100%;
+		}
+	}
+</style>

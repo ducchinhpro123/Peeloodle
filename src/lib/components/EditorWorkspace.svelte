@@ -1,4 +1,5 @@
 <script>
+	import { button, buttonPrimary } from '$lib/ui/styles.js';
 	import { asset } from '$app/paths';
 	/**
 	 * The editor route's chrome, ported from the source `EditorPage.tsx`
@@ -415,10 +416,10 @@
 />
 
 {#if editor.loadError && doc?.id !== projectId}
-	<section class="empty" style="margin-top: 24px">
+	<section class="empty [margin-top:20px] [min-height:250px]" style="margin-top: 24px">
 		<h1>Sticker not found</h1>
 		<p>{editor.loadError}</p>
-		<a class="button primary" href={resolve('/create')}>Create a sticker</a>
+		<a class={buttonPrimary} href={resolve('/create')}>Create a sticker</a>
 	</section>
 {:else if !doc || editor.loading || (projectId && doc.id !== projectId)}
 	<p class="muted" style="padding: 24px">Opening sticker…</p>
@@ -458,7 +459,7 @@
 					<tool.icon size={18} />{tool.label}
 				</button>
 			{/each}
-			<div class="tool-history">
+			<div class="tool-history [margin:6px_0_0] [display:flex] [gap:4px]">
 				<button type="button" disabled={!editor.canUndo || maskBusy} onclick={() => editor.undo()}>
 					<Undo2 size={16} />Undo
 				</button>
@@ -466,7 +467,7 @@
 					<Redo2 size={16} />Redo
 				</button>
 			</div>
-			<div class="tool-rail-footer">
+			<div class="tool-rail-footer [margin-top:auto] [display:grid] [gap:8px] [padding-top:8px]">
 				{#if tipOpen}
 					<div class="tool-tip-card">
 						<strong><Lightbulb size={14} aria-hidden="true" /> Pro Tip</strong>
@@ -474,16 +475,26 @@
 						<button type="button" onclick={() => (tipOpen = false)}>Got it!</button>
 					</div>
 				{/if}
-				<div class="tool-mascot" aria-hidden="true">
+				<div
+					class="tool-mascot [display:grid] [grid-template-columns:44px_1fr] [align-items:center] [gap:8px] [padding:0_6px_4px]"
+					aria-hidden="true"
+				>
 					<img src={asset('/art/stickers/04-winking-smiley.webp')} alt="" width="52" height="52" />
 					<p>Good stickers make a brighter day!</p>
 				</div>
 			</div>
 		</aside>
 
-		<div class="editor-stage" bind:this={stage}>
-			<section class="editor-top">
-				<div class="editor-identity">
+		<div
+			class="editor-stage [display:grid] [min-height:0] [min-width:0] [grid-template-rows:auto_minmax(0,_1fr)_auto] [gap:8px] [padding:6px_12px_8px_8px]"
+			bind:this={stage}
+		>
+			<section
+				class="editor-top [display:flex] [min-width:0] [align-items:center] [gap:12px] [padding:0_2px]"
+			>
+				<div
+					class="editor-identity [display:flex] [min-width:0] [flex:1] [align-items:center] [gap:10px]"
+				>
 					<h1>
 						<input
 							bind:this={titleInput}
@@ -544,13 +555,13 @@
 							/>{/if}</button
 					>
 				</div>
-				<div class="editor-actions">
-					<button type="button" class="button" onclick={() => void saving.save(repository)}>
+				<div class="editor-actions [display:flex] [flex:none] [gap:8px]">
+					<button type="button" class={button} onclick={() => void saving.save(repository)}>
 						<CloudUpload size={16} />Save to My Stickers
 					</button>
 					<button
 						type="button"
-						class="button primary"
+						class={buttonPrimary}
 						aria-label="Export and share"
 						onclick={openExport}
 					>
@@ -558,7 +569,7 @@
 					</button>
 					<button
 						type="button"
-						class="button properties-toggle"
+						class={[button, 'properties-toggle']}
 						onclick={() => (propertiesOpen = true)}>Sticker properties</button
 					>
 				</div>
@@ -583,14 +594,14 @@
 								</p>
 								<button
 									type="button"
-									class="button primary"
+									class={buttonPrimary}
 									onclick={() => document.getElementById('photo-file-input')?.click()}
 									><Upload size={16} />Upload a photo</button
 								>
 								{#if intent === 'text'}
 									<button
 										type="button"
-										class="button"
+										class={button}
 										onclick={() => {
 											editor.addTextLayer();
 											selectTab('adjust');
@@ -656,3 +667,506 @@
 		{/if}
 	</Modal>
 {/if}
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.empty {
+		display: flex;
+		min-height: 208px;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-3);
+		padding: var(--space-5);
+		border: 1px dashed #abd3c3;
+		border-radius: var(--radius);
+		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
+		color: #55708c;
+		text-align: center;
+	}
+	:global(.empty h2) {
+		color: var(--ink);
+	}
+	.empty p {
+		max-width: 480px;
+		font-size: 14px;
+	}
+	:global(.empty > svg) {
+		padding: 12px;
+		width: 56px;
+		height: 56px;
+		border-radius: 18px;
+		background: var(--pale);
+		color: #00875e;
+		transform: rotate(-8deg);
+	}
+
+	.editor-workspace {
+		display: grid;
+		grid-template-columns: 188px minmax(0, 1fr);
+		flex: 1;
+		min-height: 0;
+		height: 100%;
+		background: #f4faf7;
+	}
+	.editor-top .save-status {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		margin: 0;
+		white-space: nowrap;
+		font-size: 12px;
+		font-weight: 600;
+	}
+	.editor-top h1 {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin: 0;
+		min-width: 0;
+		font-size: 18px;
+	}
+	:global(.editor-top h1 svg) {
+		flex: none;
+		color: var(--muted);
+		cursor: pointer;
+	}
+	.editor-top small {
+		color: var(--muted);
+	}
+	.muted {
+		color: var(--muted);
+	}
+	.editor-actions .button {
+		min-height: 36px;
+		padding: 6px 12px;
+		font-size: 13px;
+		white-space: nowrap;
+		border-radius: 10px;
+	}
+	.editor {
+		display: grid;
+		min-height: 0;
+		grid-template-columns: minmax(0, 1fr) 272px;
+		gap: 10px;
+	}
+	.tool-rail {
+		min-width: 0;
+		padding: var(--space-4);
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		background: #fff;
+	}
+	.tool-rail {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		padding: 10px 8px 8px;
+		overflow: auto;
+		border: 0;
+		border-right: 1px solid #e8eef3;
+		border-radius: 0;
+		background: #fff;
+	}
+	.back-home {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		min-height: 32px;
+		margin: 0 4px 8px;
+		padding: 4px 10px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: #f7faf8;
+		color: var(--ink);
+		font-size: 12px;
+		font-weight: 600;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	:global(.tool-rail > b) {
+		padding: 0 8px 4px;
+		font-size: 11px;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: #8996aa;
+	}
+	.tool-rail button {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 36px;
+		padding: 6px 8px;
+		border: 0;
+		border-radius: 10px;
+		background: transparent;
+		color: var(--ink);
+		text-align: left;
+		font-size: 13px;
+		white-space: nowrap;
+	}
+	.tool-rail button:hover:not(:disabled) {
+		background: #f1f7f3;
+	}
+	.tool-rail button[aria-pressed='true'] {
+		background: var(--pale);
+		color: #008c62;
+		font-weight: 700;
+	}
+	:global(.tool-rail button.active) {
+		background: var(--pale);
+		color: #008c62;
+		font-weight: 700;
+	}
+	.tool-history button {
+		flex: 1;
+		justify-content: center;
+		min-height: 32px;
+		font-size: 12px;
+	}
+	.tool-tip-card {
+		padding: 10px;
+		border-radius: 14px;
+		background: #fff6e8;
+		color: var(--ink);
+	}
+	.tool-tip-card strong {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 12px;
+	}
+	.tool-tip-card p {
+		margin: 4px 0 6px;
+		color: #6b5a3e;
+		font-size: 11px;
+		line-height: 1.4;
+	}
+	.tool-tip-card button {
+		min-height: 24px;
+		padding: 0;
+		color: #00875e;
+		font-size: 12px;
+		font-weight: 800;
+	}
+	.tool-mascot img {
+		width: 44px;
+		height: 44px;
+		transform: rotate(-8deg);
+	}
+	.tool-mascot p {
+		margin: 0;
+		color: #1f3d4d;
+		font-family: Chewy, cursive;
+		font-size: 13px;
+		font-weight: 400;
+		line-height: 1.25;
+	}
+	.canvas-area {
+		display: flex;
+		min-width: 0;
+		min-height: 0;
+		padding: 0;
+		border-radius: 16px;
+		background: #effbf7;
+	}
+	.canvas-controls {
+		display: flex;
+		flex: none;
+		align-items: center;
+		gap: 2px;
+		padding: 2px;
+		border: 1px solid var(--line);
+		border-radius: 10px;
+		background: #fff;
+	}
+	.canvas-controls b {
+		min-width: 40px;
+		text-align: center;
+		font-size: 12px;
+	}
+	.canvas-controls button {
+		display: grid;
+		width: 26px;
+		height: 26px;
+		place-items: center;
+		padding: 0;
+		border: 0;
+		border-radius: 8px;
+		background: transparent;
+	}
+	.canvas-controls button[aria-label='Reset view'] {
+		width: auto;
+		min-width: 40px;
+		padding: 0 4px;
+	}
+	.canvas-controls button[aria-pressed='true'] {
+		background: var(--pale);
+		color: #008c62;
+	}
+	.editor-stage:fullscreen {
+		width: 100%;
+		height: 100%;
+		padding: 8px;
+		background: #effbf7;
+	}
+	.editor-stage:fullscreen .editor {
+		grid-template-columns: minmax(0, 1fr);
+		height: 100%;
+	}
+	.editor-stage:fullscreen .inspector {
+		display: none;
+	}
+	.editor-stage:fullscreen .asset-tray {
+		display: none;
+	}
+	.editor-stage:fullscreen .canvas-area {
+		height: 100%;
+		min-height: 0;
+		border-radius: 0;
+	}
+	.editor-stage:fullscreen .canvas-workspace {
+		height: 100%;
+		min-height: 0;
+		border-radius: 0;
+	}
+	.canvas-workspace {
+		position: relative;
+		display: grid;
+		flex: 1;
+		min-height: 0;
+		height: auto;
+		place-items: center;
+		overflow: hidden;
+		border-radius: var(--radius-sm);
+		background: conic-gradient(
+				var(--line) 25%,
+				var(--surface) 0 50%,
+				var(--line) 0 75%,
+				var(--surface) 0
+			)
+			0 0 / 24px 24px;
+	}
+	:global(.artboard-host.space-pan :is(.konvajs-content, canvas)) {
+		cursor: grab !important;
+	}
+	:global(.artboard-host.is-panning :is(.konvajs-content, canvas)) {
+		cursor: grabbing !important;
+	}
+	.title-input {
+		width: auto;
+		min-width: 8ch;
+		max-width: min(28ch, 32vw);
+		field-sizing: content;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		font-size: 18px;
+		font-weight: 750;
+	}
+	.save-status[data-state='saving'] {
+		color: #8a6d00;
+	}
+	.save-status[data-state='saved-locally'] {
+		color: #00875e;
+	}
+	.save-status[data-state='save-failed'] {
+		color: #b42318;
+	}
+	.project-thumb {
+		display: grid;
+		height: 88px;
+		place-items: center;
+		overflow: hidden;
+		border-radius: 10px;
+		background-color: #fff;
+		background-image:
+			linear-gradient(45deg, #e4e7eb 25%, transparent 25%),
+			linear-gradient(-45deg, #e4e7eb 25%, transparent 25%),
+			linear-gradient(45deg, transparent 75%, #e4e7eb 75%),
+			linear-gradient(-45deg, transparent 75%, #e4e7eb 75%);
+		background-position:
+			0 0,
+			0 8px,
+			8px -8px,
+			-8px 0;
+		background-size: 16px 16px;
+		font-size: 28px;
+		font-weight: 800;
+	}
+	:global(.project-thumb img) {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
+	.editor-welcome {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-3);
+		width: min(360px, calc(100% - 32px));
+		padding: var(--space-5);
+		border: 1px solid #fff;
+		border-radius: 24px;
+		background: #fffffff5;
+		box-shadow: var(--shadow-hover);
+		text-align: center;
+	}
+	.editor-welcome img {
+		transform: rotate(-12deg);
+	}
+	.editor-welcome h2 {
+		font-size: 20px;
+		line-height: 1.3;
+		letter-spacing: -0.04em;
+	}
+	.editor-welcome p {
+		color: var(--muted);
+		font-size: 12px;
+	}
+	.editor-welcome small {
+		color: var(--muted);
+		font-size: 12px;
+	}
+	.editor-welcome small {
+		font-size: 10px;
+	}
+	:global(.inspector-hue-picker .react-colorful__hue) {
+		height: 14px;
+		border-radius: 8px;
+	}
+	:global(.inspector-hue-picker .react-colorful__alpha) {
+		height: 14px;
+		border-radius: 8px;
+	}
+	.properties-toggle {
+		display: none;
+	}
+	@media (max-width: 1150px) {
+		.editor-workspace {
+			grid-template-columns: 172px minmax(0, 1fr);
+		}
+		.editor {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		:global(.editor > .inspector) {
+			display: none;
+		}
+		.properties-toggle {
+			display: flex;
+		}
+		/* Only the sticker editor keeps its floating corner toggle; the presentation
+   * editor's own toggle is a normal button in its action bar. */
+		.editor-workspace .properties-toggle {
+			position: fixed;
+			right: 15px;
+			bottom: 15px;
+			z-index: 4;
+		}
+		.tool-tip-card {
+			display: none;
+		}
+		.tool-mascot {
+			display: none;
+		}
+		.editor-top {
+			flex-wrap: wrap;
+		}
+		.title-input {
+			max-width: min(28ch, 70vw);
+		}
+	}
+	@media (max-width: 720px) {
+		.editor-workspace {
+			display: flex;
+			flex-direction: column;
+			height: auto;
+		}
+		.editor-stage {
+			padding: 8px 12px 16px;
+		}
+		.editor-top {
+			align-items: flex-start;
+			gap: var(--space-3);
+			padding: 0;
+			flex-wrap: wrap;
+		}
+		.editor-identity {
+			flex: none;
+			width: 100%;
+		}
+		.editor-top h1 {
+			flex: 1;
+			min-width: 0;
+			max-width: 100%;
+		}
+		.title-input {
+			max-width: min(22ch, calc(100vw - 140px));
+			font-size: 18px;
+		}
+		.editor-actions {
+			flex-direction: row;
+			width: 100%;
+		}
+		.editor-actions .button {
+			flex: 1;
+		}
+		.editor-actions .button {
+			padding: 10px;
+			font-size: 12px;
+		}
+		:global(.editor-actions svg) {
+			width: 18px;
+			height: 18px;
+		}
+		.editor {
+			display: block;
+		}
+		.tool-rail {
+			display: flex;
+			flex-direction: row;
+			flex-wrap: nowrap;
+			width: 100%;
+			padding: 8px;
+			overflow: auto;
+			border-right: 0;
+			border-bottom: 1px solid var(--line);
+		}
+		.back-home {
+			margin: 0 8px 0 0;
+			white-space: nowrap;
+		}
+		:global(.tool-rail > b) {
+			display: none;
+		}
+		.tool-tip-card {
+			display: none;
+		}
+		.tool-mascot {
+			display: none;
+		}
+		.tool-rail-footer {
+			display: none;
+		}
+		.tool-rail button {
+			white-space: nowrap;
+		}
+		.canvas-area {
+			height: min(68dvh, 620px);
+		}
+		.canvas-workspace {
+			min-height: 420px;
+		}
+		.editor-welcome {
+			padding: var(--space-5);
+		}
+		.editor-welcome img {
+			width: 56px;
+			height: 56px;
+		}
+	}
+</style>

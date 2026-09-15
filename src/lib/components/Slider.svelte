@@ -33,14 +33,18 @@
 	}
 </script>
 
-<span class="slider" data-slot="slider" data-disabled={disabled ? '' : undefined}>
+<span
+	class="slider [position:relative] [display:flex] [height:18px] [width:130px] [touch-action:none] [align-items:center] [user-select:none]"
+	data-slot="slider"
+	data-disabled={disabled ? '' : undefined}
+>
 	<span class="slider-track" data-slot="slider-track">
 		<span class="slider-range" data-slot="slider-range" style:width="{percent}%"></span>
 	</span>
 	<span class="slider-thumb" data-slot="slider-thumb" style:left="calc({percent}% - 8px)"></span>
 	<input
 		type="range"
-		class="slider-input"
+		class="slider-input [position:absolute] [inset:0] [margin:0] [height:100%] [width:100%] [cursor:pointer] [opacity:0]"
 		{min}
 		{max}
 		{disabled}
@@ -61,15 +65,6 @@
 </span>
 
 <style>
-	.slider-input {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		margin: 0;
-		opacity: 0;
-		cursor: pointer;
-	}
 	.slider-input:focus-visible + :global(*) {
 		outline: none;
 	}
@@ -77,5 +72,33 @@
 		outline: 2px solid var(--mint);
 		outline-offset: 2px;
 		border-radius: 999px;
+	}
+
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.slider-track {
+		position: relative;
+		height: 5px;
+		flex-grow: 1;
+		overflow: hidden;
+		border-radius: 999px;
+		background: #dce4e8;
+	}
+	.slider-range {
+		position: absolute;
+		height: 100%;
+		border-radius: 999px;
+		background: var(--mint);
+	}
+	.slider-thumb {
+		display: block;
+		width: 17px;
+		height: 17px;
+		border: 2px solid #fff;
+		border-radius: 50%;
+		background: #009b6c;
+		box-shadow: 0 1px 3px #001a3544;
+	}
+	.slider[data-disabled] {
+		opacity: 0.55;
 	}
 </style>

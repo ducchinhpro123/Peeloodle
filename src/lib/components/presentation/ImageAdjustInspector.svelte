@@ -1,4 +1,5 @@
 <script>
+	import { button, buttonIcon } from '$lib/ui/styles.js';
 	import { FlipHorizontal2, FlipVertical2, RefreshCw } from 'lucide-svelte';
 
 	/**
@@ -58,11 +59,13 @@
 	}
 </script>
 
-<div class="presentation-image-fields">
-	<div class="presentation-image-actions">
+<div
+	class="presentation-image-fields [margin-top:var(--space-3)] [display:grid] [gap:var(--space-3)]"
+>
+	<div class="presentation-image-actions [display:flex] [flex-wrap:wrap] [gap:var(--space-2)]">
 		<button
 			type="button"
-			class="button icon"
+			class={buttonIcon}
 			aria-label="Flip horizontally"
 			aria-pressed={element.flipX}
 			title="Flip horizontally"
@@ -72,7 +75,7 @@
 		>
 		<button
 			type="button"
-			class="button icon"
+			class={buttonIcon}
 			aria-label="Flip vertically"
 			aria-pressed={element.flipY}
 			title="Flip vertically"
@@ -83,7 +86,7 @@
 		{#if onreplace}
 			<button
 				type="button"
-				class="button"
+				class={button}
 				onmousedown={(event) => event.preventDefault()}
 				onclick={() => onreplace?.(element.id)}
 				><RefreshCw size={16} aria-hidden="true" /> Replace photo</button
@@ -109,8 +112,42 @@
 	</div>
 	<button
 		type="button"
-		class="button"
+		class={button}
 		onmousedown={(event) => event.preventDefault()}
 		onclick={() => patch({ crop: { x: 0, y: 0, width: 1, height: 1 } })}>Reset crop</button
 	>
 </div>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.presentation-image-actions .button {
+		min-height: 36px;
+	}
+	.presentation-geometry-fields {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--space-3);
+	}
+	.presentation-geometry-fields label {
+		display: grid;
+		gap: var(--space-1);
+		color: var(--muted);
+		font-size: 11px;
+		font-weight: 700;
+	}
+	.presentation-geometry-fields input {
+		min-width: 0;
+		width: 100%;
+		padding: 8px;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		background: var(--surface);
+		color: var(--ink);
+		font-size: 12px;
+		font-weight: 700;
+	}
+	.presentation-geometry-fields input:focus-visible {
+		outline: 2px solid var(--mint);
+		outline-offset: 1px;
+	}
+</style>

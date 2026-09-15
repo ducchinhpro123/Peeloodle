@@ -469,7 +469,7 @@ function sidebarTool(page: Page, label: string) {
 
 /**
  * Opens the navigation drawer and returns it. An editor route hides the layout
- * Sidebar (`layout.css`), so on a narrow viewport the drawer is the sidebar the
+ * sidebar, so on a narrow viewport the drawer is the sidebar the
  * user actually gets; the tablet/phone header button opens it with a real click.
  */
 async function openNavDrawer(page: Page) {

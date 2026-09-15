@@ -55,3 +55,91 @@
 		></button>
 	{/if}
 </div>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	/*
+ * Handles live inside the frame, whose 2px border is drawn inside its box; the
+ * -2px offsets put each handle's centre exactly on the element's own corner, so
+ * grabbing a handle starts the resize from the current size instead of jumping
+ * by the border width.
+ */
+	.presentation-transform-handle {
+		position: absolute;
+		width: 14px;
+		height: 14px;
+		border: 2px solid var(--mint);
+		border-radius: 4px;
+		background: #fff;
+		box-shadow: var(--shadow);
+		pointer-events: auto;
+		touch-action: none;
+	}
+	@media (max-width: 1150px), (pointer: coarse) {
+		.presentation-transform-handle::before {
+			position: absolute;
+			inset: -17px;
+			content: '';
+		}
+	}
+	.presentation-transform-nw {
+		cursor: nwse-resize;
+	}
+	.presentation-transform-se {
+		cursor: nwse-resize;
+	}
+	.presentation-transform-ne {
+		cursor: nesw-resize;
+	}
+	.presentation-transform-sw {
+		cursor: nesw-resize;
+	}
+	.presentation-transform-nw {
+		left: -2px;
+		top: -2px;
+		transform: translate(-50%, -50%);
+	}
+	.presentation-transform-ne {
+		right: -2px;
+		top: -2px;
+		transform: translate(50%, -50%);
+	}
+	.presentation-transform-se {
+		right: -2px;
+		bottom: -2px;
+		transform: translate(50%, 50%);
+	}
+	.presentation-transform-sw {
+		left: -2px;
+		bottom: -2px;
+		transform: translate(-50%, 50%);
+	}
+	.presentation-transform-handle.is-rotate {
+		left: 50%;
+		top: -2px;
+		width: 16px;
+		height: 16px;
+		border-radius: 50%;
+		cursor: grab;
+		transform: translate(-50%, calc(-100% - 24px));
+	}
+	.presentation-transform-handle.is-rotate::after {
+		position: absolute;
+		left: 50%;
+		top: 100%;
+		width: 2px;
+		height: 24px;
+		background: var(--mint);
+		content: '';
+		transform: translateX(-50%);
+	}
+	.presentation-selection-outline {
+		position: absolute;
+		z-index: 2;
+		border: 2px solid var(--mint);
+		border-radius: 4px;
+		box-shadow: 0 0 0 1px #ffffffcc inset;
+		transform-origin: 0 0;
+		pointer-events: none;
+	}
+</style>

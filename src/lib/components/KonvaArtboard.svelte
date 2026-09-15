@@ -772,4 +772,43 @@
 		resize: none;
 		overflow: hidden;
 	}
+
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.artboard-host {
+		position: absolute;
+		inset: 0;
+	}
+	.artboard-host.space-pan {
+		cursor: grab;
+	}
+	.artboard-host.is-panning {
+		cursor: grabbing;
+	}
+	.canvas-text-edit {
+		position: absolute;
+		z-index: 2;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		outline: 2px solid #3b82f6;
+		background: transparent;
+		color: inherit;
+		line-height: 1;
+		resize: none;
+		overflow: hidden;
+		white-space: pre;
+		overflow-wrap: normal;
+		word-break: keep-all;
+		box-sizing: content-box;
+	}
+	.brush-cursor {
+		position: absolute;
+		pointer-events: none;
+		border-radius: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 10;
+	}
+	.brush-active {
+		touch-action: none;
+	}
 </style>

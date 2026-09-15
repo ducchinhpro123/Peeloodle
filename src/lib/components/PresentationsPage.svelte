@@ -1,4 +1,5 @@
 <script>
+	import { button, buttonDanger, buttonIcon, buttonPrimary } from '$lib/ui/styles.js';
 	import { asset } from '$app/paths';
 	import {
 		ArrowRight,
@@ -211,20 +212,22 @@
 <AppShell {pathname} {search}>
 	<div class="presentations-library">
 		<section class="presentations-hero">
-			<div class="presentation-hero-copy">
+			<div class="presentation-hero-copy [position:relative] [z-index:2] [max-width:680px]">
 				<p class="hero-kicker"><Presentation size={15} /> YOUR IDEAS, ON THE BIG SCREEN</p>
 				<h1>Tell your story.<br /><em>Make it stick.</em></h1>
 				<p>
 					Turn a blank 16:9 slide into something clear, colorful, and completely yours. Your work
 					stays private in this browser.
 				</p>
-				<div class="presentation-hero-actions">
-					<button class="button primary" onclick={createBlank} disabled={creatingBlank}
+				<div
+					class="presentation-hero-actions [margin-top:var(--space-5)] [display:flex] [flex-wrap:wrap] [gap:var(--space-3)]"
+				>
+					<button class={buttonPrimary} onclick={createBlank} disabled={creatingBlank}
 						><FilePlus2 size={18} />{creatingBlank
 							? 'Creating…'
 							: 'Start a blank presentation'}</button
 					>
-					{#if items[0]}<a class="button" href={openhref(items[0].id)}
+					{#if items[0]}<a class={button} href={openhref(items[0].id)}
 							>Open latest <ArrowRight size={16} /></a
 						>{/if}
 				</div>
@@ -234,7 +237,10 @@
 					<li>No account needed</li>
 				</ul>
 			</div>
-			<div class="presentation-hero-art" aria-hidden="true">
+			<div
+				class="presentation-hero-art [position:relative] [z-index:1] [min-height:330px] [min-width:0] [align-self:stretch]"
+				aria-hidden="true"
+			>
 				<span class="presentation-art-note">big idea energy ✦</span>
 				<img src={asset('/art/presentation-cat-hero.webp')} alt="" width="1200" height="744" />
 				<span class="presentation-art-tape"></span><span class="presentation-art-caption"
@@ -245,7 +251,11 @@
 
 		<div class="presentation-library-controls">
 			<div>
-				<p class="presentation-library-eyebrow"><Sparkles size={15} /> YOUR CREATIVE DESK</p>
+				<p
+					class="presentation-library-eyebrow [margin:0] [display:flex] [align-items:center] [gap:var(--space-2)] [font-size:10px] [font-weight:800] [letter-spacing:0.12em] [color:var(--scrapbook-green)]"
+				>
+					<Sparkles size={15} /> YOUR CREATIVE DESK
+				</p>
 				<h2>Your presentations</h2>
 				<p>
 					{items.length === 0
@@ -253,7 +263,9 @@
 						: `${items.length} saved ${items.length === 1 ? 'presentation' : 'presentations'} in this browser`}
 				</p>
 			</div>
-			<div class="presentation-library-tools">
+			<div
+				class="presentation-library-tools [display:flex] [align-items:center] [justify-content:flex-end] [gap:var(--space-4)]"
+			>
 				<label class="presentation-library-search"
 					><Search size={17} aria-hidden="true" /><span class="sr-only">Search presentations</span
 					><input
@@ -263,10 +275,12 @@
 						placeholder="Search your presentations…"
 					/></label
 				>
-				<p class="presentation-device-note">
+				<p
+					class="presentation-device-note [margin:0] [display:flex] [align-items:center] [gap:var(--space-2)] [font-size:12px] [white-space:nowrap] [color:var(--muted)]"
+				>
 					<MonitorUp size={16} /> Best edited on a larger screen
 				</p>
-				<label class="button" aria-disabled={restoring}>
+				<label class={button} aria-disabled={restoring}>
 					<Upload size={16} aria-hidden="true" />
 					{restoring ? 'Restoring…' : 'Restore backup'}
 					<input
@@ -298,7 +312,7 @@
 				<div role="alert" class="presentation-library-alert">
 					<h2>Presentations are unavailable</h2>
 					<p>{error}</p>
-					<button class="button" onclick={load}>Try again</button>
+					<button class={button} onclick={load}>Try again</button>
 				</div>
 			</section>
 		{:else if loading}
@@ -307,7 +321,10 @@
 			</section>
 		{:else if items.length === 0}
 			<section class="card presentation-library-state presentation-library-empty">
-				<div class="presentation-empty-art" aria-hidden="true">
+				<div
+					class="presentation-empty-art [position:relative] [min-height:210px]"
+					aria-hidden="true"
+				>
 					<span class="presentation-empty-slide"><i></i><b>YOUR<br />STORY</b><i></i></span><span
 						class="presentation-empty-spark">✦</span
 					>
@@ -319,7 +336,7 @@
 						Create a blank presentation and shape it one idea at a time. Templates arrive in a later
 						increment; use <strong>Restore backup</strong> to bring back a downloaded .stickerlab.zip.
 					</p>
-					<button class="button primary" onclick={createBlank} disabled={creatingBlank}
+					<button class={buttonPrimary} onclick={createBlank} disabled={creatingBlank}
 						><FilePlus2 size={18} />{creatingBlank
 							? 'Creating…'
 							: 'Create your first presentation'}</button
@@ -331,7 +348,7 @@
 				<Search size={32} aria-hidden="true" />
 				<h2>No presentation found</h2>
 				<p>Nothing matches “{query.trim()}”. Try another title or clear the search.</p>
-				<button class="button" onclick={() => (query = '')}>Clear search</button>
+				<button class={button} onclick={() => (query = '')}>Clear search</button>
 			</section>
 		{:else}
 			<ul class="presentation-grid">
@@ -352,30 +369,34 @@
 										revision={item.revision}
 									/><i>16:9 SLIDES</i></span
 								>
-								<span class="presentation-card-body"
-									><span class="presentation-card-title"
+								<span
+									class="presentation-card-body [display:grid] [gap:var(--space-2)] [padding:var(--space-4)_var(--space-2)_var(--space-2)]"
+									><span
+										class="presentation-card-title [display:flex] [align-items:center] [justify-content:space-between] [gap:var(--space-3)]"
 										><strong title={item.title}>{item.title}</strong><ArrowRight size={17} /></span
 									><small><Clock3 size={13} /> Updated {formattedDate(item.updatedAt)}</small><small
 										>{item.slideCount} {item.slideCount === 1 ? 'slide' : 'slides'} · Local</small
 									></span
 								>
 							</a>
-							<div class="presentation-card-actions">
+							<div
+								class="presentation-card-actions [margin-top:auto] [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-1)] [padding:var(--space-2)_var(--space-2)_0]"
+							>
 								<button
-									class="button icon"
+									class={buttonIcon}
 									aria-label={`Rename ${item.title}`}
 									disabled={busyId === item.id}
 									onclick={(event) => openRename(item, event.currentTarget)}
 									><Pencil size={16} /></button
 								>
 								<button
-									class="button icon"
+									class={buttonIcon}
 									aria-label={`Duplicate ${item.title}`}
 									disabled={busyId === item.id}
 									onclick={() => duplicate(item)}><Copy size={16} /></button
 								>
 								<button
-									class="button icon"
+									class={buttonIcon}
 									aria-label={`Delete ${item.title}`}
 									disabled={busyId === item.id}
 									onclick={(event) => {
@@ -403,7 +424,7 @@
 			focusOnOpen={() => document.getElementById('rename-presentation-title')}
 		>
 			<form id="rename-presentation-form" onsubmit={submitRename}>
-				<div class="dialog-field">
+				<div class="dialog-field [display:grid] [gap:var(--space-2)]">
 					<label for="rename-presentation-title">Presentation name</label><input
 						id="rename-presentation-title"
 						bind:value={renameTitle}
@@ -414,14 +435,14 @@
 				{#if renameError}<p role="alert">{renameError}</p>{/if}
 			</form>
 			{#snippet footer()}<button
-					class="button"
+					class={button}
 					type="button"
 					onclick={() => {
 						renaming = null;
 						renameError = null;
 					}}>Keep the current name</button
 				><button
-					class="button primary"
+					class={buttonPrimary}
 					type="submit"
 					form="rename-presentation-form"
 					disabled={busyId === renaming?.id}>Save name</button
@@ -439,14 +460,656 @@
 			{#if deleteError}<p role="alert">{deleteError}</p>{/if}
 			{#snippet footer()}<button
 					id="cancel-delete-presentation"
-					class="button"
+					class={button}
 					type="button"
 					onclick={() => (pendingDelete = null)}>Keep presentation</button
 				><button
-					class="button danger"
+					class={buttonDanger}
 					disabled={busyId === pendingDelete?.id}
 					onclick={confirmDelete}>Delete presentation</button
 				>{/snippet}
 		</Modal>
 	</div>
 </AppShell>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.card {
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		background: #fff;
+	}
+
+	.presentations-library {
+		display: grid;
+		gap: var(--space-6);
+		width: 100%;
+		container-type: inline-size;
+	}
+	.presentations-hero {
+		position: relative;
+		display: grid;
+		grid-template-columns: minmax(360px, 0.88fr) minmax(430px, 1.12fr);
+		min-height: 380px;
+		align-items: center;
+		gap: var(--space-5);
+		padding: var(--space-7) 4.6%;
+		overflow: hidden;
+		border: 0;
+		border-radius: var(--radius-sm);
+		background: var(--cream) url('/art/scrapbook-paper.svg') center / 100% 100% no-repeat;
+		isolation: isolate;
+	}
+	.presentations-hero::before {
+		position: absolute;
+		z-index: -1;
+		right: -2%;
+		bottom: -23%;
+		width: 61%;
+		height: 82%;
+		background: #e6dafa;
+		clip-path: polygon(
+			4% 5%,
+			30% 0,
+			55% 7%,
+			78% 1%,
+			100% 12%,
+			97% 90%,
+			70% 100%,
+			43% 91%,
+			18% 98%,
+			0 84%
+		);
+		transform: rotate(-2deg);
+		content: '';
+	}
+	.presentations-hero::after {
+		position: absolute;
+		z-index: -1;
+		top: -23%;
+		right: 30%;
+		width: 31%;
+		height: 72%;
+		background: #fbe787;
+		clip-path: polygon(5% 0, 92% 5%, 100% 86%, 68% 100%, 3% 90%);
+		opacity: 0.82;
+		transform: rotate(7deg);
+		content: '';
+	}
+	.presentations-hero .hero-kicker {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin: 0 0 var(--space-4);
+		font-size: 10px;
+		font-weight: 800;
+		letter-spacing: 0.12em;
+		padding: var(--space-2) var(--space-3);
+		background: #ffffffb8;
+		box-shadow: var(--shadow);
+		color: var(--scrapbook-green);
+		transform: rotate(-2deg);
+	}
+	.presentations-hero h1 {
+		margin: 0 0 var(--space-4);
+		font-size: clamp(2.45rem, 5.1cqw, 5.8rem);
+		line-height: 0.98;
+		letter-spacing: -0.06em;
+	}
+	.presentations-hero h1 em {
+		display: inline-block;
+		padding: 0 var(--space-2) var(--space-1);
+		background: var(--scrapbook-yellow);
+		color: var(--scrapbook-green);
+		font-family: Chewy, cursive;
+		font-weight: 400;
+		transform: rotate(-2deg);
+	}
+	.presentation-hero-copy > p:not(.hero-kicker) {
+		max-width: 58ch;
+		margin: 0;
+		color: #344960;
+		font-size: clamp(14px, 1.15cqw, 18px);
+	}
+	.presentation-hero-actions .button {
+		min-height: 48px;
+		padding-inline: var(--space-5);
+		box-shadow: var(--shadow);
+	}
+	.presentation-hero-points {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2) var(--space-4);
+		margin: var(--space-4) 0 0;
+		padding: 0;
+		color: #36584e;
+		font-size: 11px;
+		font-weight: 800;
+		list-style: none;
+	}
+	.presentation-hero-points li::before {
+		margin-right: 6px;
+		color: var(--mint);
+		content: '✦';
+	}
+	.presentation-hero-art img {
+		position: absolute;
+		z-index: 2;
+		inset: 50% -2% auto auto;
+		width: min(100%, 720px);
+		height: auto;
+		object-fit: contain;
+		filter: drop-shadow(0 14px 11px #08152f1c);
+		transform: translateY(-48%) rotate(1deg);
+	}
+	.presentation-art-note {
+		position: absolute;
+		z-index: 4;
+		box-shadow: var(--shadow-hover);
+		color: var(--ink);
+		font-family: Chewy, cursive;
+		line-height: 1.2;
+	}
+	.presentation-art-caption {
+		position: absolute;
+		z-index: 4;
+		box-shadow: var(--shadow-hover);
+		color: var(--ink);
+		font-family: Chewy, cursive;
+		line-height: 1.2;
+	}
+	.presentation-art-note {
+		top: 3%;
+		right: 3%;
+		padding: var(--space-2) var(--space-3);
+		background: #fffdf3;
+		font-size: clamp(12px, 1.2cqw, 19px);
+		transform: rotate(7deg);
+	}
+	.presentation-art-caption {
+		right: 0;
+		bottom: 0;
+		padding: var(--space-3) var(--space-4);
+		background: var(--blush);
+		font-size: clamp(12px, 1.35cqw, 21px);
+		transform: rotate(-6deg);
+	}
+	.presentation-art-tape {
+		position: absolute;
+		z-index: 3;
+		top: 1%;
+		left: 39%;
+		width: 18%;
+		height: 28px;
+		background: repeating-linear-gradient(90deg, #00875e5c 0 7px, transparent 7px 14px), #e8f4d9cc;
+		transform: rotate(-8deg);
+	}
+	.presentation-library-controls {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-5);
+		padding: var(--space-4) var(--space-5);
+		border: 1px solid var(--line);
+		border-radius: 28px;
+		background: var(--surface);
+	}
+	.presentation-library-controls h2 {
+		margin: var(--space-1) 0 0;
+		font-size: clamp(21px, 2cqw, 28px);
+	}
+	.presentation-library-controls > div > p:not(.presentation-library-eyebrow) {
+		margin: var(--space-1) 0 0;
+		color: var(--muted);
+		font-size: 13px;
+	}
+	.presentation-library-search {
+		display: flex;
+		min-height: 46px;
+		align-items: center;
+		gap: var(--space-2);
+		padding: 0 var(--space-4);
+		border: 1px solid #e0e8ef;
+		border-radius: 999px;
+		background: #f4f6f9;
+		color: var(--muted);
+	}
+	.presentation-library-search:focus-within {
+		border-color: var(--mint);
+		box-shadow: 0 0 0 3px #08b8791f;
+	}
+	.presentation-library-search input {
+		width: min(22vw, 250px);
+		min-width: 160px;
+		border: 0;
+		outline: 0;
+		background: transparent;
+		color: var(--ink);
+		font-size: 13px;
+	}
+	.presentation-library-state {
+		display: grid;
+		min-height: 300px;
+		place-content: center;
+		justify-items: center;
+		gap: var(--space-3);
+		padding: var(--space-7);
+		border-style: dashed;
+		border-color: #a9d8c5;
+		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 72%);
+		text-align: center;
+	}
+	.presentation-library-state h2 {
+		margin: 0;
+	}
+	.presentation-library-state p {
+		margin: 0;
+	}
+	.presentation-library-state p {
+		max-width: 58ch;
+		color: var(--muted);
+	}
+	.presentation-library-alert {
+		display: grid;
+		justify-items: center;
+		gap: var(--space-3);
+	}
+	.presentation-library-empty {
+		grid-template-columns: minmax(210px, 330px) minmax(280px, 520px);
+		place-content: center;
+		justify-items: stretch;
+		gap: var(--space-7);
+		overflow: hidden;
+		text-align: left;
+	}
+	.presentation-empty-slide {
+		position: absolute;
+		display: grid;
+		inset: 10% 6% 5%;
+		aspect-ratio: 16 / 9;
+		place-content: center;
+		overflow: hidden;
+		border: 9px solid var(--surface);
+		background: linear-gradient(145deg, var(--lav), #fff7d1);
+		box-shadow: var(--shadow-hover);
+		color: var(--ink);
+		text-align: center;
+		transform: rotate(-5deg);
+	}
+	.presentation-empty-slide::before {
+		position: absolute;
+		top: -18%;
+		right: -6%;
+		width: 43%;
+		height: 68%;
+		border-radius: 50%;
+		background: var(--mint);
+		opacity: 0.85;
+		content: '';
+	}
+	.presentation-empty-slide::after {
+		position: absolute;
+		bottom: -24%;
+		left: -3%;
+		width: 65%;
+		height: 53%;
+		background: var(--blush);
+		transform: rotate(8deg);
+		content: '';
+	}
+	.presentation-empty-slide b {
+		position: relative;
+		z-index: 1;
+		font:
+			400 clamp(25px, 3cqw, 40px)/0.9 Chewy,
+			cursive;
+	}
+	.presentation-empty-slide i {
+		position: absolute;
+		z-index: 1;
+		width: 22%;
+		height: 9px;
+		background: var(--scrapbook-yellow);
+		transform: rotate(-8deg);
+	}
+	.presentation-empty-slide i:first-child {
+		top: 18%;
+		left: 10%;
+	}
+	.presentation-empty-slide i:last-child {
+		right: 10%;
+		bottom: 16%;
+		background: var(--mint);
+	}
+	.presentation-empty-spark {
+		position: absolute;
+		z-index: 2;
+		top: 0;
+		right: 0;
+		color: #e5ad00;
+		font-size: 42px;
+		transform: rotate(12deg);
+	}
+	.presentation-empty-copy {
+		display: grid;
+		align-content: center;
+		justify-items: start;
+		gap: var(--space-3);
+	}
+	.presentation-empty-copy > p {
+		max-width: 52ch;
+	}
+	.presentation-empty-kicker {
+		padding: 5px 9px;
+		background: var(--scrapbook-yellow);
+		color: var(--scrapbook-green) !important;
+		font-family: Chewy, cursive;
+		transform: rotate(-2deg);
+	}
+	:global(.presentation-library-no-results > svg) {
+		width: 58px;
+		height: 58px;
+		padding: 14px;
+		border-radius: 18px;
+		background: var(--pale);
+		color: var(--scrapbook-green);
+		transform: rotate(-7deg);
+	}
+	.presentation-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 245px), 1fr));
+		gap: var(--space-5);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.presentation-grid li {
+		min-width: 0;
+	}
+	.presentation-card {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		padding: var(--space-3);
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		background: var(--surface);
+		box-shadow: var(--shadow);
+		color: var(--ink);
+		transition:
+			border-color 160ms ease,
+			box-shadow 160ms ease,
+			transform 160ms ease;
+	}
+	.presentation-card:hover {
+		border-color: #9ddaca;
+		box-shadow: var(--shadow-hover);
+		transform: translateY(-3px);
+	}
+	.presentation-card-preview {
+		position: relative;
+		display: grid;
+		aspect-ratio: 16 / 9;
+		place-items: center;
+		overflow: hidden;
+		padding: var(--space-5);
+		border-radius: var(--radius-sm);
+		background: linear-gradient(145deg, #d9f4e9, #fff0b9);
+	}
+	.presentation-grid li:nth-child(3n + 2) .presentation-card-preview {
+		background: linear-gradient(145deg, #e9defa, #ffdbe9);
+	}
+	.presentation-grid li:nth-child(3n) .presentation-card-preview {
+		background: linear-gradient(145deg, #d9eeff, #f7e4ba);
+	}
+	.presentation-card-preview::before {
+		position: absolute;
+		top: 8%;
+		right: 7%;
+		width: 28%;
+		height: 16px;
+		background: #f4a9b4a3;
+		box-shadow: var(--shadow);
+		transform: rotate(8deg);
+		content: '';
+	}
+	.presentation-card-paper {
+		position: relative;
+		display: grid;
+		z-index: 1;
+		width: 74%;
+		height: 68%;
+		place-content: center;
+		justify-items: center;
+		gap: var(--space-2);
+		overflow: hidden;
+		padding: var(--space-3);
+		border: 6px solid #fff;
+		background: #fffdf5;
+		box-shadow: var(--shadow-hover);
+		color: var(--scrapbook-green);
+		text-align: center;
+		transform: rotate(-3deg);
+	}
+	.presentation-card-paper::after {
+		position: absolute;
+		right: -8%;
+		bottom: -30%;
+		width: 52%;
+		height: 58%;
+		border-radius: 50%;
+		background: var(--mint);
+		opacity: 0.18;
+		content: '';
+	}
+	.presentation-card-paper b {
+		position: relative;
+		z-index: 1;
+		display: -webkit-box;
+		max-width: 100%;
+		overflow: hidden;
+		font:
+			400 17px/1.05 Chewy,
+			cursive;
+		overflow-wrap: anywhere;
+		-webkit-box-orient: vertical;
+		line-clamp: 2;
+		-webkit-line-clamp: 2;
+	}
+	.presentation-card-paper em {
+		width: 54%;
+		height: 7px;
+		background: var(--scrapbook-yellow);
+		transform: rotate(-4deg);
+	}
+	.presentation-card-preview > i {
+		position: absolute;
+		z-index: 3;
+		right: var(--space-2);
+		bottom: var(--space-2);
+		padding: 4px 8px;
+		border-radius: 999px;
+		background: #ffffffdc;
+		color: var(--muted);
+		font-size: 9px;
+		font-style: normal;
+		font-weight: 800;
+		letter-spacing: 0.05em;
+	}
+	.presentation-card-link {
+		display: block;
+		border-radius: var(--radius-sm);
+		color: inherit;
+		text-decoration: none;
+	}
+	/* Always visible, never hover-only, and big enough to tap at 390px. */
+	.presentation-card-actions .button.icon {
+		width: 44px;
+		min-height: 44px;
+	}
+	.presentation-card-title strong {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	:global(.presentation-card-title svg) {
+		color: var(--scrapbook-green);
+		transition: transform 160ms ease;
+	}
+	.presentation-card:hover :global(.presentation-card-title svg) {
+		transform: translateX(3px);
+	}
+	.presentation-card-body small {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		color: var(--muted);
+	}
+	.presentation-card-body small:last-child {
+		color: #007b55;
+		font-weight: 800;
+	}
+	.dialog-field label {
+		font-size: 13px;
+		font-weight: 700;
+	}
+	.dialog-field input {
+		width: 100%;
+		min-height: 48px;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid #d5dfdc;
+		border-radius: var(--radius-sm);
+		background: #fcfdfb;
+		font: inherit;
+	}
+	:global(.dialog-field textarea) {
+		width: 100%;
+		min-height: 48px;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid #d5dfdc;
+		border-radius: var(--radius-sm);
+		background: #fcfdfb;
+		font: inherit;
+	}
+	@media (max-width: 1150px) {
+		.presentations-hero {
+			grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+			min-height: 340px;
+			padding: var(--space-6);
+		}
+		.presentations-hero h1 {
+			font-size: clamp(2.2rem, 5cqw, 3.7rem);
+		}
+		.presentation-hero-art {
+			min-height: 270px;
+		}
+		.presentation-library-controls {
+			align-items: flex-start;
+		}
+		.presentation-library-tools {
+			align-items: flex-end;
+			flex-direction: column;
+		}
+	}
+	@media (max-width: 720px) {
+		.presentations-library {
+			gap: var(--space-5);
+		}
+		.presentations-hero {
+			grid-template-columns: 1fr;
+			gap: var(--space-3);
+			min-height: 0;
+			padding: var(--space-5);
+			background-size: auto 100%;
+		}
+		.presentations-hero::before {
+			right: -22%;
+			bottom: -12%;
+			width: 112%;
+			height: 48%;
+		}
+		.presentations-hero::after {
+			top: -8%;
+			right: -22%;
+			width: 70%;
+			height: 40%;
+		}
+		.presentations-hero h1 {
+			font-size: clamp(2.25rem, 12cqw, 3.2rem);
+		}
+		.presentation-hero-copy > p:not(.hero-kicker) {
+			font-size: 14px;
+		}
+		.presentation-hero-actions .button {
+			flex: 1 1 100%;
+			justify-content: center;
+			width: 100%;
+		}
+		.presentation-hero-points {
+			gap: var(--space-2) var(--space-3);
+			font-size: 10px;
+		}
+		.presentation-hero-art {
+			width: 100%;
+			min-height: 220px;
+		}
+		.presentation-hero-art img {
+			right: -7%;
+			width: 112%;
+		}
+		.presentation-art-note {
+			top: 0;
+			right: 0;
+		}
+		.presentation-art-caption {
+			right: -2%;
+			bottom: 0;
+			padding: var(--space-2) var(--space-3);
+			font-size: 12px;
+		}
+		.presentation-art-tape {
+			left: 38%;
+			height: 18px;
+		}
+		.presentation-library-controls {
+			align-items: stretch;
+			flex-direction: column;
+			gap: var(--space-4);
+			padding: var(--space-4);
+			border-radius: var(--radius);
+		}
+		.presentation-library-tools {
+			align-items: stretch;
+			flex-direction: column;
+			gap: var(--space-3);
+		}
+		.presentation-library-search {
+			width: 100%;
+		}
+		.presentation-library-search input {
+			width: 100%;
+			min-width: 0;
+		}
+		.presentation-device-note {
+			margin: 0;
+			white-space: normal;
+		}
+		.presentation-library-state {
+			min-height: 240px;
+			padding: var(--space-5);
+		}
+		.presentation-library-empty {
+			grid-template-columns: 1fr;
+			gap: var(--space-4);
+			text-align: center;
+		}
+		.presentation-empty-art {
+			min-height: 180px;
+		}
+		.presentation-empty-copy {
+			justify-items: center;
+		}
+		.presentation-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

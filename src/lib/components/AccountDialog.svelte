@@ -1,4 +1,5 @@
 <script>
+	import { button, buttonPrimary } from '$lib/ui/styles.js';
 	/**
 	 * The account control: a header button, the sign-in workspace dialog, the
 	 * guest-import consent and the cloud status (ported from the source `Account.tsx`).
@@ -15,6 +16,7 @@
 	import { getCloudWorkspace } from '$lib/cloud/workspace.svelte';
 	import { getLocalRepository } from '$lib/persistence/repository';
 
+	let { header = false } = $props();
 	const workspace = getCloudWorkspace();
 
 	let open = $state(false);
@@ -116,7 +118,7 @@
 
 <button
 	type="button"
-	class="button profile"
+	class={[button, 'profile', header && 'profile-header']}
 	aria-label={session
 		? `Account: ${session.user.email}`
 		: session === null && cloudReady
@@ -159,7 +161,7 @@
 		{/each}
 		<button
 			type="button"
-			class="button"
+			class={button}
 			disabled={busy}
 			onclick={() => void run(() => workspace.refresh())}>Refresh cloud / retry sync</button
 		>
@@ -170,10 +172,10 @@
 					{guestCount} guest stickers and packs are on this device. Copy stickers, required photos, masks,
 					and ordered packs to this account only if you choose. Originals are kept; retries resume safely.
 				</p>
-				<div class="button-row">
+				<div class="button-row [display:flex] [flex-wrap:wrap] [gap:8px]">
 					<button
 						type="button"
-						class="button"
+						class={button}
 						disabled={busy}
 						onclick={() => {
 							localStorage.setItem(`stickerlab-import-choice:${session.user.id}`, 'later');
@@ -182,7 +184,7 @@
 					>
 					<button
 						type="button"
-						class="button primary"
+						class={buttonPrimary}
 						disabled={busy}
 						onclick={() =>
 							void run(async () => {
@@ -193,12 +195,14 @@
 				</div>
 			</section>
 		{/if}
-		<p class="muted">
+		<p class="muted [color:var(--muted)]">
 			Favorites remain browser-local and do not synchronize. Public sharing is not available.
 		</p>
-		<div class="dialog-footer">
-			<button type="button" class="button" onclick={() => (open = false)}>Close</button>
-			<button type="button" class="button" disabled={busy} onclick={() => void run(signOut)}
+		<div
+			class="dialog-footer [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-3)] [padding-top:var(--space-5)] [border-top:1px_solid_var(--line)]"
+		>
+			<button type="button" class={button} onclick={() => (open = false)}>Close</button>
+			<button type="button" class={button} disabled={busy} onclick={() => void run(signOut)}
 				>Sign out</button
 			>
 		</div>
@@ -220,14 +224,16 @@
 					bind:value={email}
 				/>
 			</div>
-			<p class="muted">
+			<p class="muted [color:var(--muted)]">
 				Signing in will not upload your guest photos. You choose whether to import them afterward.
 			</p>
-			<div class="dialog-footer">
-				<button type="button" class="button" onclick={() => (open = false)}
+			<div
+				class="dialog-footer [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-3)] [padding-top:var(--space-5)] [border-top:1px_solid_var(--line)]"
+			>
+				<button type="button" class={button} onclick={() => (open = false)}
 					>Keep editing locally</button
 				>
-				<button type="submit" class="button primary" disabled={busy}
+				<button type="submit" class={buttonPrimary} disabled={busy}
 					>{busy ? 'Requesting…' : 'Request sign-in link'}</button
 				>
 			</div>
@@ -236,3 +242,115 @@
 	{#if message}<p role="status">{message}</p>{/if}
 	{#if error}<p role="alert">{error}</p>{/if}
 </Modal>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.profile {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-width: 44px;
+		min-height: 44px;
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.profile span {
+		display: grid;
+		width: 28px;
+		height: 28px;
+		place-items: center;
+		border-radius: 50%;
+		background: #1e3b5d;
+		color: #fff;
+		font-size: 12px;
+		font-weight: 700;
+	}
+	.dialog-field {
+		display: grid;
+		gap: var(--space-2);
+	}
+	.dialog-field label {
+		font-size: 13px;
+		font-weight: 700;
+	}
+	.dialog-field input {
+		width: 100%;
+		min-height: 48px;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid #d5dfdc;
+		border-radius: var(--radius-sm);
+		background: #fcfdfb;
+		font: inherit;
+	}
+	.profile-header {
+		position: relative;
+		flex-shrink: 0;
+		min-height: 52px;
+		gap: var(--space-3);
+		padding: var(--space-2) var(--space-4);
+		border: 0;
+		border-radius: var(--radius);
+		background: var(--canvas);
+		box-shadow: var(--shadow);
+		font-size: clamp(14px, 1.08vw, 18px);
+	}
+	.profile-header span {
+		width: 36px;
+		height: 36px;
+		font-size: 17px;
+		font-weight: 500;
+	}
+	.profile-header::before {
+		position: absolute;
+		top: -4px;
+		right: -9px;
+		width: 35px;
+		height: 21px;
+		background: #ffe3a4b3;
+		transform: rotate(45deg);
+		content: '';
+		pointer-events: none;
+	}
+	.profile-header::after {
+		position: absolute;
+		right: -22px;
+		bottom: -8px;
+		width: 22px;
+		height: 26px;
+		background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 27 32'%3E%3Cpath d='m15 3 9-1M11 13l10 5M4 20l2 9' fill='none' stroke='%231c3a52' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E")
+			center / contain no-repeat;
+		content: '';
+		pointer-events: none;
+	}
+	@media (max-width: 1150px) {
+		.profile-header {
+			min-height: 48px;
+			padding: var(--space-2);
+		}
+		.profile-header span {
+			width: 32px;
+			height: 32px;
+			font-size: 14px;
+		}
+		.profile-header::after {
+			display: none;
+		}
+	}
+	@media (max-width: 720px) {
+		.profile-header {
+			grid-area: 1 / 3;
+			width: 44px;
+			min-height: 44px;
+			padding: 6px;
+		}
+		.profile-header b,
+		.profile-header > :global(svg) {
+			display: none;
+		}
+		.profile-header::before {
+			right: -3px;
+			width: 22px;
+			height: 12px;
+		}
+	}
+</style>

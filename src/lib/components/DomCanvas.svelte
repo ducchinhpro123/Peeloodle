@@ -60,7 +60,11 @@
 	}
 </script>
 
-<div class="dom-artboard" data-testid="editor-canvas" bind:this={artboard}>
+<div
+	class="dom-artboard [position:absolute] [inset:0]"
+	data-testid="editor-canvas"
+	bind:this={artboard}
+>
 	{#if doc}
 		{#each doc.layers as layer (layer.id)}
 			{#if layer.visible}
@@ -159,5 +163,43 @@
 		line-height: 1;
 		touch-action: none;
 		white-space: pre;
+	}
+
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.dom-artboard {
+		display: grid;
+		place-content: center;
+		gap: 8px;
+		padding: 16px;
+	}
+	.dom-artboard img {
+		max-width: 220px;
+		max-height: 220px;
+	}
+	.dom-layer {
+		padding: 0;
+		border: 0;
+		background: transparent;
+	}
+	.canvas-placeholder {
+		position: relative;
+		padding: 30px;
+		border-radius: 20px;
+		background: #ffffffc9;
+		box-shadow: 0 5px 16px #5774a133;
+		text-align: center;
+	}
+	:global(.canvas-placeholder .sticker) {
+		display: inline-block;
+	}
+	.canvas-placeholder strong {
+		display: block;
+	}
+	.canvas-placeholder small {
+		display: block;
+	}
+	.canvas-placeholder small {
+		margin-top: 7px;
+		color: var(--muted);
 	}
 </style>

@@ -1,4 +1,5 @@
 <script>
+	import { button, buttonDanger, buttonIcon } from '$lib/ui/styles.js';
 	import { resolve } from '$app/paths';
 	import { ImagePlus, Trash2 } from 'lucide-svelte';
 	import ProjectThumb from './ProjectThumb.svelte';
@@ -67,7 +68,7 @@
 </script>
 
 {#if projects === null}
-	<p class="muted">Loading projects…</p>
+	<p class="muted [color:var(--muted)]">Loading projects…</p>
 {:else if visible.length === 0}
 	<div class="project-empty">
 		<ImagePlus size={28} />
@@ -76,17 +77,22 @@
 		<a href={shellHref('/create')}>Create your first sticker</a>
 	</div>
 {:else}
-	<div class="project-grid">
+	<div
+		class="project-grid [display:grid] [grid-template-columns:repeat(auto-fill,_minmax(152px,_1fr))] [gap:var(--space-4)]"
+	>
 		{#each visible as project (project.id)}
 			<article class="project-card">
-				<a class="project-card-link" href={resolve(`/editor/${project.id}`)}>
+				<a
+					class="project-card-link [display:grid] [min-width:0] [gap:6px] [color:inherit] [text-decoration:none]"
+					href={resolve(`/editor/${project.id}`)}
+				>
 					<ProjectThumb {project} {repository} />
 					<b>{project.title}</b>
 					<small>{cloud ? 'Private workspace' : 'Saved locally'}</small>
 				</a>
 				<button
 					type="button"
-					class="button icon project-delete"
+					class={[buttonIcon, 'project-delete']}
 					aria-label={`Delete ${project.title}`}
 					onclick={(event) => {
 						opener = event.currentTarget;
@@ -123,7 +129,7 @@
 		<button
 			type="button"
 			id="cancel-delete-project"
-			class="button"
+			class={button}
 			onclick={() => {
 				pending = null;
 				opener?.focus();
@@ -131,7 +137,7 @@
 		>
 		<button
 			type="button"
-			class="button danger"
+			class={buttonDanger}
 			disabled={busy}
 			onclick={async () => {
 				if (!pending) return;
@@ -151,3 +157,64 @@
 		>
 	{/snippet}
 </Modal>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.project-empty {
+		display: flex;
+		min-height: 208px;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-3);
+		padding: var(--space-5);
+		border: 1px dashed #abd3c3;
+		border-radius: var(--radius);
+		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
+		color: #55708c;
+		text-align: center;
+	}
+	:global(.project-empty h3) {
+		color: var(--ink);
+	}
+	:global(.project-empty p) {
+		max-width: 480px;
+		font-size: 14px;
+	}
+	:global(.project-empty > svg) {
+		padding: 12px;
+		width: 56px;
+		height: 56px;
+		border-radius: 18px;
+		background: var(--pale);
+		color: #00875e;
+		transform: rotate(-8deg);
+	}
+	.project-empty a {
+		color: #008d62;
+		font-weight: 700;
+	}
+	.project-card {
+		display: grid;
+		position: relative;
+		gap: 6px;
+		padding: 10px;
+		border: 1px solid var(--line);
+		border-radius: 12px;
+		background: #fff;
+		color: inherit;
+		text-decoration: none;
+	}
+	.project-delete {
+		position: absolute;
+		top: 8px;
+		right: 8px;
+		z-index: 1;
+		background: #fffffff0;
+	}
+	.project-new .project-thumb {
+		background: #fff;
+		border: 1px dashed #9ddaca;
+		color: #008d62;
+	}
+</style>

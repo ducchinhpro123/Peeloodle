@@ -1,4 +1,5 @@
 <script>
+	import { buttonPrimary } from '$lib/ui/styles.js';
 	import { page } from '$app/state';
 	import { shellHref } from '$lib/app/navigation';
 
@@ -23,6 +24,12 @@
 		values; without them the app stays fully local. Sign-in, private workspace sync and guest import
 		are optional and never upload work on their own.
 	</p>
-	<p class="muted">Requested path returned {status}{detail ? `: ${detail}` : ''}.</p>
-	<p><a class="button primary" href={shellHref('/')}>Back to the dashboard</a></p>
+	<p class="muted [color:var(--muted)]">
+		Requested path returned {status}{detail ? `: ${detail}` : ''}.
+	</p>
+	<p><a class={buttonPrimary} href={shellHref('/')}>Back to the dashboard</a></p>
 </main>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+</style>

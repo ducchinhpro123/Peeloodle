@@ -1,4 +1,5 @@
 <script>
+	import { button, buttonPrimary } from '$lib/ui/styles.js';
 	/**
 	 * Export dialog (P40). The page owns the export controller; this shows the two
 	 * formats plus the backup, live progress, cancellation while work is running, and
@@ -30,7 +31,7 @@
 	);
 </script>
 
-<button type="button" class="button" bind:this={opener} onclick={() => (open = true)}
+<button type="button" class={button} bind:this={opener} onclick={() => (open = true)}
 	><Download size={16} aria-hidden="true" /> Export</button
 >
 <Modal
@@ -40,17 +41,19 @@
 	onclose={() => (open = false)}
 	onclosed={() => opener?.focus()}
 >
-	<div class="presentation-export-actions">
-		<button type="button" class="button primary" disabled={busy} onclick={() => onexport('pdf')}
+	<div
+		class="presentation-export-actions [margin-top:var(--space-4)] [display:flex] [flex-wrap:wrap] [gap:var(--space-2)]"
+	>
+		<button type="button" class={buttonPrimary} disabled={busy} onclick={() => onexport('pdf')}
 			>Export PDF</button
 		>
-		<button type="button" class="button" disabled={busy} onclick={() => onexport('pptx')}
+		<button type="button" class={button} disabled={busy} onclick={() => onexport('pptx')}
 			>Export PPTX</button
 		>
-		<button type="button" class="button" disabled={busy} onclick={() => onexport('backup')}
+		<button type="button" class={button} disabled={busy} onclick={() => onexport('backup')}
 			>Download backup (.zip)</button
 		>
-		{#if busy}<button type="button" class="button" onclick={oncancel}>Cancel export</button>{/if}
+		{#if busy}<button type="button" class={button} onclick={oncancel}>Cancel export</button>{/if}
 	</div>
 	<!-- The same status the library shows: exporting offline only works once the
 	     warm-up finished, and a failed warm-up says how to recover — never by
@@ -58,7 +61,7 @@
 	     library's status announces the change, and this line is only read while
 	     the dialog is open. -->
 	<p>{offlineReadinessLabel(offline, reloadSafety)}</p>
-	<p class="muted">
+	<p class="muted [color:var(--muted)]">
 		The backup is a .stickerlab.zip with the document and every image, restorable from the
 		presentation library on any device.
 	</p>
@@ -85,3 +88,24 @@
 		</div>
 	{/if}
 </Modal>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.presentation-export-warnings {
+		margin-top: var(--space-4);
+		padding: var(--space-3);
+		border: 1px solid var(--warning-line);
+		border-radius: var(--radius-sm);
+		background: var(--warning-bg);
+		color: var(--warning-ink);
+		font-size: 12px;
+		font-weight: 600;
+	}
+	.presentation-export-warnings p {
+		margin: 0 0 var(--space-2);
+	}
+	.presentation-export-warnings ul {
+		margin: 0;
+		padding-left: 1.1em;
+	}
+</style>

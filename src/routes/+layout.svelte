@@ -1,4 +1,5 @@
 <script>
+	import { button, buttonPrimary } from '$lib/ui/styles.js';
 	/**
 	 * Root layout: global stylesheet plus the app-scoped workspace, editor state
 	 * and save coordinator. Creating them here (not in a module) keeps mutable
@@ -16,7 +17,7 @@
 	 * departure flush failed would otherwise be dropped silently on the next reload
 	 * or close. The recovery status names that draft and reopens it as it is.
 	 */
-	import './layout.css';
+	import '../app.css';
 	import { resolve } from '$app/paths';
 	import AppScope from '$lib/components/AppScope.svelte';
 	import { CloudWorkspace, setCloudWorkspaceContext } from '$lib/cloud/workspace.svelte';
@@ -65,13 +66,13 @@
 />
 
 {#if !workspace.ready}
-	<section class="empty">
+	<section class="empty [margin-top:20px] [min-height:250px]">
 		<h1>Opening private workspace</h1>
 		<p role={workspace.error ? 'alert' : 'status'}>
 			{workspace.error ?? 'Preserving local work and restoring your session…'}
 		</p>
 		{#if workspace.error}
-			<button type="button" class="button primary" onclick={() => (retry += 1)}
+			<button type="button" class={buttonPrimary} onclick={() => (retry += 1)}
 				>Retry local save and session</button
 			>
 		{/if}
@@ -84,7 +85,7 @@
 				<span>Your edits are still open in this browser — closing or reloading loses them.</span>
 			</p>
 			<a
-				class="button draft-recovery-action"
+				class={[button, 'draft-recovery-action']}
 				href={resolve('/editor/[projectId]', { projectId: recovery.projectId })}
 				>Reopen the unsaved draft</a
 			>
@@ -134,5 +135,37 @@
 
 	.draft-recovery-action {
 		flex: 0 0 auto;
+	}
+
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.empty {
+		display: flex;
+		min-height: 208px;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-3);
+		padding: var(--space-5);
+		border: 1px dashed #abd3c3;
+		border-radius: var(--radius);
+		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
+		color: #55708c;
+		text-align: center;
+	}
+	:global(.empty h2) {
+		color: var(--ink);
+	}
+	.empty p {
+		max-width: 480px;
+		font-size: 14px;
+	}
+	:global(.empty > svg) {
+		padding: 12px;
+		width: 56px;
+		height: 56px;
+		border-radius: 18px;
+		background: var(--pale);
+		color: #00875e;
+		transform: rotate(-8deg);
 	}
 </style>

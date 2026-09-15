@@ -39,7 +39,7 @@
 </script>
 
 <aside class="sidebar">
-	<div class="side-links">
+	<div class="side-links [display:grid] [gap:4px]">
 		{#each sidebarNavigation as item (item.to)}
 			{@const active = item.active(appPathname, search)}
 			<a
@@ -92,3 +92,90 @@
 		</section>
 	{/if}
 </aside>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.sidebar a {
+		color: var(--ink);
+		text-decoration: none;
+	}
+	.sidebar {
+		display: flex;
+		flex: 0 0 220px;
+		flex-direction: column;
+		gap: 16px;
+		width: 220px;
+		min-height: calc(100vh - var(--header-height));
+		padding: var(--space-4) var(--space-3);
+		border-right: 1px solid #eff2f4;
+		background: #fff;
+	}
+	.side-tools {
+		display: grid;
+		gap: 4px;
+	}
+	.sidebar a {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 9px 12px;
+		border-radius: 10px;
+		font-size: 13.5px;
+		font-weight: 500;
+	}
+	.sidebar a.active {
+		background: var(--pale);
+		color: #00875e;
+		font-weight: 700;
+	}
+	.side-tools {
+		padding-top: 14px;
+		border-top: 1px solid var(--line);
+	}
+	.side-tools small {
+		padding: 0 12px 4px;
+		color: #8996aa;
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+	}
+	.card.studio-note {
+		position: relative;
+		display: grid;
+		grid-template-columns: 52px 1fr;
+		gap: 2px 10px;
+		margin-top: auto;
+		padding: var(--space-3);
+		background: var(--cream);
+	}
+	.studio-note img {
+		grid-row: 1 / span 2;
+		width: 52px;
+		height: 52px;
+		margin: 0;
+		transform: rotate(-8deg);
+	}
+	.studio-note b {
+		display: block;
+		font-size: 13px;
+	}
+	.studio-note p {
+		margin: 0;
+		color: var(--muted);
+		font-size: 12px;
+	}
+	.studio-note a {
+		grid-column: 1 / -1;
+		display: flex;
+		gap: 4px;
+		padding: 0;
+		color: #007b55;
+		font-size: 12px;
+		font-weight: 800;
+	}
+	.card {
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		background: #fff;
+	}
+</style>

@@ -1,4 +1,5 @@
 <script>
+	import { buttonIconLarge } from '$lib/ui/styles.js';
 	/**
 	 * Accessible modal built on the native `&lt;dialog&gt;` element, which provides
 	 * the focus trap, Escape handling and focus restoration the React source got
@@ -95,12 +96,16 @@
 			{@render children()}
 		{/if}
 		{#if footer}
-			<div class="dialog-footer">{@render footer()}</div>
+			<div
+				class="dialog-footer [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-3)] [padding-top:var(--space-5)] [border-top:1px_solid_var(--line)]"
+			>
+				{@render footer()}
+			</div>
 		{/if}
 	</div>
 	<button
 		type="button"
-		class="button icon close"
+		class={[buttonIconLarge, 'close']}
 		data-slot="dialog-close"
 		aria-label="Close dialog"
 		onclick={close}
@@ -116,5 +121,117 @@
 	dialog.dialog::backdrop {
 		background: #102c2866;
 		backdrop-filter: blur(5px);
+	}
+
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.dialog {
+		position: fixed;
+		z-index: 21;
+		background: #fff;
+		box-shadow: 0 24px 80px #08152f33;
+	}
+	.dialog {
+		top: 50%;
+		left: 50%;
+		width: calc(100% - 32px);
+		max-width: 520px;
+		max-height: calc(100dvh - 32px);
+		overflow: hidden;
+		border: 1px solid #fff;
+		border-radius: 24px;
+		transform: translate(-50%, -50%);
+	}
+	.dialog-scroll {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-5);
+		overflow-wrap: anywhere;
+		max-height: calc(100dvh - 34px);
+		padding: var(--space-6);
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		scrollbar-width: thin;
+		background: linear-gradient(#eefaf3, #fff 120px);
+	}
+	.dialog [data-slot='dialog-title'] {
+		margin: 0;
+		padding-right: 40px;
+		color: var(--ink);
+		font-size: 24px;
+		line-height: 1.25;
+		letter-spacing: -0.04em;
+		overflow-wrap: anywhere;
+	}
+	.dialog [data-slot='dialog-description'] {
+		margin: -12px 0 0;
+		color: var(--muted);
+		font-size: 14px;
+		line-height: 1.65;
+	}
+	:global(.dialog form) {
+		display: grid;
+		gap: var(--space-5);
+	}
+	:global(.dialog [role='alert']) {
+		padding: var(--space-3);
+		border-radius: var(--radius-sm);
+		background: var(--cream);
+		font-size: 13px;
+		overflow-wrap: anywhere;
+	}
+	:global(.dialog [role='status']) {
+		padding: var(--space-3);
+		border-radius: var(--radius-sm);
+		background: var(--cream);
+		font-size: 13px;
+		overflow-wrap: anywhere;
+	}
+	.dialog .pack-stickers-list {
+		max-height: 300px;
+		margin: 0;
+	}
+	.dialog .pack-sticker-row {
+		min-height: 48px;
+	}
+	.dialog .inspector {
+		padding: 0;
+		border: 0;
+	}
+	:global(.dialog .inspector > h2) {
+		display: none;
+	}
+	.close {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+	}
+	.dialog .button.icon.close {
+		background: #fff;
+		border: 1px solid var(--line);
+		border-radius: 50%;
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.dialog[data-state='open'] {
+			animation: reveal 180ms ease-out;
+		}
+		@keyframes -global-reveal {
+			from {
+				opacity: 0;
+			}
+			to {
+				opacity: 1;
+			}
+		}
+	}
+	@media (max-width: 720px) {
+		.dialog-scroll {
+			padding: var(--space-5);
+		}
+		.dialog [data-slot='dialog-title'] {
+			font-size: 22px;
+		}
+		:global(.dialog-footer .button) {
+			flex: 1 1 auto;
+		}
 	}
 </style>

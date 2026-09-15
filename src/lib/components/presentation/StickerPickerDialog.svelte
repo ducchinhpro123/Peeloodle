@@ -1,4 +1,5 @@
 <script>
+	import { button } from '$lib/ui/styles.js';
 	import Modal from '$lib/components/Modal.svelte';
 
 	/**
@@ -40,7 +41,7 @@
 	});
 </script>
 
-<button type="button" class="button" bind:this={opener} {disabled} onclick={() => (open = true)}
+<button type="button" class={button} bind:this={opener} {disabled} onclick={() => (open = true)}
 	>Add sticker</button
 >
 <Modal
@@ -55,12 +56,14 @@
 	{#if projects?.length === 0}<p>
 			No saved stickers yet. Create one in the sticker editor first.
 		</p>{/if}
-	<ul class="presentation-sticker-picker">
+	<ul
+		class="presentation-sticker-picker [margin:var(--space-4)_0_0] [display:grid] [gap:var(--space-2)] [padding:0] [list-style:none]"
+	>
 		{#each projects ?? [] as project (project.id)}
 			<li>
 				<button
 					type="button"
-					class="button"
+					class={button}
 					onclick={() => {
 						onpick(project.id);
 						open = false;
@@ -73,3 +76,54 @@
 		{/each}
 	</ul>
 </Modal>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.empty {
+		display: flex;
+		min-height: 208px;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-3);
+		padding: var(--space-5);
+		border: 1px dashed #abd3c3;
+		border-radius: var(--radius);
+		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
+		color: #55708c;
+		text-align: center;
+	}
+	:global(.empty h2) {
+		color: var(--ink);
+	}
+	:global(.empty p) {
+		max-width: 480px;
+		font-size: 14px;
+	}
+	:global(.empty > svg) {
+		padding: 12px;
+		width: 56px;
+		height: 56px;
+		border-radius: 18px;
+		background: var(--pale);
+		color: #00875e;
+		transform: rotate(-8deg);
+	}
+	.empty {
+		min-height: 250px;
+		margin-top: 20px;
+	}
+	.presentation-sticker-picker .button {
+		display: flex;
+		width: 100%;
+		min-height: 40px;
+		justify-content: space-between;
+		gap: var(--space-3);
+		text-align: left;
+	}
+	.presentation-sticker-picker span {
+		color: var(--muted);
+		font-size: 11px;
+		font-weight: 700;
+	}
+</style>

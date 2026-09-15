@@ -1,4 +1,5 @@
 <script>
+	import { button } from '$lib/ui/styles.js';
 	import { layoutTextElement } from '$lib/presentations/rendering/textLayout';
 	import { measureTextWidth } from '$lib/presentations/editor/textMeasure';
 
@@ -27,10 +28,30 @@
 		     before the click lands; growing the box should not interrupt editing. -->
 		<button
 			type="button"
-			class="button"
+			class={button}
 			onmousedown={(event) => event.preventDefault()}
 			onclick={() => store.getState().updateElement(element.id, { height: fitHeight })}
 			>Grow box to fit</button
 		>
 	</div>
 {/if}
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.presentation-overflow-notice {
+		display: grid;
+		gap: var(--space-2);
+		justify-items: start;
+		margin-top: var(--space-3);
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--warning-line);
+		border-radius: var(--radius-sm);
+		background: var(--warning-bg);
+		color: var(--warning-ink);
+		font-size: 12px;
+		font-weight: 600;
+	}
+	.presentation-overflow-notice p {
+		margin: 0;
+	}
+</style>

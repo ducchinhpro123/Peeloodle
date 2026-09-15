@@ -450,3 +450,42 @@
 	></div>
 	{#if commitError}<p class="presentation-text-editor-alert" role="alert">{commitError}</p>{/if}
 </div>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.presentation-text-editor-layer {
+		position: absolute;
+		z-index: 3;
+		pointer-events: none;
+		transform-origin: 0 0;
+	}
+	.presentation-text-editor {
+		position: absolute;
+		display: flex;
+		flex-direction: column;
+		box-sizing: border-box;
+		overflow-wrap: break-word;
+		border-radius: 4px;
+		outline: 2px dashed var(--mint);
+		outline-offset: 6px;
+		pointer-events: auto;
+		caret-color: var(--mint);
+	}
+	.presentation-text-editor:focus-visible {
+		outline: 2px dashed var(--mint);
+	}
+	.presentation-text-editor-alert {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		margin: var(--space-4) 0 0;
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--warning-line);
+		border-radius: var(--radius-sm);
+		background: var(--warning-bg);
+		color: var(--warning-ink);
+		font-size: 12px;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+</style>

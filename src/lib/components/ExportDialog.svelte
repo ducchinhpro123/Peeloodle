@@ -1,4 +1,5 @@
 <script>
+	import { button } from '$lib/ui/styles.js';
 	/**
 	 * Transparent PNG export dialog, ported from the source `ExportDialog`.
 	 * Export waits for the mask stroke, re-checks the open document, renders with
@@ -79,7 +80,7 @@
 	description="Download a transparent PNG cropped to the outermost visible artwork, including outlines. The selected size caps the longest edge; aspect ratio is preserved. Hidden layers, checkerboard, selection handles, and zoom are not included. This is not a WhatsApp or Telegram sticker pack."
 	onclose={() => onopenchange(false)}
 >
-	<div class="export-sizes">
+	<div class="export-sizes [display:grid] [grid-template-columns:1fr_1fr] [gap:var(--space-3)]">
 		<label>
 			<input
 				type="radio"
@@ -101,14 +102,40 @@
 		<p role="status">{message}</p>
 	{/if}
 	{#snippet footer()}
-		<button type="button" class="button" disabled={busy} onclick={() => exportPng(false)}>
+		<button type="button" class={button} disabled={busy} onclick={() => exportPng(false)}>
 			<Download size={16} />Download PNG
 		</button>
 		{#if canShare}
-			<button type="button" class="button" disabled={busy} onclick={() => exportPng(true)}
+			<button type="button" class={button} disabled={busy} onclick={() => exportPng(true)}
 				>Share PNG</button
 			>
 		{/if}
-		<button type="button" class="button" onclick={() => onopenchange(false)}>Close</button>
+		<button type="button" class={button} onclick={() => onopenchange(false)}>Close</button>
 	{/snippet}
 </Modal>
+
+<style>
+	/* Migrated from the former global layout stylesheet; scoped to this owner. */
+	.export-sizes label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-4);
+		min-height: 72px;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-sm);
+		font-size: 14px;
+		font-weight: 700;
+		cursor: pointer;
+	}
+	.export-sizes label:has(:checked) {
+		border-color: #00875e;
+		background: var(--pale);
+	}
+	@media (max-width: 720px) {
+		.export-sizes label {
+			padding: var(--space-3);
+			font-size: 13px;
+		}
+	}
+</style>
