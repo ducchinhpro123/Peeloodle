@@ -1,0 +1,128 @@
+/*
+ * Design tokens. The custom properties are the single source of truth for the
+ * app palette and geometry: scoped component CSS and runtime `style:` directives
+ * both consume them, so their names must not change without updating consumers.
+ *
+ * The `@theme inline` block only exposes aliases so Tailwind utilities can name
+ * the same values (`bg-surface`, `text-ink`, `rounded-panel`). It deliberately
+ * introduces no new literal values.
+ */
+
+:root {
+	--ink: #08152f;
+	--muted: #66758f;
+	--mint: #08b879;
+	--pale: #ddf7ed;
+	--line: #e6ecf3;
+	--cream: #fff5d8;
+	--lav: #f0eafe;
+	--sky: #e8f4ff;
+	--blush: #fceaf3;
+	--icon-pink: #ff4d9a;
+	--icon-blue: #3b82f6;
+	--icon-purple: #8b5cf6;
+	--icon-green: #12b981;
+	--scrapbook-yellow: #ffe16a;
+	--scrapbook-green: #006b50;
+	--danger: #b42338;
+	--danger-strong: #971b2e;
+	--danger-line: #f0c9cf;
+	--danger-tint: #fff1f2;
+	--surface-warm: #fffdf8;
+	--mint-line: #9fd7c2;
+	--mint-strong: #82d4b6;
+	--blush-strong: #ffe3ed;
+	--warning-line: #f0c9a8;
+	--warning-bg: #fff6ec;
+	--warning-ink: #8a4b12;
+	--surface: #fff;
+	--canvas: #fafbf8;
+	--header-height: 80px;
+	--paper: #fff9ed;
+	--tape-pink: #f4a9b4;
+	/* Primary actions are #00875e, distinct from --mint (#08b879). */
+	--primary: #00875e;
+	--primary-hover: #00764f;
+	--primary-shadow: #006e4e;
+	--primary-hover-shadow: #005a3f;
+	--control-line: #dfe7ef;
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 24px;
+	--space-6: 32px;
+	--space-7: 48px;
+	--radius: 20px;
+	--radius-sm: 12px;
+	--shadow: 0 4px 16px #08152f08;
+	--shadow-hover: 0 8px 24px #08152f12;
+	--shadow-mint: 0 6px 14px #173c3226;
+	color: var(--ink);
+	background: var(--canvas);
+	font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+	font-weight: 500;
+	font-synthesis: none;
+}
+
+/* Runtime geometry: shared by the sticky shell and the editors. */
+@media (max-width: 1150px) {
+	:root {
+		--header-height: 72px;
+	}
+}
+@media (max-width: 720px) {
+	:root {
+		--header-height: 112px;
+	}
+}
+
+/* Non-inline so Tailwind's own `--default-font-family` keeps resolving. */
+@theme {
+	--font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+@theme inline {
+	--color-ink: var(--ink);
+	--color-muted: var(--muted);
+	--color-mint: var(--mint);
+	--color-pale: var(--pale);
+	--color-line: var(--line);
+	--color-cream: var(--cream);
+	--color-lav: var(--lav);
+	--color-sky: var(--sky);
+	--color-blush: var(--blush);
+	--color-icon-pink: var(--icon-pink);
+	--color-icon-blue: var(--icon-blue);
+	--color-icon-purple: var(--icon-purple);
+	--color-icon-green: var(--icon-green);
+	--color-scrapbook-yellow: var(--scrapbook-yellow);
+	--color-scrapbook-green: var(--scrapbook-green);
+	--color-danger: var(--danger);
+	--color-danger-strong: var(--danger-strong);
+	--color-danger-line: var(--danger-line);
+	--color-danger-tint: var(--danger-tint);
+	--color-surface-warm: var(--surface-warm);
+	--color-mint-line: var(--mint-line);
+	--color-mint-strong: var(--mint-strong);
+	--color-blush-strong: var(--blush-strong);
+	--color-warning-line: var(--warning-line);
+	--color-warning-bg: var(--warning-bg);
+	--color-warning-ink: var(--warning-ink);
+	--color-surface: var(--surface);
+	--color-canvas: var(--canvas);
+	--color-paper: var(--paper);
+	--color-tape-pink: var(--tape-pink);
+	--color-primary: var(--primary);
+	--color-primary-hover: var(--primary-hover);
+	--color-primary-shadow: var(--primary-shadow);
+	--color-primary-hover-shadow: var(--primary-hover-shadow);
+	--color-control-line: var(--control-line);
+
+	--radius-panel: var(--radius);
+	--radius-control: var(--radius-sm);
+
+	--shadow-panel: var(--shadow);
+	--shadow-panel-hover: var(--shadow-hover);
+	--shadow-mint: var(--shadow-mint);
+}

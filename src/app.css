@@ -1,0 +1,12 @@
+/*
+ * Single global stylesheet entrypoint, imported once from `src/routes/+layout.svelte`.
+ *
+ * Tailwind first, then the app's own foundation layers. Keep this file to imports:
+ * feature styling belongs on the element that renders it (Tailwind utilities) or in
+ * the owning component's scoped `<style>`, not in a global feature stylesheet.
+ */
+@import 'tailwindcss';
+@import './lib/styles/fonts.css';
+@import './lib/presentations/rendering/presentation-fonts.css';
+@import './lib/styles/tokens.css';
+@import './lib/styles/base.css';

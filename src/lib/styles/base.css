@@ -1,0 +1,62 @@
+/*
+ * Document-wide defaults and policies. Only rules that apply to the document
+ * rather than to one component belong here. Feature styling lives with the
+ * component that owns it.
+ */
+
+@layer base {
+	/* Tailwind preflight sets h1–h6 to font-weight: inherit; restore display weights. */
+	h1,
+	h2,
+	h3 {
+		font-weight: 800;
+	}
+
+	button,
+	input,
+	select,
+	textarea {
+		font: inherit;
+	}
+	/* Tailwind v4 preflight no longer resets the body box; without this the app
+	 * is inset by the browser's default 8px margin. */
+	body {
+		margin: 0;
+	}
+	input[type='checkbox'],
+	input[type='radio'] {
+		accent-color: var(--primary);
+		width: 18px;
+		height: 18px;
+		flex-shrink: 0;
+	}
+	textarea {
+		resize: vertical;
+	}
+	p {
+		line-height: 1.6;
+	}
+	svg {
+		flex-shrink: 0;
+	}
+	button {
+		cursor: pointer;
+	}
+	:focus-visible {
+		outline: 3px solid var(--primary);
+		outline-offset: 2px;
+	}
+}
+
+/*
+ * Deliberate exception to the "no blanket !important" rule: this must win over
+ * every animation declared anywhere in the app, including future ones.
+ */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		transition: none !important;
+		scroll-behavior: auto !important;
+	}
+}
