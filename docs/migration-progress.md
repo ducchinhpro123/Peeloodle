@@ -112,9 +112,12 @@ SvelteKit port, losing neither the React application nor the server-side materia
   ESLint clean, **59 files / 530 unit tests**, **68 main e2e journeys**, **6 synthetic-cloud
   journeys**, and `npm run build` green.
 - Archives: `pre-git-graft-20260915T102807Z.tar.gz` (sha256
-  `4e742c986693a09008e85c0914bfe342a725e4b8a5f7117c410bb6f4db9adabf`) and the history bundle
+  `4e742c986693a09008e85c0914bfe342a725e4b8a5f7117c410bb6f4db9adabf`), the history bundle
   `peeloodle-history-20260915T102807Z.bundle` (sha256
-  `65e4791a638a7138b3a45cf627a44212a1911fe7bef4774eff7fab8feb52a01b`).
+  `65e4791a638a7138b3a45cf627a44212a1911fe7bef4774eff7fab8feb52a01b`) and the post-graft archive —
+  working tree **and** `.git` (86 MB, so full history) at
+  `post-git-graft-20260915T105133Z.tar.gz`, sha256
+  `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
 
 ## Slice 4 (cloud/Supabase) + slice 5 leftovers — cloud port, synthetic backend, reduced-motion and keyboard sweeps (2026-09-15)
 
