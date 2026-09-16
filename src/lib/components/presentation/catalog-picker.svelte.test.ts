@@ -173,6 +173,103 @@ describe('catalog picker', () => {
 		await page.unmount();
 	});
 
+	it('maps each tile to its own published version when several are listed', async () => {
+		const first = { asset: asset(), version: version() };
+		const second = {
+			asset: asset({
+				id: 'a0000000-0000-4000-8000-000000000002',
+				name: 'Dog',
+				sortOrder: 2,
+				publishedVersionId: 'v0000000-0000-4000-8000-000000000002'
+			}),
+			version: version({
+				id: 'v0000000-0000-4000-8000-000000000002',
+				assetId: 'a0000000-0000-4000-8000-000000000002',
+				derivativePath:
+					'assets/a0000000-0000-4000-8000-000000000002/v0000000-0000-4000-8000-000000000002/asset.png',
+				thumbnailPath:
+					'assets/a0000000-0000-4000-8000-000000000002/v0000000-0000-4000-8000-000000000002/thumb.webp'
+			})
+		};
+		const repository = catalogWith([first, second]);
+		const inserted: import('$lib/presentations/editor/insertCatalogAsset').CatalogInsertSource[] =
+			[];
+		const page = render(CatalogPickerDialog, {
+			repository,
+			oninsert: (source) => inserted.push(source)
+		});
+		openPicker(page.container);
+
+		const tiles = await waitFor(() => {
+			const found = [
+				...page.container.querySelectorAll<HTMLButtonElement>('button.catalog-item:not(:disabled)')
+			];
+			return found.length === 2 ? found : null;
+		}, 'two insertable tiles');
+		expect(tiles[0].textContent).toContain('Cat');
+		expect(tiles[1].textContent).toContain('Dog');
+		tiles[1].click();
+		expect(inserted).toHaveLength(1);
+		expect(JSON.stringify(inserted[0])).toBe(
+			JSON.stringify({
+				assetId: second.asset.id,
+				assetName: 'Dog',
+				collectionId: second.asset.collectionId,
+				derivativePath: second.version.derivativePath,
+				derivativeSha256: second.version.derivativeSha256,
+				versionId: second.version.id
+			})
+		);
+		await page.unmount();
+	});
+
+	it('keeps each asset on its own version across a close and reopen', async () => {
+		const first = { asset: asset(), version: version() };
+		const second = {
+			asset: asset({
+				id: 'a0000000-0000-4000-8000-000000000002',
+				name: 'Dog',
+				sortOrder: 2,
+				publishedVersionId: 'v0000000-0000-4000-8000-000000000002'
+			}),
+			version: version({
+				id: 'v0000000-0000-4000-8000-000000000002',
+				assetId: 'a0000000-0000-4000-8000-000000000002',
+				derivativePath:
+					'assets/a0000000-0000-4000-8000-000000000002/v0000000-0000-4000-8000-000000000002/asset.png',
+				thumbnailPath:
+					'assets/a0000000-0000-4000-8000-000000000002/v0000000-0000-4000-8000-000000000002/thumb.webp'
+			})
+		};
+		const repository = catalogWith([first, second]);
+		const inserted: import('$lib/presentations/editor/insertCatalogAsset').CatalogInsertSource[] =
+			[];
+		const page = render(CatalogPickerDialog, {
+			repository,
+			oninsert: (source) => inserted.push(source)
+		});
+		openPicker(page.container);
+		for (const name of ['Cat', 'Dog']) {
+			const tile = await waitFor(() => {
+				const found = [
+					...page.container.querySelectorAll<HTMLButtonElement>(
+						'button.catalog-item:not(:disabled)'
+					)
+				].find((candidate) => (candidate.textContent ?? '').includes(name));
+				return found ?? null;
+			}, `the ${name} tile`);
+			await new Promise((resolve) => setTimeout(resolve, 30));
+			tile.click();
+			if (name === 'Cat') openPicker(page.container);
+		}
+		expect(inserted.map((source) => source.assetName)).toEqual(['Cat', 'Dog']);
+		expect(inserted.map((source) => source.versionId)).toEqual([
+			first.version.id,
+			second.version.id
+		]);
+		await page.unmount();
+	});
+
 	it('loads a lazy thumbnail for visible items and keeps the derivative for insertion', async () => {
 		const item = { asset: asset(), version: version() };
 		const repository = catalogWith([item]);

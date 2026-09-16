@@ -81,8 +81,11 @@ function normalizeUploadMime(mime: string): string {
 export type MemoryObject = {
 	bucket: 'catalog-sources' | 'catalog-derivatives';
 	path: string;
+	/** Byte length, which is what the guards compare against the declared size. */
 	bytes: number;
 	mime: string;
+	/** The stored bytes themselves, so a test can serve them back over a URL. */
+	data?: Uint8Array;
 };
 
 export type CatalogSeed = {
@@ -1131,7 +1134,8 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 
 	async uploadSource(path: string, file: Blob, mime: string): Promise<void> {
 		this.#assertAdmin();
-		this.objects.push({ bucket: 'catalog-sources', path, bytes: file.size, mime });
+		const data = new Uint8Array(await file.arrayBuffer());
+		this.objects.push({ bucket: 'catalog-sources', path, bytes: data.length, mime, data });
 	}
 
 	async uploadDerivative(
@@ -1140,14 +1144,15 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		mime: 'image/png' | 'image/webp'
 	): Promise<void> {
 		this.#assertAdmin();
-		this.objects.push({ bucket: 'catalog-derivatives', path, bytes: bytes.size, mime });
+		const data = new Uint8Array(await bytes.arrayBuffer());
+		this.objects.push({ bucket: 'catalog-derivatives', path, bytes: data.length, mime, data });
 	}
 
 	async downloadSource(path: string): Promise<Uint8Array> {
 		this.#assertAdmin();
 		const object = this.#object('catalog-sources', path);
 		if (!object) throw new CatalogError('not_found', 'Stored source not found');
-		return new Uint8Array(object.bytes);
+		return object.data ? new Uint8Array(object.data) : new Uint8Array(object.bytes);
 	}
 
 	async removeObjects(

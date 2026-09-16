@@ -155,6 +155,74 @@ describe('admin uploads page', () => {
 		await page.unmount();
 	});
 
+	it('reports one failed file without blaming the whole batch', async () => {
+		// The processor only sees bytes, so the fixture decides by content: the
+		// smaller file is the one that cannot be decoded.
+		const BROKEN_BYTES = 512;
+		const repository = new MemoryCatalog(
+			{
+				admins: [ADMIN],
+				process: async (bytes: Uint8Array): Promise<ProcessedAsset> => {
+					if (bytes.length === BROKEN_BYTES)
+						throw new ProcessingError('decode_failed', 'The image could not be decoded');
+					const { sha256Hex } = await import('$lib/hash');
+					return {
+						sourceFormat: 'png',
+						sourceBytes: bytes.length,
+						sourceSha256: await sha256Hex(bytes),
+						width: 64,
+						height: 64,
+						png: new Uint8Array(2048),
+						thumbnail: new Uint8Array(512)
+					};
+				}
+			},
+			ADMIN
+		);
+		const page = render(AdminUploadsPage, { repository });
+		await startBatch(page.container, [png('chart.png'), png('broken.png', BROKEN_BYTES)]);
+
+		await waitFor(
+			() =>
+				[...page.container.querySelectorAll('li.job')].some((row) =>
+					row.textContent?.includes('decode_failed')
+				),
+			'the per-file failure'
+		);
+		expect(page.container.textContent).toContain('1 ready');
+		expect(page.container.textContent).toContain('1 failed');
+		// The batch still produced a usable asset, so it is not a batch-wide failure.
+		expect(page.container.textContent).not.toContain('Every file in this batch failed');
+		expect(page.container.textContent).not.toContain('No file in this batch could be validated');
+		await page.unmount();
+	});
+
+	it('says so when no file in a batch could be validated', async () => {
+		const repository = new MemoryCatalog(
+			{
+				admins: [ADMIN],
+				process: async (): Promise<ProcessedAsset> => {
+					throw new ProcessingError('decode_failed', 'The image could not be decoded');
+				}
+			},
+			ADMIN
+		);
+		const page = render(AdminUploadsPage, { repository });
+		await startBatch(page.container, [png('one.png'), png('two.png')]);
+
+		await waitFor(
+			() =>
+				page.container.textContent?.includes('No file in this batch could be validated') ?? false,
+			'the batch-wide failure message'
+		);
+		expect([...page.container.querySelectorAll('li.job')]).toHaveLength(2);
+		for (const row of page.container.querySelectorAll('li.job'))
+			expect(row.textContent).toContain('decode_failed');
+		// One sentence for the batch, and the per-file rows carry the detail.
+		expect(page.container.textContent).not.toContain('Every file in this batch failed');
+		await page.unmount();
+	});
+
 	it('reopens the most recent batch and reports its queued work honestly', async () => {
 		const repository = new MemoryCatalog({ admins: [ADMIN] }, ADMIN);
 		const created = await repository.createUploadBatch({

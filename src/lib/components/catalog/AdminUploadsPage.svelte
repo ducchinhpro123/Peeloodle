@@ -232,17 +232,19 @@
 							: `Processing was refused (${refused.reason}).`;
 					break;
 				}
-				const failures =
-					/** @type {import('$lib/catalog/processing/runJob').ProcessingOutcome[]} */ (
-						outcomes.filter((outcome) => outcome.status === 'failed')
-					);
-				if (failures.length === outcomes.length) {
-					const first = failures[0];
-					error = `Every file in this batch failed: ${first && first.status === 'failed' ? first.message : 'unknown error'}`;
-					break;
-				}
+				// A file that failed keeps its own row and reason, so the loop stops once a
+				// whole slice fails to make progress. Whether the batch as a whole is a
+				// failure is decided from the refreshed counts below, not from one slice.
+				if (outcomes.every((outcome) => outcome.status === 'failed')) break;
 			}
 			status = await repository.uploadStatus(batchId);
+			if (
+				status.batch.counts.total > 0 &&
+				status.batch.counts.ready === 0 &&
+				status.batch.counts.failed + status.batch.counts.cancelled === status.batch.counts.total
+			) {
+				error = 'No file in this batch could be validated; each row shows why.';
+			}
 			// The batch list carries its own counts, so it is refreshed too: a stale
 			// "0 ready" next to a finished queue would be dishonest.
 			await loadBatches();

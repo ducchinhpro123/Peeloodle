@@ -1,9 +1,10 @@
 # Peeloodle React → Svelte migration progress
 
-Last verified: 2026-09-16, **Milestone 5 of the slides plan (P54–P61)** — durable upload batches with
-leased validation jobs, server-side PNG/WebP/SVG processing with a strict static-subset policy, and
-the `/admin/uploads` + `/admin/assets` screens with publication review (see the newest checkpoint;
-P62–P64 and the live P53 check remain open), on top of
+Last verified: 2026-09-16, **Milestone 5 of the slides plan complete (P54–P64)** — durable upload
+batches with leased validation jobs, server-side PNG/WebP/SVG processing with a strict static-subset
+policy, the `/admin/uploads` + `/admin/assets` review screens, and the student catalog panel in the
+presentation editor with download-then-insert and the end-to-end journey (see the newest checkpoint;
+only P53's live isolation check remains open), on top of
 **Milestone 4 of the slides plan (P46–P53)** — the catalog schema, RLS
 policies and guarded admin RPCs with a 35-check SQL harness, the typed catalog repositories, and the
 admin guard plus collections console (P53's live isolation check is runnable but unrun; no test
@@ -133,6 +134,76 @@ SvelteKit port, losing neither the React application nor the server-side materia
   `post-git-graft-20260915T105133Z.tar.gz`, sha256
   `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
 
+## Milestone 5 checkpoint, part 2 — the student panel and the whole journey (2026-09-16, P62–P64)
+
+Scope: **the last three work items of milestone 5**, on the branch that already had P54–P61 (see the
+next checkpoint down). Implemented: the student-facing catalog panel inside the presentation editor,
+the download-before-insert seam that keeps a failed download out of the document, and one long
+browser journey from an admin's file selection to an exported PDF. **P53's live isolation check is
+still unavailable** — no deployed Supabase test project exists — so the milestone ships with the
+local SQL harness as its only backend verification, as recorded in the milestone-4 checkpoint.
+
+### Student panel (P62) — `src/lib/components/presentation/CatalogPickerDialog.svelte`
+
+- A `Modal`-based picker next to the sticker picker, reachable from the same editor toolbar button
+  once a catalog repository is configured. It lists **published assets only** (`listCatalogAssets`),
+  twelve at a time with a "Load more" cursor, plus search, collection and kind filters. Every listed
+  item is a real `<button>`, so Enter and Space insert without any keyboard handler of our own.
+- Preview bytes are lazy: `CatalogAssetPreview.svelte` observes its own visibility with an
+  `IntersectionObserver` (120 px margin) and only then asks for the **thumbnail** path. The full
+  derivative is downloaded once, at insertion.
+- Absent configuration, a refusal, an empty result and a transport failure each have their own copy;
+  the panel never renders an empty grid as if the catalog were empty when the request actually
+  failed.
+
+### Download before insert (P63) — `src/lib/presentations/editor/insertCatalogAsset.ts`
+
+- `prepareCatalogAsset(repository, source)` mints a short-lived signed URL for the exact derivative
+  path, downloads it, and runs the bytes through the **same** `validateUpload` trust boundary the
+  file input uses (signature, declared dimensions, byte ceiling) before hashing them. It returns the
+  same `PreparedPresentationImage` shape the other insert paths produce, so provenance, storage and
+  undo behaviour are shared rather than reimplemented.
+- Because the download happens before the document is touched, a 404, an offline browser or a
+  tampered object leaves the deck byte-identical; the editor shows one `CatalogInsertError` message
+  (`not_configured` / `offline` / `download_failed` / `invalid_media`) and nothing else changes.
+- Provenance records `catalogItemId` and `catalogVersionId` through the model's existing fields, so
+  an archived or replaced catalog asset cannot silently change what a saved deck contains.
+
+### End-to-end journey (P64) — `src/lib/components/catalog/catalog-journey.svelte.test.ts`
+
+One browser test drives the real screens with real bytes: an administrator selects three generated
+files (a 300×150 PNG, an SVG, and deliberate garbage), watches two become ready and one fail with
+its own reason, publishes both through the review screen, then a student inserts both into a deck,
+saves, reopens, and exports the reopened document to PDF. It asserts the catalog provenance ids, that
+**nothing from the private source bucket appears in the serialized document** (no `catalog-sources`,
+no signed URL host), that both open tiles carry different assets, and that the exported bytes are a
+complete PDF (header and trailer).
+
+The journey also caught a real UI bug: with three files where one failed, the queue reported "Every
+file in this batch failed" because one _slice_ of two had failed. Batch-wide failure is now decided
+from the refreshed counts (nothing ready, everything failed or cancelled) and per-file reasons stay
+on their own rows; two regression tests in `admin-uploads-page.svelte.test.ts` pin both directions.
+
+### Verification at this checkpoint
+
+- `svelte-check` 0 errors/0 warnings; `prettier --check .` and ESLint clean; `npm run build` green.
+- **71 files / 629 unit tests** (69/615 before): the journey, the tile-to-version mapping test, and
+  the two batch-message regression tests.
+- **52 catalog SQL checks**, **68 main e2e journeys**, **6 synthetic-cloud journeys**.
+- `svelte-autofixer` on the four changed components: 0 issues. Its suggestion list for the picker
+  and the preview is the documented async-`$effect` class (a repository-backed list cannot be a
+  `$derived`), plus `bind:this` where an `IntersectionObserver` needs the element. One autofixer
+  suggestion was **wrong** and is recorded as such: it called the `leaveguard` `eslint-disable`
+  directive in `PresentationEditorPage.svelte` unused, but the repository's own ESLint does report
+  `no-useless-assignment` there without it.
+- The journey's processor is the in-memory stand-in, not the native sharp/resvg path; those bytes are
+  covered by `processing/processing.test.ts` and the SQL harness rather than by this browser test.
+
+### Remaining after this milestone
+
+- **P53** — live RLS/Storage verification, still unavailable without a dedicated Supabase project.
+- **Milestone 6** — template authoring (the only catalog surface still deferred by the design).
+
 ## Milestone 5 checkpoint — upload, review and publish the asset collection (2026-09-16, P54–P61)
 
 Scope: **milestones 5's first eight work items**. Implemented: the durable batch/job backend, the
@@ -222,6 +293,9 @@ the milestone-4 checkpoint carries over unchanged.
   observe a concurrent edit at all. It now returns snapshots, which is what a PostgREST response is.
 
 ### Remaining in this milestone
+
+**All three were implemented in the part-2 checkpoint above** (2026-09-16), which is authoritative;
+the list is kept as the record of what this checkpoint left open.
 
 - **P62** — the student-facing catalog panel in the presentation editor (collection/type/search,
   lazy previews, only published items, keyboard insertion).

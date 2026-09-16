@@ -79,7 +79,8 @@
 		onback,
 		// `$bindable` compiles to a prop getter/setter, so this component only ever
 		// publishes the guard; the route reads it back through the binding, which
-		// leaves the initial value unread here.
+		// leaves the initial value unread here. The repo's ESLint flags this without
+		// the directive even though the Svelte autofixer reports it as unused.
 		// eslint-disable-next-line no-useless-assignment
 		leaveguard = $bindable(null)
 	} = $props();

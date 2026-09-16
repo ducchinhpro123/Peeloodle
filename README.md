@@ -64,6 +64,11 @@ checks and known limitations are recorded in `docs/migration-progress.md`.
   `supabase/README.md`); everyone else sees an honest "/admin" state. `npm run test:catalog-sql` runs
   the migrations against a throwaway local PostgreSQL and checks immutability, pointer integrity,
   RLS/Storage visibility, the leased upload lifecycle and every publish/archive guard.
+- **The student side of the catalog**: the presentation editor has a catalog panel listing published
+  assets only (search, collection and type filters, thumbnails fetched lazily as they scroll into
+  view). It downloads the derivative into the deck _before_ the insertion is committed, so a failed
+  or offline download leaves the document untouched, and the saved deck records the catalog item and
+  version it came from rather than a URL.
 
 ## Not implemented yet (do not expect these to work)
 
@@ -74,9 +79,7 @@ checks and known limitations are recorded in `docs/migration-progress.md`.
   in-process backend, so the deployed RLS policies and Storage rules are unverified here. The same
   applies to the catalog: `npm run test:catalog-live` is the three-session isolation check for a
   dedicated test project and has never been run (no project or credentials).
-- **The student side of the catalog**: the editor does not read the public catalog yet (no panel, no
-  "insert this catalog image"), so nothing downloads bytes from the catalog into a presentation.
-  Template authoring is likewise not built yet.
+- **Template authoring** is not built yet (the only catalog surface the design still defers).
 - **Serverless hosts**: asset validation runs in `POST /api/catalog/process`. On a purely static
   deployment that endpoint does not exist, so uploads can be stored but never validated (and the
   screens say so); a server or serverless deploy is required to publish catalog media.
