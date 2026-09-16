@@ -24,6 +24,7 @@ import {
 	FIXTURE_IMAGE_BYTE_LENGTH,
 	fixtureImagePng
 } from '$lib/presentations/model/fixtures/fixture';
+import { MemoryCatalog } from '$lib/catalog/memory';
 import type { PresentationDocument, TextElement } from '$lib/presentations/model/types';
 
 const PRESENTATION_ID = 'editor-deck';
@@ -72,6 +73,77 @@ function buttonNamed(container: HTMLElement, label: string): HTMLButtonElement {
 	return found;
 }
 
+/** A published catalog item with a signed URL for its derivative. */
+function catalogFixture() {
+	const assetId = 'a0000000-0000-4000-8000-0000000000a1';
+	const versionId = 'v0000000-0000-4000-8000-0000000000a1';
+	const derivativePath = `assets/${assetId}/${versionId}/asset.png`;
+	const repository = new MemoryCatalog(
+		{
+			collections: [
+				{
+					id: 'c0000000-0000-4000-8000-0000000000a1',
+					name: 'Animals',
+					description: '',
+					tags: [],
+					sortOrder: 1,
+					state: 'published',
+					revision: 1,
+					publishedAt: '2026-09-16T00:00:00.000Z',
+					archivedAt: null,
+					createdAt: '2026-09-16T00:00:00.000Z',
+					updatedAt: '2026-09-16T00:00:00.000Z'
+				}
+			],
+			assets: [
+				{
+					id: assetId,
+					collectionId: 'c0000000-0000-4000-8000-0000000000a1',
+					name: 'Cat',
+					description: '',
+					tags: [],
+					kind: 'raster',
+					provenance: {},
+					sortOrder: 1,
+					state: 'published',
+					revision: 2,
+					publishedVersionId: versionId,
+					publishedAt: '2026-09-16T00:00:00.000Z',
+					archivedAt: null,
+					createdAt: '2026-09-16T00:00:00.000Z',
+					updatedAt: '2026-09-16T00:00:00.000Z'
+				}
+			],
+			versions: [
+				{
+					id: versionId,
+					assetId,
+					versionNumber: 1,
+					sourcePath: 'batches/b/j.png',
+					sourceSha256: 'a'.repeat(64),
+					sourceBytes: 1024,
+					sourceMime: 'image/png',
+					derivativePath,
+					derivativeSha256: 'b'.repeat(64),
+					derivativeBytes: 2048,
+					derivativeMime: 'image/png',
+					derivativeWidth: 64,
+					derivativeHeight: 64,
+					thumbnailPath: `assets/${assetId}/${versionId}/thumb.webp`,
+					validationState: 'validated',
+					createdAt: '2026-09-16T00:00:00.000Z'
+				}
+			],
+			derivativeUrls: new Map([
+				[derivativePath, 'https://example.test/catalog-full.png'],
+				[`assets/${assetId}/${versionId}/thumb.webp`, 'https://example.test/catalog-thumb.webp']
+			])
+		},
+		null
+	);
+	return { repository, assetId, versionId, derivativePath };
+}
+
 function textModels(document: PresentationDocument | null): TextElement[] {
 	return (document?.slides ?? [])
 		.flatMap((slide) => slide.elements)
@@ -117,6 +189,8 @@ async function openEditor(
 		seed?: (repository: MemoryPresentationRepository) => Promise<unknown>;
 		/** `panel` waits for a settled load failure instead of an open editor. */
 		expect?: 'editor' | 'panel';
+		/** The optional published-catalog read path the picker uses (P62). */
+		catalogRepository?: import('$lib/catalog/repository').CatalogRepository | null;
 	} = {}
 ) {
 	const repository = options.repository ?? createMemoryPresentationRepository();
@@ -127,6 +201,7 @@ async function openEditor(
 	const rendered = await render(PresentationEditorPage, {
 		presentationId: id,
 		repository,
+		catalogRepository: options.catalogRepository ?? null,
 		store,
 		backhref: '/presentations',
 		onback: () => {},
@@ -448,6 +523,79 @@ describe('presentation editor page', () => {
 		expect(editor.store.getState().document?.slides[0]?.elements[0]?.x).toBe(321);
 
 		await editor.unmount();
+	});
+
+	it('copies a published catalog image into the deck, bytes and provenance included', async () => {
+		const catalog = catalogFixture();
+		const editor = await openEditor({ catalogRepository: catalog.repository });
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = (async () =>
+			new Response(new Blob([fixtureImagePng() as unknown as BlobPart], { type: 'image/png' }), {
+				status: 200
+			})) as typeof fetch;
+		try {
+			buttonWithText(editor.container, 'Catalog').click();
+			const tile = await waitFor(
+				() =>
+					editor.container.querySelector<HTMLButtonElement>('button.catalog-item:not(:disabled)'),
+				'the catalog tile'
+			);
+			tile.click();
+
+			const element = await waitFor(() => {
+				const found = editor.store
+					.getState()
+					.document?.slides[0]?.elements.find((candidate) => candidate.kind === 'image');
+				return found ?? null;
+			}, 'the catalog image element');
+			const document = editor.store.getState().document;
+			if (!document) throw new Error('no document');
+			const asset = document.assets.find((candidate) => candidate.id === element.assetId);
+			expect(asset?.provenance).toMatchObject({
+				source: 'catalog',
+				catalogItemId: catalog.assetId,
+				catalogVersionId: catalog.versionId
+			});
+			// The copy is stored locally, so a later catalog change cannot alter it.
+			const stored = await editor.repository.getPresentation(PRESENTATION_ID);
+			const storedAsset = stored.assets.find((candidate) => candidate.id === element.assetId);
+			expect(storedAsset?.provenance.source).toBe('catalog');
+			const media = await editor.repository.getMedia(asset?.id ?? '');
+			expect(media.bytes.length).toBe(FIXTURE_IMAGE_BYTE_LENGTH);
+			expect(editor.container.textContent).toContain('Saved locally');
+			await editor.unmount();
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
+	it('leaves the deck untouched when a catalog download fails', async () => {
+		const catalog = catalogFixture();
+		const editor = await openEditor({ catalogRepository: catalog.repository });
+		const before = JSON.stringify(editor.store.getState().document);
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = (async () => new Response('missing', { status: 404 })) as typeof fetch;
+		try {
+			buttonWithText(editor.container, 'Catalog').click();
+			const tile = await waitFor(
+				() =>
+					editor.container.querySelector<HTMLButtonElement>('button.catalog-item:not(:disabled)'),
+				'the catalog tile'
+			);
+			tile.click();
+
+			const alert = await waitFor(
+				() => editor.container.querySelector('[role="alert"]'),
+				'the download failure'
+			);
+			expect(alert.textContent).toContain('could not be downloaded');
+			expect(JSON.stringify(editor.store.getState().document)).toBe(before);
+			const stored = await editor.repository.getPresentation(PRESENTATION_ID);
+			expect(stored.assets).toHaveLength(0);
+			await editor.unmount();
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
 	});
 
 	it('adds a photo through the file input and stores its bytes with the document', async () => {

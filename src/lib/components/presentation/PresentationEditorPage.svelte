@@ -37,6 +37,11 @@
 	import TextFormatToolbar from './TextFormatToolbar.svelte';
 	import ThemeControls from './ThemeControls.svelte';
 	import StickerPickerDialog from './StickerPickerDialog.svelte';
+	import CatalogPickerDialog from './CatalogPickerDialog.svelte';
+	import {
+		prepareCatalogAsset,
+		CatalogInsertError
+	} from '$lib/presentations/editor/insertCatalogAsset';
 	import ExportDialog from './ExportDialog.svelte';
 
 	/**
@@ -54,6 +59,7 @@
 	 *   presentationId: string,
 	 *   repository: import('$lib/presentations/persistence/repository').PresentationRepository,
 	 *   stickerRepository?: import('$lib/persistence/repository').StickerLabRepository | null,
+	 *   catalogRepository?: import('$lib/catalog/repository').CatalogRepository | null,
 	 *   store: import('$lib/presentations/editor/store.svelte').PresentationStore,
 	 *   backhref: string,
 	 *   onback: () => void | Promise<void>,
@@ -67,6 +73,7 @@
 		presentationId,
 		repository,
 		stickerRepository = null,
+		catalogRepository = null,
 		store,
 		backhref,
 		onback,
@@ -434,7 +441,8 @@
 			// A fresh Map so the canvas re-renders with the new artwork.
 			images = new Map(media.images);
 		} catch (error) {
-			if (error instanceof PrepareImageError) insertError = error.message;
+			if (error instanceof PrepareImageError || error instanceof CatalogInsertError)
+				insertError = error.message;
 			else if (persisted)
 				insertError =
 					'This image was saved, but it cannot be displayed here yet. Reopen the presentation to see it.';
@@ -469,6 +477,20 @@
 			() => preparePresentationImage(file),
 			(prepared) => saving.persistReplace(target, prepared),
 			'This photo could not be replaced.'
+		);
+	}
+
+	/**
+	 * Copies a published catalog image: the bytes are downloaded and validated
+	 * *before* the document is written (P63), so a failed download leaves the deck
+	 * untouched and the stored copy no longer depends on the catalog.
+	 * @param {import('$lib/presentations/editor/insertCatalogAsset').CatalogInsertSource} source
+	 */
+	function addCatalogImage(source) {
+		return runImageWrite(
+			() => prepareCatalogAsset(catalogRepository, source),
+			(prepared) => saving.persistInsert(prepared),
+			'This catalog image could not be added.'
 		);
 	}
 
@@ -655,6 +677,11 @@
 					><ImagePlus size={16} aria-hidden="true" />
 					{inserting ? 'Adding image…' : 'Add image'}</button
 				>
+				{#if catalogRepository}<CatalogPickerDialog
+						repository={catalogRepository}
+						disabled={inserting}
+						oninsert={addCatalogImage}
+					/>{/if}
 				{#if stickerRepository}<StickerPickerDialog
 						repository={stickerRepository}
 						disabled={inserting}

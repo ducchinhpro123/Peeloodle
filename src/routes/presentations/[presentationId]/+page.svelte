@@ -5,6 +5,7 @@
 	import AppShell from '$lib/components/AppShell.svelte';
 	import PresentationEditorPage from '$lib/components/presentation/PresentationEditorPage.svelte';
 	import { getAppContext } from '$lib/app/context';
+	import { getCatalogRepository } from '$lib/catalog/client';
 
 	/** @type {import('./$types').PageProps} */
 	let { params } = $props();
@@ -24,6 +25,28 @@
 	 */
 	let leaveguard = $state(null);
 	let bypass = false;
+
+	/**
+	 * The optional catalog read path (P62). Without cloud configuration there is no
+	 * repository and the editor simply has no catalog button; when it is configured,
+	 * the picker still shows only published items.
+	 * @type {import('$lib/catalog/remote').SupabaseCatalog | null}
+	 */
+	let catalogRepository = $state.raw(null);
+
+	$effect(() => {
+		let live = true;
+		void getCatalogRepository()
+			.then((value) => {
+				if (live) catalogRepository = value;
+			})
+			.catch(() => {
+				if (live) catalogRepository = null;
+			});
+		return () => {
+			live = false;
+		};
+	});
 
 	beforeNavigate(async (navigation) => {
 		if (bypass || !leaveguard?.hasUnsavedWork()) return;
@@ -51,6 +74,7 @@
 			presentationId={params.presentationId}
 			repository={presentationRepository}
 			stickerRepository={repository}
+			{catalogRepository}
 			store={presentationStore}
 			backhref={resolve('/presentations')}
 			onback={() => goto(resolve('/presentations'))}
