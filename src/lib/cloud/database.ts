@@ -446,7 +446,7 @@ export type Database = {
 				Returns: Json;
 			};
 			catalog_admin_claim_upload_job: {
-				Args: { lease_seconds?: number };
+				Args: { p_job_id?: string | null; p_lease_seconds?: number };
 				Returns: Json;
 			};
 			catalog_admin_close_upload_batch: {

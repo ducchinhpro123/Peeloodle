@@ -58,11 +58,14 @@
 		"vitest-browser-svelte": "^2.1.1"
 	},
 	"dependencies": {
+		"@resvg/resvg-js": "^2.6.2",
 		"@supabase/supabase-js": "^2.116.0",
+		"fast-xml-parser": "^5.11.1",
 		"fflate": "^0.8.3",
 		"konva": "^9.3.22",
 		"lucide-svelte": "^0.577.0",
 		"pdf-lib": "^1.17.1",
-		"pptxgenjs": "^4.0.1"
+		"pptxgenjs": "^4.0.1",
+		"sharp": "^0.35.4"
 	}
 }

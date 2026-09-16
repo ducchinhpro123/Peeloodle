@@ -26,9 +26,12 @@ import {
 	type CatalogListFilters,
 	type CatalogRepository,
 	type CatalogTemplateInput,
+	type CatalogUploadClaimResult,
+	type CatalogUploadCompletionResult,
 	type CatalogUploadRequest,
 	decodeUploadCursor
 } from './repository';
+import type { ProcessingOutcome } from './processing/runJob';
 import {
 	parseActionResult,
 	parseAsset,
@@ -58,8 +61,6 @@ import type {
 	CatalogTemplateVersion,
 	CatalogUploadBatchPage,
 	CatalogUploadBatchSummary,
-	CatalogUploadClaim,
-	CatalogUploadCompletion,
 	CatalogUploadJob,
 	CatalogUploadStatus
 } from './types';
@@ -506,19 +507,55 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 		return readUploadBatchPage(data);
 	}
 
-	async claimUploadJob(leaseSeconds = 300): Promise<CatalogActionResult<CatalogUploadClaim>> {
+	async claimUploadJob(leaseSeconds = 300, jobId?: string): Promise<CatalogUploadClaimResult> {
 		const { data, error } = await this.#client.rpc('catalog_admin_claim_upload_job', {
-			lease_seconds: leaseSeconds
+			p_lease_seconds: leaseSeconds,
+			p_job_id: jobId ?? null
 		});
 		if (error) this.#fail(error, 'Could not claim an upload job');
 		return parseUploadClaimResult(data);
+	}
+
+	/**
+	 * Processing runs in the app's own server function (see
+	 * `src/routes/api/catalog/process/+server.js`): the browser never decodes the
+	 * source, and the lease it holds is the only way to finalize. Without a server
+	 * deployment the endpoint is absent, which is reported as `unavailable`
+	 * instead of pretending a version was validated.
+	 */
+	async processUploadJob(jobId: string): Promise<ProcessingOutcome> {
+		const session = await this.#client.auth.getSession();
+		const token = session.data.session?.access_token;
+		if (!token)
+			throw new CatalogError('permission', 'Sign in as a catalog administrator to process uploads');
+		let response: Response;
+		try {
+			response = await fetch('/api/catalog/process', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+				body: JSON.stringify({ jobId })
+			});
+		} catch (cause) {
+			throw new CatalogError('unavailable', 'The processing endpoint could not be reached', cause);
+		}
+		const payload = (await response.json().catch(() => null)) as ProcessingOutcome | null;
+		if (response.ok && payload) return payload;
+		if (response.status === 409 && payload) return payload;
+		if (response.status === 401 || response.status === 403)
+			throw new CatalogError('permission', 'Catalog administrator membership is required');
+		if (response.status === 404 || response.status === 503)
+			throw new CatalogError(
+				'unavailable',
+				'This site has no processing endpoint, so uploads cannot be validated'
+			);
+		throw new CatalogError('invalid_data', `The processing endpoint failed (${response.status})`);
 	}
 
 	async completeUploadJob(
 		jobId: string,
 		leaseToken: string,
 		report: CatalogAssetVersionReport
-	): Promise<CatalogActionResult<CatalogUploadCompletion>> {
+	): Promise<CatalogUploadCompletionResult> {
 		const { data, error } = await this.#client.rpc('catalog_admin_complete_upload_job', {
 			p_job_id: jobId,
 			p_lease_token: leaseToken,

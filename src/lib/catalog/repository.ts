@@ -11,6 +11,7 @@
  * A refusal is not an error; transport, permission and malformed-row problems
  * are thrown as `CatalogError`.
  */
+import type { ProcessingOutcome } from './processing/runJob';
 import type {
 	CatalogAsset,
 	CatalogAssetKind,
@@ -95,6 +96,18 @@ export type CatalogActionDetail<T> = {
 
 export type CatalogActionResult<T> =
 	{ ok: true; item: T } | { ok: false; reason: CatalogRefusal; detail: CatalogActionDetail<T> };
+
+/**
+ * Claim and completion refusals carry the current *job* in `detail.item`, not the
+ * success item, so those two envelopes get their own failure shape.
+ */
+export type CatalogUploadClaimResult =
+	| { ok: true; item: CatalogUploadClaim }
+	| { ok: false; reason: CatalogRefusal; detail: CatalogActionDetail<CatalogUploadJob> };
+
+export type CatalogUploadCompletionResult =
+	| { ok: true; item: CatalogUploadCompletion }
+	| { ok: false; reason: CatalogRefusal; detail: CatalogActionDetail<CatalogUploadJob> };
 
 export const CATALOG_DEFAULT_PAGE_SIZE = 24;
 export const CATALOG_MAX_PAGE_SIZE = 100;
@@ -296,12 +309,18 @@ export interface CatalogAdminRepository {
 	): Promise<CatalogActionResult<CatalogUploadStatus>>;
 	uploadStatus(batchId: string): Promise<CatalogUploadStatus>;
 	listUploadBatches(cursor?: string | null): Promise<CatalogUploadBatchPage>;
-	claimUploadJob(leaseSeconds?: number): Promise<CatalogActionResult<CatalogUploadClaim>>;
+	claimUploadJob(leaseSeconds?: number, jobId?: string): Promise<CatalogUploadClaimResult>;
+	/**
+	 * Claims the job and runs trusted processing. The Supabase adapter posts to
+	 * the app's processing endpoint; the fake runs the same orchestration locally
+	 * with an injected processor, because browsers have no native decoder.
+	 */
+	processUploadJob(jobId: string): Promise<ProcessingOutcome>;
 	completeUploadJob(
 		jobId: string,
 		leaseToken: string,
 		report: CatalogAssetVersionReport
-	): Promise<CatalogActionResult<CatalogUploadCompletion>>;
+	): Promise<CatalogUploadCompletionResult>;
 	failUploadJob(
 		jobId: string,
 		leaseToken: string,

@@ -394,7 +394,11 @@ describe('supabase catalog adapter upload lifecycle', () => {
 			item: { leaseToken: 'l0000000-0000-4000-8000-000000000001', job: { stage: 'claimed' } }
 		});
 		expect(JSON.stringify(claimed)).not.toContain('"lease_token"');
-		expect(calls[0]).toEqual(['rpc', 'catalog_admin_claim_upload_job', { lease_seconds: 120 }]);
+		expect(calls[0]).toEqual([
+			'rpc',
+			'catalog_admin_claim_upload_job',
+			{ p_lease_seconds: 120, p_job_id: null }
+		]);
 		expect(await catalog.claimUploadJob()).toMatchObject({ reason: 'none_pending' });
 	});
 

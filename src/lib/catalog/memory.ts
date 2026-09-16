@@ -10,11 +10,14 @@ import {
 	CatalogError,
 	catalogPageSize,
 	decodeCatalogCursor,
+	type CatalogActionDetail,
 	type CatalogActionResult,
 	type CatalogAdminRepository,
 	type CatalogAssetInput,
 	type CatalogCollectionInput,
 	type CatalogListFilters,
+	type CatalogUploadClaimResult,
+	type CatalogUploadCompletionResult,
 	type CatalogRefusal,
 	type CatalogRepository,
 	type CatalogAssetVersionReport,
@@ -24,6 +27,9 @@ import {
 	encodeUploadCursor
 } from './repository';
 import { takePage } from './parse';
+import { runProcessingJob, type ProcessingOutcome } from './processing/runJob';
+import type { ProcessedAsset } from './processing/index';
+import { sha256Hex } from '$lib/hash';
 import type {
 	CatalogAsset,
 	CatalogAssetVersion,
@@ -36,14 +42,27 @@ import type {
 	CatalogUploadBatch,
 	CatalogUploadBatchPage,
 	CatalogUploadBatchSummary,
-	CatalogUploadClaim,
-	CatalogUploadCompletion,
 	CatalogUploadJob,
 	CatalogUploadJobStatus,
 	CatalogUploadObject,
 	CatalogUploadStage,
 	CatalogUploadStatus
 } from './types';
+
+/**
+ * Deterministic placeholder processor for the in-memory repository. It keeps the
+ * upload contract exercisable in browser tests without shipping a native decoder
+ * to the browser; real bytes are decoded by the Node processing tests.
+ */
+const defaultProcessor = async (bytes: Uint8Array): Promise<ProcessedAsset> => ({
+	sourceFormat: 'png',
+	sourceBytes: bytes.length,
+	sourceSha256: await sha256Hex(bytes),
+	width: 64,
+	height: 64,
+	png: new Uint8Array(2048),
+	thumbnail: new Uint8Array(512)
+});
 
 const UPLOAD_EXTENSIONS: Record<string, string> = {
 	'image/png': 'png',
@@ -76,6 +95,13 @@ export type CatalogSeed = {
 	admins?: string[];
 	derivativeUrls?: Map<string, string>;
 	objects?: MemoryObject[];
+	/**
+	 * The browser has no native decoder, so the fake takes the processor as a
+	 * dependency. The default is deterministic placeholder bytes: enough for the
+	 * UI contract, not a claim about real decoding (the SQL and Node tests cover
+	 * that separately).
+	 */
+	process?: (bytes: Uint8Array) => Promise<ProcessedAsset>;
 };
 
 const now = () => new Date().toISOString();
@@ -91,6 +117,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 	admins: Set<string>;
 	derivativeUrls: Map<string, string>;
 	objects: MemoryObject[];
+	processor: (bytes: Uint8Array) => Promise<ProcessedAsset>;
 	uploadBatches: CatalogUploadBatch[];
 	uploadJobs: CatalogUploadJob[];
 	leases: Map<string, { token: string; expiresAt: number }>;
@@ -106,6 +133,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		this.admins = new Set(seed.admins ?? []);
 		this.derivativeUrls = seed.derivativeUrls ?? new Map();
 		this.objects = seed.objects ?? [];
+		this.processor = seed.process ?? defaultProcessor;
 		this.uploadBatches = [];
 		this.uploadJobs = [];
 		this.leases = new Map();
@@ -156,6 +184,17 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		reason: CatalogRefusal,
 		detail: Record<string, unknown> = {}
 	): CatalogActionResult<T> {
+		return { ok: false, reason, detail };
+	}
+
+	/**
+	 * Failure-only shape for envelopes whose `detail.item` is a job rather than the
+	 * success item (claim and completion), matching the SQL and the adapter.
+	 */
+	#refusalDetail<T>(
+		reason: CatalogRefusal,
+		detail: Record<string, unknown> = {}
+	): { ok: false; reason: CatalogRefusal; detail: CatalogActionDetail<T> } {
 		return { ok: false, reason, detail };
 	}
 
@@ -607,6 +646,21 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		return { ok: true, item: { ...current } };
 	}
 
+	async processUploadJob(jobId: string): Promise<ProcessingOutcome> {
+		this.#assertAdmin();
+		return runProcessingJob(
+			{
+				claim: (job, leaseSeconds) => this.claimUploadJob(leaseSeconds, job),
+				downloadSource: (path) => this.downloadSource(path),
+				uploadDerivative: (path, bytes, mime) => this.uploadDerivative(path, bytes, mime),
+				complete: (job, token, report) => this.completeUploadJob(job, token, report),
+				fail: (job, token, error) => this.failUploadJob(job, token, error),
+				process: this.processor
+			},
+			jobId
+		);
+	}
+
 	// ---------------------------------------------------------------------
 	// P54/P55/P61: batch uploads, leases and cleanup. These mirror the SQL in
 	// `20260916160000_catalog_uploads.sql`; the SQL harness is the authority.
@@ -825,11 +879,12 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		};
 	}
 
-	async claimUploadJob(leaseSeconds = 300): Promise<CatalogActionResult<CatalogUploadClaim>> {
+	async claimUploadJob(leaseSeconds = 300, jobId?: string): Promise<CatalogUploadClaimResult> {
 		this.#assertAdmin();
 		const seconds = Math.min(Math.max(leaseSeconds, 30), 3600);
 		const candidate = this.uploadJobs
 			.filter((job) => {
+				if (jobId !== undefined && job.id !== jobId) return false;
 				if (job.attempts >= 10) return false;
 				const batch = this.uploadBatches.find((row) => row.id === job.batchId);
 				if (batch?.state !== 'open') return false;
@@ -845,7 +900,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 					left.position - right.position ||
 					(left.id < right.id ? -1 : 1)
 			)[0];
-		if (!candidate) return this.#refusal('none_pending');
+		if (!candidate) return this.#refusalDetail('none_pending');
 		const token = uuid();
 		const expiresAt = Date.now() + seconds * 1000;
 		this.leases.set(candidate.id, { token, expiresAt });
@@ -872,7 +927,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		jobId: string,
 		leaseToken: string,
 		report: CatalogAssetVersionReport
-	): Promise<CatalogActionResult<CatalogUploadCompletion>> {
+	): Promise<CatalogUploadCompletionResult> {
 		this.#assertAdmin();
 		const job = this.#job(jobId);
 		if (job.stage === 'ready') {
@@ -881,20 +936,20 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			);
 			if (existing)
 				return { ok: true, item: { job: { ...job }, version: existing, replayed: true } };
-			return this.#refusal('already_complete', { item: job });
+			return this.#refusalDetail('already_complete', { item: job });
 		}
 		const problem = this.#reportProblem(job, report);
-		if (problem) return this.#refusal(problem, { item: job });
-		if (!this.#leaseHolds(job, leaseToken)) return this.#refusal('lease_lost', { item: job });
+		if (problem) return this.#refusalDetail(problem, { item: job });
+		if (!this.#leaseHolds(job, leaseToken)) return this.#refusalDetail('lease_lost', { item: job });
 		const derivative = this.#object('catalog-derivatives', report.derivativePath);
 		if (!derivative || derivative.bytes !== report.derivativeBytes)
-			return this.#refusal('media_missing', {
+			return this.#refusalDetail('media_missing', {
 				message: 'The derivative object has not been stored'
 			});
 		if (report.thumbnailPath) {
 			const thumbnail = this.#object('catalog-derivatives', report.thumbnailPath);
 			if (!thumbnail || thumbnail.bytes !== report.thumbnailBytes)
-				return this.#refusal('media_missing', {
+				return this.#refusalDetail('media_missing', {
 					message: 'The thumbnail object has not been stored'
 				});
 		}

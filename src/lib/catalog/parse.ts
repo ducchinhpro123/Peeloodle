@@ -7,8 +7,11 @@ import {
 	CatalogError,
 	encodeCatalogCursor,
 	encodeUploadCursor,
+	type CatalogActionDetail,
 	type CatalogActionResult,
-	type CatalogRefusal
+	type CatalogRefusal,
+	type CatalogUploadClaimResult,
+	type CatalogUploadCompletionResult
 } from './repository';
 import type {
 	CatalogAsset,
@@ -24,8 +27,6 @@ import type {
 	CatalogTemplateVersion,
 	CatalogUploadBatchPage,
 	CatalogUploadBatchState,
-	CatalogUploadClaim,
-	CatalogUploadCompletion,
 	CatalogUploadBatchSummary,
 	CatalogUploadCounts,
 	CatalogUploadJob,
@@ -259,13 +260,13 @@ export function parseActionResult<T>(
 ): CatalogActionResult<T> {
 	const row = record(value, 'action result');
 	if (row.ok === true) return { ok: true, item: parseItem(row.item) };
-	return refusal(row, parseItem);
+	return refusalDetail(row, parseItem);
 }
 
-function refusal<T>(
+function refusalDetail<T>(
 	row: Record<string, unknown>,
 	parseItem: (item: unknown) => T
-): CatalogActionResult<T> {
+): { ok: false; reason: CatalogRefusal; detail: CatalogActionDetail<T> } {
 	if (
 		row.ok === false &&
 		typeof row.reason === 'string' &&
@@ -404,7 +405,7 @@ export function parseUploadBatchPage(value: unknown): CatalogUploadBatchPage {
 }
 
 /** Claim envelopes carry the lease outside `item`, so they need their own parse. */
-export function parseUploadClaimResult(value: unknown): CatalogActionResult<CatalogUploadClaim> {
+export function parseUploadClaimResult(value: unknown): CatalogUploadClaimResult {
 	const row = record(value, 'claim result');
 	if (row.ok === true) {
 		const lease = record(row.lease, 'lease');
@@ -417,14 +418,10 @@ export function parseUploadClaimResult(value: unknown): CatalogActionResult<Cata
 			}
 		};
 	}
-	// A claim refusal carries the current job as `detail.item`; the success item
-	// is a claim, so the detail shape is deliberately the job's.
-	return refusal(row, parseUploadJob) as unknown as CatalogActionResult<CatalogUploadClaim>;
+	return refusalDetail(row, parseUploadJob);
 }
 
-export function parseUploadCompletionResult(
-	value: unknown
-): CatalogActionResult<CatalogUploadCompletion> {
+export function parseUploadCompletionResult(value: unknown): CatalogUploadCompletionResult {
 	const row = record(value, 'completion result');
 	if (row.ok === true) {
 		return {
@@ -436,7 +433,7 @@ export function parseUploadCompletionResult(
 			}
 		};
 	}
-	return refusal(row, parseUploadJob) as unknown as CatalogActionResult<CatalogUploadCompletion>;
+	return refusalDetail(row, parseUploadJob);
 }
 
 export function parseUploadObjectList(value: unknown): CatalogUploadObject[] {
