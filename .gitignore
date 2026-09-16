@@ -36,3 +36,4 @@ project.inlang/cache/
 # Source-repo tooling artifacts (proofs/, scripts/)
 __pycache__/
 .pi/
+.worktrees/
