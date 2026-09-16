@@ -78,11 +78,14 @@ _Avoid_: layout (used for the CSS grid class), frame
 
 ## Current implementation
 
-Status as of 2026-09-16: slices 1–4 are implemented and locally verified, and **milestone 4 of
-`docs/slides-implementation-plan.md` (the trusted catalog backend, P46–P53) was implemented on
+Status as of 2026-09-16: slices 1–4 are implemented and locally verified, and **milestones 4 and the
+first eight items of milestone 5 of `docs/slides-implementation-plan.md` were implemented on
 explicit request** — catalog schema/RLS/policies, guarded admin RPCs, typed repositories, the
-`/admin` guard and the collections console, with a local PostgreSQL harness (35 checks) standing in
-for the live isolation check that needs a dedicated test project. Slice 3 is complete as
+`/admin` guard with the collections console, then durable upload batches with leased validation jobs,
+server-side PNG/WebP/SVG processing, and the `/admin/uploads` + `/admin/assets` review screens, with
+a local PostgreSQL harness (52 checks) standing in for the live isolation check that needs a
+dedicated test project. **Milestone 5's last three items (P62 student catalog panel, P63 snapshot
+download before insertion, P64 the end-to-end journey) are not implemented yet.** Slice 3 is complete as
 written — presentation model, local storage, rendering, the `/presentations` library, the
 `/presentations/[presentationId]` editor, its PDF/PPTX/backup exports, and every source presentation
 journey either ported or recorded as superseded (the P44 reader-fixture proof is source proof
@@ -96,8 +99,10 @@ defects were fixed, and re-review returned PASS).
 
 **Working routes:** `/` dashboard · `/templates` catalog · `/my-stickers` library · `/create` ·
 `/editor/[projectId]` · `/presentations` library · `/presentations/[presentationId]` editor ·
-`/auth/callback` (real PKCE callback, honest missing/invalid-link state) · `/admin/collections`
-(administrator-only; redirects from `/admin`). Presentation exports
+`/auth/callback` (real PKCE callback, honest missing/invalid-link state) ·
+`/admin/{collections,assets,uploads}` (administrator-only; redirects from `/admin`) ·
+`POST /api/catalog/process` (the app's only server-side route: trusted asset validation for a claimed
+job, using the caller's own JWT). Presentation exports
 (PDF/PPTX/backup) and the optional cloud account work from the app shell.
 
 **Cloud, when configured:** header account button → email-link sign-in (PKCE) → private workspace
@@ -120,7 +125,20 @@ recovery, plus a 960×540 pt image-based PDF, an editable PPTX and a restorable 
 backup, with cancellation and preflight warnings, that keep working after a disconnect once the
 presentation flow has been prepared).
 
-**Key files for the newest work (milestone 4: trusted catalog backend, repositories, admin console):**
+**Key files for the newest work (milestone 5: uploads, processing, review):**
+
+| Path                                                             | Role                                                                                                                                                                                                                |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `supabase/migrations/20260916160000_catalog_uploads.sql`         | Batch/job lifecycle (reserved paths, `position`, claim gates against Storage, leases with bounded attempts, completion validation, fail/retry/cancel/close) plus the bounded orphan listing and the delete policies |
+| `supabase/migrations/20260916170000_catalog_claim_job.sql`       | Adds the optional job id to the claim so one request acts on exactly one job                                                                                                                                        |
+| `src/lib/catalog/processing/{limits,errors,raster,svg,index}.ts` | The trusted validator: header sniffing, decode limits, PNG/WebP derivatives, the strict SVG static subset and bounded resvg rasterization                                                                           |
+| `src/lib/catalog/processing/runJob.ts`                           | One claimed job end to end, with every dependency injected (and the validator required, so no native decoder reaches the browser bundle)                                                                            |
+| `src/routes/api/catalog/process/+server.js`                      | The server function: `{jobId}` + bearer token in, validated version out; no service-role key exists anywhere                                                                                                        |
+| `src/lib/components/catalog/AdminUploadsPage.svelte`             | Bulk queue: preflight, direct uploads, per-file stages from the database, retry/cancel, honest resume, cleanup dry run                                                                                              |
+| `src/lib/components/catalog/AdminAssetsPage.svelte`              | Asset grid + inspector: filters, signed draft preview, version facts, publication refusals, conflict that adopts the server revision, pinned-archive explanation                                                    |
+| `src/lib/catalog/{types,repository,parse,memory,remote}.ts`      | Upload contracts, storage seam (`uploadSource`/`uploadDerivative`/`downloadSource`/`removeObjects`), strict parsers, and a fake that now hands out snapshots                                                        |
+
+**Key files for milestone 4 (trusted catalog backend, repositories, admin console):**
 
 | Path                                                                                                | Role                                                                                                                                                                        |
 | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -294,6 +312,12 @@ harness with direct tools should re-run the autofixer if that evidence form is r
 
 ## Gaps and residuals
 
+- **Catalog (milestone 5) residuals:** the student catalog panel and the snapshot-before-insert step
+  (P62, P63) are **not implemented**, so nothing in the editor reads the public catalog yet; the
+  end-to-end journey (P64) therefore has no journey test. Uploads report progress per file **stage**,
+  not bytes (storage-js has no progress event; a synthetic counter would be a lie). Validation needs a
+  **server deployment** — on a static host `/api/catalog/process` does not exist and the screens say
+  so rather than pretending a file was processed. The SVG policy rejects text elements by design.
 - **Catalog (milestone 4) residuals:** the live isolation check (P53) is **unavailable** (no
   dedicated Supabase test project or credentials; `npm run test:catalog-live` is ready to run
   there) — do not claim live RLS/Storage verification. The admin console covers collections only;
@@ -362,11 +386,13 @@ harness with direct tools should re-run the autofixer if that evidence form is r
    shell artwork is **done** (all static `<img>`s and bundled fetches go through `asset()`).
 4. Editor parity note recorded above (`Replace photo` outside the Adjust panel) is upstream layout;
    only revisit if a real UX issue is confirmed.
-5. **Catalog (milestone 4) is implemented** on explicit request: schema/RLS/policies, guarded admin
-   RPCs, typed repositories and the `/admin/collections` console, with the local PostgreSQL harness
-   as the verification. What remains is milestone 5 (pictographic asset upload/review) and milestone
-   6 (template authoring) of `docs/slides-implementation-plan.md`, plus the **live** isolation check
-   (P53), which needs a dedicated Supabase test project before it can be run or claimed.
+5. **Catalog milestones 4 and 5-so-far are implemented** on explicit request: schema/RLS/policies,
+   guarded admin RPCs, repositories, the `/admin/{collections,assets,uploads}` screens, leased upload
+   jobs and server-side validation. What remains, in order: **P62** (the student catalog panel in the
+   presentation editor), **P63** (download the bytes before committing an insertion), **P64** (the
+   end-to-end journey with real samples and failed-batch cases), then milestone 6 (template
+   authoring), plus the **live** isolation check (P53), which needs a dedicated Supabase test project
+   before it can be run or claimed.
 6. Keep README + `docs/migration-progress.md` honest at each checkpoint; never claim a slice the code
    does not implement.
 
@@ -377,9 +403,9 @@ harness with direct tools should re-run the autofixer if that evidence form is r
 - **Task plan (slice 3, increments 1–6 complete):**
   `docs/superpowers/plans/2026-09-15-presentations-slice.md`
   (source inventory, increment order, seams and exclusions for presentations)
-- **Product plan (source, milestones 1–6; M4 catalog backend implemented):**
+- **Product plan (source, milestones 1–6; M4 and M5's first eight items implemented):**
   `docs/slides-implementation-plan.md`; **backend operations** `supabase/README.md` (migration
-  order, admin bootstrap, membership recovery)
+  order, admin bootstrap, membership recovery, the processing endpoint's requirements)
 - **Long-lived progress, checkpoints, residuals, review paths:** `docs/migration-progress.md`
   (read "Honest status" first; the newest checkpoint is at the top, `P2 fix` sections record
   reviewer findings and their fixes)
@@ -413,10 +439,12 @@ harness with direct tools should re-run the autofixer if that evidence form is r
   and `peeloodle-history-20260915T102807Z.bundle` (the full React history, taken before the graft).
   `main` carries the Svelte tree now, so Git is the restore point; take a fresh archive only before
   genuinely risky, hard-to-reverse work.
-- Last verification: 2026-09-16, **milestone 4 (catalog)** — `npm run check` 0/0, `npm run lint`
-  clean, `npm run build` clean, `npm run test:unit -- --run` **64 files / 563 tests**,
-  `npm run test:catalog-sql` **35 checks**, `npx playwright test` **68 journeys**,
-  `npm run test:e2e:cloud` **6 journeys**. The live catalog verifier (`npm run test:catalog-live`) is written and documented
+- Last verification: 2026-09-16, **milestone 5 (P54–P61)** — `npm run check` 0/0, `npm run lint`
+  clean, `npm run build` clean, `npm run test:unit -- --run` **69 files / 615 tests**,
+  `npm run test:catalog-sql` **52 checks**, `npx playwright test` **68 journeys**,
+  `npm run test:e2e:cloud` **6 journeys**. The processing route is covered by request-shape tests and
+  by the Node processing tests over real generated bytes; the _deployed_ decode path can only be
+  exercised where a server runs. The live catalog verifier (`npm run test:catalog-live`) is written and documented
   but **was never run**: there is no Supabase test project, no credentials and no Supabase CLI here,
   so live RLS/Storage remains unverified. Browser suites need `TMPDIR` pointed off `/tmp` while that
   tmpfs is full, otherwise Chromium aborts and every `.svelte.test.ts` "fails to fetch dynamically
@@ -424,15 +452,18 @@ harness with direct tools should re-run the autofixer if that evidence form is r
   change, and run `svelte-autofixer` on every touched component/module (direct MCP tools when the
   harness exposes them; otherwise the server's stdio JSON-RPC transport, noted honestly).
 - Where the work stopped: slices 1–4 are complete as written, the slice-5 leftovers (reduced
-  motion, keyboard-only flows) have journeys, and **milestone 4 of the slides plan is implemented**
-  (catalog schema/RLS/RPCs, repositories, `/admin/collections`). The next catalog steps are
-  milestones 5–6 (asset upload/review, template authoring) and the live P53 check with a real test
-  project; the remaining non-catalog items are the optional hardening and cloud follow-ups above.
-  Read the milestone-4 checkpoint in `docs/migration-progress.md` before touching the catalog: the
-  migrations are ordered and the policies/RPCs enforce the invariants (published-only reads, no
-  write grants, CAS revisions, immutability triggers), so the client must stay read-only and every
-  mutation must go through an RPC. `npm run test:catalog-sql` boots a real PostgreSQL locally and is
-  the fast way to prove a backend change. The cloud entry points are `src/lib/cloud/*` and
+  motion, keyboard-only flows) have journeys, and **catalog milestones 4 and 5-so-far are
+  implemented** (schema/RLS/RPCs, repositories, `/admin/{collections,assets,uploads}`, leased upload
+  jobs, server-side validation). The next catalog step is **P62/P63** — a student catalog panel in the
+  presentation editor that downloads and stores bytes before committing an insertion — then P64's
+  journey, then milestone 6 (template authoring), then the live P53 check with a real test project.
+  Read the milestone-4 and milestone-5 checkpoints in `docs/migration-progress.md` before touching the
+  catalog: the migrations are ordered and the policies/RPCs enforce the invariants (published-only
+  reads, no write grants, CAS revisions, immutability triggers), so the client must stay read-only and
+  every mutation must go through an RPC; the storage seam is `uploadSource`/`uploadDerivative`/
+  `downloadSource`/`removeObjects` on the admin repository. `npm run test:catalog-sql` boots a real
+  PostgreSQL locally and is the fast way to prove a backend change; the processing validator is
+  proven by the Node tests over generated bytes. The cloud entry points are `src/lib/cloud/*` and
   `src/lib/persistence/cloud*.ts`; read the slice-4 checkpoint before touching them. Two behaviours
   the last batch pinned and a follow-up session should not re-derive: the synthetic Supabase must
   unwrap the multipart file part on Storage uploads (storage-js sends Blobs as FormData), and the

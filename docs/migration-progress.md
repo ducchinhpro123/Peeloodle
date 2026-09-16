@@ -1,6 +1,10 @@
 # Peeloodle React → Svelte migration progress
 
-Last verified: 2026-09-16, **Milestone 4 of the slides plan (P46–P53)** — the catalog schema, RLS
+Last verified: 2026-09-16, **Milestone 5 of the slides plan (P54–P61)** — durable upload batches with
+leased validation jobs, server-side PNG/WebP/SVG processing with a strict static-subset policy, and
+the `/admin/uploads` + `/admin/assets` screens with publication review (see the newest checkpoint;
+P62–P64 and the live P53 check remain open), on top of
+**Milestone 4 of the slides plan (P46–P53)** — the catalog schema, RLS
 policies and guarded admin RPCs with a 35-check SQL harness, the typed catalog repositories, and the
 admin guard plus collections console (P53's live isolation check is runnable but unrun; no test
 project exists — see the newest checkpoint), on top of
@@ -128,6 +132,104 @@ SvelteKit port, losing neither the React application nor the server-side materia
   working tree **and** `.git` (86 MB, so full history) at
   `post-git-graft-20260915T105133Z.tar.gz`, sha256
   `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
+
+## Milestone 5 checkpoint — upload, review and publish the asset collection (2026-09-16, P54–P61)
+
+Scope: **milestones 5's first eight work items**. Implemented: the durable batch/job backend, the
+trusted processing endpoint and its validator, the bulk upload queue with cleanup diagnostics, and
+the asset review screen with publication. **Not yet implemented: P62 (student catalog panel), P63
+(download a snapshot before inserting) and P64 (the full admin-upload → student-insert journey).**
+P53's live isolation check is still unavailable (no test project), so the live-verification gap from
+the milestone-4 checkpoint carries over unchanged.
+
+### Backend (P54, P55, P61) — `supabase/migrations/20260916160000_catalog_uploads.sql`
+
+- A batch reserves **one source path and one draft asset per file**, with an explicit `position`
+  column: every row of a batch shares one transaction timestamp, so ordering by `created_at` would
+  have been arbitrary.
+- A job is claimable only once Storage holds its reserved object **with the declared size and content
+  type** — the status payload answers `stored` from `storage.objects`, so a closed tab cannot look
+  like queued work that will never arrive.
+- Claiming takes a lease and increments a bounded attempt count (10). An expired lease is
+  reclaimable; the previous worker's token then fails with `lease_lost`, so a stale completion cannot
+  overwrite a retry. Finalization validates every reported field (hashes, sizes, dimensions, and the
+  derivative path bound to that asset and version), re-checks that the objects exist with the sizes
+  the report claims, stores an immutable validated version, and answers a replayed report with the
+  version already written. Fail, retry, cancel and close round out the lifecycle; cancelling clears
+  outstanding leases so an in-flight worker cannot publish afterwards.
+- P61 cleanup is bounded and self-enforcing: the dry-run listing and the new delete policies share
+  one predicate — an object no version references, in a batch that is closed or cancelled — so
+  pinned, published or still-uploading media can never be listed as an orphan or removed. Deletion
+  stays a Storage API call; the RPC only journals it after re-checking references.
+- `20260916170000_catalog_claim_job.sql` adds the optional job id to the claim, which is what lets a
+  processing request act on exactly one job (PostgreSQL cannot add a parameter in place, so the
+  function is replaced).
+- The local harness grows from 35 to **52 checks**: batch reservation, the claim gates (missing,
+  wrong-size and wrong-type objects), lease expiry and reclaim, stale-token refusal, idempotent
+  replay, attempt limits, cancellation invalidation, orphan listing, cleanup refusal, delete
+  policies and ordinary-user denial.
+
+### Validation and derivation (P56, P57)
+
+- `src/lib/catalog/processing/` holds the trusted validator: header-level sniffing of PNG and static
+  WebP (animation, dimension and byte limits before any pixel decode), a hard decoder pixel limit,
+  and re-encoding into our own PNG derivative plus a bounded WebP thumbnail. Any native encoder
+  failure becomes a reviewable `decode_failed`, never an unhandled sharp error.
+- SVG runs the strict static subset: a real XML parse, whitelisted elements, no scripts, event
+  handlers, external references, DTDs, entities, CSS imports, foreign content or text elements (text
+  must be converted to paths, because deterministic server fonts cannot be guaranteed), then a
+  bounded resvg rasterization with no system fonts and no network.
+- `src/routes/api/catalog/process/+server.js` is the app's only server-side feature: it takes
+  `{ jobId }` and the caller's access token, claims that job, downloads the reserved source, derives
+  it, stores the immutable derivatives and finalizes. **No service-role key exists anywhere** — every
+  Supabase call runs as the administrator's own JWT, so the same policies and membership checks
+  apply. Image bytes never travel in the request body and no client URL is ever fetched.
+- Consequence, recorded rather than hidden: without a server deployment (a static host) the endpoint
+  does not exist, uploads can still be stored but never validated, and the screens say so instead of
+  pretending a file was processed. `processing/runJob.ts` takes the validator as an injected
+  dependency for exactly that reason — importing the native decoder there would pull sharp and resvg
+  into the browser bundle.
+
+### Admin screens (P58, P59, P60, P61)
+
+- `/admin/uploads`: file selection with preflight, direct uploads under the reserved paths, per-file
+  stages from the database (waiting / uploading / queued / validating / ready / failed with code),
+  retries until the attempt limit, cancellation through a dialog that names the effect on in-flight
+  leases, honest resume after reload, and a bounded cleanup dry run with removal of only what is
+  unreferenced. At most two validations run at a time.
+- `/admin/assets`: paged search with collection and type filters, a draft preview from a signed URL of
+  the stored derivative, and an inspector showing the real version facts (dimensions, MIME, size,
+  hash prefix, validation state). Publication offers the newest version; refusals explain themselves
+  (unvalidated version, draft collection, pinned template on archive). A revision conflict adopts the
+  server's revision for the next save while the typed values stay in the form, so the promised
+  replace really happens.
+- **Honest deviation from the plan's wording:** progress is per-file _stage_, not a byte counter.
+  storage-js exposes no upload progress event, and a synthetic counter would be a lie; the `progress`
+  column stays in the schema for a future resumable (TUS) upload.
+
+### Verification at this checkpoint
+
+- `svelte-check` 0 errors/0 warnings; `prettier --check .` and ESLint clean; `npm run build` green.
+- **69 files / 615 unit tests** (64/563 before): 22 processing tests over real generated bytes
+  (PNG/WebP/SVG including the output bound, the animated-PNG header, a header that lies about its
+  dimensions and every rejection case), 8 orchestration tests, 4 endpoint request-shape tests, and
+  12 new browser tests for the two screens.
+- **52 catalog SQL checks**, **68 main e2e journeys**, **6 synthetic-cloud journeys**.
+- `svelte-autofixer` on both new screens: 0 issues. Remaining suggestions are the documented
+  non-actionable class already recorded for the collections screen (async list loaders assigning
+  state from an `$effect`, which is the repo's established seam for repository-backed lists).
+- Repaired along the way: the in-memory catalog handed out its live rows, so a component could not
+  observe a concurrent edit at all. It now returns snapshots, which is what a PostgREST response is.
+
+### Remaining in this milestone
+
+- **P62** — the student-facing catalog panel in the presentation editor (collection/type/search,
+  lazy previews, only published items, keyboard insertion).
+- **P63** — download and store a catalog snapshot before committing image insertion, so a failed
+  download leaves the document intact and an archive/replacement cannot break inserted copies.
+- **P64** — the end-to-end journey (upload → review → publish → student insert → save → reopen →
+  export) with real samples and failed-batch cases.
+- **P53** — live RLS/Storage verification, still unavailable without a dedicated Supabase project.
 
 ## Milestone 4 checkpoint — catalog permissions, versioning and the admin console (2026-09-16)
 

@@ -52,13 +52,18 @@ checks and known limitations are recorded in `docs/migration-progress.md`.
   workspace, cloud-saved stickers and packs, explicit guest-import consent, retry after a
   disconnect, and conflict copies instead of overwriting another device's newer save. Local editing,
   saving and export keep working with no account and while offline; presentations stay local.
-- **Trusted catalog backend and an administrator console** (`/admin/collections`): the catalog
-  collections screen (search, create, edit, publish, archive with revision-conflict handling) is
-  backed by Postgres tables, published-only row policies, private Storage buckets and guarded admin
-  RPCs under `supabase/migrations/`. It needs the cloud configuration above plus a row in
-  `catalog_admins` (bootstrap SQL in `supabase/README.md`); everyone else sees an honest "/admin"
-  state. `npm run test:catalog-sql` runs the migrations against a throwaway local PostgreSQL and
-  checks immutability, pointer integrity, RLS/Storage visibility and every publish/archive guard.
+- **Trusted catalog backend and an administrator console** (`/admin/collections`, `/admin/assets`,
+  `/admin/uploads`): collections, bulk uploads and asset review are backed by Postgres tables,
+  published-only row policies, private Storage buckets and guarded admin RPCs under
+  `supabase/migrations/`. Files upload straight into the private bucket under a path the batch
+  reserved, and the server validates and derives each one (PNG/static WebP are re-encoded into a PNG
+  derivative plus a WebP thumbnail; SVG must pass a strict static subset and is rasterized without
+  fonts or network). A file that fails is reported per file with a retry, a failed validation never
+  becomes a version, and abandoned uploads are listed for removal only when nothing references them.
+  It needs the cloud configuration above plus a row in `catalog_admins` (bootstrap SQL in
+  `supabase/README.md`); everyone else sees an honest "/admin" state. `npm run test:catalog-sql` runs
+  the migrations against a throwaway local PostgreSQL and checks immutability, pointer integrity,
+  RLS/Storage visibility, the leased upload lifecycle and every publish/archive guard.
 
 ## Not implemented yet (do not expect these to work)
 
@@ -68,8 +73,13 @@ checks and known limitations are recorded in `docs/migration-progress.md`.
 - Live cloud verification against a deployed backend: the cloud journeys run against a synthetic
   in-process backend, so the deployed RLS policies and Storage rules are unverified here. The same
   applies to the catalog: `npm run test:catalog-live` is the three-session isolation check for a
-  dedicated test project and has never been run (no project or credentials). The catalog's asset
-  upload/review screens and template authoring are not built yet.
+  dedicated test project and has never been run (no project or credentials).
+- **The student side of the catalog**: the editor does not read the public catalog yet (no panel, no
+  "insert this catalog image"), so nothing downloads bytes from the catalog into a presentation.
+  Template authoring is likewise not built yet.
+- **Serverless hosts**: asset validation runs in `POST /api/catalog/process`. On a purely static
+  deployment that endpoint does not exist, so uploads can be stored but never validated (and the
+  screens say so); a server or serverless deploy is required to publish catalog media.
 
 ## Development
 
@@ -83,16 +93,17 @@ npm run preview      # serve the production build
 
 ## Checks and tests
 
-| Command                      | What it runs                                                                     |
-| ---------------------------- | -------------------------------------------------------------------------------- |
-| `npm run check`              | `svelte-kit sync` + `svelte-check` (types, Svelte a11y/compile diagnostics)      |
-| `npm run lint`               | Prettier check + ESLint                                                          |
-| `npm run format`             | Prettier write                                                                   |
-| `npm run test:unit -- --run` | Vitest (node project for modules, headless Chromium for `*.svelte.test.ts`)      |
-| `npx playwright test`        | End-to-end journeys against `npm run build && npm run preview` (`e2e/*.spec.ts`) |
-| `npm run test:e2e`           | `playwright install` + `npx playwright test`                                     |
-| `npm run test:e2e:cloud`     | Optional-cloud journeys against a synthetic in-process Supabase backend          |
-| `npm run test:catalog-sql`   | Catalog migrations + RLS/RPC guards against a throwaway local PostgreSQL         |
+| Command                      | What it runs                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------ |
+| `npm run check`              | `svelte-kit sync` + `svelte-check` (types, Svelte a11y/compile diagnostics)                |
+| `npm run lint`               | Prettier check + ESLint                                                                    |
+| `npm run format`             | Prettier write                                                                             |
+| `npm run test:unit -- --run` | Vitest (node project for modules, headless Chromium for `*.svelte.test.ts`)                |
+| `npx playwright test`        | End-to-end journeys against `npm run build && npm run preview` (`e2e/*.spec.ts`)           |
+| `npm run test:e2e`           | `playwright install` + `npx playwright test`                                               |
+| `npm run test:e2e:cloud`     | Optional-cloud journeys against a synthetic in-process Supabase backend                    |
+| `npm run test:catalog-sql`   | Catalog migrations + RLS/RPC/upload-lifecycle checks against a throwaway local PostgreSQL  |
+| `npm run test:catalog-live`  | Live catalog isolation check — requires a dedicated Supabase test project (never run here) |
 
 `npx playwright test` uses an already-installed Chromium when one is cached; `npm run test:e2e`
 downloads browsers first. The Playwright web server builds and previews the production output.
