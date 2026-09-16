@@ -164,9 +164,12 @@ describe('presentation editor page', () => {
 			'Editor deck'
 		);
 		expect(editor.container.textContent).toContain('Saved locally');
-		const canvas = editor.container.querySelector('[data-testid="presentation-canvas"]');
-		expect(canvas?.getAttribute('data-document-width')).toBe('1280');
-		expect(canvas?.getAttribute('data-document-height')).toBe('720');
+		const canvas = await waitFor(
+			() => editor.container.querySelector('[data-testid="presentation-canvas"]'),
+			'the client-only canvas to mount'
+		);
+		expect(canvas.getAttribute('data-document-width')).toBe('1280');
+		expect(canvas.getAttribute('data-document-height')).toBe('720');
 		expect(editor.container.querySelector('.presentation-blank-slide')).not.toBeNull();
 
 		await editor.unmount();

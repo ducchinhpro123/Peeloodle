@@ -313,7 +313,11 @@ harness with direct tools should re-run the autofixer if that evidence form is r
    `docs/migration-progress.md` for what the cloud journeys do and do not prove. The only source item
    not ported is the P44 reader-fixture proof (an external LibreOffice round trip), recorded as
    source proof infrastructure. **Live cross-user RLS/Storage verification is unavailable** — do not
-   claim it without dedicated ordinary-user accounts and a deployed test project.
+   claim it without dedicated ordinary-user accounts and a deployed test project. The presentation
+   editor's client-only Konva seam has a server-graph guard
+   (`src/lib/components/presentation-editor-page.server.test.ts`): never import Konva
+   (`PresentationCanvas.svelte` / `KonvaArtboard.svelte` / `konvaText.ts`) statically into an
+   SSR-reachable module.
 2. **Cloud/Supabase (slice 4) follow-ups**, only with an explicit decision: the source editor
    auto-opened a conflict copy (the target keeps the copy, notice and library row but not the
    auto-open); a remote-only deep link before the listing refresh shows the source's "not cached"
@@ -353,7 +357,9 @@ harness with direct tools should re-run the autofixer if that evidence form is r
 
 ## Handoff notes for the next session
 
-- Nothing is staged/committed; the working tree is the only state. Do not initialize Git. Backups:
+- Commits are local: `main` is ahead of `origin/main` and nothing is pushed (do not push, deploy or
+  touch production configuration without explicit approval). Archives taken while the port was
+  unversioned:
   `pre-packs-polish-<timestamp>.tar.gz` (before the masks work),
   `pre-presentations-*` (before each presentation increment),
   `post-presentations-exports-final-20260915T025010Z.tar.gz` (increment 5),
@@ -363,15 +369,17 @@ harness with direct tools should re-run the autofixer if that evidence form is r
   sha256 `8b960b97c78da6a5d11458fd44665bef197410e592e041b44ef8579d544518a8`) and the newest,
   `post-cloud-and-a11y-sweeps-20260915T101537Z.tar.gz` (slices 4 + slice-5 leftovers; sha256
   `eaca8a4d75d764ac5e21d19f669faec40a0336a9bdfa4dbacb3e005325ad8aab`), `pre-git-graft-20260915T102807Z.tar.gz`
-  and `peeloodle-history-20260915T102807Z.bundle` (the full React history, taken before the graft);
-  take a fresh archive before starting the next increment.
-- Last verification: 2026-09-15, slices 1–4 + slice-5 leftovers — `npm run check`,
-  `npm run lint`, `npm run build`, `npm run test:unit -- --run` (**59 files / 530 tests**),
-  `npx playwright test` (**68 journeys**, serial via `workers: 1`) and
-  `npm run test:e2e:cloud` (**6 journeys**) are green. Cloud verification is synthetic only; live
-  RLS/Storage is unavailable. Re-run the relevant set after any change, and run `svelte-autofixer` on
-  every touched component/module (direct MCP tools when the harness exposes them; otherwise the
-  server's stdio JSON-RPC transport, noted honestly).
+  and `peeloodle-history-20260915T102807Z.bundle` (the full React history, taken before the graft).
+  `main` carries the Svelte tree now, so Git is the restore point; take a fresh archive only before
+  genuinely risky, hard-to-reverse work.
+- Last verification: 2026-09-16, the presentation editor's Konva fix — `vite dev` serves `/`,
+  `/presentations`, `/presentations/<id>` and `/editor/<id>` with 200; `npm run check`, `npm run lint`
+  and `npm run build` are clean; `npm run test:unit -- --run` is **60 files / 531 tests** and
+  `npx playwright test` is **68 journeys** (serial via `workers: 1`). The cloud suite
+  (`npm run test:e2e:cloud`, 6 journeys) was not re-run — no cloud code changed. Cloud verification
+  is synthetic only; live RLS/Storage is unavailable. Re-run the relevant set after any change, and
+  run `svelte-autofixer` on every touched component/module (direct MCP tools when the harness exposes
+  them; otherwise the server's stdio JSON-RPC transport, noted honestly).
 - Where the work stopped: slices 1–4 are complete as written and the slice-5 leftovers (reduced
   motion, keyboard-only flows) have journeys. What remains is optional hardening and cloud
   follow-ups rather than a missing slice: the source's automatic conflict-copy navigation, an

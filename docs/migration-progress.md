@@ -1,7 +1,9 @@
 # Peeloodle React → Svelte migration progress
 
-Last verified: 2026-09-15, Slice 4 (cloud/Supabase) plus the slice-5 leftovers — the cloud port with
-its synthetic backend, the reduced-motion and keyboard-only sweeps (see the newest checkpoint below),
+Last verified: 2026-09-16, the presentation editor's client-only Konva seam — the dev-server 500 fix,
+its server-graph regression guard and the Svelte-best-practice cleanup (see the newest checkpoint
+below), on top of Slice 4 (cloud/Supabase) plus the slice-5 leftovers — the cloud port with its
+synthetic backend, the reduced-motion and keyboard-only sweeps,
 on top of increment 6 complete (the P45 ceiling journeys and the two
 production-offline failure paths), on top of
 the slide-rail and undo/redo journeys, the text journeys, the responsive editor bar and the
@@ -118,6 +120,53 @@ SvelteKit port, losing neither the React application nor the server-side materia
   working tree **and** `.git` (86 MB, so full history) at
   `post-git-graft-20260915T105133Z.tar.gz`, sha256
   `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
+
+## Fix checkpoint — the presentation editor's client-only Konva seam (2026-09-16)
+
+Scope: the one open presentation item — `/presentations/<id>` returned **500 in `vite dev`** because
+Konva was in the route's server import graph. `konva`'s package `main` is `lib/index-node.js`, which
+top-level-requires the native `canvas` package (not installed), so dev SSR threw
+`Cannot find module 'canvas'`. Production preview resolves Konva's browser entry and the Playwright
+suite runs against that build, so the failure was invisible to every e2e journey.
+
+### Changes
+
+- `src/lib/components/presentation/PresentationEditorPage.svelte`: the slide canvas is now loaded in a
+  browser-only `$effect` (`import('./PresentationCanvas.svelte')`) — the same client-only seam
+  `EditorCanvas.svelte` already uses for the sticker artboard — with a placeholder holding the canvas
+  grid track until it resolves. The effect carries no `browser` check and reads no state: effects
+  never run during SSR, and with no dependency it runs exactly once (the Svelte best-practices
+  guidance; the removed check was redundant).
+- `src/lib/components/presentation-editor-page.server.test.ts` (new, vitest `server`/node project):
+  imports the page the way SSR does. Verified to fail against the pre-fix static import with the real
+  `Cannot find module 'canvas'` (`konva/lib/index-node.js`) and to pass now, so a static re-import
+  cannot regress silently.
+- The dynamic component state is JSDoc-typed from the real component
+  (`typeof import('./PresentationCanvas.svelte').default`) instead of `any`.
+
+### Why this is the seam
+
+`{#await import('./PresentationCanvas.svelte')}` was tried as the alternative: it also serves this
+route 200 in dev (the page is still in its client-only `loading` state during SSR, so the block is
+never reached) and would drop the state/effect pair. It was not taken because an inline `import()`
+re-evaluates with the block, while the effect seam keeps the import browser-only no matter which
+branch SSR renders. Both were exercised; the e2e suite cannot tell them apart.
+
+### Regressions and verification
+
+- `npm run check`: `svelte-check found 0 errors and 0 warnings`; `npm run lint`: prettier + ESLint
+  clean.
+- `npm run test:unit -- --run`: **60 files / 531 tests passed** (was 59 / 530; +1 server-graph test).
+  The known non-failing `wrapDynamicImport` startup diagnostics remain visible, as recorded before.
+- `npx playwright test`: **68 journeys passed** (2.4 min, production build, `workers: 1`).
+- `vite dev` re-check: `/`, `/presentations`, `/presentations/<id>` and `/editor/<id>` all return
+  **200** with no Konva/canvas error in the dev log.
+- Svelte MCP protocol used: `list-sections`, targeted `get-documentation` (`$effect`, `await`,
+  `<svelte:component>`, best practices), then `svelte-autofixer` on `PresentationEditorPage.svelte` —
+  **0 issues**. Its suggestions are the documented non-actionable class (state assigned in the
+  effects that coordinate the save/export controllers and the client-only import; `bind:this` where
+  an attachment is not a better fit) plus one unused-`eslint-disable` note the project's own ESLint
+  does not report.
 
 ## Slice 4 (cloud/Supabase) + slice 5 leftovers — cloud port, synthetic backend, reduced-motion and keyboard sweeps (2026-09-15)
 

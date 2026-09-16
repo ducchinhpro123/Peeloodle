@@ -32,7 +32,6 @@
 	import { createPresentationExport } from '$lib/presentations/editor/exportController';
 	import { usePresentationOfflineReadiness } from '$lib/presentations/presentationOffline.svelte';
 	import { createTextEditSession } from '$lib/presentations/editor/textEditSession.svelte';
-	import PresentationCanvas from './PresentationCanvas.svelte';
 	import ElementLayerList from './ElementLayerList.svelte';
 	import ElementGeometryInspector from './ElementGeometryInspector.svelte';
 	import TextFormatToolbar from './TextFormatToolbar.svelte';
@@ -117,6 +116,14 @@
 	let attempt = $state(0);
 	/** @type {import('$lib/presentations/rendering/renderSlide').PresentationImageSources} */
 	let images = $state.raw(new Map());
+	/**
+	 * Konva's Node entry hard-requires the native `canvas` package, so the slide
+	 * canvas is client-only — the same seam `EditorCanvas` uses for the artboard.
+	 * A static import here put Konva in the SSR graph and 500'd this route.
+	 *
+	 * @type {typeof import('./PresentationCanvas.svelte').default | null}
+	 */
+	let PresentationCanvas = $state(null);
 	/** @type {import('$lib/presentations/rendering/decodedArtwork').DecodedArtwork | null} */
 	let decodedArtwork = null;
 	/** @type {string | null} */
@@ -172,6 +179,14 @@
 	const saveStatus = $derived(
 		saveReported && saveState.message ? `${saveLabel} — ${saveState.message}` : saveLabel
 	);
+
+	// Effects never run during SSR, so the import alone is the client-only seam;
+	// the placeholder below holds the canvas track until it resolves.
+	$effect(() => {
+		void import('./PresentationCanvas.svelte').then((module) => {
+			PresentationCanvas = module.default;
+		});
+	});
 
 	$effect(() => {
 		const unsubscribe = saving.subscribeStatus(() => (saveState = saving.getStatus()));
@@ -802,7 +817,14 @@
 				<p>Elements</p>
 				<ElementLayerList {store} />
 			</aside>
-			<PresentationCanvas {store} {images} session={textSession} />
+			{#if PresentationCanvas}
+				<PresentationCanvas {store} {images} session={textSession} />
+			{:else}
+				<!-- Holds the canvas track and its panel tone until Konva arrives. -->
+				<div
+					class="presentation-canvas-placeholder [min-height:0] [min-width:0] [background:#dfe8e6]"
+				></div>
+			{/if}
 			<aside
 				class="presentation-inspector [border-left:1px_solid_var(--line)]"
 				aria-label="Presentation details"
