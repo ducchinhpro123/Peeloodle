@@ -275,6 +275,18 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 		return takePage((data ?? []).map(parseCollection), limit);
 	}
 
+	async getLatestVersion(assetId: string): Promise<CatalogAssetVersion | null> {
+		const { data, error } = await this.#client
+			.from('catalog_asset_versions')
+			.select(ASSET_VERSION_COLUMNS)
+			.eq('asset_id', assetId)
+			.order('version_number', { ascending: false })
+			.limit(1)
+			.maybeSingle();
+		if (error) this.#fail(error, 'Could not read the asset version');
+		return data === null || data === undefined ? null : parseAssetVersion(data);
+	}
+
 	async listAssetsForAdmin(filters: CatalogListFilters = {}): Promise<CatalogPage<CatalogAsset>> {
 		const limit = catalogPageSize(filters.limit);
 		const term = filters.query ? searchTerm(filters.query) : '';

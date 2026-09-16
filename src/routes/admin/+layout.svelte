@@ -39,7 +39,12 @@
 		{repository}
 		homeHref={resolve('/')}
 	>
-		<AdminShell collectionsHref={resolve('/admin/collections')} pathname={page.url.pathname}>
+		<AdminShell
+			collectionsHref={resolve('/admin/collections')}
+			assetsHref={resolve('/admin/assets')}
+			uploadsHref={resolve('/admin/uploads')}
+			pathname={page.url.pathname}
+		>
 			{@render children()}
 		</AdminShell>
 	</AdminGuard>

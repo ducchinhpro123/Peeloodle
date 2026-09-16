@@ -6,13 +6,19 @@
 	 *
 	 * @type {{
 	 *   collectionsHref: string,
+	 *   assetsHref: string,
+	 *   uploadsHref: string,
 	 *   pathname: string,
 	 *   children: import('svelte').Snippet
 	 * }}
 	 */
-	let { collectionsHref, pathname, children } = $props();
+	let { collectionsHref, assetsHref, uploadsHref, pathname, children } = $props();
 
-	const sections = $derived([{ href: collectionsHref, label: 'Collections' }]);
+	const sections = $derived([
+		{ href: collectionsHref, label: 'Collections' },
+		{ href: assetsHref, label: 'Assets' },
+		{ href: uploadsHref, label: 'Uploads' }
+	]);
 
 	/** @param {string} href */
 	function isCurrent(href) {

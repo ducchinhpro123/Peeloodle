@@ -147,6 +147,14 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		return this.actorId;
 	}
 
+	/**
+	 * Rows leave the fake as snapshots, exactly like a PostgREST response: a caller
+	 * that holds a row must not observe, or be able to cause, a later mutation.
+	 */
+	#snapshot<T>(row: T): T {
+		return structuredClone(row);
+	}
+
 	#page<T extends { sortOrder: number; id: string }>(
 		rows: T[],
 		filters: CatalogListFilters | undefined,
@@ -162,7 +170,10 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		const ordered = rows
 			.filter((row) => matches(row) && after(row))
 			.sort((left, right) => left.sortOrder - right.sortOrder || (left.id < right.id ? -1 : 1));
-		return takePage(ordered.slice(0, limit + 1), limit);
+		return takePage(
+			ordered.slice(0, limit + 1).map((row) => this.#snapshot(row)),
+			limit
+		);
 	}
 
 	#findCollection(id: string): CatalogCollection | null {
@@ -231,7 +242,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 	}
 
 	async getAsset(id: string): Promise<CatalogAsset> {
-		return this.#publishedAsset(id);
+		return this.#snapshot(this.#publishedAsset(id));
 	}
 
 	async getPublishedVersion(assetId: string): Promise<CatalogAssetVersion> {
@@ -267,7 +278,9 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 	}
 
 	async getDependencies(versionId: string): Promise<CatalogTemplateDependency[]> {
-		return this.dependencies.filter((row) => row.templateVersionId === versionId);
+		return this.dependencies
+			.filter((row) => row.templateVersionId === versionId)
+			.map((row) => this.#snapshot(row));
 	}
 
 	async signedDerivativeUrl(path: string, _expiresInSeconds = 60): Promise<string> {
@@ -336,7 +349,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			revision: current.revision + 1,
 			updatedAt: now()
 		});
-		return { ok: true, item: { ...current } };
+		return { ok: true, item: this.#snapshot({ ...current }) };
 	}
 
 	async publishCollection(
@@ -355,7 +368,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			revision: current.revision + 1,
 			updatedAt: now()
 		});
-		return { ok: true, item: { ...current } };
+		return { ok: true, item: this.#snapshot({ ...current }) };
 	}
 
 	async archiveCollection(
@@ -366,7 +379,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		this.#assertAdmin();
 		const current = this.#findCollection(id);
 		if (!current) return this.#refusal('not_found');
-		if (current.state === 'archived') return { ok: true, item: { ...current } };
+		if (current.state === 'archived') return { ok: true, item: this.#snapshot({ ...current }) };
 		if (current.revision !== expectedRevision)
 			return this.#refusal('revision_conflict', { item: current });
 		const contained = this.assets.filter(
@@ -388,7 +401,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			revision: current.revision + 1,
 			updatedAt: now()
 		});
-		return { ok: true, item: { ...current } };
+		return { ok: true, item: this.#snapshot({ ...current }) };
 	}
 
 	/** Published templates whose published version pins an asset version in `assets`. */
@@ -422,6 +435,14 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 				(!filters?.kind || row.kind === filters.kind) &&
 				(!filters?.query || this.#text(row, filters.query))
 		);
+	}
+
+	async getLatestVersion(assetId: string): Promise<CatalogAssetVersion | null> {
+		this.#assertAdmin();
+		const latest = this.versions
+			.filter((row) => row.assetId === assetId)
+			.sort((left, right) => right.versionNumber - left.versionNumber)[0];
+		return latest ? this.#snapshot(latest) : null;
 	}
 
 	async createAsset(input: CatalogAssetInput): Promise<CatalogActionResult<CatalogAsset>> {
@@ -479,7 +500,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			revision: current.revision + 1,
 			updatedAt: now()
 		});
-		return { ok: true, item: { ...current } };
+		return { ok: true, item: this.#snapshot({ ...current }) };
 	}
 
 	async publishAsset(
@@ -508,7 +529,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			revision: current.revision + 1,
 			updatedAt: now()
 		});
-		return { ok: true, item: { ...current } };
+		return { ok: true, item: this.#snapshot({ ...current }) };
 	}
 
 	async archiveAsset(
@@ -518,7 +539,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		this.#assertAdmin();
 		const current = this.#findAsset(id);
 		if (!current) return this.#refusal('not_found');
-		if (current.state === 'archived') return { ok: true, item: { ...current } };
+		if (current.state === 'archived') return { ok: true, item: this.#snapshot({ ...current }) };
 		if (current.revision !== expectedRevision)
 			return this.#refusal('revision_conflict', { item: current });
 		const pinned = this.#pinnedTemplates([current]);
@@ -529,7 +550,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			revision: current.revision + 1,
 			updatedAt: now()
 		});
-		return { ok: true, item: { ...current } };
+		return { ok: true, item: this.#snapshot({ ...current }) };
 	}
 
 	async listTemplatesForAdmin(filters?: CatalogListFilters): Promise<CatalogPage<CatalogTemplate>>;
@@ -585,7 +606,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			revision: current.revision + 1,
 			updatedAt: now()
 		});
-		return { ok: true, item: { ...current } };
+		return { ok: true, item: this.#snapshot({ ...current }) };
 	}
 
 	async publishTemplate(
@@ -624,7 +645,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			revision: current.revision + 1,
 			updatedAt: now()
 		});
-		return { ok: true, item: { ...current } };
+		return { ok: true, item: this.#snapshot({ ...current }) };
 	}
 
 	async archiveTemplate(
@@ -634,7 +655,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		this.#assertAdmin();
 		const current = this.templates.find((row) => row.id === id);
 		if (!current) return this.#refusal('not_found');
-		if (current.state === 'archived') return { ok: true, item: { ...current } };
+		if (current.state === 'archived') return { ok: true, item: this.#snapshot({ ...current }) };
 		if (current.revision !== expectedRevision)
 			return this.#refusal('revision_conflict', { item: current });
 		Object.assign(current, {
@@ -643,7 +664,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			revision: current.revision + 1,
 			updatedAt: now()
 		});
-		return { ok: true, item: { ...current } };
+		return { ok: true, item: this.#snapshot({ ...current }) };
 	}
 
 	async processUploadJob(jobId: string): Promise<ProcessingOutcome> {

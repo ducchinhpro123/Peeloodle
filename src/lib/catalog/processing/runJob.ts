@@ -33,8 +33,8 @@ export type ProcessingDeps = {
 		leaseToken: string,
 		error: { code: string; message: string }
 	) => Promise<CatalogActionResult<CatalogUploadJob>>;
-	/** Overridable so tests do not need a native decoder. */
-	process?: (bytes: Uint8Array) => Promise<ProcessedAsset>;
+	/** The validator; injected so no native decoder is imported here. */
+	process: (bytes: Uint8Array) => Promise<ProcessedAsset>;
 	/** Overridable so tests get deterministic derivative paths. */
 	newVersionId?: () => string;
 };
@@ -83,9 +83,7 @@ export async function runProcessingJob(
 			: { status: 'refused', jobId: job.id, reason: failed.reason };
 	}
 
-	// The native decoder is imported lazily so this module stays browser-safe for
-	// the in-memory repository's fake processor.
-	const process = deps.process ?? (await import('./index')).processAssetBytes;
+	const process = deps.process;
 	let processed: ProcessedAsset;
 	try {
 		const bytes = await deps.downloadSource(job.sourcePath);

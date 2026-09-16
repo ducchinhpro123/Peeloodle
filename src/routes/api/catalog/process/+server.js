@@ -16,6 +16,7 @@ import { error, json } from '@sveltejs/kit';
 import { parseCloudConfig } from '$lib/cloud/config';
 import { SupabaseCatalog } from '$lib/catalog/remote';
 import { runProcessingJob } from '$lib/catalog/processing/runJob';
+import { processAssetBytes } from '$lib/catalog/processing/index';
 
 const MAX_REQUEST_BYTES = 64 * 1024;
 
@@ -74,7 +75,8 @@ export const POST = async ({ request, url }) => {
 				downloadSource: (path) => repository.downloadSource(path),
 				uploadDerivative: (path, bytes, mime) => repository.uploadDerivative(path, bytes, mime),
 				complete: (job, token, report) => repository.completeUploadJob(job, token, report),
-				fail: (job, token, failure) => repository.failUploadJob(job, token, failure)
+				fail: (job, token, failure) => repository.failUploadJob(job, token, failure),
+				process: processAssetBytes
 			},
 			jobId
 		);

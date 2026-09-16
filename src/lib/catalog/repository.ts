@@ -273,6 +273,16 @@ export interface CatalogAdminRepository {
 		archiveItems: boolean
 	): Promise<CatalogActionResult<CatalogCollection>>;
 	listAssetsForAdmin(filters?: CatalogListFilters): Promise<CatalogPage<CatalogAsset>>;
+	/**
+	 * Short-lived URL for a stored derivative, including a draft's; admins may
+	 * read drafts, so the inspector can preview work that is not public yet.
+	 */
+	signedDerivativeUrl(path: string, expiresInSeconds?: number): Promise<string>;
+	/**
+	 * The newest version of a draft or published asset, or null when none exists.
+	 * The admin inspector needs this to offer publication of a specific version.
+	 */
+	getLatestVersion(assetId: string): Promise<CatalogAssetVersion | null>;
 	createAsset(input: CatalogAssetInput): Promise<CatalogActionResult<CatalogAsset>>;
 	updateAsset(
 		id: string,
