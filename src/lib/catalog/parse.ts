@@ -6,6 +6,7 @@
 import {
 	CatalogError,
 	encodeCatalogCursor,
+	encodeUploadCursor,
 	type CatalogActionResult,
 	type CatalogRefusal
 } from './repository';
@@ -14,12 +15,24 @@ import type {
 	CatalogAssetKind,
 	CatalogAssetVersion,
 	CatalogCollection,
+	CatalogOrphanMedia,
 	CatalogPage,
 	CatalogSlidePreview,
 	CatalogState,
 	CatalogTemplate,
 	CatalogTemplateDependency,
 	CatalogTemplateVersion,
+	CatalogUploadBatchPage,
+	CatalogUploadBatchState,
+	CatalogUploadClaim,
+	CatalogUploadCompletion,
+	CatalogUploadBatchSummary,
+	CatalogUploadCounts,
+	CatalogUploadJob,
+	CatalogUploadJobStatus,
+	CatalogUploadObject,
+	CatalogUploadStage,
+	CatalogUploadStatus,
 	CatalogValidationState
 } from './types';
 
@@ -221,10 +234,19 @@ const REFUSALS: CatalogRefusal[] = [
 	'collection_not_published',
 	'version_not_found',
 	'version_not_validated',
-	'dependency_unavailable'
+	'dependency_unavailable',
+	'none_pending',
+	'lease_lost',
+	'already_complete',
+	'attempts_exhausted',
+	'batch_not_open',
+	'invalid_file',
+	'invalid_report',
+	'too_many_files',
+	'media_missing',
+	'media_referenced'
 ];
 
-/** Parses one guarded RPC result envelope into a typed action result. */
 /**
  * Parses one guarded RPC result envelope into a typed action result. A refusal's
  * `detail.item` (the current server row) is parsed through the same item parser,
@@ -237,6 +259,13 @@ export function parseActionResult<T>(
 ): CatalogActionResult<T> {
 	const row = record(value, 'action result');
 	if (row.ok === true) return { ok: true, item: parseItem(row.item) };
+	return refusal(row, parseItem);
+}
+
+function refusal<T>(
+	row: Record<string, unknown>,
+	parseItem: (item: unknown) => T
+): CatalogActionResult<T> {
 	if (
 		row.ok === false &&
 		typeof row.reason === 'string' &&
@@ -260,10 +289,184 @@ export function parseActionResult<T>(
 			assetIds: Array.isArray(raw.assetIds)
 				? raw.assetIds.filter((id): id is string => typeof id === 'string')
 				: undefined,
+			paths: Array.isArray(raw.paths)
+				? raw.paths.filter((entry): entry is string => typeof entry === 'string')
+				: undefined,
+			name: typeof raw.name === 'string' ? raw.name : undefined,
+			message: typeof raw.message === 'string' ? raw.message : undefined,
 			version: raw.version,
 			item: raw.item === undefined ? undefined : parseItem(raw.item)
 		};
 		return { ok: false, reason: row.reason as CatalogRefusal, detail };
 	}
 	return invalid('Invalid action result');
+}
+
+const STAGES: CatalogUploadStage[] = ['queued', 'claimed', 'ready', 'failed', 'cancelled'];
+const BATCH_STATES: CatalogUploadBatchState[] = ['open', 'closed', 'cancelled'];
+
+function boolean(row: Record<string, unknown>, key: string): boolean {
+	const value = row[key];
+	if (typeof value !== 'boolean') invalid(`Invalid ${key}`);
+	return value;
+}
+
+export function parseUploadJob(value: unknown): CatalogUploadJob {
+	const row = record(value, 'upload job');
+	return {
+		id: text(row, 'id'),
+		batchId: text(row, 'batch_id'),
+		assetId: optionalText(row, 'asset_id'),
+		sourcePath: text(row, 'source_path'),
+		originalName: text(row, 'original_name'),
+		claimedMime: text(row, 'claimed_mime'),
+		claimedBytes: integer(row, 'claimed_bytes', 1),
+		position: integer(row, 'position'),
+		stage: oneOf(row, 'stage', STAGES),
+		progress: integer(row, 'progress'),
+		attempts: integer(row, 'attempts'),
+		leaseExpiresAt: nullableTimestamp(row, 'lease_expires_at'),
+		errorCode: optionalText(row, 'error_code'),
+		errorMessage: optionalText(row, 'error_message'),
+		createdAt: timestamp(row, 'created_at'),
+		updatedAt: timestamp(row, 'updated_at')
+	};
+}
+
+function parseUploadJobStatus(value: unknown): CatalogUploadJobStatus {
+	const row = record(value, 'upload job status');
+	return {
+		...parseUploadJob(value),
+		stored: boolean(row, 'stored'),
+		versionId: optionalText(row, 'version_id')
+	};
+}
+
+function parseUploadCounts(value: unknown): CatalogUploadCounts {
+	const row = record(value, 'upload counts');
+	return {
+		total: integer(row, 'total'),
+		queued: integer(row, 'queued'),
+		claimed: integer(row, 'claimed'),
+		ready: integer(row, 'ready'),
+		failed: integer(row, 'failed'),
+		cancelled: integer(row, 'cancelled')
+	};
+}
+
+export function parseUploadBatchSummary(value: unknown): CatalogUploadBatchSummary {
+	const row = record(value, 'upload batch');
+	return {
+		id: text(row, 'id'),
+		state: oneOf(row, 'state', BATCH_STATES),
+		createdAt: timestamp(row, 'created_at'),
+		counts: parseUploadCounts(row.counts)
+	};
+}
+
+export function parseUploadStatus(value: unknown): CatalogUploadStatus {
+	const row = record(value, 'upload status');
+	if (!Array.isArray(row.jobs)) invalid('Invalid upload jobs');
+	return {
+		batch: parseUploadBatchSummary(row.batch),
+		jobs: row.jobs.map(parseUploadJobStatus)
+	};
+}
+
+/** The batch list is the one read whose payload is `{ok, items, next}`. */
+export function readUploadBatchPage(value: unknown): CatalogUploadBatchPage {
+	const envelope = record(value, 'upload batch page');
+	if (envelope.ok !== true) {
+		if (envelope.ok === false && typeof envelope.reason === 'string')
+			throw new CatalogError(
+				'invalid_data',
+				`Catalog upload batches were refused: ${envelope.reason}`
+			);
+		return invalid('Invalid upload batch page');
+	}
+	return parseUploadBatchPage(envelope);
+}
+
+export function parseUploadBatchPage(value: unknown): CatalogUploadBatchPage {
+	const row = record(value, 'upload batch page');
+	if (!Array.isArray(row.items)) invalid('Invalid upload batches');
+	const next =
+		row.next === null || row.next === undefined ? null : record(row.next, 'upload cursor');
+	return {
+		items: row.items.map(parseUploadBatchSummary),
+		nextCursor: next
+			? encodeUploadCursor({
+					createdAt: timestamp(next, 'created_at'),
+					id: text(next, 'id')
+				})
+			: null
+	};
+}
+
+/** Claim envelopes carry the lease outside `item`, so they need their own parse. */
+export function parseUploadClaimResult(value: unknown): CatalogActionResult<CatalogUploadClaim> {
+	const row = record(value, 'claim result');
+	if (row.ok === true) {
+		const lease = record(row.lease, 'lease');
+		return {
+			ok: true,
+			item: {
+				job: parseUploadJob(row.item),
+				leaseToken: text(lease, 'token'),
+				leaseExpiresAt: timestamp(lease, 'expires_at')
+			}
+		};
+	}
+	// A claim refusal carries the current job as `detail.item`; the success item
+	// is a claim, so the detail shape is deliberately the job's.
+	return refusal(row, parseUploadJob) as unknown as CatalogActionResult<CatalogUploadClaim>;
+}
+
+export function parseUploadCompletionResult(
+	value: unknown
+): CatalogActionResult<CatalogUploadCompletion> {
+	const row = record(value, 'completion result');
+	if (row.ok === true) {
+		return {
+			ok: true,
+			item: {
+				job: parseUploadJob(row.item),
+				version: parseAssetVersion(row.version),
+				replayed: row.replayed === true
+			}
+		};
+	}
+	return refusal(row, parseUploadJob) as unknown as CatalogActionResult<CatalogUploadCompletion>;
+}
+
+export function parseUploadObjectList(value: unknown): CatalogUploadObject[] {
+	if (!Array.isArray(value)) invalid('Invalid object list');
+	return value.map((entry) => {
+		const row = record(entry, 'stored object');
+		return { path: text(row, 'path'), bytes: integer(row, 'bytes') };
+	});
+}
+
+export function parseOrphanMedia(value: unknown): CatalogOrphanMedia {
+	const row = record(value, 'orphan media');
+	return {
+		sources: parseUploadObjectList(row.sources),
+		derivatives: parseUploadObjectList(row.derivatives),
+		sourceTotal: integer(row, 'source_total'),
+		derivativeTotal: integer(row, 'derivative_total'),
+		truncated: boolean(row, 'truncated')
+	};
+}
+
+/** Unwraps a read-only RPC envelope; a refusal is a thrown `CatalogError`. */
+export function unwrapRead<T>(value: unknown, reason: string, parse: (item: unknown) => T): T {
+	const row = record(value, 'catalog result');
+	if (row.ok === true) return parse(row.item);
+	if (row.ok === false && typeof row.reason === 'string') {
+		throw new CatalogError(
+			row.reason === 'not_found' ? 'not_found' : 'invalid_data',
+			`Catalog ${reason} was refused: ${row.reason}`
+		);
+	}
+	return invalid('Invalid catalog result');
 }

@@ -16,10 +16,17 @@ import type {
 	CatalogAssetKind,
 	CatalogAssetVersion,
 	CatalogCollection,
+	CatalogOrphanMedia,
 	CatalogPage,
 	CatalogTemplate,
 	CatalogTemplateDependency,
-	CatalogTemplateVersion
+	CatalogTemplateVersion,
+	CatalogUploadBatchPage,
+	CatalogUploadBatchSummary,
+	CatalogUploadClaim,
+	CatalogUploadCompletion,
+	CatalogUploadJob,
+	CatalogUploadStatus
 } from './types';
 
 export type CatalogErrorCode =
@@ -58,7 +65,17 @@ export type CatalogRefusal =
 	| 'collection_not_published'
 	| 'version_not_found'
 	| 'version_not_validated'
-	| 'dependency_unavailable';
+	| 'dependency_unavailable'
+	| 'none_pending'
+	| 'lease_lost'
+	| 'already_complete'
+	| 'attempts_exhausted'
+	| 'batch_not_open'
+	| 'invalid_file'
+	| 'invalid_report'
+	| 'too_many_files'
+	| 'media_missing'
+	| 'media_referenced';
 
 /**
  * Extra information a refusal carries. `item` is the current server row when a
@@ -71,6 +88,9 @@ export type CatalogActionDetail<T> = {
 	count?: number;
 	assetIds?: string[];
 	version?: unknown;
+	paths?: string[];
+	name?: string;
+	message?: string;
 };
 
 export type CatalogActionResult<T> =
@@ -150,6 +170,63 @@ export type CatalogTemplateInput = {
 	sortOrder: number;
 };
 
+/** One file the administrator selected; `bytes` is the browser's claimed size. */
+export type CatalogUploadFile = { name: string; mime: string; bytes: number };
+
+export type CatalogUploadRequest = { collectionId: string | null; files: CatalogUploadFile[] };
+
+/**
+ * What the trusted processor reports for one job. The server validates every
+ * field (hashes, sizes, dimensions, the path binding to asset + version) and
+ * re-checks that the objects exist, so this is a report, not an instruction.
+ */
+export type CatalogAssetVersionReport = {
+	versionId: string;
+	sourceSha256: string;
+	sourceBytes: number;
+	sourceMime: string;
+	derivativePath: string;
+	derivativeSha256: string;
+	derivativeBytes: number;
+	derivativeMime: 'image/png' | 'image/webp';
+	derivativeWidth: number;
+	derivativeHeight: number;
+	thumbnailPath: string | null;
+	thumbnailSha256: string | null;
+	thumbnailBytes: number;
+	renderer: string;
+	validation: Record<string, unknown>;
+};
+
+/** Batches page by `(created_at, id)`, newest first. */
+export function encodeUploadCursor(cursor: { createdAt: string; id: string }): string {
+	return btoa(JSON.stringify([cursor.createdAt, cursor.id]));
+}
+
+export function decodeUploadCursor(value: string): { createdAt: string; id: string } {
+	const fail = () => new CatalogError('invalid_data', 'Invalid upload cursor');
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(atob(value));
+	} catch {
+		throw fail();
+	}
+	if (!Array.isArray(parsed) || parsed.length !== 2) throw fail();
+	const [createdAt, id] = parsed;
+	if (
+		typeof createdAt !== 'string' ||
+		Number.isNaN(Date.parse(createdAt)) ||
+		typeof id !== 'string' ||
+		!/^[0-9a-fA-F-]{1,64}$/.test(id)
+	)
+		throw fail();
+	return { createdAt, id };
+}
+
+/** Buckets a client may write to; the names are fixed, never client-chosen. */
+export type CatalogSourceBucket = 'catalog-sources';
+export type CatalogDerivativeBucket = 'catalog-derivatives';
+
 export interface CatalogRepository {
 	listCollections(filters?: CatalogListFilters): Promise<CatalogPage<CatalogCollection>>;
 	getCollection(id: string): Promise<CatalogCollection>;
@@ -211,4 +288,41 @@ export interface CatalogAdminRepository {
 		id: string,
 		expectedRevision: number
 	): Promise<CatalogActionResult<CatalogTemplate>>;
+
+	// P54/P55: durable batches and leased jobs. Every method re-checks admin
+	// membership server-side; the UI gate is only messaging.
+	createUploadBatch(
+		request: CatalogUploadRequest
+	): Promise<CatalogActionResult<CatalogUploadStatus>>;
+	uploadStatus(batchId: string): Promise<CatalogUploadStatus>;
+	listUploadBatches(cursor?: string | null): Promise<CatalogUploadBatchPage>;
+	claimUploadJob(leaseSeconds?: number): Promise<CatalogActionResult<CatalogUploadClaim>>;
+	completeUploadJob(
+		jobId: string,
+		leaseToken: string,
+		report: CatalogAssetVersionReport
+	): Promise<CatalogActionResult<CatalogUploadCompletion>>;
+	failUploadJob(
+		jobId: string,
+		leaseToken: string,
+		error: { code: string; message: string }
+	): Promise<CatalogActionResult<CatalogUploadJob>>;
+	retryUploadJob(jobId: string): Promise<CatalogActionResult<CatalogUploadJob>>;
+	cancelUploadBatch(batchId: string): Promise<CatalogActionResult<CatalogUploadStatus>>;
+	closeUploadBatch(batchId: string): Promise<CatalogActionResult<CatalogUploadBatchSummary>>;
+
+	// P61: bounded cleanup. The listing and the delete policies share one
+	// predicate, so pinned or live media can never be listed or removed.
+	listOrphanMedia(batchId: string): Promise<CatalogOrphanMedia>;
+	recordUploadCleanup(batchId: string, paths: string[]): Promise<number>;
+
+	// Storage seam. Direct uploads to the private buckets; progress is reported as
+	// a per-file stage by the caller, so there is no synthetic byte counter here.
+	uploadSource(path: string, file: Blob, mime: string): Promise<void>;
+	uploadDerivative(path: string, bytes: Blob, mime: 'image/png' | 'image/webp'): Promise<void>;
+	downloadSource(path: string): Promise<Uint8Array>;
+	removeObjects(
+		bucket: CatalogSourceBucket | CatalogDerivativeBucket,
+		paths: string[]
+	): Promise<void>;
 }

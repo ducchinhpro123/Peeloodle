@@ -441,6 +441,55 @@ export type Database = {
 				};
 				Returns: Json;
 			};
+			catalog_admin_cancel_upload_batch: {
+				Args: { p_batch_id: string };
+				Returns: Json;
+			};
+			catalog_admin_claim_upload_job: {
+				Args: { lease_seconds?: number };
+				Returns: Json;
+			};
+			catalog_admin_close_upload_batch: {
+				Args: { p_batch_id: string };
+				Returns: Json;
+			};
+			catalog_admin_complete_upload_job: {
+				Args: { p_job_id: string; p_lease_token: string; p_report: Json };
+				Returns: Json;
+			};
+			catalog_admin_create_upload_batch: {
+				Args: { p_collection_id: string | null; p_files: Json };
+				Returns: Json;
+			};
+			catalog_admin_fail_upload_job: {
+				Args: {
+					p_error_code: string;
+					p_error_message: string;
+					p_job_id: string;
+					p_lease_token: string;
+				};
+				Returns: Json;
+			};
+			catalog_admin_list_orphan_media: {
+				Args: { p_batch_id: string; p_limit?: number };
+				Returns: Json;
+			};
+			catalog_admin_list_upload_batches: {
+				Args: { p_before?: string | null; p_before_id?: string | null; p_limit?: number };
+				Returns: Json;
+			};
+			catalog_admin_record_upload_cleanup: {
+				Args: { p_batch_id: string; p_paths: string[] };
+				Returns: Json;
+			};
+			catalog_admin_retry_upload_job: {
+				Args: { p_job_id: string };
+				Returns: Json;
+			};
+			catalog_admin_upload_status: {
+				Args: { p_batch_id: string };
+				Returns: Json;
+			};
 			catalog_is_admin: { Args: Record<string, never>; Returns: boolean };
 			commit_sticker_resource: {
 				Args: {

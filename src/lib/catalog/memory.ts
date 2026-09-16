@@ -17,18 +17,54 @@ import {
 	type CatalogListFilters,
 	type CatalogRefusal,
 	type CatalogRepository,
-	type CatalogTemplateInput
+	type CatalogAssetVersionReport,
+	type CatalogTemplateInput,
+	type CatalogUploadRequest,
+	decodeUploadCursor,
+	encodeUploadCursor
 } from './repository';
 import { takePage } from './parse';
 import type {
 	CatalogAsset,
 	CatalogAssetVersion,
 	CatalogCollection,
+	CatalogOrphanMedia,
 	CatalogPage,
 	CatalogTemplate,
 	CatalogTemplateDependency,
-	CatalogTemplateVersion
+	CatalogTemplateVersion,
+	CatalogUploadBatch,
+	CatalogUploadBatchPage,
+	CatalogUploadBatchSummary,
+	CatalogUploadClaim,
+	CatalogUploadCompletion,
+	CatalogUploadJob,
+	CatalogUploadJobStatus,
+	CatalogUploadObject,
+	CatalogUploadStage,
+	CatalogUploadStatus
 } from './types';
+
+const UPLOAD_EXTENSIONS: Record<string, string> = {
+	'image/png': 'png',
+	'image/webp': 'webp',
+	'image/jpeg': 'jpg',
+	'image/jpg': 'jpg',
+	'image/svg+xml': 'svg'
+};
+
+function normalizeUploadMime(mime: string): string {
+	const value = (mime ?? '').toLowerCase().trim();
+	return value === 'image/jpg' ? 'image/jpeg' : value;
+}
+
+/** One object in the fake's private Storage stand-in. */
+export type MemoryObject = {
+	bucket: 'catalog-sources' | 'catalog-derivatives';
+	path: string;
+	bytes: number;
+	mime: string;
+};
 
 export type CatalogSeed = {
 	collections?: CatalogCollection[];
@@ -39,6 +75,7 @@ export type CatalogSeed = {
 	dependencies?: CatalogTemplateDependency[];
 	admins?: string[];
 	derivativeUrls?: Map<string, string>;
+	objects?: MemoryObject[];
 };
 
 const now = () => new Date().toISOString();
@@ -53,6 +90,10 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 	dependencies: CatalogTemplateDependency[];
 	admins: Set<string>;
 	derivativeUrls: Map<string, string>;
+	objects: MemoryObject[];
+	uploadBatches: CatalogUploadBatch[];
+	uploadJobs: CatalogUploadJob[];
+	leases: Map<string, { token: string; expiresAt: number }>;
 	actorId: string | null;
 
 	constructor(seed: CatalogSeed = {}, actorId: string | null = null) {
@@ -64,6 +105,10 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		this.dependencies = seed.dependencies ?? [];
 		this.admins = new Set(seed.admins ?? []);
 		this.derivativeUrls = seed.derivativeUrls ?? new Map();
+		this.objects = seed.objects ?? [];
+		this.uploadBatches = [];
+		this.uploadJobs = [];
+		this.leases = new Map();
 		this.actorId = actorId;
 	}
 
@@ -560,5 +605,489 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			updatedAt: now()
 		});
 		return { ok: true, item: { ...current } };
+	}
+
+	// ---------------------------------------------------------------------
+	// P54/P55/P61: batch uploads, leases and cleanup. These mirror the SQL in
+	// `20260916160000_catalog_uploads.sql`; the SQL harness is the authority.
+	// ---------------------------------------------------------------------
+
+	#job(id: string): CatalogUploadJob {
+		const job = this.uploadJobs.find((row) => row.id === id);
+		if (!job) throw new CatalogError('not_found', 'Upload job not found');
+		return job;
+	}
+
+	#batch(id: string) {
+		const batch = this.uploadBatches.find((row) => row.id === id);
+		if (!batch) throw new CatalogError('not_found', 'Upload batch not found');
+		return batch;
+	}
+
+	#object(bucket: MemoryObject['bucket'], path: string): MemoryObject | undefined {
+		return this.objects.find((row) => row.bucket === bucket && row.path === path);
+	}
+
+	#counts(batchId: string): CatalogUploadStatus['batch']['counts'] {
+		const jobs = this.uploadJobs.filter((job) => job.batchId === batchId);
+		const count = (stage: CatalogUploadStage) => jobs.filter((job) => job.stage === stage).length;
+		return {
+			total: jobs.length,
+			queued: count('queued'),
+			claimed: count('claimed'),
+			ready: count('ready'),
+			failed: count('failed'),
+			cancelled: count('cancelled')
+		};
+	}
+
+	#batchSummary(batchId: string): CatalogUploadBatchSummary {
+		const batch = this.#batch(batchId);
+		return { ...batch, counts: this.#counts(batchId) };
+	}
+
+	#jobStatus(job: CatalogUploadJob): CatalogUploadJobStatus {
+		const version = this.versions
+			.filter((row) => row.assetId === job.assetId)
+			.sort((left, right) => right.versionNumber - left.versionNumber)[0];
+		return {
+			...job,
+			stored: this.#object('catalog-sources', job.sourcePath) !== undefined,
+			versionId: version?.id ?? null
+		};
+	}
+
+	#status(batchId: string): CatalogUploadStatus {
+		return {
+			batch: this.#batchSummary(batchId),
+			jobs: this.uploadJobs
+				.filter((job) => job.batchId === batchId)
+				.sort((left, right) => left.position - right.position)
+				.map((job) => this.#jobStatus(job))
+		};
+	}
+
+	/** Mirrors the server-side report validation; returns a reason or null. */
+	#reportProblem(job: CatalogUploadJob, report: CatalogAssetVersionReport): CatalogRefusal | null {
+		const hex = (value: unknown) => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+		const uuid = (value: unknown) =>
+			typeof value === 'string' &&
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value);
+		if (!uuid(report?.versionId) || !hex(report?.sourceSha256) || !hex(report?.derivativeSha256))
+			return 'invalid_report';
+		if (report.derivativeMime !== 'image/png' && report.derivativeMime !== 'image/webp')
+			return 'invalid_report';
+		if (
+			report.sourceBytes < 1 ||
+			report.derivativeBytes < 1 ||
+			report.derivativeWidth < 1 ||
+			report.derivativeWidth > 4096 ||
+			report.derivativeHeight < 1 ||
+			report.derivativeHeight > 4096
+		)
+			return 'invalid_report';
+		const prefix = `assets/${job.assetId}/${report.versionId}/`;
+		if (
+			typeof report.derivativePath !== 'string' ||
+			!report.derivativePath.startsWith(prefix) ||
+			!/^[A-Za-z0-9._-]{1,120}$/.test(report.derivativePath.slice(prefix.length))
+		)
+			return 'invalid_report';
+		if (report.thumbnailPath !== null && report.thumbnailPath !== undefined) {
+			if (
+				!report.thumbnailPath.startsWith(prefix) ||
+				!/^[A-Za-z0-9._-]{1,120}$/.test(report.thumbnailPath.slice(prefix.length)) ||
+				!hex(report.thumbnailSha256)
+			)
+				return 'invalid_report';
+		}
+		return null;
+	}
+
+	#leaseHolds(job: CatalogUploadJob, token: string | undefined): boolean {
+		const lease = this.leases.get(job.id);
+		return (
+			job.stage === 'claimed' &&
+			token !== undefined &&
+			lease !== undefined &&
+			lease.token === token &&
+			lease.expiresAt > Date.now()
+		);
+	}
+
+	async createUploadBatch(
+		request: CatalogUploadRequest
+	): Promise<CatalogActionResult<CatalogUploadStatus>> {
+		this.#assertAdmin();
+		const files = request?.files;
+		if (!Array.isArray(files) || files.length < 1 || files.length > 100)
+			return this.#refusal('too_many_files', { count: Array.isArray(files) ? files.length : 0 });
+		for (const file of files) {
+			if (
+				typeof file?.name !== 'string' ||
+				file.name.length === 0 ||
+				file.name.length > 300 ||
+				file.name.includes('/') ||
+				file.name.includes('\\')
+			)
+				return this.#refusal('invalid_file', { name: file?.name });
+			if (!UPLOAD_EXTENSIONS[normalizeUploadMime(file.mime)])
+				return this.#refusal('invalid_file', {
+					name: file.name,
+					message: 'Unsupported content type'
+				});
+			if (!Number.isSafeInteger(file.bytes) || file.bytes < 1 || file.bytes > 20971520)
+				return this.#refusal('invalid_file', {
+					name: file.name,
+					message: 'File size is outside the accepted range'
+				});
+		}
+		if (request.collectionId !== null && request.collectionId !== undefined) {
+			const collection = this.#findCollection(request.collectionId);
+			if (!collection) return this.#refusal('not_found');
+			if (collection.state === 'archived') return this.#refusal('collection_archived');
+		}
+
+		const batchId = uuid();
+		this.uploadBatches.push({ id: batchId, state: 'open', createdAt: now() });
+		files.forEach((file, index) => {
+			const mime = normalizeUploadMime(file.mime);
+			const extension = UPLOAD_EXTENSIONS[mime] as string;
+			const kind: CatalogAsset['kind'] = extension === 'svg' ? 'svg' : 'raster';
+			const title = file.name.replace(/\.[A-Za-z0-9]{1,8}$/, '').trim() || file.name;
+			const asset: CatalogAsset = {
+				id: uuid(),
+				collectionId: request.collectionId ?? null,
+				name: title.slice(0, 200),
+				description: '',
+				tags: [],
+				kind,
+				provenance: { original_name: file.name, source: 'upload' },
+				sortOrder: 0,
+				state: 'draft',
+				revision: 1,
+				publishedVersionId: null,
+				publishedAt: null,
+				archivedAt: null,
+				createdAt: now(),
+				updatedAt: now()
+			};
+			this.assets.push(asset);
+			this.uploadJobs.push({
+				id: uuid(),
+				batchId,
+				assetId: asset.id,
+				sourcePath: `${batchId}/${uuid()}.${extension}`,
+				originalName: file.name,
+				claimedMime: mime,
+				claimedBytes: file.bytes,
+				position: index,
+				stage: 'queued',
+				progress: 0,
+				attempts: 0,
+				leaseExpiresAt: null,
+				errorCode: null,
+				errorMessage: null,
+				createdAt: now(),
+				updatedAt: now()
+			});
+		});
+		return { ok: true, item: this.#status(batchId) };
+	}
+
+	async uploadStatus(batchId: string): Promise<CatalogUploadStatus> {
+		this.#assertAdmin();
+		return this.#status(this.#batch(batchId).id);
+	}
+
+	async listUploadBatches(cursor?: string | null): Promise<CatalogUploadBatchPage> {
+		this.#assertAdmin();
+		const position = cursor ? decodeUploadCursor(cursor) : null;
+		const ordered = [...this.uploadBatches].sort(
+			(left, right) =>
+				right.createdAt.localeCompare(left.createdAt) || (left.id < right.id ? 1 : -1)
+		);
+		const after = position
+			? ordered.filter(
+					(batch) =>
+						batch.createdAt < position.createdAt ||
+						(batch.createdAt === position.createdAt && batch.id < position.id)
+				)
+			: ordered;
+		const page = after.slice(0, 10);
+		const last = page.at(-1);
+		return {
+			items: page.map((batch) => this.#batchSummary(batch.id)),
+			nextCursor:
+				after.length > page.length && last
+					? encodeUploadCursor({ createdAt: last.createdAt, id: last.id })
+					: null
+		};
+	}
+
+	async claimUploadJob(leaseSeconds = 300): Promise<CatalogActionResult<CatalogUploadClaim>> {
+		this.#assertAdmin();
+		const seconds = Math.min(Math.max(leaseSeconds, 30), 3600);
+		const candidate = this.uploadJobs
+			.filter((job) => {
+				if (job.attempts >= 10) return false;
+				const batch = this.uploadBatches.find((row) => row.id === job.batchId);
+				if (batch?.state !== 'open') return false;
+				if (job.stage !== 'queued' && job.stage !== 'claimed') return false;
+				if (job.stage === 'claimed' && (this.leases.get(job.id)?.expiresAt ?? 0) > Date.now())
+					return false;
+				const object = this.#object('catalog-sources', job.sourcePath);
+				return object?.bytes === job.claimedBytes && object.mime === job.claimedMime;
+			})
+			.sort(
+				(left, right) =>
+					left.createdAt.localeCompare(right.createdAt) ||
+					left.position - right.position ||
+					(left.id < right.id ? -1 : 1)
+			)[0];
+		if (!candidate) return this.#refusal('none_pending');
+		const token = uuid();
+		const expiresAt = Date.now() + seconds * 1000;
+		this.leases.set(candidate.id, { token, expiresAt });
+		Object.assign(candidate, {
+			stage: 'claimed',
+			attempts: candidate.attempts + 1,
+			progress: 0,
+			leaseExpiresAt: new Date(expiresAt).toISOString(),
+			errorCode: null,
+			errorMessage: null,
+			updatedAt: now()
+		});
+		return {
+			ok: true,
+			item: {
+				job: { ...candidate },
+				leaseToken: token,
+				leaseExpiresAt: candidate.leaseExpiresAt as string
+			}
+		};
+	}
+
+	async completeUploadJob(
+		jobId: string,
+		leaseToken: string,
+		report: CatalogAssetVersionReport
+	): Promise<CatalogActionResult<CatalogUploadCompletion>> {
+		this.#assertAdmin();
+		const job = this.#job(jobId);
+		if (job.stage === 'ready') {
+			const existing = this.versions.find(
+				(row) => row.id === report?.versionId && row.assetId === job.assetId
+			);
+			if (existing)
+				return { ok: true, item: { job: { ...job }, version: existing, replayed: true } };
+			return this.#refusal('already_complete', { item: job });
+		}
+		const problem = this.#reportProblem(job, report);
+		if (problem) return this.#refusal(problem, { item: job });
+		if (!this.#leaseHolds(job, leaseToken)) return this.#refusal('lease_lost', { item: job });
+		const derivative = this.#object('catalog-derivatives', report.derivativePath);
+		if (!derivative || derivative.bytes !== report.derivativeBytes)
+			return this.#refusal('media_missing', {
+				message: 'The derivative object has not been stored'
+			});
+		if (report.thumbnailPath) {
+			const thumbnail = this.#object('catalog-derivatives', report.thumbnailPath);
+			if (!thumbnail || thumbnail.bytes !== report.thumbnailBytes)
+				return this.#refusal('media_missing', {
+					message: 'The thumbnail object has not been stored'
+				});
+		}
+		const versionNumber =
+			this.versions
+				.filter((row) => row.assetId === job.assetId)
+				.reduce((max, row) => Math.max(max, row.versionNumber), 0) + 1;
+		const version: CatalogAssetVersion = {
+			id: report.versionId,
+			assetId: job.assetId as string,
+			versionNumber,
+			sourcePath: job.sourcePath,
+			sourceSha256: report.sourceSha256,
+			sourceBytes: report.sourceBytes,
+			sourceMime: report.sourceMime,
+			derivativePath: report.derivativePath,
+			derivativeSha256: report.derivativeSha256,
+			derivativeBytes: report.derivativeBytes,
+			derivativeMime: report.derivativeMime,
+			derivativeWidth: report.derivativeWidth,
+			derivativeHeight: report.derivativeHeight,
+			thumbnailPath: report.thumbnailPath,
+			validationState: 'validated',
+			createdAt: now()
+		};
+		this.versions.push(version);
+		this.leases.delete(job.id);
+		Object.assign(job, {
+			stage: 'ready',
+			progress: 100,
+			leaseExpiresAt: null,
+			errorCode: null,
+			errorMessage: null,
+			updatedAt: now()
+		});
+		return { ok: true, item: { job: { ...job }, version, replayed: false } };
+	}
+
+	async failUploadJob(
+		jobId: string,
+		leaseToken: string,
+		error: { code: string; message: string }
+	): Promise<CatalogActionResult<CatalogUploadJob>> {
+		this.#assertAdmin();
+		const job = this.#job(jobId);
+		if (job.stage !== 'claimed' && job.stage !== 'queued')
+			return this.#refusal('lease_lost', { item: job });
+		if (job.stage === 'claimed' && !this.#leaseHolds(job, leaseToken))
+			return this.#refusal('lease_lost', { item: job });
+		this.leases.delete(job.id);
+		Object.assign(job, {
+			stage: 'failed',
+			leaseExpiresAt: null,
+			errorCode: (error?.code ?? 'processing_failed').slice(0, 100),
+			errorMessage: (error?.message ?? 'Processing failed').slice(0, 2000),
+			updatedAt: now()
+		});
+		return { ok: true, item: { ...job } };
+	}
+
+	async retryUploadJob(jobId: string): Promise<CatalogActionResult<CatalogUploadJob>> {
+		this.#assertAdmin();
+		const job = this.#job(jobId);
+		const batch = this.#batch(job.batchId);
+		if (batch.state !== 'open') return this.#refusal('batch_not_open', { item: job });
+		if (job.stage === 'ready') return this.#refusal('already_complete', { item: job });
+		if (job.attempts >= 10) return this.#refusal('attempts_exhausted', { item: job });
+		if (job.stage === 'queued' || job.stage === 'claimed') return { ok: true, item: { ...job } };
+		this.leases.delete(job.id);
+		Object.assign(job, {
+			stage: 'queued',
+			progress: 0,
+			leaseExpiresAt: null,
+			errorCode: null,
+			errorMessage: null,
+			updatedAt: now()
+		});
+		return { ok: true, item: { ...job } };
+	}
+
+	async cancelUploadBatch(batchId: string): Promise<CatalogActionResult<CatalogUploadStatus>> {
+		this.#assertAdmin();
+		const batch = this.#batch(batchId);
+		if (batch.state !== 'open') return this.#refusal('batch_not_open', { item: batch });
+		batch.state = 'cancelled';
+		for (const job of this.uploadJobs.filter((row) => row.batchId === batchId)) {
+			if (job.stage === 'queued' || job.stage === 'claimed') {
+				this.leases.delete(job.id);
+				Object.assign(job, { stage: 'cancelled', leaseExpiresAt: null, updatedAt: now() });
+			}
+		}
+		return { ok: true, item: this.#status(batchId) };
+	}
+
+	async closeUploadBatch(batchId: string): Promise<CatalogActionResult<CatalogUploadBatchSummary>> {
+		this.#assertAdmin();
+		const batch = this.#batch(batchId);
+		if (batch.state === 'open') batch.state = 'closed';
+		return { ok: true, item: this.#batchSummary(batchId) };
+	}
+
+	#referencedPaths(): Set<string> {
+		const referenced = new Set<string>();
+		for (const version of this.versions) {
+			referenced.add(version.sourcePath);
+			referenced.add(version.derivativePath);
+			if (version.thumbnailPath) referenced.add(version.thumbnailPath);
+		}
+		for (const template of this.templateVersions) {
+			referenced.add(template.coverPath);
+			for (const preview of template.slidePreviews) referenced.add(preview.path);
+		}
+		return referenced;
+	}
+
+	async listOrphanMedia(batchId: string): Promise<CatalogOrphanMedia> {
+		this.#assertAdmin();
+		const batch = this.#batch(batchId);
+		const assetIds = new Set(
+			this.uploadJobs.filter((job) => job.batchId === batch.id).map((job) => job.assetId)
+		);
+		const referenced = this.#referencedPaths();
+		const sources = this.objects
+			.filter(
+				(object) =>
+					object.bucket === 'catalog-sources' &&
+					object.path.startsWith(`${batch.id}/`) &&
+					!referenced.has(object.path)
+			)
+			.map((object): CatalogUploadObject => ({ path: object.path, bytes: object.bytes }));
+		const derivatives = this.objects
+			.filter((object) => {
+				if (object.bucket !== 'catalog-derivatives' || referenced.has(object.path)) return false;
+				const [, assetId] = object.path.split('/');
+				return assetIds.has(assetId);
+			})
+			.map((object): CatalogUploadObject => ({ path: object.path, bytes: object.bytes }));
+		return {
+			sources,
+			derivatives,
+			sourceTotal: sources.length,
+			derivativeTotal: derivatives.length,
+			truncated: sources.length + derivatives.length > 200
+		};
+	}
+
+	async recordUploadCleanup(batchId: string, paths: string[]): Promise<number> {
+		this.#assertAdmin();
+		this.#batch(batchId);
+		if (!Array.isArray(paths) || paths.length < 1 || paths.length > 200)
+			throw new CatalogError('invalid_data', 'paths must contain 1..200 entries');
+		const referenced = this.#referencedPaths();
+		const pinned = paths.filter((path) => referenced.has(path));
+		if (pinned.length > 0)
+			throw new CatalogError('missing_media', `Referenced media cannot be removed: ${pinned[0]}`);
+		return paths.length;
+	}
+
+	async uploadSource(path: string, file: Blob, mime: string): Promise<void> {
+		this.#assertAdmin();
+		this.objects.push({ bucket: 'catalog-sources', path, bytes: file.size, mime });
+	}
+
+	async uploadDerivative(
+		path: string,
+		bytes: Blob,
+		mime: 'image/png' | 'image/webp'
+	): Promise<void> {
+		this.#assertAdmin();
+		this.objects.push({ bucket: 'catalog-derivatives', path, bytes: bytes.size, mime });
+	}
+
+	async downloadSource(path: string): Promise<Uint8Array> {
+		this.#assertAdmin();
+		const object = this.#object('catalog-sources', path);
+		if (!object) throw new CatalogError('not_found', 'Stored source not found');
+		return new Uint8Array(object.bytes);
+	}
+
+	async removeObjects(
+		bucket: 'catalog-sources' | 'catalog-derivatives',
+		paths: string[]
+	): Promise<void> {
+		this.#assertAdmin();
+		const referenced = this.#referencedPaths();
+		this.objects = this.objects.filter((object) => {
+			if (object.bucket !== bucket || !paths.includes(object.path)) return true;
+			if (referenced.has(object.path)) return true;
+			if (bucket === 'catalog-sources') {
+				const batch = this.uploadBatches.find((row) => object.path.startsWith(`${row.id}/`));
+				if (!batch || batch.state === 'open') return true;
+			}
+			return false;
+		});
 	}
 }

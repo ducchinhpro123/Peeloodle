@@ -22,9 +22,12 @@ import {
 	type CatalogAdminRepository,
 	type CatalogAssetInput,
 	type CatalogCollectionInput,
+	type CatalogAssetVersionReport,
 	type CatalogListFilters,
 	type CatalogRepository,
-	type CatalogTemplateInput
+	type CatalogTemplateInput,
+	type CatalogUploadRequest,
+	decodeUploadCursor
 } from './repository';
 import {
 	parseActionResult,
@@ -32,21 +35,38 @@ import {
 	parseAssetVersion,
 	parseCollection,
 	parseDependency,
+	parseOrphanMedia,
 	parseTemplate,
 	parseTemplateVersion,
-	takePage
+	parseUploadBatchSummary,
+	readUploadBatchPage,
+	parseUploadClaimResult,
+	parseUploadCompletionResult,
+	parseUploadJob,
+	parseUploadStatus,
+	takePage,
+	unwrapRead
 } from './parse';
 import type {
 	CatalogAsset,
 	CatalogAssetVersion,
 	CatalogCollection,
+	CatalogOrphanMedia,
 	CatalogPage,
 	CatalogTemplate,
 	CatalogTemplateDependency,
-	CatalogTemplateVersion
+	CatalogTemplateVersion,
+	CatalogUploadBatchPage,
+	CatalogUploadBatchSummary,
+	CatalogUploadClaim,
+	CatalogUploadCompletion,
+	CatalogUploadJob,
+	CatalogUploadStatus
 } from './types';
 
 const BUCKET = 'catalog-derivatives';
+const SOURCE_BUCKET = 'catalog-sources';
+const UPLOAD_BATCH_PAGE = 10;
 
 const COLLECTION_COLUMNS =
 	'id,name,description,tags,sort_order,state,revision,published_at,archived_at,created_at,updated_at';
@@ -444,5 +464,179 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 			'Could not archive the template',
 			parseTemplate
 		);
+	}
+
+	// ---------------------------------------------------------------------
+	// P54/P55/P61: the upload lifecycle. Every mutation is an RPC; the Storage
+	// calls go to the fixed private buckets, and the server re-checks the lease
+	// and the objects before a version exists.
+	// ---------------------------------------------------------------------
+
+	createUploadBatch(request: CatalogUploadRequest) {
+		return this.#action(
+			this.#client.rpc('catalog_admin_create_upload_batch', {
+				p_collection_id: request.collectionId,
+				p_files: request.files.map((file) => ({
+					name: file.name,
+					mime: file.mime,
+					bytes: file.bytes
+				}))
+			}),
+			'Could not create the upload batch',
+			parseUploadStatus
+		);
+	}
+
+	async uploadStatus(batchId: string): Promise<CatalogUploadStatus> {
+		const { data, error } = await this.#client.rpc('catalog_admin_upload_status', {
+			p_batch_id: batchId
+		});
+		if (error) this.#fail(error, 'Could not read the upload batch');
+		return unwrapRead(data, 'upload status', parseUploadStatus);
+	}
+
+	async listUploadBatches(cursor?: string | null): Promise<CatalogUploadBatchPage> {
+		const position = cursor ? decodeUploadCursor(cursor) : null;
+		const { data, error } = await this.#client.rpc('catalog_admin_list_upload_batches', {
+			p_limit: UPLOAD_BATCH_PAGE,
+			p_before: position?.createdAt ?? null,
+			p_before_id: position?.id ?? null
+		});
+		if (error) this.#fail(error, 'Could not list the upload batches');
+		return readUploadBatchPage(data);
+	}
+
+	async claimUploadJob(leaseSeconds = 300): Promise<CatalogActionResult<CatalogUploadClaim>> {
+		const { data, error } = await this.#client.rpc('catalog_admin_claim_upload_job', {
+			lease_seconds: leaseSeconds
+		});
+		if (error) this.#fail(error, 'Could not claim an upload job');
+		return parseUploadClaimResult(data);
+	}
+
+	async completeUploadJob(
+		jobId: string,
+		leaseToken: string,
+		report: CatalogAssetVersionReport
+	): Promise<CatalogActionResult<CatalogUploadCompletion>> {
+		const { data, error } = await this.#client.rpc('catalog_admin_complete_upload_job', {
+			p_job_id: jobId,
+			p_lease_token: leaseToken,
+			p_report: {
+				version_id: report.versionId,
+				source_sha256: report.sourceSha256,
+				source_bytes: report.sourceBytes,
+				source_mime: report.sourceMime,
+				derivative_path: report.derivativePath,
+				derivative_sha256: report.derivativeSha256,
+				derivative_bytes: report.derivativeBytes,
+				derivative_mime: report.derivativeMime,
+				derivative_width: report.derivativeWidth,
+				derivative_height: report.derivativeHeight,
+				thumbnail_path: report.thumbnailPath,
+				thumbnail_sha256: report.thumbnailSha256,
+				thumbnail_bytes: report.thumbnailBytes,
+				renderer: report.renderer,
+				validation: report.validation as Json
+			}
+		});
+		if (error) this.#fail(error, 'Could not finalize the upload job');
+		return parseUploadCompletionResult(data);
+	}
+
+	async failUploadJob(
+		jobId: string,
+		leaseToken: string,
+		error: { code: string; message: string }
+	): Promise<CatalogActionResult<CatalogUploadJob>> {
+		const { data, error: rpcError } = await this.#client.rpc('catalog_admin_fail_upload_job', {
+			p_job_id: jobId,
+			p_lease_token: leaseToken,
+			p_error_code: error.code,
+			p_error_message: error.message
+		});
+		if (rpcError) this.#fail(rpcError, 'Could not record the upload failure');
+		return parseActionResult(data, parseUploadJob);
+	}
+
+	async retryUploadJob(jobId: string): Promise<CatalogActionResult<CatalogUploadJob>> {
+		const { data, error } = await this.#client.rpc('catalog_admin_retry_upload_job', {
+			p_job_id: jobId
+		});
+		if (error) this.#fail(error, 'Could not retry the upload job');
+		return parseActionResult(data, parseUploadJob);
+	}
+
+	cancelUploadBatch(batchId: string) {
+		return this.#action(
+			this.#client.rpc('catalog_admin_cancel_upload_batch', { p_batch_id: batchId }),
+			'Could not cancel the upload batch',
+			parseUploadStatus
+		);
+	}
+
+	async closeUploadBatch(batchId: string): Promise<CatalogActionResult<CatalogUploadBatchSummary>> {
+		const { data, error } = await this.#client.rpc('catalog_admin_close_upload_batch', {
+			p_batch_id: batchId
+		});
+		if (error) this.#fail(error, 'Could not close the upload batch');
+		return parseActionResult(data, parseUploadBatchSummary);
+	}
+
+	async listOrphanMedia(batchId: string): Promise<CatalogOrphanMedia> {
+		const { data, error } = await this.#client.rpc('catalog_admin_list_orphan_media', {
+			p_batch_id: batchId,
+			p_limit: 200
+		});
+		if (error) this.#fail(error, 'Could not list abandoned uploads');
+		return unwrapRead(data, 'orphan media', parseOrphanMedia);
+	}
+
+	async recordUploadCleanup(batchId: string, paths: string[]): Promise<number> {
+		const { data, error } = await this.#client.rpc('catalog_admin_record_upload_cleanup', {
+			p_batch_id: batchId,
+			p_paths: paths
+		});
+		if (error) this.#fail(error, 'Could not record the cleanup');
+		return unwrapRead(data, 'cleanup record', (item) => {
+			if (!item || typeof item !== 'object')
+				throw new CatalogError('invalid_data', 'Invalid cleanup result');
+			const removed = (item as { removed?: unknown }).removed;
+			if (typeof removed !== 'number')
+				throw new CatalogError('invalid_data', 'Invalid cleanup result');
+			return removed;
+		});
+	}
+
+	async uploadSource(path: string, file: Blob, mime: string): Promise<void> {
+		const { error } = await this.#client.storage
+			.from(SOURCE_BUCKET)
+			.upload(path, file, { contentType: mime, upsert: false });
+		if (error) this.#fail(error, 'Could not upload the source file');
+	}
+
+	async uploadDerivative(
+		path: string,
+		bytes: Blob,
+		mime: 'image/png' | 'image/webp'
+	): Promise<void> {
+		const { error } = await this.#client.storage
+			.from(BUCKET)
+			.upload(path, bytes, { contentType: mime, upsert: false });
+		if (error) this.#fail(error, 'Could not upload the derivative');
+	}
+
+	async downloadSource(path: string): Promise<Uint8Array> {
+		const { data, error } = await this.#client.storage.from(SOURCE_BUCKET).download(path);
+		if (error) this.#fail(error, 'Could not download the source file');
+		return new Uint8Array(await data.arrayBuffer());
+	}
+
+	async removeObjects(
+		bucket: 'catalog-sources' | 'catalog-derivatives',
+		paths: string[]
+	): Promise<void> {
+		const { error } = await this.#client.storage.from(bucket).remove(paths);
+		if (error) this.#fail(error, 'Could not remove the objects');
 	}
 }

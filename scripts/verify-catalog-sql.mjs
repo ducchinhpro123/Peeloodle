@@ -1,4 +1,4 @@
-// Catalog migration and authorization verification (P46/P47/P48/P50).
+// Catalog migration and authorization verification (P46/P47/P48/P50, P54/P55/P61).
 //
 // Runs the real `supabase/migrations/*.sql` files, in filename order, against a
 // throwaway PostgreSQL cluster on localhost, and then exercises the catalog with
@@ -101,6 +101,7 @@ $$;
 grant usage on schema auth, storage, extensions to anon, authenticated, service_role;
 grant all on storage.objects, storage.buckets to service_role;
 grant select on storage.objects to anon, authenticated;
+grant delete on storage.objects to authenticated;
 `;
 
 let failures = 0;
@@ -527,6 +528,300 @@ async function main(binaries) {
 			}
 		);
 
+		// P54/P55/P61: durable upload batches, leased processing jobs, conditional
+		// completion and bounded cleanup.
+		const storedObject = (bucket, name, size, mime) =>
+			`insert into storage.objects (bucket_id, name, metadata) values ('${bucket}', '${name}', '{"size": ${size}, "mimetype": "${mime}"}'::jsonb)`;
+		const reportFor = (assetId, versionId, bytes) => ({
+			version_id: versionId,
+			source_sha256: 'a'.repeat(64),
+			source_bytes: bytes,
+			source_mime: 'image/png',
+			derivative_path: `assets/${assetId}/${versionId}/asset.png`,
+			derivative_sha256: 'b'.repeat(64),
+			derivative_bytes: 2048,
+			derivative_mime: 'image/png',
+			derivative_width: 512,
+			derivative_height: 512,
+			thumbnail_path: `assets/${assetId}/${versionId}/thumb.webp`,
+			thumbnail_sha256: 'c'.repeat(64),
+			thumbnail_bytes: 512,
+			validation: { source_format: 'png' }
+		});
+		const claim = async (seconds = 300) => {
+			const [row] = await asAdmin.unsafe(
+				`select public.catalog_admin_claim_upload_job(${seconds}) as result`
+			);
+			return row.result;
+		};
+
+		let batch;
+		let jobs;
+		await check('an admin batch reserves one path and one draft asset per file', async () => {
+			const [row] = await asAdmin.unsafe(`select public.catalog_admin_create_upload_batch(null, '[
+				{"name":"Chart 01.PNG","mime":"image/png","bytes":1024},
+				{"name":"logo.svg","mime":"image/svg+xml","bytes":2048},
+				{"name":"Extra photo.webp","mime":"image/webp","bytes":4096}]'::jsonb) as result`);
+			if (!row.result.ok) throw new Error(JSON.stringify(row.result));
+			batch = row.result.item.batch;
+			jobs = row.result.item.jobs;
+			if (batch.state !== 'open' || batch.counts.total !== 3 || jobs.length !== 3)
+				throw new Error(JSON.stringify(row.result));
+			if (!jobs.every((job) => job.source_path.startsWith(`${batch.id}/`) && job.stored === false))
+				throw new Error(`paths: ${JSON.stringify(jobs)}`);
+			if (jobs[0].claimed_mime !== 'image/png' || jobs[1].claimed_mime !== 'image/svg+xml')
+				throw new Error('claimed mime was not recorded');
+			if ('lease_token' in jobs[0] || 'lease_token' in batch)
+				throw new Error('the lease token leaked into the UI payload');
+			const [asset] = await asAdmin.unsafe(
+				`select name, kind, provenance from public.catalog_assets where id = '${jobs[1].asset_id}'`
+			);
+			if (
+				asset.kind !== 'svg' ||
+				asset.name !== 'logo' ||
+				asset.provenance.original_name !== 'logo.svg'
+			)
+				throw new Error(JSON.stringify(asset));
+		});
+		await check('an unsupported content type is refused before anything is written', async () => {
+			const [row] = await asAdmin.unsafe(
+				`select public.catalog_admin_create_upload_batch(null, '[{"name":"bad.gif","mime":"image/gif","bytes":10}]'::jsonb) as result`
+			);
+			if (row.result.ok || row.result.reason !== 'invalid_file')
+				throw new Error(JSON.stringify(row.result));
+			const [count] = await asAdmin.unsafe(
+				'select count(*)::int as value from public.catalog_upload_batches'
+			);
+			if (count.value !== 1) throw new Error(`batches: ${count.value}`);
+		});
+		await check('a job is not claimable before its source object arrives', async () => {
+			const result = await claim();
+			if (result.ok || result.reason !== 'none_pending') throw new Error(JSON.stringify(result));
+			await sql.unsafe(storedObject('catalog-sources', jobs[0].source_path, 999, 'image/png'));
+			const wrongSize = await claim();
+			if (wrongSize.ok || wrongSize.reason !== 'none_pending')
+				throw new Error(`wrong size: ${JSON.stringify(wrongSize)}`);
+			await sql.unsafe(
+				`update storage.objects set metadata = '{"size": 1024, "mimetype": "image/png"}'::jsonb where name = '${jobs[0].source_path}'`
+			);
+		});
+
+		let firstClaim;
+		await check('a stored job is claimed with a lease the UI never sees', async () => {
+			const result = await claim();
+			if (!result.ok || result.item.stage !== 'claimed' || result.item.attempts !== 1)
+				throw new Error(JSON.stringify(result));
+			firstClaim = { job: result.item, token: result.lease.token };
+			const [status] = await asAdmin.unsafe(
+				`select public.catalog_admin_upload_status('${batch.id}') as result`
+			);
+			if (JSON.stringify(status.result).includes(firstClaim.token))
+				throw new Error('the lease token appeared in the status payload');
+			if (status.result.item.jobs[0].stored !== true)
+				throw new Error('the status payload did not report the stored source');
+		});
+		await check('a stale worker cannot complete a claimed job', async () => {
+			const report = reportFor(jobs[0].asset_id, crypto.randomUUID(), 1024);
+			const [row] = await asAdmin.unsafe(
+				`select public.catalog_admin_complete_upload_job('${firstClaim.job.id}', '00000000-0000-0000-0000-000000000000', '${JSON.stringify(report)}'::jsonb) as result`
+			);
+			if (row.result.ok || row.result.reason !== 'lease_lost')
+				throw new Error(JSON.stringify(row.result));
+		});
+		await check('a report without its derivative object is refused', async () => {
+			const report = reportFor(jobs[0].asset_id, crypto.randomUUID(), 1024);
+			const [row] = await asAdmin.unsafe(
+				`select public.catalog_admin_complete_upload_job('${firstClaim.job.id}', '${firstClaim.token}', '${JSON.stringify(report)}'::jsonb) as result`
+			);
+			if (row.result.ok || row.result.reason !== 'media_missing')
+				throw new Error(JSON.stringify(row.result));
+		});
+
+		const uploadVersionId = crypto.randomUUID();
+		const firstReport = reportFor(jobs[0].asset_id, uploadVersionId, 1024);
+		await check(
+			'completion stores an immutable validated version and marks the job ready',
+			async () => {
+				await sql.unsafe(
+					storedObject('catalog-derivatives', firstReport.derivative_path, 2048, 'image/png')
+				);
+				await sql.unsafe(
+					storedObject('catalog-derivatives', firstReport.thumbnail_path, 512, 'image/webp')
+				);
+				const [row] = await asAdmin.unsafe(
+					`select public.catalog_admin_complete_upload_job('${firstClaim.job.id}', '${firstClaim.token}', '${JSON.stringify(firstReport)}'::jsonb) as result`
+				);
+				if (!row.result.ok) throw new Error(JSON.stringify(row.result));
+				if (row.result.item.stage !== 'ready' || row.result.item.progress !== 100)
+					throw new Error(JSON.stringify(row.result.item));
+				if (
+					row.result.version.validation_state !== 'validated' ||
+					row.result.version.version_number !== 1
+				)
+					throw new Error(JSON.stringify(row.result.version));
+				if (row.result.version.source_path !== jobs[0].source_path)
+					throw new Error('the version did not record the reserved source path');
+				if (row.result.version.validation.job_id !== firstClaim.job.id)
+					throw new Error('the report was not journaled on the version');
+			}
+		);
+		await check('replaying a completed job with the same version id is idempotent', async () => {
+			const [row] = await asAdmin.unsafe(
+				`select public.catalog_admin_complete_upload_job('${firstClaim.job.id}', '${firstClaim.token}', '${JSON.stringify(firstReport)}'::jsonb) as result`
+			);
+			if (!row.result.ok || row.result.replayed !== true)
+				throw new Error(JSON.stringify(row.result));
+			const [count] = await asAdmin.unsafe(
+				`select count(*)::int as value from public.catalog_asset_versions where asset_id = '${jobs[0].asset_id}'`
+			);
+			if (count.value !== 1) throw new Error(`versions: ${count.value}`);
+		});
+
+		let expiredClaim;
+		await check(
+			'an expired lease is reclaimed and the old token is refused afterwards',
+			async () => {
+				await sql.unsafe(
+					storedObject('catalog-sources', jobs[1].source_path, 2048, 'image/svg+xml')
+				);
+				const first = await claim(60);
+				if (!first.ok) throw new Error(JSON.stringify(first));
+				await sql.unsafe(
+					`update public.catalog_upload_jobs set lease_expires_at = now() - interval '1 minute' where id = '${first.item.id}'`
+				);
+				const second = await claim(60);
+				if (!second.ok || second.item.id !== first.item.id || second.item.attempts !== 2)
+					throw new Error(`reclaim: ${JSON.stringify(second)}`);
+				if (second.lease.token === first.lease.token)
+					throw new Error('the reclaim reused the old token');
+				expiredClaim = { job: second.item, token: second.lease.token };
+				const report = reportFor(jobs[1].asset_id, crypto.randomUUID(), 2048);
+				const [stale] = await asAdmin.unsafe(
+					`select public.catalog_admin_complete_upload_job('${first.item.id}', '${first.lease.token}', '${JSON.stringify(report)}'::jsonb) as result`
+				);
+				if (stale.result.ok || stale.result.reason !== 'lease_lost')
+					throw new Error(`stale: ${JSON.stringify(stale.result)}`);
+			}
+		);
+		await check('a failed job can be retried until the attempt limit', async () => {
+			const [failed] = await asAdmin.unsafe(
+				`select public.catalog_admin_fail_upload_job('${expiredClaim.job.id}', '${expiredClaim.token}', 'decode_failed', 'The image could not be decoded') as result`
+			);
+			if (!failed.result.ok || failed.result.item.stage !== 'failed')
+				throw new Error(JSON.stringify(failed.result));
+			const [retried] = await asAdmin.unsafe(
+				`select public.catalog_admin_retry_upload_job('${expiredClaim.job.id}') as result`
+			);
+			if (!retried.result.ok || retried.result.item.stage !== 'queued')
+				throw new Error(JSON.stringify(retried.result));
+			await sql.unsafe(
+				`update public.catalog_upload_jobs set attempts = 10 where id = '${expiredClaim.job.id}'`
+			);
+			const [exhausted] = await asAdmin.unsafe(
+				`select public.catalog_admin_retry_upload_job('${expiredClaim.job.id}') as result`
+			);
+			if (exhausted.result.ok || exhausted.result.reason !== 'attempts_exhausted')
+				throw new Error(JSON.stringify(exhausted.result));
+		});
+
+		await check(
+			'cancelling a batch cancels unfinished jobs and invalidates their leases',
+			async () => {
+				await sql.unsafe(storedObject('catalog-sources', jobs[2].source_path, 4096, 'image/webp'));
+				const held = await claim(300);
+				if (!held.ok || held.item.id !== jobs[2].id) throw new Error(JSON.stringify(held));
+				const [cancelled] = await asAdmin.unsafe(
+					`select public.catalog_admin_cancel_upload_batch('${batch.id}') as result`
+				);
+				if (!cancelled.result.ok || cancelled.result.item.batch.state !== 'cancelled')
+					throw new Error(JSON.stringify(cancelled.result));
+				if (cancelled.result.item.jobs.find((job) => job.id === jobs[2].id).stage !== 'cancelled')
+					throw new Error('the claimed job survived cancellation');
+				const report = reportFor(jobs[2].asset_id, crypto.randomUUID(), 4096);
+				const [late] = await asAdmin.unsafe(
+					`select public.catalog_admin_complete_upload_job('${held.item.id}', '${held.lease.token}', '${JSON.stringify(report)}'::jsonb) as result`
+				);
+				if (late.result.ok || late.result.reason !== 'lease_lost')
+					throw new Error(JSON.stringify(late.result));
+				const afterCancel = await claim();
+				if (afterCancel.ok || afterCancel.reason !== 'none_pending')
+					throw new Error(`claim after cancel: ${JSON.stringify(afterCancel)}`);
+			}
+		);
+
+		await check('the orphan listing shows only media no version references', async () => {
+			await sql.unsafe(
+				storedObject(
+					'catalog-derivatives',
+					`assets/${jobs[2].asset_id}/${crypto.randomUUID()}/asset.png`,
+					4096,
+					'image/png'
+				)
+			);
+			const [row] = await asAdmin.unsafe(
+				`select public.catalog_admin_list_orphan_media('${batch.id}') as result`
+			);
+			if (!row.result.ok) throw new Error(JSON.stringify(row.result));
+			const listed = JSON.stringify(row.result.item);
+			if (!listed.includes(jobs[2].source_path))
+				throw new Error(`orphan source missing: ${listed}`);
+			if (listed.includes(jobs[0].source_path) || listed.includes(firstReport.derivative_path))
+				throw new Error(`a referenced object was listed as an orphan: ${listed}`);
+			// Two jobs never produced a version (one queued, one cancelled), and the
+			// completed job's own media must not appear.
+			if (row.result.item.source_total !== 2 || row.result.item.derivative_total !== 1)
+				throw new Error(JSON.stringify(row.result.item));
+		});
+		await check('cleanup refuses referenced media and journals the rest', async () => {
+			const [referenced] = await asAdmin.unsafe(
+				`select public.catalog_admin_record_upload_cleanup('${batch.id}', array['${firstReport.derivative_path}']) as result`
+			);
+			if (referenced.result.ok || referenced.result.reason !== 'media_referenced')
+				throw new Error(JSON.stringify(referenced.result));
+			const [ok] = await asAdmin.unsafe(
+				`select public.catalog_admin_record_upload_cleanup('${batch.id}', array['${jobs[2].source_path}']) as result`
+			);
+			if (!ok.result.ok || ok.result.item.removed !== 1) throw new Error(JSON.stringify(ok.result));
+			const [event] = await asAdmin.unsafe(
+				`select outcome, detail from public.catalog_events where operation = 'upload_cleanup' order by id desc limit 1`
+			);
+			if (event.outcome !== 'ok' || event.detail.removed[0] !== jobs[2].source_path)
+				throw new Error(JSON.stringify(event));
+		});
+		await check('delete policies remove orphans and protect referenced media', async () => {
+			// An RLS delete that matches no row is silent rather than an error, so
+			// this check counts rows instead of expecting SQLSTATE 42501.
+			const remaining = async () => {
+				const rows = await asAdmin.unsafe('select name from storage.objects order by name');
+				return rows.map((row) => row.name);
+			};
+			await asAdmin.unsafe(`delete from storage.objects where name = '${jobs[2].source_path}'`);
+			await asAdmin.unsafe(`delete from storage.objects where name = '${jobs[0].source_path}'`);
+			await asAdmin.unsafe(
+				`delete from storage.objects where name = '${firstReport.derivative_path}'`
+			);
+			await asEditor.unsafe(`delete from storage.objects where name = '${jobs[1].source_path}'`);
+			const after = await remaining();
+			if (after.includes(jobs[2].source_path))
+				throw new Error('the orphan source survived the delete');
+			for (const protectedPath of [
+				jobs[0].source_path,
+				firstReport.derivative_path,
+				jobs[1].source_path
+			]) {
+				if (!after.includes(protectedPath))
+					throw new Error(`a protected object was deleted: ${protectedPath}`);
+			}
+		});
+		await check('ordinary users cannot call the upload RPCs', () =>
+			expectError(
+				asEditor.unsafe(
+					`select public.catalog_admin_create_upload_batch(null, '[{"name":"a.png","mime":"image/png","bytes":10}]'::jsonb)`
+				),
+				'42501'
+			)
+		);
+
 		await asAdmin.end({ timeout: 5 });
 		await asEditor.end({ timeout: 5 });
 		await asAnon.end({ timeout: 5 });
@@ -546,7 +841,7 @@ async function main(binaries) {
 		process.exit(1);
 	}
 	console.log(
-		'PASS: catalog migrations, immutability, published-pointer integrity, RLS/Storage visibility and guarded publish/archive against real PostgreSQL.'
+		'PASS: catalog migrations, immutability, published-pointer integrity, RLS/Storage visibility, guarded publish/archive and the leased upload lifecycle against real PostgreSQL.'
 	);
 }
 

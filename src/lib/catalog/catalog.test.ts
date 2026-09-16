@@ -4,7 +4,7 @@
  * revisions and the guarded refusals. Row parsing is pinned separately because
  * a malformed server row must never produce a half-populated object.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	CatalogError,
 	catalogPageSize,
@@ -448,5 +448,238 @@ describe('catalog admin operations', () => {
 		expect(
 			await catalog.publishTemplate(template().id, 'w0000000-0000-4000-8000-000000000001', 1)
 		).toMatchObject({ reason: 'dependency_unavailable', detail: { assetIds: [asset().id] } });
+	});
+});
+
+describe('catalog upload lifecycle', () => {
+	const adminId = '11111111-1111-4111-8111-111111111111';
+	const files = [
+		{ name: 'Chart 01.PNG', mime: 'image/png', bytes: 1024 },
+		{ name: 'logo.svg', mime: 'image/svg+xml', bytes: 2048 }
+	];
+	const report = (assetId: string, versionId: string, overrides: Record<string, unknown> = {}) => ({
+		versionId,
+		sourceSha256: 'a'.repeat(64),
+		sourceBytes: 1024,
+		sourceMime: 'image/png',
+		derivativePath: `assets/${assetId}/${versionId}/asset.png`,
+		derivativeSha256: 'b'.repeat(64),
+		derivativeBytes: 2048,
+		derivativeMime: 'image/png' as const,
+		derivativeWidth: 64,
+		derivativeHeight: 64,
+		thumbnailPath: null,
+		thumbnailSha256: null,
+		thumbnailBytes: 0,
+		renderer: 'test',
+		validation: {},
+		...overrides
+	});
+
+	afterEach(() => vi.useRealTimers());
+
+	async function batch() {
+		const catalog = new MemoryCatalog({ admins: [adminId] }, adminId);
+		const created = await catalog.createUploadBatch({ collectionId: null, files });
+		if (!created.ok) throw new Error(JSON.stringify(created));
+		return { catalog, status: created.item };
+	}
+
+	it('reserves one path per file and only claims a job once its source is stored', async () => {
+		const { catalog, status } = await batch();
+		expect(status.jobs.map((job) => job.originalName)).toEqual(['Chart 01.PNG', 'logo.svg']);
+		expect(status.jobs.map((job) => job.position)).toEqual([0, 1]);
+		expect(status.batch.counts).toMatchObject({ total: 2, queued: 2, ready: 0 });
+		expect(status.jobs.every((job) => job.stored === false)).toBe(true);
+		expect(status.jobs[0].sourcePath.startsWith(`${status.batch.id}/`)).toBe(true);
+		expect(await catalog.claimUploadJob()).toMatchObject({ reason: 'none_pending' });
+
+		await catalog.uploadSource(
+			status.jobs[0].sourcePath,
+			new Blob([new Uint8Array(1024)]),
+			'image/png'
+		);
+		const refreshed = await catalog.uploadStatus(status.batch.id);
+		expect(refreshed.jobs[0].stored).toBe(true);
+		expect(refreshed.jobs[1].stored).toBe(false);
+
+		const claimResult = await catalog.claimUploadJob();
+		if (!claimResult.ok) throw new Error(JSON.stringify(claimResult));
+		expect(claimResult.item.job.stage).toBe('claimed');
+		expect(claimResult.item.job.attempts).toBe(1);
+		expect(claimResult.item.leaseToken).toMatch(/^[0-9a-f-]{36}$/);
+		expect(JSON.stringify(await catalog.uploadStatus(status.batch.id))).not.toContain(
+			claimResult.item.leaseToken
+		);
+	});
+
+	it('refuses an unsupported type before writing anything', async () => {
+		const catalog = new MemoryCatalog({ admins: [adminId] }, adminId);
+		const refused = await catalog.createUploadBatch({
+			collectionId: null,
+			files: [{ name: 'bad.gif', mime: 'image/gif', bytes: 10 }]
+		});
+		expect(refused).toMatchObject({ reason: 'invalid_file' });
+		expect(await catalog.listUploadBatches()).toMatchObject({ items: [] });
+	});
+
+	it('reclaims an expired lease and refuses the stale token afterwards', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-09-16T00:00:00.000Z'));
+		const { catalog, status } = await batch();
+		const job = status.jobs[0];
+		await catalog.uploadSource(job.sourcePath, new Blob([new Uint8Array(1024)]), 'image/png');
+
+		const first = await catalog.claimUploadJob(60);
+		if (!first.ok) throw new Error(JSON.stringify(first));
+		vi.setSystemTime(new Date('2026-09-16T00:02:00.000Z'));
+		const second = await catalog.claimUploadJob(60);
+		if (!second.ok) throw new Error(JSON.stringify(second));
+		expect(second.item.job.id).toBe(job.id);
+		expect(second.item.job.attempts).toBe(2);
+		expect(second.item.leaseToken).not.toBe(first.item.leaseToken);
+
+		const stale = await catalog.completeUploadJob(
+			job.id,
+			first.item.leaseToken,
+			report(job.assetId as string, crypto.randomUUID())
+		);
+		expect(stale).toMatchObject({ reason: 'lease_lost' });
+	});
+
+	it('stores an immutable validated version and replays the same report idempotently', async () => {
+		const { catalog, status } = await batch();
+		const job = status.jobs[0];
+		const assetId = job.assetId as string;
+		await catalog.uploadSource(job.sourcePath, new Blob([new Uint8Array(1024)]), 'image/png');
+		const claim = await catalog.claimUploadJob();
+		if (!claim.ok) throw new Error(JSON.stringify(claim));
+		const versionId = crypto.randomUUID();
+		const payload = report(assetId, versionId);
+
+		expect(await catalog.completeUploadJob(job.id, claim.item.leaseToken, payload)).toMatchObject({
+			reason: 'media_missing'
+		});
+		await catalog.uploadDerivative(
+			payload.derivativePath,
+			new Blob([new Uint8Array(2048)]),
+			'image/png'
+		);
+		const completed = await catalog.completeUploadJob(job.id, claim.item.leaseToken, payload);
+		if (!completed.ok) throw new Error(JSON.stringify(completed));
+		expect(completed.item.version).toMatchObject({
+			validationState: 'validated',
+			versionNumber: 1,
+			sourcePath: job.sourcePath
+		});
+		expect(completed.item.job.stage).toBe('ready');
+
+		const replay = await catalog.completeUploadJob(job.id, claim.item.leaseToken, payload);
+		expect(replay).toMatchObject({ ok: true, item: { replayed: true } });
+		expect(catalog.versions).toHaveLength(1);
+
+		// A report that points at another asset's media is refused outright.
+		const forged = await catalog.completeUploadJob(job.id, claim.item.leaseToken, {
+			...payload,
+			versionId: crypto.randomUUID()
+		});
+		expect(forged).toMatchObject({ reason: 'already_complete' });
+	});
+
+	it('fails, retries and refuses a job at the attempt limit', async () => {
+		const { catalog, status } = await batch();
+		const job = status.jobs[1];
+		await catalog.uploadSource(job.sourcePath, new Blob([new Uint8Array(2048)]), 'image/svg+xml');
+		const claim = await catalog.claimUploadJob();
+		if (!claim.ok) throw new Error(JSON.stringify(claim));
+		expect(
+			await catalog.failUploadJob(job.id, 'not-the-token', { code: 'x', message: 'y' })
+		).toMatchObject({ reason: 'lease_lost' });
+
+		const failed = await catalog.failUploadJob(job.id, claim.item.leaseToken, {
+			code: 'decode_failed',
+			message: 'The image could not be decoded'
+		});
+		if (!failed.ok) throw new Error(JSON.stringify(failed));
+		expect(failed.item).toMatchObject({
+			stage: 'failed',
+			errorCode: 'decode_failed',
+			errorMessage: 'The image could not be decoded'
+		});
+		expect(await catalog.retryUploadJob(job.id)).toMatchObject({
+			ok: true,
+			item: { stage: 'queued' }
+		});
+		const stored = catalog.uploadJobs.find((row) => row.id === job.id);
+		if (stored) stored.attempts = 10;
+		expect(await catalog.retryUploadJob(job.id)).toMatchObject({ reason: 'attempts_exhausted' });
+	});
+
+	it('cancels unfinished jobs, invalidates their leases and blocks new claims', async () => {
+		const { catalog, status } = await batch();
+		const job = status.jobs[0];
+		await catalog.uploadSource(job.sourcePath, new Blob([new Uint8Array(1024)]), 'image/png');
+		const claim = await catalog.claimUploadJob();
+		if (!claim.ok) throw new Error(JSON.stringify(claim));
+
+		const cancelled = await catalog.cancelUploadBatch(status.batch.id);
+		if (!cancelled.ok) throw new Error(JSON.stringify(cancelled));
+		expect(cancelled.item.batch.state).toBe('cancelled');
+		expect(cancelled.item.jobs[0].stage).toBe('cancelled');
+		expect(await catalog.claimUploadJob()).toMatchObject({ reason: 'none_pending' });
+		expect(
+			await catalog.completeUploadJob(
+				job.id,
+				claim.item.leaseToken,
+				report(job.assetId as string, crypto.randomUUID())
+			)
+		).toMatchObject({ reason: 'lease_lost' });
+	});
+
+	it('lists only unreferenced media as orphans and protects pinned paths', async () => {
+		const { catalog, status } = await batch();
+		const [ready, other] = status.jobs;
+		const assetId = ready.assetId as string;
+		await catalog.uploadSource(ready.sourcePath, new Blob([new Uint8Array(1024)]), 'image/png');
+		const claim = await catalog.claimUploadJob();
+		if (!claim.ok) throw new Error(JSON.stringify(claim));
+		const versionId = crypto.randomUUID();
+		const payload = report(assetId, versionId);
+		await catalog.uploadDerivative(
+			payload.derivativePath,
+			new Blob([new Uint8Array(2048)]),
+			'image/png'
+		);
+		await catalog.completeUploadJob(ready.id, claim.item.leaseToken, payload);
+		await catalog.uploadSource(other.sourcePath, new Blob([new Uint8Array(2048)]), 'image/svg+xml');
+		await catalog.cancelUploadBatch(status.batch.id);
+
+		const orphans = await catalog.listOrphanMedia(status.batch.id);
+		expect(orphans.sources.map((object) => object.path)).toEqual([other.sourcePath]);
+		expect(orphans.derivatives).toEqual([]);
+		expect(orphans.sourceTotal).toBe(1);
+
+		await expect(
+			catalog.recordUploadCleanup(status.batch.id, [payload.derivativePath])
+		).rejects.toMatchObject({ code: 'missing_media' });
+		expect(await catalog.recordUploadCleanup(status.batch.id, [other.sourcePath])).toBe(1);
+
+		// The completed job's source is referenced by its version, so removal keeps
+		// it even though it was named explicitly; only the orphan disappears.
+		await catalog.removeObjects('catalog-sources', [other.sourcePath, ready.sourcePath]);
+		expect(catalog.objects.map((object) => object.path).sort()).toEqual(
+			[ready.sourcePath, payload.derivativePath].sort()
+		);
+	});
+
+	it('refuses upload operations without administrator membership', async () => {
+		const catalog = new MemoryCatalog({}, null);
+		await expect(catalog.createUploadBatch({ collectionId: null, files })).rejects.toBeInstanceOf(
+			CatalogError
+		);
+		const admin = new MemoryCatalog({ admins: [adminId] }, adminId);
+		const created = await admin.createUploadBatch({ collectionId: null, files });
+		if (!created.ok) throw new Error(JSON.stringify(created));
+		await expect(catalog.claimUploadJob()).rejects.toBeInstanceOf(CatalogError);
 	});
 });
