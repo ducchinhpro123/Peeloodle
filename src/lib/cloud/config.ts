@@ -92,9 +92,16 @@ export async function getAuthClient(): Promise<SupabaseClient<Database> | null> 
 	return pending;
 }
 
-/** Only known routes; no protocol-relative, encoded slash, backslash, or arbitrary URL. */
+/**
+ * Only known routes; no protocol-relative, encoded slash, backslash, or
+ * arbitrary URL. The admin sections are included so a deep link that started a
+ * sign-in returns to the same screen.
+ */
 export function safeReturnPath(value: string | null): string {
-	return value && /^(\/|\/create|\/templates|\/my-stickers|\/editor\/[a-zA-Z0-9-]+)$/.test(value)
+	return value &&
+		/^(\/|\/create|\/templates|\/my-stickers|\/editor\/[a-zA-Z0-9-]+|\/admin(\/(assets|collections|uploads|templates))?)$/.test(
+			value
+		)
 		? value
 		: '/my-stickers';
 }

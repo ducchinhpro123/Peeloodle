@@ -225,6 +225,12 @@ const REFUSALS: CatalogRefusal[] = [
 ];
 
 /** Parses one guarded RPC result envelope into a typed action result. */
+/**
+ * Parses one guarded RPC result envelope into a typed action result. A refusal's
+ * `detail.item` (the current server row) is parsed through the same item parser,
+ * so no raw wire row reaches the UI; the remaining detail fields are narrowed to
+ * the shapes the catalog actually returns.
+ */
 export function parseActionResult<T>(
 	value: unknown,
 	parseItem: (item: unknown) => T
@@ -236,10 +242,27 @@ export function parseActionResult<T>(
 		typeof row.reason === 'string' &&
 		REFUSALS.includes(row.reason as CatalogRefusal)
 	) {
-		const detail =
+		const raw =
 			row.detail && typeof row.detail === 'object' && !Array.isArray(row.detail)
 				? (row.detail as Record<string, unknown>)
 				: {};
+		/** @type {import('./repository').CatalogActionDetail<T>} */
+		const detail = {
+			templates: Array.isArray(raw.templates)
+				? raw.templates.flatMap((entry) => {
+						const candidate = entry as Record<string, unknown>;
+						return typeof candidate?.id === 'string' && typeof candidate?.title === 'string'
+							? [{ id: candidate.id, title: candidate.title }]
+							: [];
+					})
+				: undefined,
+			count: typeof raw.count === 'number' ? raw.count : undefined,
+			assetIds: Array.isArray(raw.assetIds)
+				? raw.assetIds.filter((id): id is string => typeof id === 'string')
+				: undefined,
+			version: raw.version,
+			item: raw.item === undefined ? undefined : parseItem(raw.item)
+		};
 		return { ok: false, reason: row.reason as CatalogRefusal, detail };
 	}
 	return invalid('Invalid action result');

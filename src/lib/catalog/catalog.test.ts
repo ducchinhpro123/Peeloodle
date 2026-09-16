@@ -150,14 +150,27 @@ describe('catalog row parsing', () => {
 		);
 		expect(ok.ok).toBe(true);
 		const refused = parseActionResult(
-			{ ok: false, reason: 'revision_conflict', detail: { item: { revision: 4 } } },
+			{
+				ok: false,
+				reason: 'revision_conflict',
+				detail: {
+					item: {
+						...collection(),
+						sort_order: 1,
+						published_at: null,
+						archived_at: null,
+						created_at: now,
+						updated_at: now,
+						revision: 4
+					}
+				}
+			},
 			parseCollection
 		);
-		expect(refused).toEqual({
-			ok: false,
-			reason: 'revision_conflict',
-			detail: { item: { revision: 4 } }
-		});
+		expect(refused.ok).toBe(false);
+		if (refused.ok) throw new Error('expected a refusal');
+		expect(refused.reason).toBe('revision_conflict');
+		expect(refused.detail.item?.revision).toBe(4);
 		expect(() => parseActionResult({ ok: false, reason: 'nonsense' }, parseCollection)).toThrow(
 			CatalogError
 		);

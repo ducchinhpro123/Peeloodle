@@ -65,6 +65,7 @@ function searchTerm(query: string): string {
 		.trim()
 		.slice(0, 100)
 		.replace(/[%_,()]/g, ' ')
+		.replace(/\s+/g, ' ')
 		.trim();
 }
 

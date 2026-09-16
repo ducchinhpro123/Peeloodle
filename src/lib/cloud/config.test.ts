@@ -61,6 +61,9 @@ describe('safeReturnPath', () => {
 		expect(safeReturnPath('/templates')).toBe('/templates');
 		expect(safeReturnPath('/my-stickers')).toBe('/my-stickers');
 		expect(safeReturnPath('/editor/abc-123')).toBe('/editor/abc-123');
+		expect(safeReturnPath('/admin')).toBe('/admin');
+		expect(safeReturnPath('/admin/collections')).toBe('/admin/collections');
+		expect(safeReturnPath('/admin/templates')).toBe('/admin/templates');
 	});
 
 	it('falls back for arbitrary or encoded destinations', () => {

@@ -60,8 +60,21 @@ export type CatalogRefusal =
 	| 'version_not_validated'
 	| 'dependency_unavailable';
 
+/**
+ * Extra information a refusal carries. `item` is the current server row when a
+ * compare-and-set operation is refused, already parsed into the domain type;
+ * `templates` names the published templates that pin an asset.
+ */
+export type CatalogActionDetail<T> = {
+	item?: T;
+	templates?: { id: string; title: string }[];
+	count?: number;
+	assetIds?: string[];
+	version?: unknown;
+};
+
 export type CatalogActionResult<T> =
-	{ ok: true; item: T } | { ok: false; reason: CatalogRefusal; detail: Record<string, unknown> };
+	{ ok: true; item: T } | { ok: false; reason: CatalogRefusal; detail: CatalogActionDetail<T> };
 
 export const CATALOG_DEFAULT_PAGE_SIZE = 24;
 export const CATALOG_MAX_PAGE_SIZE = 100;
