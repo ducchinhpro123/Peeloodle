@@ -21,6 +21,7 @@ import type {
 	CatalogPage,
 	CatalogTemplate,
 	CatalogTemplateDependency,
+	CatalogTemplateDraft,
 	CatalogTemplateVersion,
 	CatalogUploadBatchPage,
 	CatalogUploadBatchSummary,
@@ -67,6 +68,7 @@ export type CatalogRefusal =
 	| 'version_not_found'
 	| 'version_not_validated'
 	| 'dependency_unavailable'
+	| 'invalid_document'
 	| 'none_pending'
 	| 'lease_lost'
 	| 'already_complete'
@@ -181,6 +183,20 @@ export type CatalogTemplateInput = {
 	description: string;
 	tags: string[];
 	sortOrder: number;
+};
+
+/**
+ * One atomic draft creation: the metadata, the immutable document snapshot, its
+ * hash and size, and every font the document references. Dependencies are not
+ * passed separately — the server derives them from the document's assets and
+ * refuses the draft unless each one is already a validated catalog version.
+ */
+export type CatalogTemplateDraftInput = {
+	metadata: CatalogTemplateInput;
+	document: unknown;
+	documentSha256: string;
+	documentBytes: number;
+	fontRequirements: { fontId: string }[];
 };
 
 /** One file the administrator selected; `bytes` is the browser's claimed size. */
@@ -311,6 +327,20 @@ export interface CatalogAdminRepository {
 		id: string,
 		expectedRevision: number
 	): Promise<CatalogActionResult<CatalogTemplate>>;
+	/**
+	 * One exact asset version, whatever its state, so the caller can verify a
+	 * document's catalog provenance before pinning it. A mismatched asset/version
+	 * pair is `not_found`.
+	 */
+	getAssetVersion(assetId: string, versionId: string): Promise<CatalogAssetVersion>;
+	/**
+	 * Creates the stable template, its first pending version and every dependency
+	 * pin in one transaction. Refused as `invalid_document` or
+	 * `dependency_unavailable`; a refusal writes nothing.
+	 */
+	createTemplateDraft(
+		input: CatalogTemplateDraftInput
+	): Promise<CatalogActionResult<CatalogTemplateDraft>>;
 
 	// P54/P55: durable batches and leased jobs. Every method re-checks admin
 	// membership server-side; the UI gate is only messaging.

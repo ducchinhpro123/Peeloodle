@@ -18,12 +18,14 @@ import type {
 	CatalogAssetKind,
 	CatalogAssetVersion,
 	CatalogCollection,
+	CatalogFontRequirement,
 	CatalogOrphanMedia,
 	CatalogPage,
 	CatalogSlidePreview,
 	CatalogState,
 	CatalogTemplate,
 	CatalogTemplateDependency,
+	CatalogTemplateDraft,
 	CatalogTemplateVersion,
 	CatalogUploadBatchPage,
 	CatalogUploadBatchState,
@@ -187,19 +189,48 @@ function parseSlidePreviews(value: unknown): CatalogSlidePreview[] {
 	});
 }
 
+function parseFontRequirements(value: unknown): CatalogFontRequirement[] {
+	if (!Array.isArray(value)) invalid('Invalid font_requirements');
+	return value.map((entry) => {
+		const requirement = record(entry, 'font requirement');
+		return { fontId: text(requirement, 'fontId') };
+	});
+}
+
+/**
+ * A pending version has no cover yet, so the pair is nullable; a validated
+ * version must carry both, otherwise publication could point at a version with
+ * nothing to show. The same rule is a table constraint server-side.
+ */
 export function parseTemplateVersion(value: unknown): CatalogTemplateVersion {
 	const row = record(value, 'template version');
 	if (row.document === undefined || typeof row.document !== 'object') invalid('Invalid document');
+	const coverPath = optionalText(row, 'cover_path');
+	const coverSha256 = optionalText(row, 'cover_sha256');
+	const validationState = oneOf(row, 'validation_state', VALIDATION);
+	if (validationState === 'validated' && (coverPath === null || coverSha256 === null))
+		invalid('A validated template version requires a cover');
 	return {
 		id: text(row, 'id'),
 		templateId: text(row, 'template_id'),
 		versionNumber: integer(row, 'version_number', 1),
 		document: row.document,
-		coverPath: text(row, 'cover_path'),
+		documentSha256: text(row, 'document_sha256'),
+		documentBytes: integer(row, 'document_bytes', 1),
+		coverPath,
+		coverSha256,
 		slidePreviews: parseSlidePreviews(row.slide_previews),
-		validationState: oneOf(row, 'validation_state', VALIDATION),
+		fontRequirements: parseFontRequirements(row.font_requirements),
+		validationState,
+		validation: record(row.validation, 'validation'),
 		createdAt: timestamp(row, 'created_at')
 	};
+}
+
+/** The `{ template, version }` payload of a created draft. */
+export function parseTemplateDraft(value: unknown): CatalogTemplateDraft {
+	const row = record(value, 'template draft');
+	return { template: parseTemplate(row.template), version: parseTemplateVersion(row.version) };
 }
 
 export function parseDependency(value: unknown): CatalogTemplateDependency {
@@ -236,6 +267,7 @@ const REFUSALS: CatalogRefusal[] = [
 	'version_not_found',
 	'version_not_validated',
 	'dependency_unavailable',
+	'invalid_document',
 	'none_pending',
 	'lease_lost',
 	'already_complete',

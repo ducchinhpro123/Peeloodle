@@ -21,6 +21,7 @@ import {
 	type CatalogRefusal,
 	type CatalogRepository,
 	type CatalogAssetVersionReport,
+	type CatalogTemplateDraftInput,
 	type CatalogTemplateInput,
 	type CatalogUploadRequest,
 	decodeUploadCursor,
@@ -38,6 +39,7 @@ import type {
 	CatalogPage,
 	CatalogTemplate,
 	CatalogTemplateDependency,
+	CatalogTemplateDraft,
 	CatalogTemplateVersion,
 	CatalogUploadBatch,
 	CatalogUploadBatchPage,
@@ -448,6 +450,15 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		return latest ? this.#snapshot(latest) : null;
 	}
 
+	async getAssetVersion(assetId: string, versionId: string): Promise<CatalogAssetVersion> {
+		this.#assertAdmin();
+		const version = this.versions.find(
+			(candidate) => candidate.id === versionId && candidate.assetId === assetId
+		);
+		if (!version) throw new CatalogError('not_found', 'Asset version not found');
+		return this.#snapshot(version);
+	}
+
 	async createAsset(input: CatalogAssetInput): Promise<CatalogActionResult<CatalogAsset>> {
 		this.#assertAdmin();
 		if (input.collectionId) {
@@ -668,6 +679,105 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			updatedAt: now()
 		});
 		return { ok: true, item: this.#snapshot({ ...current }) };
+	}
+
+	/**
+	 * Mirrors `catalog_admin_create_template_draft`: the whole document is checked
+	 * before any array is touched, so a refusal leaves the catalog exactly as it
+	 * was. Every pinned version must be validated and byte-for-byte the media the
+	 * document claims; the fake deliberately skips the SQL's uuid-format regexes,
+	 * which exist to keep the cast from raising and have no analogue in memory.
+	 */
+	async createTemplateDraft(
+		input: CatalogTemplateDraftInput
+	): Promise<CatalogActionResult<CatalogTemplateDraft>> {
+		const createdBy = this.#assertAdmin();
+		if (!input.document || typeof input.document !== 'object' || Array.isArray(input.document))
+			return this.#refusal('invalid_document');
+		const assets = (input.document as { assets?: unknown }).assets;
+		if (!Array.isArray(assets)) return this.#refusal('invalid_document');
+
+		const unavailable = new Set<string>();
+		const pins = new Map<string, { assetId: string; assetVersionId: string }>();
+		for (const entry of assets) {
+			if (!entry || typeof entry !== 'object' || Array.isArray(entry))
+				return this.#refusal('invalid_document');
+			const asset = entry as Record<string, unknown>;
+			const provenance = asset.provenance;
+			if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance))
+				return this.#refusal('invalid_document');
+			const pin = provenance as Record<string, unknown>;
+			if (
+				pin.source !== 'catalog' ||
+				typeof pin.catalogItemId !== 'string' ||
+				typeof pin.catalogVersionId !== 'string'
+			)
+				return this.#refusal('invalid_document');
+			const version = this.versions.find(
+				(candidate) =>
+					candidate.id === pin.catalogVersionId && candidate.assetId === pin.catalogItemId
+			);
+			if (
+				!version ||
+				version.validationState !== 'validated' ||
+				version.derivativeSha256 !== asset.sha256 ||
+				version.derivativeBytes !== asset.byteLength ||
+				version.derivativeMime !== asset.mimeType ||
+				version.derivativeWidth !== asset.width ||
+				version.derivativeHeight !== asset.height
+			) {
+				unavailable.add(pin.catalogItemId);
+				continue;
+			}
+			pins.set(`${pin.catalogItemId}:${pin.catalogVersionId}`, {
+				assetId: pin.catalogItemId,
+				assetVersionId: pin.catalogVersionId
+			});
+		}
+		if (unavailable.size > 0)
+			return this.#refusal('dependency_unavailable', { assetIds: [...unavailable] });
+
+		const template: CatalogTemplate = {
+			id: uuid(),
+			title: input.metadata.title,
+			useCase: input.metadata.useCase,
+			description: input.metadata.description,
+			tags: [...input.metadata.tags],
+			sortOrder: input.metadata.sortOrder,
+			state: 'draft',
+			revision: 1,
+			publishedVersionId: null,
+			publishedAt: null,
+			archivedAt: null,
+			createdAt: now(),
+			updatedAt: now()
+		};
+		const version: CatalogTemplateVersion = {
+			id: uuid(),
+			templateId: template.id,
+			versionNumber: 1,
+			document: structuredClone(input.document),
+			documentSha256: input.documentSha256,
+			documentBytes: input.documentBytes,
+			coverPath: null,
+			coverSha256: null,
+			slidePreviews: [],
+			fontRequirements: structuredClone(input.fontRequirements),
+			validationState: 'pending',
+			validation: { created_by: createdBy },
+			createdAt: now()
+		};
+		const dependencies: CatalogTemplateDependency[] = [...pins.values()].map((pin) => ({
+			templateVersionId: version.id,
+			...pin
+		}));
+		this.templates.push(template);
+		this.templateVersions.push(version);
+		this.dependencies.push(...dependencies);
+		return {
+			ok: true,
+			item: { template: this.#snapshot(template), version: this.#snapshot(version) }
+		};
 	}
 
 	async processUploadJob(jobId: string): Promise<ProcessingOutcome> {
@@ -1083,7 +1193,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			if (version.thumbnailPath) referenced.add(version.thumbnailPath);
 		}
 		for (const template of this.templateVersions) {
-			referenced.add(template.coverPath);
+			if (template.coverPath) referenced.add(template.coverPath);
 			for (const preview of template.slidePreviews) referenced.add(preview.path);
 		}
 		return referenced;

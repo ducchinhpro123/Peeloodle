@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/cloud/database';
 import { CatalogError } from './repository';
+import { parseTemplateDraft, parseTemplateVersion } from './parse';
 import { SupabaseCatalog } from './remote';
 
 /**
@@ -51,6 +52,38 @@ const assetVersionRow = {
 	derivative_height: 64,
 	thumbnail_path: null,
 	validation_state: 'validated',
+	created_at: now
+};
+
+const templateRow = {
+	id: 't0000000-0000-4000-8000-000000000001',
+	title: 'Class deck',
+	use_case: 'class',
+	description: '',
+	tags: ['class'],
+	sort_order: 1,
+	state: 'draft',
+	revision: 1,
+	published_version_id: null,
+	published_at: null,
+	archived_at: null,
+	created_at: now,
+	updated_at: now
+};
+
+const templateVersionRow = {
+	id: 'w0000000-0000-4000-8000-000000000001',
+	template_id: templateRow.id,
+	version_number: 1,
+	document: { schemaVersion: 1, assets: [], slides: [] },
+	document_sha256: 'a'.repeat(64),
+	document_bytes: 128,
+	cover_path: null,
+	cover_sha256: null,
+	slide_previews: [],
+	font_requirements: [{ fontId: 'be-vietnam-pro' }],
+	validation_state: 'pending',
+	validation: { created_by: '11111111-1111-4111-8111-111111111111' },
 	created_at: now
 };
 
@@ -508,5 +541,149 @@ describe('supabase catalog adapter upload lifecycle', () => {
 		]);
 		const catalog = catalogUsing(client);
 		await expect(catalog.claimUploadJob()).rejects.toMatchObject({ code: 'permission' });
+	});
+});
+
+describe('supabase catalog template drafts', () => {
+	const draftInput = () => ({
+		metadata: {
+			title: 'Class deck',
+			useCase: 'class',
+			description: '',
+			tags: ['class'],
+			sortOrder: 1
+		},
+		document: { schemaVersion: 1, assets: [] },
+		documentSha256: 'a'.repeat(64),
+		documentBytes: 128,
+		fontRequirements: [{ fontId: 'be-vietnam-pro' }]
+	});
+
+	it('reads one exact asset version, filtered by version and asset id', async () => {
+		const { calls, client } = fakeClient([{ data: assetVersionRow, error: null }]);
+		const version = await catalogUsing(client).getAssetVersion(
+			assetVersionRow.asset_id,
+			assetVersionRow.id
+		);
+		expect(version).toMatchObject({ id: assetVersionRow.id, assetId: assetVersionRow.asset_id });
+		expect(calls).toContainEqual(['eq', 'id', assetVersionRow.id]);
+		expect(calls).toContainEqual(['eq', 'asset_id', assetVersionRow.asset_id]);
+		expect(calls).toEqual([
+			['from', 'catalog_asset_versions'],
+			['select', expect.stringContaining('derivative_sha256')],
+			['eq', 'id', assetVersionRow.id],
+			['eq', 'asset_id', assetVersionRow.asset_id],
+			['single']
+		]);
+	});
+
+	it('creates a draft through the guarded RPC and parses the nested rows', async () => {
+		const { calls, client } = fakeClient([
+			{
+				data: { ok: true, item: { template: templateRow, version: templateVersionRow } },
+				error: null
+			}
+		]);
+		const result = await catalogUsing(client).createTemplateDraft(draftInput());
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error('expected the draft to be created');
+		expect(result.item.template).toMatchObject({ id: templateRow.id, state: 'draft', revision: 1 });
+		expect(result.item.version).toMatchObject({
+			documentSha256: 'a'.repeat(64),
+			documentBytes: 128,
+			coverPath: null,
+			coverSha256: null,
+			validationState: 'pending',
+			fontRequirements: [{ fontId: 'be-vietnam-pro' }],
+			validation: { created_by: '11111111-1111-4111-8111-111111111111' }
+		});
+		expect(calls.at(-1)).toEqual([
+			'rpc',
+			'catalog_admin_create_template_draft',
+			{
+				p_title: 'Class deck',
+				p_use_case: 'class',
+				p_document: { schemaVersion: 1, assets: [] },
+				p_document_sha256: 'a'.repeat(64),
+				p_document_bytes: 128,
+				p_description: '',
+				p_tags: ['class'],
+				p_sort_order: 1,
+				p_font_requirements: [{ fontId: 'be-vietnam-pro' }]
+			}
+		]);
+	});
+
+	it('parses invalid_document and dependency_unavailable refusals', async () => {
+		const invalid = fakeClient([
+			{ data: { ok: false, reason: 'invalid_document', detail: {} }, error: null }
+		]);
+		await expect(
+			catalogUsing(invalid.client).createTemplateDraft(draftInput())
+		).resolves.toMatchObject({ ok: false, reason: 'invalid_document' });
+		const unavailable = fakeClient([
+			{
+				data: {
+					ok: false,
+					reason: 'dependency_unavailable',
+					detail: { assetIds: [assetVersionRow.asset_id] }
+				},
+				error: null
+			}
+		]);
+		await expect(
+			catalogUsing(unavailable.client).createTemplateDraft(draftInput())
+		).resolves.toMatchObject({
+			ok: false,
+			reason: 'dependency_unavailable',
+			detail: { assetIds: [assetVersionRow.asset_id] }
+		});
+	});
+});
+
+describe('template version wire parsing', () => {
+	it('accepts a pending version with null covers and refuses a validated one without them', () => {
+		expect(parseTemplateVersion(templateVersionRow)).toMatchObject({
+			coverPath: null,
+			coverSha256: null,
+			validationState: 'pending',
+			documentSha256: 'a'.repeat(64),
+			documentBytes: 128,
+			fontRequirements: [{ fontId: 'be-vietnam-pro' }],
+			validation: { created_by: '11111111-1111-4111-8111-111111111111' }
+		});
+		const validated = {
+			...templateVersionRow,
+			validation_state: 'validated',
+			cover_path: 'templates/t/w/cover.png',
+			cover_sha256: 'd'.repeat(64)
+		};
+		expect(parseTemplateVersion(validated)).toMatchObject({
+			coverPath: 'templates/t/w/cover.png',
+			coverSha256: 'd'.repeat(64),
+			validationState: 'validated'
+		});
+		expect(() => parseTemplateVersion({ ...validated, cover_path: null })).toThrowError(
+			CatalogError
+		);
+		expect(() => parseTemplateVersion({ ...validated, cover_sha256: null })).toThrowError(
+			CatalogError
+		);
+	});
+
+	it('refuses a malformed version or draft envelope', () => {
+		expect(
+			parseTemplateDraft({ template: templateRow, version: templateVersionRow }).version
+		).toMatchObject({ validationState: 'pending', templateId: templateRow.id });
+		expect(() =>
+			parseTemplateDraft({
+				template: templateRow,
+				version: { ...templateVersionRow, document_bytes: 0 }
+			})
+		).toThrowError(CatalogError);
+		expect(() => parseTemplateDraft({ template: templateRow })).toThrowError(CatalogError);
+		expect(() =>
+			parseTemplateVersion({ ...templateVersionRow, slide_previews: [{ path: 'x', ordinal: -1 }] })
+		).toThrowError(CatalogError);
 	});
 });

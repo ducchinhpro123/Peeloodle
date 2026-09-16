@@ -389,9 +389,14 @@ describe('catalog admin operations', () => {
 						templateId: template().id,
 						versionNumber: 1,
 						document: { schemaVersion: 1 },
+						documentSha256: 'c'.repeat(64),
+						documentBytes: 100,
 						coverPath: 'templates/t/w/cover.png',
+						coverSha256: 'd'.repeat(64),
 						slidePreviews: [],
+						fontRequirements: [],
 						validationState: 'validated',
+						validation: {},
 						createdAt: now
 					}
 				],
@@ -429,9 +434,14 @@ describe('catalog admin operations', () => {
 						templateId: template().id,
 						versionNumber: 1,
 						document: { schemaVersion: 1 },
+						documentSha256: 'c'.repeat(64),
+						documentBytes: 100,
 						coverPath: 'templates/t/w/cover.png',
+						coverSha256: 'd'.repeat(64),
 						slidePreviews: [],
+						fontRequirements: [],
 						validationState: 'validated',
+						validation: {},
 						createdAt: now
 					}
 				],
@@ -681,5 +691,165 @@ describe('catalog upload lifecycle', () => {
 		const created = await admin.createUploadBatch({ collectionId: null, files });
 		if (!created.ok) throw new Error(JSON.stringify(created));
 		await expect(catalog.claimUploadJob()).rejects.toBeInstanceOf(CatalogError);
+	});
+});
+
+describe('catalog template drafts in memory', () => {
+	const adminId = '11111111-1111-4111-8111-111111111111';
+	const sourceAssetId = asset().id;
+	const sourceVersionId = version().id;
+
+	/** One cloned presentation asset that already exists as a validated version. */
+	const draftDocument = () => ({
+		schemaVersion: 1,
+		id: '10000000-0000-4000-8000-000000000001',
+		title: 'Template copy',
+		assets: [
+			{
+				id: '20000000-0000-4000-8000-000000000001',
+				blobKey: `catalog/${'b'.repeat(64)}`,
+				mimeType: 'image/png',
+				width: 64,
+				height: 64,
+				sha256: 'b'.repeat(64),
+				byteLength: 800,
+				provenance: {
+					source: 'catalog',
+					label: 'Template art',
+					catalogItemId: sourceAssetId,
+					catalogVersionId: sourceVersionId
+				}
+			}
+		],
+		slides: []
+	});
+
+	const draftInput = (document: unknown) => ({
+		metadata: {
+			title: 'Template copy',
+			useCase: 'class',
+			description: '',
+			tags: ['class'],
+			sortOrder: 1
+		},
+		document,
+		documentSha256: 'e'.repeat(64),
+		documentBytes: 128,
+		fontRequirements: [{ fontId: 'be-vietnam-pro' }]
+	});
+
+	const seeded = () =>
+		new MemoryCatalog(
+			{ admins: [adminId], collections: [collection()], assets: [asset()], versions: [version()] },
+			adminId
+		);
+
+	it('creates a draft template, pending version and de-duplicated pins atomically', async () => {
+		const catalog = seeded();
+		const document = draftDocument();
+		// A second asset pinning the same catalog version must not add a second row.
+		document.assets.push({
+			...structuredClone(document.assets[0]),
+			id: '20000000-0000-4000-8000-000000000002'
+		});
+		const result = await catalog.createTemplateDraft(draftInput(document));
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error(JSON.stringify(result));
+		expect(catalog.templates).toHaveLength(1);
+		expect(catalog.templateVersions).toHaveLength(1);
+		expect(catalog.dependencies).toEqual([
+			{
+				templateVersionId: catalog.templateVersions[0]!.id,
+				assetId: sourceAssetId,
+				assetVersionId: sourceVersionId
+			}
+		]);
+		expect(catalog.templateVersions[0]).toMatchObject({
+			coverPath: null,
+			coverSha256: null,
+			slidePreviews: [],
+			validationState: 'pending',
+			documentSha256: 'e'.repeat(64),
+			documentBytes: 128,
+			fontRequirements: [{ fontId: 'be-vietnam-pro' }]
+		});
+		expect(catalog.templates[0]).toMatchObject({
+			title: 'Template copy',
+			state: 'draft',
+			revision: 1,
+			publishedVersionId: null
+		});
+		expect(result.item).toEqual({
+			template: catalog.templates[0],
+			version: catalog.templateVersions[0]
+		});
+		// The version owns a clone, never the caller's live document.
+		expect(catalog.templateVersions[0]!.document).not.toBe(document);
+		expect(catalog.templateVersions[0]!.document).toEqual(document);
+		document.title = 'edited after the draft was created';
+		expect((catalog.templateVersions[0]!.document as { title: string }).title).toBe(
+			'Template copy'
+		);
+	});
+
+	it('refuses a mismatched dependency without mutating any array', async () => {
+		const catalog = seeded();
+		const document = draftDocument();
+		document.assets[0].sha256 = 'f'.repeat(64);
+		const result = await catalog.createTemplateDraft(draftInput(document));
+		expect(result).toMatchObject({
+			ok: false,
+			reason: 'dependency_unavailable',
+			detail: { assetIds: [sourceAssetId] }
+		});
+		expect(catalog.templates).toHaveLength(0);
+		expect(catalog.templateVersions).toHaveLength(0);
+		expect(catalog.dependencies).toHaveLength(0);
+	});
+
+	it('refuses an unknown or non-validated dependency without writing anything', async () => {
+		const cases: CatalogAssetVersion[][] = [[version({ validationState: 'pending' })], []];
+		for (const versions of cases) {
+			const catalog = new MemoryCatalog(
+				{ admins: [adminId], assets: [asset()], versions },
+				adminId
+			);
+			const result = await catalog.createTemplateDraft(draftInput(draftDocument()));
+			expect(result).toMatchObject({
+				ok: false,
+				reason: 'dependency_unavailable',
+				detail: { assetIds: [sourceAssetId] }
+			});
+			expect(catalog.templates).toHaveLength(0);
+			expect(catalog.templateVersions).toHaveLength(0);
+			expect(catalog.dependencies).toHaveLength(0);
+		}
+	});
+
+	it('refuses a document without an assets array as invalid_document', async () => {
+		const catalog = seeded();
+		const result = await catalog.createTemplateDraft(draftInput({ schemaVersion: 1, slides: [] }));
+		expect(result).toMatchObject({ ok: false, reason: 'invalid_document' });
+		expect(catalog.templates).toHaveLength(0);
+		expect(catalog.templateVersions).toHaveLength(0);
+		expect(catalog.dependencies).toHaveLength(0);
+	});
+
+	it('reads one exact asset version and refuses a mismatched pair or a non-admin', async () => {
+		const catalog = seeded();
+		expect(await catalog.getAssetVersion(sourceAssetId, sourceVersionId)).toMatchObject({
+			id: sourceVersionId,
+			assetId: sourceAssetId
+		});
+		await expect(
+			catalog.getAssetVersion('a0000000-0000-4000-8000-000000000009', sourceVersionId)
+		).rejects.toMatchObject({ code: 'not_found' });
+		await expect(
+			catalog.getAssetVersion(sourceAssetId, 'v0000000-0000-4000-8000-000000000009')
+		).rejects.toMatchObject({ code: 'not_found' });
+		const anonymous = new MemoryCatalog({ assets: [asset()], versions: [version()] });
+		await expect(anonymous.getAssetVersion(sourceAssetId, sourceVersionId)).rejects.toMatchObject({
+			code: 'permission'
+		});
 	});
 });

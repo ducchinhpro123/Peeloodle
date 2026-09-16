@@ -25,6 +25,7 @@ import {
 	type CatalogAssetVersionReport,
 	type CatalogListFilters,
 	type CatalogRepository,
+	type CatalogTemplateDraftInput,
 	type CatalogTemplateInput,
 	type CatalogUploadClaimResult,
 	type CatalogUploadCompletionResult,
@@ -40,6 +41,7 @@ import {
 	parseDependency,
 	parseOrphanMedia,
 	parseTemplate,
+	parseTemplateDraft,
 	parseTemplateVersion,
 	parseUploadBatchSummary,
 	readUploadBatchPage,
@@ -78,7 +80,7 @@ const ASSET_VERSION_COLUMNS =
 const TEMPLATE_COLUMNS =
 	'id,title,use_case,description,tags,sort_order,state,revision,published_version_id,published_at,archived_at,created_at,updated_at';
 const TEMPLATE_VERSION_COLUMNS =
-	'id,template_id,version_number,cover_path,slide_previews,validation_state,created_at';
+	'id,template_id,version_number,document,document_sha256,document_bytes,cover_path,cover_sha256,slide_previews,font_requirements,validation_state,validation,created_at';
 
 /** PostgREST's `or` grammar treats these as syntax; free text never needs them. */
 function searchTerm(query: string): string {
@@ -226,7 +228,7 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 		const template = await this.getTemplate(templateId);
 		const { data, error } = await this.#client
 			.from('catalog_template_versions')
-			.select(`${TEMPLATE_VERSION_COLUMNS},document`)
+			.select(TEMPLATE_VERSION_COLUMNS)
 			.eq('id', template.publishedVersionId ?? '')
 			.eq('template_id', template.id)
 			.single();
@@ -285,6 +287,17 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 			.maybeSingle();
 		if (error) this.#fail(error, 'Could not read the asset version');
 		return data === null || data === undefined ? null : parseAssetVersion(data);
+	}
+
+	async getAssetVersion(assetId: string, versionId: string): Promise<CatalogAssetVersion> {
+		const { data, error } = await this.#client
+			.from('catalog_asset_versions')
+			.select(ASSET_VERSION_COLUMNS)
+			.eq('id', versionId)
+			.eq('asset_id', assetId)
+			.single();
+		if (error) this.#fail(error, 'Asset version not found');
+		return parseAssetVersion(data);
 	}
 
 	async listAssetsForAdmin(filters: CatalogListFilters = {}): Promise<CatalogPage<CatalogAsset>> {
@@ -476,6 +489,29 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 			}),
 			'Could not archive the template',
 			parseTemplate
+		);
+	}
+
+	/**
+	 * One atomic draft creation. The document is the cloned presentation snapshot;
+	 * the server re-derives every dependency from it and refuses the draft unless
+	 * each pinned version is validated and matches the document's asset metadata.
+	 */
+	createTemplateDraft(input: CatalogTemplateDraftInput) {
+		return this.#action(
+			this.#client.rpc('catalog_admin_create_template_draft', {
+				p_title: input.metadata.title,
+				p_use_case: input.metadata.useCase,
+				p_document: input.document as Json,
+				p_document_sha256: input.documentSha256,
+				p_document_bytes: input.documentBytes,
+				p_description: input.metadata.description,
+				p_tags: input.metadata.tags,
+				p_sort_order: input.metadata.sortOrder,
+				p_font_requirements: input.fontRequirements as Json
+			}),
+			'Could not create the template draft',
+			parseTemplateDraft
 		);
 	}
 

@@ -80,15 +80,29 @@ export type CatalogTemplate = {
 
 export type CatalogSlidePreview = { path: string; ordinal: number };
 
+export type CatalogFontRequirement = { fontId: string };
+
 export type CatalogTemplateVersion = {
 	id: string;
 	templateId: string;
 	versionNumber: number;
 	document: unknown;
-	coverPath: string;
+	documentSha256: string;
+	documentBytes: number;
+	/** Both cover fields are null until previews exist; a validated version has both. */
+	coverPath: string | null;
+	coverSha256: string | null;
 	slidePreviews: CatalogSlidePreview[];
+	fontRequirements: CatalogFontRequirement[];
 	validationState: CatalogValidationState;
+	validation: Record<string, unknown>;
 	createdAt: string;
+};
+
+/** The stable template and its first immutable version, created together. */
+export type CatalogTemplateDraft = {
+	template: CatalogTemplate;
+	version: CatalogTemplateVersion;
 };
 
 export type CatalogTemplateDependency = {

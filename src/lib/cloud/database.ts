@@ -124,8 +124,8 @@ export type Database = {
 			};
 			catalog_template_versions: {
 				Row: {
-					cover_path: string;
-					cover_sha256: string;
+					cover_path: string | null;
+					cover_sha256: string | null;
 					created_at: string;
 					document: Json;
 					document_bytes: number;
@@ -391,6 +391,20 @@ export type Database = {
 					tags?: string[];
 					title: string;
 					use_case: string;
+				};
+				Returns: Json;
+			};
+			catalog_admin_create_template_draft: {
+				Args: {
+					p_description?: string;
+					p_document: Json;
+					p_document_bytes: number;
+					p_document_sha256: string;
+					p_font_requirements?: Json;
+					p_sort_order?: number;
+					p_tags?: string[];
+					p_title: string;
+					p_use_case: string;
 				};
 				Returns: Json;
 			};

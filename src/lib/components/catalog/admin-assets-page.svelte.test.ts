@@ -268,9 +268,14 @@ describe('admin assets page', () => {
 			templateId: template.id,
 			versionNumber: 1,
 			document: {},
+			documentSha256: 'c'.repeat(64),
+			documentBytes: 100,
 			coverPath: 'templates/t/w/cover.png',
+			coverSha256: 'd'.repeat(64),
 			slidePreviews: [],
+			fontRequirements: [],
 			validationState: 'validated',
+			validation: {},
 			createdAt: now
 		};
 		const repository = new MemoryCatalog(
