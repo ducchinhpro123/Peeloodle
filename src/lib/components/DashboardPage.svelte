@@ -525,7 +525,8 @@
 			line-height: 1.5;
 		}
 		.split {
-			grid-template-columns: 1fr;
+			/* minmax(0, …) so the single column can shrink below the rail's min-content. */
+			grid-template-columns: minmax(0, 1fr);
 		}
 		.bottom-banner {
 			flex-wrap: wrap;
