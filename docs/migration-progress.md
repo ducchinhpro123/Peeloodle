@@ -1,6 +1,10 @@
 # Peeloodle React → Svelte migration progress
 
-Last verified: 2026-09-16, the presentation editor's client-only Konva seam — the dev-server 500 fix,
+Last verified: 2026-09-16, **Milestone 4 of the slides plan (P46–P53)** — the catalog schema, RLS
+policies and guarded admin RPCs with a 35-check SQL harness, the typed catalog repositories, and the
+admin guard plus collections console (P53's live isolation check is runnable but unrun; no test
+project exists — see the newest checkpoint), on top of
+the presentation editor's client-only Konva seam — the dev-server 500 fix,
 its server-graph regression guard and the Svelte-best-practice cleanup (see the newest checkpoint
 below), on top of Slice 4 (cloud/Supabase) plus the slice-5 leftovers — the cloud port with its
 synthetic backend, the reduced-motion and keyboard-only sweeps,
@@ -38,9 +42,13 @@ membership add/reorder/remove, edit/duplicate/delete and ordered ZIP export, plu
 drawer and the Favorite Templates rail — and the editor now has the source's **Erase/Restore mask
 brush** (brush size, Reset Mask, live preview, one history entry per stroke, masks in PNG exports
 and pack ZIPs). Both implemented halves of slice 2 have been **independently reviewed and accepted
-after fixes** (packs PASS; masks BLOCK → fixed → re-review PASS). Catalog administration remains
-**deferred by the design** ("Presentation templates/admin catalog … remain deferred"), not a
-missing piece of this port. **Slice 3 now has its model, local storage, rendering foundations, the
+after fixes** (packs PASS; masks BLOCK → fixed → re-review PASS). Catalog administration was
+**deferred by the design** ("Presentation templates/admin catalog … remain deferred"), and
+**Milestone 4 of the slides plan was then requested explicitly and is now implemented** — schema,
+RLS policies and guarded admin RPCs (35 local SQL checks), typed repositories, and the `/admin`
+guard plus the collections console; the two sides of the catalog that stay deferred are the
+pictographic asset pipeline (milestone 5) and template authoring (milestone 6), and the live
+isolation check (P53) still needs a dedicated Supabase test project. **Slice 3 now has its model, local storage, rendering foundations, the
 working `/presentations` library, the `/presentations/<id>` editor** (open, edit, transform,
 text, slides, layers, undo/redo, autosave, leave guard, conflict recovery), **the editor's
 PDF/PPTX/backup exports, and every source presentation journey either ported or recorded as
@@ -120,6 +128,101 @@ SvelteKit port, losing neither the React application nor the server-side materia
   working tree **and** `.git` (86 MB, so full history) at
   `post-git-graft-20260915T105133Z.tar.gz`, sha256
   `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
+
+## Milestone 4 checkpoint — catalog permissions, versioning and the admin console (2026-09-16)
+
+Scope: **Milestone 4 (P46–P53) of `docs/slides-implementation-plan.md`**, requested explicitly on
+2026-09-16. The binding design defers catalog administration ("stays deferred; do not pull it in
+without an explicit scope change"), so this checkpoint records the scope change and its reach: the
+trusted catalog backend, the typed repositories and the collections console. The rest of the catalog
+surface (asset upload and review, template authoring) stays with milestones 5 and 6.
+
+### Backend (P46–P48, P50) — `supabase/migrations/2026091612*`
+
+- `_catalog_schema.sql`: `catalog_admins`, `catalog_collections`, `catalog_assets`,
+  `catalog_asset_versions`, `catalog_templates`, `catalog_template_versions`,
+  `catalog_template_dependencies`, `catalog_upload_batches`/`_jobs` and `catalog_events`. Version
+  rows are immutable (trigger), `catalog_template_dependencies` is a composite FK that pins the
+  exact version pair, and triggers keep the `published_version_id`/`published_*` pointers honest
+  (same asset, same version row, published state).
+- `_catalog_policies.sql`: `catalog_is_admin()` (security definer) plus published-only read
+  policies for `anon`/`authenticated`, admin read policies, and **no write grants at all** — every
+  mutation goes through an RPC. Private buckets `catalog-sources` (admin insert only, tied to that
+  admin's open batch) and `catalog-derivatives` (readable only while the naming version is the
+  published one, matched by exact paths including slide previews).
+- `_catalog_admin_rpcs.sql`: `catalog_require_admin`, the result envelope `{ok:true,item}` /
+  `{ok:false,reason,detail}`, create/update (compare-and-set `revision`) and publish/archive for
+  collections, assets and templates, every outcome journaled to `catalog_events`. Guards: publish
+  needs a validated version, a collection must itself be published, template dependencies must be
+  live, archiving refuses while a published template pins the version (`pinned_by_template`) and
+  refuses a non-empty collection unless `archive_items` is passed.
+- `npm run test:catalog-sql` (`scripts/verify-catalog-sql.mjs`) boots a **throwaway PostgreSQL
+  cluster** with a Supabase shim (`auth.uid`, the storage tables, `folder()`, roles, a
+  `pg_jsonschema` stub), applies the real migrations and runs **35 checks**: immutability, pointer
+  integrity, RLS visibility for all three roles, Storage access, and every publish/archive guard.
+  Wired into CI next to the other checks; `supabase/README.md` documents migration order, the admin
+  bootstrap and the membership-removal recovery SQL.
+
+### Repositories (P49) — `src/lib/catalog/`
+
+- `types.ts` (public/admin projections), `repository.ts` (the `CatalogRepository` and
+  `CatalogAdminRepository` interfaces, `CatalogError`/`CatalogRefusal`, `CatalogActionResult`),
+  `parse.ts` (strict snake_case parsers that reject unknown shapes and turn refusal `detail.item`
+  back into a domain type), `memory.ts` (a fake that mirrors the RPC semantics, including pins) and
+  `remote.ts` (PostgREST/RPC adapter: explicit column lists, keyset cursor over `(sort_order, id)`,
+  `limit + 1` pagination, sanitized search terms; `42501` → permission, `PGRST116` → not_found).
+- `src/lib/cloud/database.ts` gained the catalog tables (`Insert`/`Update: never` — the client
+  cannot write them) and the RPC signatures. `safeReturnPath` now accepts the admin sections.
+- **21 catalog unit tests**: domain semantics against the fake (13) and the adapter's wire contract
+  against a recording fake client (8), which pins every query's composition.
+
+### Admin console (P51, P52) — `src/routes/admin/*` + `src/lib/components/catalog/`
+
+- `AdminGuard.svelte` is a route-wide gate with five honest states — not configured, signed out,
+  denied, transport error (with retry) and ready. It is messaging, not the boundary: every RPC
+  re-checks membership on the server. `AdminShell.svelte` carries the section nav.
+- `/admin` redirects to `/admin/collections`; `/admin/collections` is a paged, searchable list with
+  create, edit, publish and archive. A revision conflict keeps the administrator's typed values,
+  names the server revision and requires an explicit second save. Archiving surfaces the refusal
+  reason (`contains_items` count, or the template names from `pinned_by_template`) and only then
+  offers the consent path. Permission and transport failures render as messages with a retry,
+  never as an empty list.
+- **11 browser tests** cover the gate states and the collections screen (search, create, conflict,
+  publish, archive consent, error retry); `svelte-autofixer` reported 0 issues on all three
+  components.
+
+### P53 — live verification is **unavailable**, and that is reported honestly
+
+`scripts/verify-catalog.mjs` (`npm run test:catalog-live`) is the runnable live isolation check:
+three sessions (administrator, ordinary, anonymous) against a dedicated test project, asserting
+published-only reads, denied admin RPCs, draft invisibility before publish, a publish race that
+resolves to exactly one `revision_conflict`, signed-URL reads of a published derivative, and
+archive revocation — with an explicit instruction never to use a service-role key to play an
+ordinary user. **It has not been run**: this machine has no Supabase test project, credentials or
+CLI, so there is no environment in which the checks could pass or fail for a real reason. What was
+verified instead is the local harness: `npm run test:catalog-sql` runs the real migrations against
+real PostgreSQL and exercises the same guards, and the adapter's queries are pinned by unit tests.
+
+### Verification at this checkpoint
+
+- `svelte-check` 0 errors/0 warnings; `prettier --check .` and ESLint clean.
+- **64 files / 563 unit tests** (60/531 before; the four new files are the two catalog modules and
+  the two component suites).
+- **35 SQL checks** (`npm run test:catalog-sql`) green.
+- **68 main e2e journeys** and **6 synthetic-cloud journeys** green (`npm run build` included).
+- Fixed along the way, and committed separately: the dashboard overflowed horizontally at phone
+  widths (`scrollWidth` 676 at a 390 viewport). The style migration introduced it
+  (`.split { grid-template-columns: 1fr }` at ≤720px, whose min-content floor is the template
+  rail's card width) and the optional-cloud suite had not been re-run since, so its 390px
+  assertion is what caught it — now `minmax(0, 1fr)`. Cloud suite back to 6/6.
+
+### Environment note
+
+`/tmp` on this machine is a 6.7 GB tmpfs and was **full** during verification, which makes Chromium
+abort on launch; the browser suites then fail with `Failed to fetch dynamically imported module` for
+every `.svelte.test.ts` — a confusing symptom that is not a code failure. `TMPDIR` pointed at a
+directory on `/` (e.g. `TMPDIR=$HOME/.cache/peeloodle-tmp npm run test:unit -- --run`) is the
+workaround. The `wrapDynamicImport` stderr noise documented elsewhere is unrelated to this.
 
 ## Fix checkpoint — the presentation editor's client-only Konva seam (2026-09-16)
 

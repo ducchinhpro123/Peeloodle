@@ -78,7 +78,11 @@ _Avoid_: layout (used for the CSS grid class), frame
 
 ## Current implementation
 
-Status as of 2026-09-15: slices 1–4 are implemented and locally verified. Slice 3 is complete as
+Status as of 2026-09-16: slices 1–4 are implemented and locally verified, and **milestone 4 of
+`docs/slides-implementation-plan.md` (the trusted catalog backend, P46–P53) was implemented on
+explicit request** — catalog schema/RLS/policies, guarded admin RPCs, typed repositories, the
+`/admin` guard and the collections console, with a local PostgreSQL harness (35 checks) standing in
+for the live isolation check that needs a dedicated test project. Slice 3 is complete as
 written — presentation model, local storage, rendering, the `/presentations` library, the
 `/presentations/[presentationId]` editor, its PDF/PPTX/backup exports, and every source presentation
 journey either ported or recorded as superseded (the P44 reader-fixture proof is source proof
@@ -92,7 +96,8 @@ defects were fixed, and re-review returned PASS).
 
 **Working routes:** `/` dashboard · `/templates` catalog · `/my-stickers` library · `/create` ·
 `/editor/[projectId]` · `/presentations` library · `/presentations/[presentationId]` editor ·
-`/auth/callback` (real PKCE callback, honest missing/invalid-link state). Presentation exports
+`/auth/callback` (real PKCE callback, honest missing/invalid-link state) · `/admin/collections`
+(administrator-only; redirects from `/admin`). Presentation exports
 (PDF/PPTX/backup) and the optional cloud account work from the app shell.
 
 **Cloud, when configured:** header account button → email-link sign-in (PKCE) → private workspace
@@ -115,7 +120,22 @@ recovery, plus a 960×540 pt image-based PDF, an editable PPTX and a restorable 
 backup, with cancellation and preflight warnings, that keep working after a disconnect once the
 presentation flow has been prepared).
 
-**Key files for the newest work (slice 4, optional cloud + slice-5 sweeps):**
+**Key files for the newest work (milestone 4: trusted catalog backend, repositories, admin console):**
+
+| Path                                                                                                | Role                                                                                                                                                                        |
+| --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `supabase/migrations/20260916120000_catalog_schema.sql`                                             | Catalog tables: collections, assets, templates, immutable version rows, dependency pins, upload bookkeeping, event journal                                                  |
+| `supabase/migrations/20260916120100_catalog_policies.sql`                                           | `catalog_is_admin()`, published-only read policies, no write grants, and the two private Storage buckets with path-scoped read rules                                        |
+| `supabase/migrations/20260916120200_catalog_admin_rpcs.sql`                                         | Guarded admin RPCs (`{ok,item}` / `{ok,reason,detail}` envelopes): create/update with CAS revision, publish, archive, events                                                |
+| `scripts/verify-catalog-sql.mjs` (`npm run test:catalog-sql`)                                       | Throwaway PostgreSQL + Supabase shim running the real migrations: **35 checks** of immutability, pointer integrity, RLS/Storage visibility and every guard                  |
+| `scripts/verify-catalog.mjs` (`npm run test:catalog-live`)                                          | Live three-session isolation check (admin/ordinary/anonymous) for a dedicated test project — **written but never run**: no project or credentials exist                     |
+| `src/lib/catalog/{types,repository,parse,memory,remote}.ts` + `client.ts`                           | Domain types and interfaces, strict snake_case parsers, the in-memory fake, the PostgREST/RPC adapter, and `getCatalogRepository()`                                         |
+| `src/lib/components/catalog/{AdminGuard,AdminShell,AdminCollectionsPage}.svelte`                    | Route-wide admin gate (five honest states), section nav, and the collections console (search/create/edit/publish/archive, revision conflicts and refusal reasons preserved) |
+| `src/routes/admin/{+layout,+page}.svelte`, `src/routes/admin/collections/+page.svelte`              | The `/admin` shell, its redirect to `/admin/collections`, and the collections route                                                                                         |
+| `supabase/README.md`                                                                                | Migration order, the admin bootstrap insert and the membership-removal recovery SQL                                                                                         |
+| `src/lib/catalog/catalog.test.ts` + `remote.test.ts`, `src/lib/components/catalog/*.svelte.test.ts` | 21 unit and 11 browser tests: domain semantics, the adapter's query composition, gate states and console flows                                                              |
+
+**Key files for slice 4 (optional cloud) and the slice-5 sweeps:**
 
 | Path                                                                               | Role                                                                                                               |
 | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -207,6 +227,14 @@ Adjust panel is later editor work.
 
 ## Verification (exact commands and results)
 
+**Newest (2026-09-16, milestone 4):** `npm run check` 0 errors/0 warnings, `npm run lint` clean,
+`npm run test:unit -- --run` **64 files / 563 tests**, `npm run test:catalog-sql` **35 checks**,
+`npx playwright test` **68 journeys**, `npm run test:e2e:cloud` **6 journeys**. The live catalog
+check (`npm run test:catalog-live`) was **not run** — no test project, credentials or Supabase CLI
+on this machine. The dashboard's phone-width overflow was found by the cloud suite's 390px
+assertion and fixed (`minmax(0, 1fr)` on `.split`). Browser suites need `TMPDIR` off the small
+`/tmp` tmpfs when it is full. Details in the newest checkpoint.
+
 The rendering checkpoint ports four upstream test files (**24 tests**) and adds one real-Chromium
 pixel test. The full suite passes **35 files / 270 tests**. The current browser runner prints a known
 non-failing
@@ -266,6 +294,13 @@ harness with direct tools should re-run the autofixer if that evidence form is r
 
 ## Gaps and residuals
 
+- **Catalog (milestone 4) residuals:** the live isolation check (P53) is **unavailable** (no
+  dedicated Supabase test project or credentials; `npm run test:catalog-live` is ready to run
+  there) — do not claim live RLS/Storage verification. The admin console covers collections only;
+  asset upload/review and template authoring are milestones 5–6 of
+  `docs/slides-implementation-plan.md`. Search is sanitized `ILIKE` with a keyset cursor, not
+  full-text. Archive is the terminal state (no delete); no background processing worker exists, so
+  `catalog_upload_jobs` is bookkeeping the UI does not yet drive.
 - **Cloud is optional and synthetically verified.** The Private/Local labels follow the workspace
   context; without public configuration the app stays local-only. The cloud journeys answer every
   auth/REST/Storage request in-process, so the **deployed** RLS policies and Storage rules are
@@ -327,8 +362,11 @@ harness with direct tools should re-run the autofixer if that evidence form is r
    shell artwork is **done** (all static `<img>`s and bundled fetches go through `asset()`).
 4. Editor parity note recorded above (`Replace photo` outside the Adjust panel) is upstream layout;
    only revisit if a real UX issue is confirmed.
-5. Catalog administration stays deferred by the design; do not pull it in without an explicit scope
-   change.
+5. **Catalog (milestone 4) is implemented** on explicit request: schema/RLS/policies, guarded admin
+   RPCs, typed repositories and the `/admin/collections` console, with the local PostgreSQL harness
+   as the verification. What remains is milestone 5 (pictographic asset upload/review) and milestone
+   6 (template authoring) of `docs/slides-implementation-plan.md`, plus the **live** isolation check
+   (P53), which needs a dedicated Supabase test project before it can be run or claimed.
 6. Keep README + `docs/migration-progress.md` honest at each checkpoint; never claim a slice the code
    does not implement.
 
@@ -339,6 +377,9 @@ harness with direct tools should re-run the autofixer if that evidence form is r
 - **Task plan (slice 3, increments 1–6 complete):**
   `docs/superpowers/plans/2026-09-15-presentations-slice.md`
   (source inventory, increment order, seams and exclusions for presentations)
+- **Product plan (source, milestones 1–6; M4 catalog backend implemented):**
+  `docs/slides-implementation-plan.md`; **backend operations** `supabase/README.md` (migration
+  order, admin bootstrap, membership recovery)
 - **Long-lived progress, checkpoints, residuals, review paths:** `docs/migration-progress.md`
   (read "Honest status" first; the newest checkpoint is at the top, `P2 fix` sections record
   reviewer findings and their fixes)
@@ -372,23 +413,31 @@ harness with direct tools should re-run the autofixer if that evidence form is r
   and `peeloodle-history-20260915T102807Z.bundle` (the full React history, taken before the graft).
   `main` carries the Svelte tree now, so Git is the restore point; take a fresh archive only before
   genuinely risky, hard-to-reverse work.
-- Last verification: 2026-09-16, the presentation editor's Konva fix — `vite dev` serves `/`,
-  `/presentations`, `/presentations/<id>` and `/editor/<id>` with 200; `npm run check`, `npm run lint`
-  and `npm run build` are clean; `npm run test:unit -- --run` is **60 files / 531 tests** and
-  `npx playwright test` is **68 journeys** (serial via `workers: 1`). The cloud suite
-  (`npm run test:e2e:cloud`, 6 journeys) was not re-run — no cloud code changed. Cloud verification
-  is synthetic only; live RLS/Storage is unavailable. Re-run the relevant set after any change, and
-  run `svelte-autofixer` on every touched component/module (direct MCP tools when the harness exposes
-  them; otherwise the server's stdio JSON-RPC transport, noted honestly).
-- Where the work stopped: slices 1–4 are complete as written and the slice-5 leftovers (reduced
-  motion, keyboard-only flows) have journeys. What remains is optional hardening and cloud
-  follow-ups rather than a missing slice: the source's automatic conflict-copy navigation, an
-  exhaustive per-control keyboard audit, and live backend verification with dedicated accounts. The
-  cloud entry points are `src/lib/cloud/*` and `src/lib/persistence/cloud*.ts`; read the slice-4
-  checkpoint in `docs/migration-progress.md` before touching them. Two behaviours the last batch
-  pinned and a follow-up session should not re-derive: the synthetic Supabase must unwrap the
-  multipart file part on Storage uploads (storage-js sends Blobs as FormData), and the builder
-  chunk URLs the offline journeys intercept come from `.svelte-kit/output/client/.vite/manifest.json`
-  (SvelteKit hashes chunk names, so there is no static name to match).
+- Last verification: 2026-09-16, **milestone 4 (catalog)** — `npm run check` 0/0, `npm run lint`
+  clean, `npm run build` clean, `npm run test:unit -- --run` **64 files / 563 tests**,
+  `npm run test:catalog-sql` **35 checks**, `npx playwright test` **68 journeys**,
+  `npm run test:e2e:cloud` **6 journeys**. The live catalog verifier (`npm run test:catalog-live`) is written and documented
+  but **was never run**: there is no Supabase test project, no credentials and no Supabase CLI here,
+  so live RLS/Storage remains unverified. Browser suites need `TMPDIR` pointed off `/tmp` while that
+  tmpfs is full, otherwise Chromium aborts and every `.svelte.test.ts` "fails to fetch dynamically
+  imported module" (misleading symptom, not a code failure). Re-run the relevant set after any
+  change, and run `svelte-autofixer` on every touched component/module (direct MCP tools when the
+  harness exposes them; otherwise the server's stdio JSON-RPC transport, noted honestly).
+- Where the work stopped: slices 1–4 are complete as written, the slice-5 leftovers (reduced
+  motion, keyboard-only flows) have journeys, and **milestone 4 of the slides plan is implemented**
+  (catalog schema/RLS/RPCs, repositories, `/admin/collections`). The next catalog steps are
+  milestones 5–6 (asset upload/review, template authoring) and the live P53 check with a real test
+  project; the remaining non-catalog items are the optional hardening and cloud follow-ups above.
+  Read the milestone-4 checkpoint in `docs/migration-progress.md` before touching the catalog: the
+  migrations are ordered and the policies/RPCs enforce the invariants (published-only reads, no
+  write grants, CAS revisions, immutability triggers), so the client must stay read-only and every
+  mutation must go through an RPC. `npm run test:catalog-sql` boots a real PostgreSQL locally and is
+  the fast way to prove a backend change. The cloud entry points are `src/lib/cloud/*` and
+  `src/lib/persistence/cloud*.ts`; read the slice-4 checkpoint before touching them. Two behaviours
+  the last batch pinned and a follow-up session should not re-derive: the synthetic Supabase must
+  unwrap the multipart file part on Storage uploads (storage-js sends Blobs as FormData), and the
+  builder chunk URLs the offline journeys intercept come from
+  `.svelte-kit/output/client/.vite/manifest.json` (SvelteKit hashes chunk names, so there is no
+  static name to match).
 - Known accepted residuals and the exact review findings/fixes are in `docs/migration-progress.md`
   (newest checkpoint at the top); do not re-claim anything the progress doc marks as residual.

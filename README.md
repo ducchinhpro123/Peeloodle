@@ -52,6 +52,13 @@ checks and known limitations are recorded in `docs/migration-progress.md`.
   workspace, cloud-saved stickers and packs, explicit guest-import consent, retry after a
   disconnect, and conflict copies instead of overwriting another device's newer save. Local editing,
   saving and export keep working with no account and while offline; presentations stay local.
+- **Trusted catalog backend and an administrator console** (`/admin/collections`): the catalog
+  collections screen (search, create, edit, publish, archive with revision-conflict handling) is
+  backed by Postgres tables, published-only row policies, private Storage buckets and guarded admin
+  RPCs under `supabase/migrations/`. It needs the cloud configuration above plus a row in
+  `catalog_admins` (bootstrap SQL in `supabase/README.md`); everyone else sees an honest "/admin"
+  state. `npm run test:catalog-sql` runs the migrations against a throwaway local PostgreSQL and
+  checks immutability, pointer integrity, RLS/Storage visibility and every publish/archive guard.
 
 ## Not implemented yet (do not expect these to work)
 
@@ -59,7 +66,10 @@ checks and known limitations are recorded in `docs/migration-progress.md`.
 - JPEG/WebP export for stickers. Cloud-only pack views (shared packs, cloud export history) stay
   honest placeholders: packs are private or local, never shared.
 - Live cloud verification against a deployed backend: the cloud journeys run against a synthetic
-  in-process backend, so the deployed RLS policies and Storage rules are unverified here.
+  in-process backend, so the deployed RLS policies and Storage rules are unverified here. The same
+  applies to the catalog: `npm run test:catalog-live` is the three-session isolation check for a
+  dedicated test project and has never been run (no project or credentials). The catalog's asset
+  upload/review screens and template authoring are not built yet.
 
 ## Development
 
@@ -82,6 +92,7 @@ npm run preview      # serve the production build
 | `npx playwright test`        | End-to-end journeys against `npm run build && npm run preview` (`e2e/*.spec.ts`) |
 | `npm run test:e2e`           | `playwright install` + `npx playwright test`                                     |
 | `npm run test:e2e:cloud`     | Optional-cloud journeys against a synthetic in-process Supabase backend          |
+| `npm run test:catalog-sql`   | Catalog migrations + RLS/RPC guards against a throwaway local PostgreSQL         |
 
 `npx playwright test` uses an already-installed Chromium when one is cached; `npm run test:e2e`
 downloads browsers first. The Playwright web server builds and previews the production output.
