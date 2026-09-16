@@ -566,6 +566,29 @@ async function main(binaries) {
 				(select count(*)::int from public.catalog_template_versions) as versions`);
 			return row;
 		};
+		const createDraftRaw = (args, session = asAdmin) =>
+			session.unsafe(`select public.catalog_admin_create_template_draft(${args}) as result`);
+		const draftJson = JSON.stringify(draftDocument);
+		// A refusal must be the documented envelope, must not raise, and must not
+		// leave template or version rows behind.
+		const expectRefusal = async (call, reason) => {
+			const before = await templateCounts();
+			let result;
+			try {
+				[result] = await call;
+			} catch (error) {
+				throw new Error(`expected ${reason}, but the call raised ${error.code}: ${error.message}`);
+			}
+			result = result.result;
+			if (!result || result.ok || result.reason !== reason)
+				throw new Error(`expected ${reason}, got ${JSON.stringify(result)}`);
+			if (reason === 'invalid_document' && JSON.stringify(result.detail) !== '{}')
+				throw new Error(`expected an empty detail, got ${JSON.stringify(result.detail)}`);
+			const after = await templateCounts();
+			if (after.templates !== before.templates || after.versions !== before.versions)
+				throw new Error(`counts changed: ${JSON.stringify({ before, after })}`);
+			return result;
+		};
 		await check('only administrators can create a template draft', async () => {
 			await expectError(createDraft(draftDocument, asEditor), '42501');
 			await expectError(createDraft(draftDocument, asAnon), '42501');
@@ -663,6 +686,93 @@ async function main(binaries) {
 					values ('${template.id}', 3, '{}'::jsonb, repeat('e', 64), 10, 'templates/x/cover.png', '[]'::jsonb, '[]'::jsonb)`),
 				'23514'
 			);
+		});
+
+		// Review round 1: every malformed input is a business refusal, never a
+		// raised cast or not-null error, and no refusal leaves rows behind.
+		await check('a malformed UUID is refused before it is cast', () =>
+			expectRefusal(
+				createDraft({
+					...draftDocument,
+					assets: [
+						{
+							...draftDocument.assets[0],
+							provenance: {
+								...draftDocument.assets[0].provenance,
+								catalogVersionId: '-'.repeat(36)
+							}
+						}
+					]
+				}),
+				'invalid_document'
+			)
+		);
+		await check('a SQL NULL document is refused', () =>
+			expectRefusal(
+				createDraftRaw("'Template copy', 'class', null, repeat('e', 64), 10"),
+				'invalid_document'
+			)
+		);
+		await check('a SQL NULL font_requirements is refused', () =>
+			expectRefusal(
+				createDraftRaw(
+					`'Template copy', 'class', '${draftJson}'::jsonb, repeat('e', 64), ${Buffer.byteLength(draftJson)}, '', '{}'::text[], 0, null`
+				),
+				'invalid_document'
+			)
+		);
+		await check('a document without an assets key is refused', () =>
+			expectRefusal(createDraft({ schemaVersion: 1, slides: [] }), 'invalid_document')
+		);
+		await check('an asset missing catalog provenance or a MIME type is refused', async () => {
+			const withoutSource = structuredClone(draftDocument.assets[0]);
+			delete withoutSource.provenance.source;
+			await expectRefusal(
+				createDraft({ ...draftDocument, assets: [withoutSource] }),
+				'invalid_document'
+			);
+			const withoutMime = structuredClone(draftDocument.assets[0]);
+			delete withoutMime.mimeType;
+			await expectRefusal(
+				createDraft({ ...draftDocument, assets: [withoutMime] }),
+				'invalid_document'
+			);
+		});
+		await check('a well-formed but unknown dependency version is refused', async () => {
+			const unknown = {
+				...draftDocument,
+				assets: [
+					{
+						...draftDocument.assets[0],
+						provenance: {
+							...draftDocument.assets[0].provenance,
+							catalogVersionId: '99999999-9999-4999-8999-999999999999'
+						}
+					}
+				]
+			};
+			const result = await expectRefusal(createDraft(unknown), 'dependency_unavailable');
+			if (!result.detail.assetIds.includes(draftAsset.id))
+				throw new Error(JSON.stringify(result.detail));
+		});
+		await check('an existing non-validated dependency version is refused', async () => {
+			const pending = {
+				...draftDocument,
+				assets: [
+					{
+						...draftDocument.assets[0],
+						provenance: {
+							source: 'catalog',
+							label: 'Template art',
+							catalogItemId: pendingAsset.id,
+							catalogVersionId: pendingVersionId
+						}
+					}
+				]
+			};
+			const result = await expectRefusal(createDraft(pending), 'dependency_unavailable');
+			if (!result.detail.assetIds.includes(pendingAsset.id))
+				throw new Error(JSON.stringify(result.detail));
 		});
 
 		// P54/P55/P61: durable upload batches, leased processing jobs, conditional

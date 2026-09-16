@@ -45,10 +45,15 @@ declare
   version_row public.catalog_template_versions;
   unavailable jsonb := '[]'::jsonb;
 begin
-  -- Shape before casts: a malformed byteLength, width or height must be a
-  -- business refusal, not a raised cast error.
-  if jsonb_typeof(p_document) <> 'object'
+  -- Shape before casts: a NULL argument, a missing assets key, a malformed UUID
+  -- or a malformed byteLength/width/height must be a business refusal, not a
+  -- raised cast or not-null error. Every predicate is NULL-safe (explicit NULL
+  -- checks plus coalesce) so SQL three-valued logic cannot skip it.
+  if p_document is null
+    or jsonb_typeof(p_document) <> 'object'
+    or p_document->'assets' is null
     or jsonb_typeof(p_document->'assets') <> 'array'
+    or p_font_requirements is null
     or jsonb_typeof(p_font_requirements) <> 'array'
   then
     return jsonb_build_object('ok', false, 'reason', 'invalid_document', 'detail', '{}'::jsonb);
@@ -57,14 +62,16 @@ begin
   if exists (
     select 1
     from jsonb_array_elements(p_document->'assets') asset
-    where asset->'provenance'->>'source' <> 'catalog'
-      or coalesce(asset->'provenance'->>'catalogItemId', '') !~ '^[0-9a-f-]{36}$'
-      or coalesce(asset->'provenance'->>'catalogVersionId', '') !~ '^[0-9a-f-]{36}$'
+    where coalesce(asset->'provenance'->>'source', '') <> 'catalog'
+      or coalesce(asset->'provenance'->>'catalogItemId', '')
+         !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      or coalesce(asset->'provenance'->>'catalogVersionId', '')
+         !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
       or coalesce(asset->>'byteLength', '') !~ '^[1-9][0-9]{0,8}$'
       or coalesce(asset->>'width', '') !~ '^[1-9][0-9]{0,4}$'
       or coalesce(asset->>'height', '') !~ '^[1-9][0-9]{0,4}$'
       or coalesce(asset->>'sha256', '') !~ '^[a-f0-9]{64}$'
-      or asset->>'mimeType' not in ('image/png', 'image/webp')
+      or coalesce(asset->>'mimeType', '') not in ('image/png', 'image/webp')
   ) then
     return jsonb_build_object('ok', false, 'reason', 'invalid_document', 'detail', '{}'::jsonb);
   end if;
