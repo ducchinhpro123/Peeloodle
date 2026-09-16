@@ -11,6 +11,7 @@
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"test:e2e": "playwright install && playwright test",
+		"test:catalog-sql": "node scripts/verify-catalog-sql.mjs",
 		"test:e2e:cloud": "playwright test --config playwright.cloud.config.js",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:unit": "vitest"
