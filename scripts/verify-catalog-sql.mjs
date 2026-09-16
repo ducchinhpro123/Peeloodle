@@ -528,6 +528,143 @@ async function main(binaries) {
 			}
 		);
 
+		// P65: one guarded transaction creates the stable template, its first
+		// immutable pending version and the dependency pins. `draftAsset` is a
+		// published validated version here, so the document below can pin it.
+		const draftDocument = {
+			schemaVersion: 1,
+			id: '77777777-7777-4777-8777-777777777777',
+			title: 'Template copy',
+			assets: [
+				{
+					id: '88888888-8888-4888-8888-888888888888',
+					blobKey: `catalog/${'b'.repeat(64)}`,
+					mimeType: 'image/png',
+					width: 64,
+					height: 64,
+					sha256: 'b'.repeat(64),
+					byteLength: 800,
+					provenance: {
+						source: 'catalog',
+						label: 'Template art',
+						catalogItemId: draftAsset.id,
+						catalogVersionId: draftVersionId
+					}
+				}
+			],
+			slides: []
+		};
+		const createDraft = (document, session = asAdmin) => {
+			const json = JSON.stringify(document);
+			return session.unsafe(
+				`select public.catalog_admin_create_template_draft('Template copy', 'class', '${json}'::jsonb, repeat('e', 64), ${Buffer.byteLength(json)}) as result`
+			);
+		};
+		const templateCounts = async () => {
+			const [row] = await sql.unsafe(`select
+				(select count(*)::int from public.catalog_templates) as templates,
+				(select count(*)::int from public.catalog_template_versions) as versions`);
+			return row;
+		};
+		await check('only administrators can create a template draft', async () => {
+			await expectError(createDraft(draftDocument, asEditor), '42501');
+			await expectError(createDraft(draftDocument, asAnon), '42501');
+			const [attributes] = await sql.unsafe(`select
+				p.prosecdef as security_definer,
+				p.proconfig as config,
+				has_function_privilege('authenticated', p.oid, 'execute') as authenticated_may_execute,
+				has_function_privilege('anon', p.oid, 'execute') as anon_may_execute
+				from pg_proc p
+				where p.proname = 'catalog_admin_create_template_draft'
+				  and p.pronamespace = 'public'::regnamespace`);
+			if (
+				attributes.security_definer !== true ||
+				!attributes.config.some((entry) => entry.startsWith('search_path=')) ||
+				attributes.authenticated_may_execute !== true ||
+				attributes.anon_may_execute !== false
+			)
+				throw new Error(JSON.stringify(attributes));
+		});
+		await check(
+			'a mismatched catalog dependency refuses the draft without writing anything',
+			async () => {
+				const before = await templateCounts();
+				const [refused] = await createDraft({
+					...draftDocument,
+					assets: [{ ...draftDocument.assets[0], sha256: 'f'.repeat(64) }]
+				});
+				if (refused.result.ok || refused.result.reason !== 'dependency_unavailable')
+					throw new Error(JSON.stringify(refused.result));
+				if (!refused.result.detail.assetIds.includes(draftAsset.id))
+					throw new Error(`missing asset id: ${JSON.stringify(refused.result)}`);
+				const after = await templateCounts();
+				if (after.templates !== before.templates || after.versions !== before.versions)
+					throw new Error(`counts changed: ${JSON.stringify({ before, after })}`);
+			}
+		);
+		let draftTemplate;
+		await check('a valid document creates a template with pending version 1', async () => {
+			const [row] = await createDraft(draftDocument);
+			if (!row.result.ok) throw new Error(JSON.stringify(row.result));
+			draftTemplate = row.result.item;
+			const version = draftTemplate.version;
+			if (draftTemplate.template.state !== 'draft' || draftTemplate.template.revision !== 1)
+				throw new Error(JSON.stringify(draftTemplate.template));
+			if (
+				version.version_number !== 1 ||
+				version.cover_path !== null ||
+				version.cover_sha256 !== null ||
+				version.validation_state !== 'pending' ||
+				JSON.stringify(version.slide_previews) !== '[]' ||
+				version.document_sha256 !== 'e'.repeat(64) ||
+				version.document_bytes !== Buffer.byteLength(JSON.stringify(draftDocument)) ||
+				version.document.slides.length !== 0 ||
+				version.document.assets[0].sha256 !== 'b'.repeat(64)
+			)
+				throw new Error(JSON.stringify(version));
+			if (version.validation.created_by !== admin)
+				throw new Error(`the actor was not journaled: ${JSON.stringify(version.validation)}`);
+		});
+		await check('exactly one dependency row pins the requested asset version', async () => {
+			const rows = await asAdmin.unsafe(
+				`select asset_id, asset_version_id from public.catalog_template_dependencies
+				 where template_version_id = '${draftTemplate.version.id}'`
+			);
+			if (rows.length !== 1) throw new Error(JSON.stringify(rows));
+			if (rows[0].asset_id !== draftAsset.id || rows[0].asset_version_id !== draftVersionId)
+				throw new Error(JSON.stringify(rows[0]));
+		});
+		await check('the created version and dependency rows stay immutable', async () => {
+			await expectError(
+				sql.unsafe(
+					`update public.catalog_template_versions set validation_state = 'validated' where id = '${draftTemplate.version.id}'`
+				),
+				'55000'
+			);
+			await expectError(
+				sql.unsafe(
+					`update public.catalog_template_dependencies set asset_id = '${asset.id}' where template_version_id = '${draftTemplate.version.id}'`
+				),
+				'55000'
+			);
+		});
+		// Deliberately against the P50 template so this check reports the constraint
+		// change on its own, even when the draft RPC is absent.
+		await check('a validated template version requires a complete cover pair', async () => {
+			await expectError(
+				sql.unsafe(`insert into public.catalog_template_versions
+					(template_id, version_number, document, document_sha256, document_bytes, slide_previews, font_requirements, validation_state)
+					values ('${template.id}', 2, '{}'::jsonb, repeat('e', 64), 10, '[]'::jsonb, '[]'::jsonb, 'validated')`),
+				'23514'
+			);
+			await expectError(
+				sql.unsafe(`insert into public.catalog_template_versions
+					(template_id, version_number, document, document_sha256, document_bytes, cover_path, slide_previews, font_requirements)
+					values ('${template.id}', 3, '{}'::jsonb, repeat('e', 64), 10, 'templates/x/cover.png', '[]'::jsonb, '[]'::jsonb)`),
+				'23514'
+			);
+		});
+
 		// P54/P55/P61: durable upload batches, leased processing jobs, conditional
 		// completion and bounded cleanup.
 		const storedObject = (bucket, name, size, mime) =>
