@@ -35,6 +35,29 @@ async function waitFor<T>(
 const settleCloseEvents = () => new Promise((resolve) => setTimeout(resolve, 120));
 
 describe('modal open/close cycle', () => {
+	it('blocks Escape, backdrop and close button while dismissal is disabled', async () => {
+		const closes: string[] = [];
+		const rendered = await render(Modal, {
+			open: true,
+			title: 'Saving',
+			closeDisabled: true,
+			onclose: () => closes.push('close')
+		});
+		const dialog = rendered.container.querySelector('dialog')!;
+		const cancel = new Event('cancel', { cancelable: true });
+		dialog.dispatchEvent(cancel);
+		expect(cancel.defaultPrevented).toBe(true);
+		const close = rendered.container.querySelector<HTMLButtonElement>(
+			'[data-slot="dialog-close"]'
+		)!;
+		expect(close.disabled).toBe(true);
+		close.click();
+		dialog.click();
+		expect(closes).toEqual([]);
+		await rendered.rerender({ closeDisabled: false });
+		close.click();
+		expect(closes).toEqual(['close']);
+	});
 	it('never reports the programmatic close of a dialog it has already re-opened', async () => {
 		const closes: string[] = [];
 		const rendered = await render(Modal, {

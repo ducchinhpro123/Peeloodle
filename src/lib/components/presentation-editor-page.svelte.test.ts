@@ -18,7 +18,7 @@ import {
 	createMemoryPresentationRepository,
 	type MemoryPresentationRepository
 } from '$lib/presentations/persistence/repository';
-import { createPresentationDocument } from '$lib/presentations/model/factories';
+import { createPresentationDocument, createImageElement } from '$lib/presentations/model/factories';
 import { createPresentationStore } from '$lib/presentations/editor/store.svelte';
 import {
 	FIXTURE_IMAGE_BYTE_LENGTH,
@@ -150,6 +150,25 @@ function textModels(document: PresentationDocument | null): TextElement[] {
 		.filter((element): element is TextElement => element.kind === 'text');
 }
 
+const ADMIN_ACTOR = '22222222-2222-4222-8222-222222222222';
+
+/** A non-archived collection the save-as-template dialog can target. */
+function templateCollection(): import('$lib/catalog/types').CatalogCollection {
+	return {
+		id: 'c1000000-0000-4000-8000-000000000001',
+		name: 'Template art',
+		description: '',
+		tags: [],
+		sortOrder: 1,
+		state: 'published',
+		revision: 1,
+		publishedAt: '2026-09-16T00:00:00.000Z',
+		archivedAt: null,
+		createdAt: '2026-09-16T00:00:00.000Z',
+		updatedAt: '2026-09-16T00:00:00.000Z'
+	};
+}
+
 function documentText(document: PresentationDocument | null): string {
 	return textModels(document)
 		.flatMap((element) => element.paragraphs)
@@ -191,6 +210,7 @@ async function openEditor(
 		expect?: 'editor' | 'panel';
 		/** The optional published-catalog read path the picker uses (P62). */
 		catalogRepository?: import('$lib/catalog/repository').CatalogRepository | null;
+		catalogAdminRepository?: import('$lib/catalog/repository').CatalogAdminRepository | null;
 	} = {}
 ) {
 	const repository = options.repository ?? createMemoryPresentationRepository();
@@ -202,6 +222,7 @@ async function openEditor(
 		presentationId: id,
 		repository,
 		catalogRepository: options.catalogRepository ?? null,
+		catalogAdminRepository: options.catalogAdminRepository ?? null,
 		store,
 		backhref: '/presentations',
 		onback: () => {},
@@ -650,6 +671,136 @@ describe('presentation editor page', () => {
 		expect(alert.textContent).toContain('PNG');
 		expect(editor.store.getState().document?.slides[0]?.elements).toHaveLength(0);
 		expect(editor.store.getState().dirty).toBe(false);
+
+		await editor.unmount();
+	});
+
+	it('hides “Save as template” without the admin repository', async () => {
+		const editor = await openEditor();
+
+		expect(hasButtonWithText(editor.container, 'Save as template')).toBe(false);
+
+		await editor.unmount();
+	});
+
+	it('saves a text-only deck as a pending template draft', async () => {
+		const catalog = new MemoryCatalog(
+			{ admins: [ADMIN_ACTOR], collections: [templateCollection()] },
+			ADMIN_ACTOR
+		);
+		const editor = await openEditor({ catalogAdminRepository: catalog });
+		const before = JSON.stringify(await editor.repository.getPresentation(PRESENTATION_ID));
+		buttonWithText(editor.container, 'Save as template').click();
+
+		const dialog = await waitFor(
+			() => editor.container.querySelector<HTMLDialogElement>('dialog[open]'),
+			'the save-as-template dialog'
+		);
+		expect(dialog.textContent).toContain('Save as template');
+		const title = dialog.querySelector<HTMLInputElement>('input[type="text"]');
+		expect(title?.value).toBe('Editor deck template');
+
+		dialog.querySelector<HTMLFormElement>('form')?.requestSubmit();
+		const stored = await waitFor(
+			() => catalog.templateVersions[0] ?? null,
+			'the template draft to be created'
+		);
+		expect(stored.validationState).toBe('pending');
+		expect(stored.coverPath).toBeNull();
+		expect(editor.container.textContent).toContain(
+			'Template draft “Editor deck template” created.'
+		);
+		await waitFor(
+			() => !editor.container.querySelector('dialog[open]'),
+			'the dialog to close after success'
+		);
+		const localDocument = await editor.repository.getPresentation(PRESENTATION_ID);
+		expect(JSON.stringify(localDocument)).toBe(before);
+		expect(localDocument.assets).toHaveLength(0);
+		expect(localDocument.title).toBe('Editor deck');
+		expect(catalog.templates).toHaveLength(1);
+		expect(catalog.templates[0].title).toBe('Editor deck template');
+
+		await editor.unmount();
+	});
+
+	it('requires a collection for a local-image deck and reports the failure', async () => {
+		const catalog = new MemoryCatalog(
+			{
+				admins: [ADMIN_ACTOR],
+				collections: [templateCollection()],
+				process: async () => {
+					throw new Error('decode exploded');
+				}
+			},
+			ADMIN_ACTOR
+		);
+		const editor = await openEditor({
+			catalogAdminRepository: catalog,
+			seed: async (repository) => {
+				const document = createPresentationDocument({ id: PRESENTATION_ID, title: 'Editor deck' });
+				const bytes = fixtureImagePng();
+				document.assets = [
+					{
+						id: 'asset-local-1',
+						blobKey: 'media/asset-local-1',
+						mimeType: 'image/png',
+						width: 64,
+						height: 64,
+						sha256: 'c'.repeat(64),
+						byteLength: bytes.length,
+						provenance: { source: 'upload', label: 'Photo' }
+					}
+				];
+				document.slides[0].elements = [
+					createImageElement({
+						id: 'element-local-1',
+						name: 'Photo',
+						x: 0,
+						y: 0,
+						width: 100,
+						height: 100,
+						assetId: 'asset-local-1'
+					})
+				];
+				await repository.savePresentation(document, [
+					{ assetId: 'asset-local-1', bytes, mimeType: 'image/png' }
+				]);
+			}
+		});
+		const before = JSON.stringify(editor.store.getState().document);
+		buttonWithText(editor.container, 'Save as template').click();
+
+		const dialog = await waitFor(
+			() => editor.container.querySelector<HTMLDialogElement>('dialog[open]'),
+			'the save-as-template dialog'
+		);
+		const collectionSelect = Array.from(dialog.querySelectorAll('label'))
+			.find((label) => label.textContent?.trim().startsWith('Collection'))
+			?.querySelector('select');
+		expect(collectionSelect).not.toBeNull();
+		expect(catalog.uploadBatches).toHaveLength(0);
+		expect(collectionSelect?.checkValidity()).toBe(false);
+		expect(
+			dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled ?? false
+		).toBe(true);
+
+		dialog.querySelector<HTMLFormElement>('form')?.requestSubmit();
+		expect(catalog.uploadBatches).toHaveLength(0);
+		await waitFor(() => collectionSelect?.options.length === 2, 'collections loaded');
+		if (!collectionSelect) throw new Error('Missing collection selector');
+		collectionSelect.value = templateCollection().id;
+		collectionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+		await waitFor(
+			() => !dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
+			'valid form'
+		);
+		dialog.querySelector<HTMLFormElement>('form')!.requestSubmit();
+		const alert = await waitFor(() => dialog.querySelector('[role="alert"]'), 'processing failure');
+		expect(alert.textContent).toContain('decode exploded');
+		expect(dialog.open).toBe(true);
+		expect(catalog.templateVersions).toHaveLength(0);
+		expect(JSON.stringify(editor.store.getState().document)).toBe(before);
 
 		await editor.unmount();
 	});

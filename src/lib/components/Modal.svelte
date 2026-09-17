@@ -10,6 +10,7 @@
 
 	/** @type {{
 	 *   open?: boolean,
+	 *   closeDisabled?: boolean,
 	 *   title: string,
 	 *   description?: string,
 	 *   onclose?: () => void,
@@ -20,6 +21,7 @@
 	 * }} */
 	let {
 		open = false,
+		closeDisabled = false,
 		title,
 		description = undefined,
 		onclose = undefined,
@@ -70,7 +72,7 @@
 			onclosed?.();
 			return;
 		}
-		onclose?.();
+		if (!closeDisabled) onclose?.();
 	}
 </script>
 
@@ -82,6 +84,9 @@
 	aria-labelledby={titleId}
 	aria-describedby={description ? descriptionId : undefined}
 	onclose={close}
+	oncancel={(event) => {
+		if (closeDisabled) event.preventDefault();
+	}}
 	onclick={(event) => {
 		// Clicking the backdrop (the dialog element itself) dismisses.
 		if (event.target === dialog) close();
@@ -108,6 +113,7 @@
 		class={[buttonIconLarge, 'close']}
 		data-slot="dialog-close"
 		aria-label="Close dialog"
+		disabled={closeDisabled}
 		onclick={close}
 	>
 		<X size={18} />

@@ -43,6 +43,8 @@
 		CatalogInsertError
 	} from '$lib/presentations/editor/insertCatalogAsset';
 	import ExportDialog from './ExportDialog.svelte';
+	import SaveAsTemplateDialog from './SaveAsTemplateDialog.svelte';
+	import { saveAsTemplateDraft } from '$lib/presentations/templates/saveAsTemplateDraft';
 
 	/**
 	 * @typedef {(
@@ -60,6 +62,7 @@
 	 *   repository: import('$lib/presentations/persistence/repository').PresentationRepository,
 	 *   stickerRepository?: import('$lib/persistence/repository').StickerLabRepository | null,
 	 *   catalogRepository?: import('$lib/catalog/repository').CatalogRepository | null,
+	 *   catalogAdminRepository?: import('$lib/catalog/repository').CatalogAdminRepository | null,
 	 *   store: import('$lib/presentations/editor/store.svelte').PresentationStore,
 	 *   backhref: string,
 	 *   onback: () => void | Promise<void>,
@@ -74,6 +77,7 @@
 		repository,
 		stickerRepository = null,
 		catalogRepository = null,
+		catalogAdminRepository = null,
 		store,
 		backhref,
 		onback,
@@ -517,6 +521,27 @@
 	}
 
 	/**
+	 * Captures one snapshot for the template draft: pending text is flushed first,
+	 * then the service runs against the flushed document. The local save path is
+	 * untouched — the local deck is a read-only source for the copy.
+	 * @param {{ metadata: import('$lib/catalog/repository').CatalogTemplateInput, collectionId: string | null }} input
+	 */
+	async function saveAsTemplate(input) {
+		if (!catalogAdminRepository) return;
+		await textSession.flush();
+		const document = store.getState().document;
+		if (!document) return;
+		const draft = await saveAsTemplateDraft({
+			sourceDocument: document,
+			presentationRepository: repository,
+			catalogRepository: catalogAdminRepository,
+			collectionId: input.collectionId,
+			metadata: input.metadata
+		});
+		editorNote = `Template draft “${draft.template.title}” created.`;
+	}
+
+	/**
 	 * The way out of a stale revision: keep the local work as a copy, then re-open
 	 * the newer stored revision so Save is no longer dead.
 	 */
@@ -682,6 +707,14 @@
 						repository={catalogRepository}
 						disabled={inserting}
 						oninsert={addCatalogImage}
+					/>{/if}
+				{#if catalogAdminRepository}<SaveAsTemplateDialog
+						repository={catalogAdminRepository}
+						needsCollection={presentation.assets.some(
+							(asset) => asset.provenance.source !== 'catalog'
+						)}
+						defaultTitle={presentation.title}
+						onsave={(input) => saveAsTemplate(input)}
 					/>{/if}
 				{#if stickerRepository}<StickerPickerDialog
 						repository={stickerRepository}

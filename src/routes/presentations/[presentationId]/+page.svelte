@@ -33,15 +33,28 @@
 	 * @type {import('$lib/catalog/remote').SupabaseCatalog | null}
 	 */
 	let catalogRepository = $state.raw(null);
+	/**
+	 * The admin write path (P65), separate from the public read path: the editor
+	 * only offers “Save as template” when the account is actually an
+	 * administrator. The backend RPC re-checks membership; this is only messaging.
+	 * @type {import('$lib/catalog/repository').CatalogAdminRepository | null}
+	 */
+	let catalogAdminRepository = $state.raw(null);
 
 	$effect(() => {
 		let live = true;
 		void getCatalogRepository()
-			.then((value) => {
-				if (live) catalogRepository = value;
+			.then(async (value) => {
+				if (!live || !value) return;
+				catalogRepository = value;
+				const isAdmin = await value.isAdmin();
+				if (live) catalogAdminRepository = isAdmin ? value : null;
 			})
 			.catch(() => {
-				if (live) catalogRepository = null;
+				if (live) {
+					catalogRepository = null;
+					catalogAdminRepository = null;
+				}
 			});
 		return () => {
 			live = false;
@@ -75,6 +88,7 @@
 			repository={presentationRepository}
 			stickerRepository={repository}
 			{catalogRepository}
+			{catalogAdminRepository}
 			store={presentationStore}
 			backhref={resolve('/presentations')}
 			onback={() => goto(resolve('/presentations'))}
