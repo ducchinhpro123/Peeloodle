@@ -1,6 +1,12 @@
 # Peeloodle React → Svelte migration progress
 
-Last verified: 2026-09-16, **Milestone 5 of the slides plan complete (P54–P64)** — durable upload
+Last verified: 2026-09-18, **Milestone 6 of the slides plan complete (P65–P75)** — save-as-template
+drafts, the admin template screens with shared-editor draft versions, previews bound to the draft
+hash, server-checked validation/publication/archive, the student template browser with verified
+atomic cloning and layout insertion, and the three shipped starter decks with their whole journey
+(see the newest checkpoint; P53's live isolation check and P44/P45's remaining reader/limit evidence
+are still open), on top of
+**Milestone 5 of the slides plan (P54–P64)** — durable upload
 batches with leased validation jobs, server-side PNG/WebP/SVG processing with a strict static-subset
 policy, the `/admin/uploads` + `/admin/assets` review screens, and the student catalog panel in the
 presentation editor with download-then-insert and the end-to-end journey (see the newest checkpoint;
