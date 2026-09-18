@@ -557,7 +557,7 @@ async function main(binaries) {
 		const createDraft = (document, session = asAdmin) => {
 			const json = JSON.stringify(document);
 			return session.unsafe(
-				`select public.catalog_admin_create_template_draft('Template copy', 'class', '${json}'::jsonb, repeat('e', 64), ${Buffer.byteLength(json)}) as result`
+				`select public.catalog_admin_create_template_draft('Template copy', 'class', '${json}'::jsonb, repeat('e', 64), ${Buffer.byteLength(json)}, '', '{}'::text[], 0, '[{"fontId":"be-vietnam-pro"}]'::jsonb) as result`
 			);
 		};
 		const templateCounts = async () => {
@@ -1025,6 +1025,153 @@ async function main(binaries) {
 			const [archivedRefusal] = await attachPreviews(previewManifest(), { revision: 3 });
 			if (archivedRefusal.result.reason !== 'archived')
 				throw new Error(JSON.stringify(archivedRefusal.result));
+		});
+
+		// P68: validation inserts the validated immutable successor (version rows
+		// stay write-once), publish points the stable template at it, and a
+		// missing published dependency blocks validation.
+		const validateVersion = (templateId, versionId, revision, session = asAdmin) =>
+			session.unsafe(
+				`select public.catalog_admin_validate_template_version('${templateId}', '${versionId}', ${revision}) as result`
+			);
+		const attachFor = async (templateId, versionId, previews, revision, session = asAdmin) => {
+			for (const preview of previews) {
+				await sql.unsafe(
+					`insert into storage.objects (bucket_id, name, metadata) values ('catalog-derivatives', '${preview.path}', '{"size": ${preview.bytes}, "mimetype": "image/png"}'::jsonb)`
+				);
+			}
+			const [row] = await session.unsafe(
+				`select public.catalog_admin_attach_template_previews('${templateId}', '${versionId}', ${revision}, repeat('e', 64), 0, '${JSON.stringify(previews)}'::jsonb) as result`
+			);
+			if (!row.result.ok) throw new Error(JSON.stringify(row.result));
+			return row.result.item.version;
+		};
+		const previewFor = (templateId, versionId, ordinal = 0) => ({
+			ordinal,
+			path: `templates/${templateId}/${versionId}/preview-${String(ordinal + 1).padStart(2, '0')}.png`,
+			sha256: '9'.repeat(64),
+			bytes: 1500 + ordinal,
+			width: 960,
+			height: 540
+		});
+
+		await check('only administrators can validate a template version', async () => {
+			await expectError(
+				validateVersion('12121212-1212-4212-8212-121212121212', '12121212-1212-4212-8212-121212121212', 1, asEditor),
+				'42501'
+			);
+			await expectError(
+				validateVersion('12121212-1212-4212-8212-121212121212', '12121212-1212-4212-8212-121212121212', 1, asAnon),
+				'42501'
+			);
+		});
+		// P68 documents need at least one real slide; P65's minimal fixture has none.
+		const p68Document = (provenance = draftDocument.assets[0].provenance) => ({
+			...draftDocument,
+			slides: [
+				{ id: '99999999-9999-4999-8999-999999999999', name: 'Slide 1', background: '#ffffff', elements: [] }
+			],
+			assets: [{ ...draftDocument.assets[0], provenance }]
+		});
+		await check('a pending version without previews cannot be validated', async () => {
+			const [plainDraft] = await createDraft(draftDocument);
+			const [refused] = await validateVersion(
+				plainDraft.result.item.template.id,
+				plainDraft.result.item.version.id,
+				1
+			);
+			if (refused.result.reason !== 'invalid_document')
+				throw new Error(JSON.stringify(refused.result));
+		});
+		await check('a required font outside the bundled set is refused', async () => {
+			const json = JSON.stringify(p68Document());
+			const [fontDraft] = await createDraftRaw(
+				`'Font draft', 'class', '${json}'::jsonb, repeat('e', 64), ${Buffer.byteLength(json)}, '', '{}'::text[], 0, '[{"fontId":"comic-sans"}]'::jsonb`
+			);
+			const templateId = fontDraft.result.item.template.id;
+			const sourceVersionId = fontDraft.result.item.version.id;
+			const successor = await attachFor(templateId, sourceVersionId, [previewFor(templateId, sourceVersionId)], 1);
+			const [refused] = await validateVersion(templateId, successor.id, 2);
+			if (refused.result.reason !== 'invalid_document')
+				throw new Error(JSON.stringify(refused.result));
+		});
+		await check('an archived dependency blocks validation', async () => {
+			// `asset` was archived by the P50 archive checks; `draftAsset` is still
+			// published and pinned by the P50 template.
+			const [archivedDraft] = await createDraft(
+				p68Document({
+					source: 'catalog',
+					label: 'Archived art',
+					catalogItemId: asset.id,
+					catalogVersionId: versionId
+				})
+			);
+			const templateId = archivedDraft.result.item.template.id;
+			const sourceVersionId = archivedDraft.result.item.version.id;
+			const successor = await attachFor(templateId, sourceVersionId, [previewFor(templateId, sourceVersionId)], 1);
+			const [refused] = await validateVersion(templateId, successor.id, 2);
+			if (refused.result.reason !== 'dependency_unavailable')
+				throw new Error(JSON.stringify(refused.result));
+			if (!refused.result.detail.assetIds.includes(asset.id))
+				throw new Error(JSON.stringify(refused.result.detail));
+		});
+		await check('a live dependency validates, and publication points at it', async () => {
+			const liveAsset = (
+				await asAdmin.unsafe(
+					`select public.catalog_admin_create_asset('${collection.id}', 'Live art', 'raster') as result`
+				)
+			)[0].result.item;
+			const liveVersionId = '66666666-6666-4666-8666-666666666666';
+			await insertVersion(liveVersionId, liveAsset.id);
+			const [livePublish] = await asAdmin.unsafe(
+				`select public.catalog_admin_publish_asset('${liveAsset.id}', '${liveVersionId}', 1) as result`
+			);
+			if (!livePublish.result.ok) throw new Error(JSON.stringify(livePublish.result));
+
+			const [liveDraft] = await createDraft(
+				p68Document({
+					source: 'catalog',
+					label: 'Published art',
+					catalogItemId: liveAsset.id,
+					catalogVersionId: liveVersionId
+				})
+			);
+			const templateId = liveDraft.result.item.template.id;
+			const sourceVersionId = liveDraft.result.item.version.id;
+			const successor = await attachFor(templateId, sourceVersionId, [previewFor(templateId, sourceVersionId)], 1);
+
+			const [validated] = await validateVersion(templateId, successor.id, 2);
+			if (!validated.result.ok) throw new Error(JSON.stringify(validated.result));
+			const validatedVersion = validated.result.item.version;
+			if (
+				validatedVersion.validation_state !== 'validated' ||
+				validatedVersion.version_number !== 3 ||
+				validatedVersion.cover_path === null ||
+				validatedVersion.validation.validated_from !== successor.id ||
+				validatedVersion.validation.checks.previews !== 1 ||
+				validatedVersion.validation.checks.slides !== 1
+			)
+				throw new Error(JSON.stringify(validatedVersion));
+			const pins = await asAdmin.unsafe(
+				`select asset_id, asset_version_id from public.catalog_template_dependencies where template_version_id = '${validatedVersion.id}'`
+			);
+			if (
+				pins.length !== 1 ||
+				pins[0].asset_id !== liveAsset.id ||
+				pins[0].asset_version_id !== liveVersionId
+			)
+				throw new Error(JSON.stringify(pins));
+
+			const [published] = await asAdmin.unsafe(
+				`select public.catalog_admin_publish_template('${templateId}', '${validatedVersion.id}', 3) as result`
+			);
+			if (!published.result.ok) throw new Error(JSON.stringify(published.result));
+			if (
+				published.result.item.state !== 'published' ||
+				published.result.item.published_version_id !== validatedVersion.id ||
+				published.result.item.revision !== 4
+			)
+				throw new Error(JSON.stringify(published.result.item));
 		});
 
 		// P54/P55/P61: durable upload batches, leased processing jobs, conditional
