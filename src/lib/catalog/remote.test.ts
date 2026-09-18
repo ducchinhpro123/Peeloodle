@@ -105,6 +105,7 @@ function fakeClient(
 			order: (column: string) => (calls.push(['order', column]), builder),
 			limit: (count: number) => (calls.push(['limit', count]), builder),
 			single: () => (calls.push(['single']), Promise.resolve(next())),
+			maybeSingle: () => (calls.push(['maybeSingle']), Promise.resolve(next())),
 			then: (resolve: (value: unknown) => unknown) => Promise.resolve(next()).then(resolve)
 		};
 		return builder;
@@ -637,6 +638,116 @@ describe('supabase catalog template drafts', () => {
 			ok: false,
 			reason: 'dependency_unavailable',
 			detail: { assetIds: [assetVersionRow.asset_id] }
+		});
+	});
+
+	it('reads a template whatever its state and lists versions without documents', async () => {
+		const single = fakeClient([{ data: templateRow, error: null }]);
+		const template = await catalogUsing(single.client).getTemplateForAdmin(templateRow.id);
+		expect(template).toMatchObject({ id: templateRow.id, state: 'draft' });
+		expect(single.calls).toEqual([
+			['from', 'catalog_templates'],
+			['select', expect.stringContaining('published_version_id')],
+			['eq', 'id', templateRow.id],
+			['single']
+		]);
+
+		const list = fakeClient([{ data: [templateVersionRow], error: null }]);
+		const versions = await catalogUsing(list.client).listTemplateVersionsForAdmin(templateRow.id, {
+			limit: 5
+		});
+		expect(versions).toHaveLength(1);
+		expect(versions[0]).toMatchObject({ id: templateVersionRow.id, versionNumber: 1 });
+		const select = list.calls.find((call) => call[0] === 'select')?.[1];
+		expect(String(select).split(',')).not.toContain('document');
+		expect(list.calls).toContainEqual(['eq', 'template_id', templateRow.id]);
+		expect(list.calls).toContainEqual(['order', 'version_number']);
+		expect(list.calls).toContainEqual(['limit', 5]);
+	});
+
+	it('reads the newest template version including its document', async () => {
+		const { calls, client } = fakeClient([{ data: templateVersionRow, error: null }]);
+		const version = await catalogUsing(client).getLatestTemplateVersionForAdmin(templateRow.id);
+		expect(version).toMatchObject({ id: templateVersionRow.id, document: templateVersionRow.document });
+		expect(calls).toContainEqual(['eq', 'template_id', templateRow.id]);
+		expect(calls).toContainEqual(['order', 'version_number']);
+		expect(calls).toContainEqual(['limit', 1]);
+
+		const empty = fakeClient([{ data: null, error: null }]);
+		await expect(
+			catalogUsing(empty.client).getLatestTemplateVersionForAdmin(templateRow.id)
+		).resolves.toBeNull();
+	});
+
+	it('filters admin template lists by state', async () => {
+		const { calls, client } = fakeClient([{ data: [], error: null }]);
+		await catalogUsing(client).listTemplatesForAdmin({ state: 'draft', useCase: 'class' });
+		expect(calls).toContainEqual(['eq', 'state', 'draft']);
+		expect(calls).toContainEqual(['eq', 'use_case', 'class']);
+	});
+
+	it('saves a template version through the guarded RPC and parses the envelope', async () => {
+		const { calls, client } = fakeClient([
+			{
+				data: {
+					ok: true,
+					item: {
+						template: { ...templateRow, revision: 3 },
+						version: { ...templateVersionRow, version_number: 2 }
+					}
+				},
+				error: null
+			}
+		]);
+		const result = await catalogUsing(client).saveTemplateVersion({
+			templateId: templateRow.id,
+			expectedRevision: 2,
+			document: { schemaVersion: 1, assets: [], slides: [] },
+			documentSha256: 'c'.repeat(64),
+			documentBytes: 256,
+			fontRequirements: [{ fontId: 'inter' }]
+		});
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error('expected the version to be saved');
+		expect(result.item.template.revision).toBe(3);
+		expect(result.item.version.versionNumber).toBe(2);
+		expect(calls.at(-1)).toEqual([
+			'rpc',
+			'catalog_admin_save_template_version',
+			{
+				p_template_id: templateRow.id,
+				p_expected_revision: 2,
+				p_document: { schemaVersion: 1, assets: [], slides: [] },
+				p_document_sha256: 'c'.repeat(64),
+				p_document_bytes: 256,
+				p_font_requirements: [{ fontId: 'inter' }]
+			}
+		]);
+	});
+
+	it('parses a revision conflict that carries the current template row', async () => {
+		const { client } = fakeClient([
+			{
+				data: {
+					ok: false,
+					reason: 'revision_conflict',
+					detail: { template: { ...templateRow, revision: 4 } }
+				},
+				error: null
+			}
+		]);
+		const result = await catalogUsing(client).saveTemplateVersion({
+			templateId: templateRow.id,
+			expectedRevision: 3,
+			document: { schemaVersion: 1, assets: [] },
+			documentSha256: 'c'.repeat(64),
+			documentBytes: 256,
+			fontRequirements: []
+		});
+		expect(result).toMatchObject({
+			ok: false,
+			reason: 'revision_conflict',
+			detail: { template: { id: templateRow.id, revision: 4 } }
 		});
 	});
 });

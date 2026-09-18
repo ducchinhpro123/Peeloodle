@@ -19,10 +19,12 @@ import type {
 	CatalogCollection,
 	CatalogOrphanMedia,
 	CatalogPage,
+	CatalogState,
 	CatalogTemplate,
 	CatalogTemplateDependency,
 	CatalogTemplateDraft,
 	CatalogTemplateVersion,
+	CatalogTemplateVersionSummary,
 	CatalogUploadBatchPage,
 	CatalogUploadBatchSummary,
 	CatalogUploadClaim,
@@ -87,6 +89,8 @@ export type CatalogRefusal =
  */
 export type CatalogActionDetail<T> = {
 	item?: T;
+	/** The current template row when a template-version save is refused. */
+	template?: CatalogTemplate;
 	templates?: { id: string; title: string }[];
 	count?: number;
 	assetIds?: string[];
@@ -155,6 +159,8 @@ export type CatalogListFilters = {
 	collectionId?: string;
 	kind?: CatalogAssetKind;
 	useCase?: string;
+	/** Admin lists only: the exact row state to include. */
+	state?: CatalogState;
 	limit?: number;
 	/** Opaque cursor from the previous page. */
 	cursor?: string | null;
@@ -193,6 +199,22 @@ export type CatalogTemplateInput = {
  */
 export type CatalogTemplateDraftInput = {
 	metadata: CatalogTemplateInput;
+	document: unknown;
+	documentSha256: string;
+	documentBytes: number;
+	fontRequirements: { fontId: string }[];
+};
+
+/**
+ * One immutable successor version of an existing template draft. The document,
+ * its hash/size and every referenced font move together; dependencies are again
+ * derived from the document by the server. `expectedRevision` is the stable
+ * template revision the editor read, so a concurrent save is refused instead of
+ * silently replaced.
+ */
+export type CatalogTemplateVersionInput = {
+	templateId: string;
+	expectedRevision: number;
 	document: unknown;
 	documentSha256: string;
 	documentBytes: number;
@@ -312,6 +334,18 @@ export interface CatalogAdminRepository {
 	): Promise<CatalogActionResult<CatalogAsset>>;
 	archiveAsset(id: string, expectedRevision: number): Promise<CatalogActionResult<CatalogAsset>>;
 	listTemplatesForAdmin(filters?: CatalogListFilters): Promise<CatalogPage<CatalogTemplate>>;
+	/** One template whatever its state, drafts included; the detail screen and editor need it. */
+	getTemplateForAdmin(id: string): Promise<CatalogTemplate>;
+	/**
+	 * Version facts without the full document, newest first. Used by the detail
+	 * screen so a list never drags every 10 MB snapshot across the wire.
+	 */
+	listTemplateVersionsForAdmin(
+		templateId: string,
+		options?: { limit?: number }
+	): Promise<CatalogTemplateVersionSummary[]>;
+	/** The newest version including its document; null when the template has none. */
+	getLatestTemplateVersionForAdmin(templateId: string): Promise<CatalogTemplateVersion | null>;
 	createTemplate(input: CatalogTemplateInput): Promise<CatalogActionResult<CatalogTemplate>>;
 	updateTemplate(
 		id: string,
@@ -340,6 +374,15 @@ export interface CatalogAdminRepository {
 	 */
 	createTemplateDraft(
 		input: CatalogTemplateDraftInput
+	): Promise<CatalogActionResult<CatalogTemplateDraft>>;
+	/**
+	 * Appends the next immutable pending version and advances the stable
+	 * template's revision in one transaction. Refused as `revision_conflict`,
+	 * `archived`, `not_found`, `invalid_document` or `dependency_unavailable`; a
+	 * refusal writes nothing.
+	 */
+	saveTemplateVersion(
+		input: CatalogTemplateVersionInput
 	): Promise<CatalogActionResult<CatalogTemplateDraft>>;
 
 	// P54/P55: durable batches and leased jobs. Every method re-checks admin

@@ -23,6 +23,7 @@ import {
 	type CatalogAssetVersionReport,
 	type CatalogTemplateDraftInput,
 	type CatalogTemplateInput,
+	type CatalogTemplateVersionInput,
 	type CatalogUploadRequest,
 	decodeUploadCursor,
 	encodeUploadCursor
@@ -41,6 +42,7 @@ import type {
 	CatalogTemplateDependency,
 	CatalogTemplateDraft,
 	CatalogTemplateVersion,
+	CatalogTemplateVersionSummary,
 	CatalogUploadBatch,
 	CatalogUploadBatchPage,
 	CatalogUploadBatchSummary,
@@ -574,9 +576,41 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			this.templates,
 			filters,
 			(row) =>
+				(!filters?.state || row.state === filters.state) &&
 				(!filters?.useCase || row.useCase === filters.useCase) &&
 				(!filters?.query || this.#text(row, filters.query))
 		);
+	}
+
+	async getTemplateForAdmin(id: string): Promise<CatalogTemplate> {
+		this.#assertAdmin();
+		const row = this.templates.find((candidate) => candidate.id === id);
+		if (!row) throw new CatalogError('not_found', 'Template not found');
+		return this.#snapshot(row);
+	}
+
+	async listTemplateVersionsForAdmin(
+		templateId: string,
+		options: { limit?: number } = {}
+	): Promise<CatalogTemplateVersionSummary[]> {
+		this.#assertAdmin();
+		const limit = Math.min(options.limit ?? 50, 100);
+		return this.templateVersions
+			.filter((row) => row.templateId === templateId)
+			.sort((left, right) => right.versionNumber - left.versionNumber)
+			.slice(0, limit)
+			.map((row) => {
+				const { document: _document, ...summary } = this.#snapshot(row);
+				return summary;
+			});
+	}
+
+	async getLatestTemplateVersionForAdmin(templateId: string): Promise<CatalogTemplateVersion | null> {
+		this.#assertAdmin();
+		const row = this.templateVersions
+			.filter((candidate) => candidate.templateId === templateId)
+			.sort((left, right) => right.versionNumber - left.versionNumber)[0];
+		return row ? this.#snapshot(row) : null;
 	}
 
 	async createTemplate(input: CatalogTemplateInput): Promise<CatalogActionResult<CatalogTemplate>> {
@@ -692,50 +726,8 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 		input: CatalogTemplateDraftInput
 	): Promise<CatalogActionResult<CatalogTemplateDraft>> {
 		const createdBy = this.#assertAdmin();
-		if (!input.document || typeof input.document !== 'object' || Array.isArray(input.document))
-			return this.#refusal('invalid_document');
-		const assets = (input.document as { assets?: unknown }).assets;
-		if (!Array.isArray(assets)) return this.#refusal('invalid_document');
-
-		const unavailable = new Set<string>();
-		const pins = new Map<string, { assetId: string; assetVersionId: string }>();
-		for (const entry of assets) {
-			if (!entry || typeof entry !== 'object' || Array.isArray(entry))
-				return this.#refusal('invalid_document');
-			const asset = entry as Record<string, unknown>;
-			const provenance = asset.provenance;
-			if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance))
-				return this.#refusal('invalid_document');
-			const pin = provenance as Record<string, unknown>;
-			if (
-				pin.source !== 'catalog' ||
-				typeof pin.catalogItemId !== 'string' ||
-				typeof pin.catalogVersionId !== 'string'
-			)
-				return this.#refusal('invalid_document');
-			const version = this.versions.find(
-				(candidate) =>
-					candidate.id === pin.catalogVersionId && candidate.assetId === pin.catalogItemId
-			);
-			if (
-				!version ||
-				version.validationState !== 'validated' ||
-				version.derivativeSha256 !== asset.sha256 ||
-				version.derivativeBytes !== asset.byteLength ||
-				version.derivativeMime !== asset.mimeType ||
-				version.derivativeWidth !== asset.width ||
-				version.derivativeHeight !== asset.height
-			) {
-				unavailable.add(pin.catalogItemId);
-				continue;
-			}
-			pins.set(`${pin.catalogItemId}:${pin.catalogVersionId}`, {
-				assetId: pin.catalogItemId,
-				assetVersionId: pin.catalogVersionId
-			});
-		}
-		if (unavailable.size > 0)
-			return this.#refusal('dependency_unavailable', { assetIds: [...unavailable] });
+		const resolved = this.#resolveTemplateDependencies(input.document);
+		if (!resolved.ok) return this.#refusal(resolved.reason, resolved.detail);
 
 		const template: CatalogTemplate = {
 			id: uuid(),
@@ -767,7 +759,7 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			validation: { created_by: createdBy },
 			createdAt: now()
 		};
-		const dependencies: CatalogTemplateDependency[] = [...pins.values()].map((pin) => ({
+		const dependencies: CatalogTemplateDependency[] = [...resolved.pins.values()].map((pin) => ({
 			templateVersionId: version.id,
 			...pin
 		}));
@@ -778,6 +770,115 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			ok: true,
 			item: { template: this.#snapshot(template), version: this.#snapshot(version) }
 		};
+	}
+
+	/**
+	 * Mirrors `catalog_admin_save_template_version`: the next immutable pending
+	 * version is appended and the stable template's revision advances, or the save
+	 * is refused before anything changes. The fake is single-threaded, so the SQL's
+	 * `for update` row lock has no analogue; the revision check is the same.
+	 */
+	async saveTemplateVersion(
+		input: CatalogTemplateVersionInput
+	): Promise<CatalogActionResult<CatalogTemplateDraft>> {
+		const createdBy = this.#assertAdmin();
+		const resolved = this.#resolveTemplateDependencies(input.document);
+		if (!resolved.ok) return this.#refusal(resolved.reason, resolved.detail);
+		const current = this.templates.find((row) => row.id === input.templateId);
+		if (!current) return this.#refusal('not_found');
+		if (current.state === 'archived') return this.#refusal('archived', { template: current });
+		if (current.revision !== input.expectedRevision)
+			return this.#refusal('revision_conflict', { template: current });
+
+		const previousNumber = this.templateVersions
+			.filter((row) => row.templateId === current.id)
+			.reduce((highest, row) => Math.max(highest, row.versionNumber), 0);
+		const version: CatalogTemplateVersion = {
+			id: uuid(),
+			templateId: current.id,
+			versionNumber: previousNumber + 1,
+			document: structuredClone(input.document),
+			documentSha256: input.documentSha256,
+			documentBytes: input.documentBytes,
+			coverPath: null,
+			coverSha256: null,
+			slidePreviews: [],
+			fontRequirements: structuredClone(input.fontRequirements),
+			validationState: 'pending',
+			validation: { created_by: createdBy, previous_version_number: previousNumber },
+			createdAt: now()
+		};
+		const dependencies: CatalogTemplateDependency[] = [...resolved.pins.values()].map((pin) => ({
+			templateVersionId: version.id,
+			...pin
+		}));
+		this.templateVersions.push(version);
+		this.dependencies.push(...dependencies);
+		Object.assign(current, { revision: current.revision + 1, updatedAt: now() });
+		return {
+			ok: true,
+			item: { template: this.#snapshot(current), version: this.#snapshot(version) }
+		};
+	}
+
+	/**
+	 * Resolves every catalog pin a template document references, or refuses the
+	 * whole document before any array is touched. Mirrors
+	 * `catalog_validate_template_document`; the fake skips the SQL's uuid-format
+	 * regexes, which exist to keep casts from raising and have no analogue here.
+	 */
+	#resolveTemplateDependencies(document: unknown):
+		| { ok: true; pins: Map<string, { assetId: string; assetVersionId: string }> }
+		| { ok: false; reason: CatalogRefusal; detail: Record<string, unknown> } {
+		if (!document || typeof document !== 'object' || Array.isArray(document))
+			return { ok: false, reason: 'invalid_document', detail: {} };
+		const assets = (document as { assets?: unknown }).assets;
+		if (!Array.isArray(assets)) return { ok: false, reason: 'invalid_document', detail: {} };
+
+		const unavailable = new Set<string>();
+		const pins = new Map<string, { assetId: string; assetVersionId: string }>();
+		for (const entry of assets) {
+			if (!entry || typeof entry !== 'object' || Array.isArray(entry))
+				return { ok: false, reason: 'invalid_document', detail: {} };
+			const asset = entry as Record<string, unknown>;
+			const provenance = asset.provenance;
+			if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance))
+				return { ok: false, reason: 'invalid_document', detail: {} };
+			const pin = provenance as Record<string, unknown>;
+			if (
+				pin.source !== 'catalog' ||
+				typeof pin.catalogItemId !== 'string' ||
+				typeof pin.catalogVersionId !== 'string'
+			)
+				return { ok: false, reason: 'invalid_document', detail: {} };
+			const version = this.versions.find(
+				(candidate) =>
+					candidate.id === pin.catalogVersionId && candidate.assetId === pin.catalogItemId
+			);
+			if (
+				!version ||
+				version.validationState !== 'validated' ||
+				version.derivativeSha256 !== asset.sha256 ||
+				version.derivativeBytes !== asset.byteLength ||
+				version.derivativeMime !== asset.mimeType ||
+				version.derivativeWidth !== asset.width ||
+				version.derivativeHeight !== asset.height
+			) {
+				unavailable.add(pin.catalogItemId);
+				continue;
+			}
+			pins.set(`${pin.catalogItemId}:${pin.catalogVersionId}`, {
+				assetId: pin.catalogItemId,
+				assetVersionId: pin.catalogVersionId
+			});
+		}
+		if (unavailable.size > 0)
+			return {
+				ok: false,
+				reason: 'dependency_unavailable',
+				detail: { assetIds: [...unavailable] }
+			};
+		return { ok: true, pins };
 	}
 
 	async processUploadJob(jobId: string): Promise<ProcessingOutcome> {

@@ -27,6 +27,7 @@ import type {
 	CatalogTemplateDependency,
 	CatalogTemplateDraft,
 	CatalogTemplateVersion,
+	CatalogTemplateVersionSummary,
 	CatalogUploadBatchPage,
 	CatalogUploadBatchState,
 	CatalogUploadBatchSummary,
@@ -202,9 +203,9 @@ function parseFontRequirements(value: unknown): CatalogFontRequirement[] {
  * version must carry both, otherwise publication could point at a version with
  * nothing to show. The same rule is a table constraint server-side.
  */
-export function parseTemplateVersion(value: unknown): CatalogTemplateVersion {
-	const row = record(value, 'template version');
-	if (row.document === undefined || typeof row.document !== 'object') invalid('Invalid document');
+function parseTemplateVersionFields(
+	row: Record<string, unknown>
+): Omit<CatalogTemplateVersion, 'document'> {
 	const coverPath = optionalText(row, 'cover_path');
 	const coverSha256 = optionalText(row, 'cover_sha256');
 	const validationState = oneOf(row, 'validation_state', VALIDATION);
@@ -214,7 +215,6 @@ export function parseTemplateVersion(value: unknown): CatalogTemplateVersion {
 		id: text(row, 'id'),
 		templateId: text(row, 'template_id'),
 		versionNumber: integer(row, 'version_number', 1),
-		document: row.document,
 		documentSha256: text(row, 'document_sha256'),
 		documentBytes: integer(row, 'document_bytes', 1),
 		coverPath,
@@ -225,6 +225,17 @@ export function parseTemplateVersion(value: unknown): CatalogTemplateVersion {
 		validation: record(row.validation, 'validation'),
 		createdAt: timestamp(row, 'created_at')
 	};
+}
+
+export function parseTemplateVersion(value: unknown): CatalogTemplateVersion {
+	const row = record(value, 'template version');
+	if (row.document === undefined || typeof row.document !== 'object') invalid('Invalid document');
+	return { ...parseTemplateVersionFields(row), document: row.document };
+}
+
+/** A version list row; the document is deliberately absent from the query. */
+export function parseTemplateVersionSummary(value: unknown): CatalogTemplateVersionSummary {
+	return parseTemplateVersionFields(record(value, 'template version summary'));
 }
 
 /** The `{ template, version }` payload of a created draft. */
@@ -328,7 +339,8 @@ function refusalDetail<T>(
 			name: typeof raw.name === 'string' ? raw.name : undefined,
 			message: typeof raw.message === 'string' ? raw.message : undefined,
 			version: raw.version,
-			item: raw.item === undefined ? undefined : parseItem(raw.item)
+			item: raw.item === undefined ? undefined : parseItem(raw.item),
+			template: raw.template === undefined ? undefined : parseTemplate(raw.template)
 		};
 		return { ok: false, reason: row.reason as CatalogRefusal, detail };
 	}

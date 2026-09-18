@@ -99,11 +99,17 @@ export type CatalogTemplateVersion = {
 	createdAt: string;
 };
 
-/** The stable template and its first immutable version, created together. */
+/** The stable template and its immutable version, created or saved together. */
 export type CatalogTemplateDraft = {
 	template: CatalogTemplate;
 	version: CatalogTemplateVersion;
 };
+
+/**
+ * A version row without its full document, for lists that must not drag a
+ * 10 MB snapshot (and its media references) into every row.
+ */
+export type CatalogTemplateVersionSummary = Omit<CatalogTemplateVersion, 'document'>;
 
 export type CatalogTemplateDependency = {
 	templateVersionId: string;

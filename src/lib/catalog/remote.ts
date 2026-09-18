@@ -16,6 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from '$lib/cloud/database';
 import {
 	CatalogError,
+	CATALOG_MAX_PAGE_SIZE,
 	catalogPageSize,
 	decodeCatalogCursor,
 	type CatalogActionResult,
@@ -27,6 +28,7 @@ import {
 	type CatalogRepository,
 	type CatalogTemplateDraftInput,
 	type CatalogTemplateInput,
+	type CatalogTemplateVersionInput,
 	type CatalogUploadClaimResult,
 	type CatalogUploadCompletionResult,
 	type CatalogUploadRequest,
@@ -43,6 +45,7 @@ import {
 	parseTemplate,
 	parseTemplateDraft,
 	parseTemplateVersion,
+	parseTemplateVersionSummary,
 	parseUploadBatchSummary,
 	readUploadBatchPage,
 	parseUploadClaimResult,
@@ -61,6 +64,7 @@ import type {
 	CatalogTemplate,
 	CatalogTemplateDependency,
 	CatalogTemplateVersion,
+	CatalogTemplateVersionSummary,
 	CatalogUploadBatchPage,
 	CatalogUploadBatchSummary,
 	CatalogUploadJob,
@@ -81,6 +85,8 @@ const TEMPLATE_COLUMNS =
 	'id,title,use_case,description,tags,sort_order,state,revision,published_version_id,published_at,archived_at,created_at,updated_at';
 const TEMPLATE_VERSION_COLUMNS =
 	'id,template_id,version_number,document,document_sha256,document_bytes,cover_path,cover_sha256,slide_previews,font_requirements,validation_state,validation,created_at';
+const TEMPLATE_VERSION_SUMMARY_COLUMNS =
+	'id,template_id,version_number,document_sha256,document_bytes,cover_path,cover_sha256,slide_previews,font_requirements,validation_state,validation,created_at';
 
 /** PostgREST's `or` grammar treats these as syntax; free text never needs them. */
 function searchTerm(query: string): string {
@@ -266,6 +272,7 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 		const limit = catalogPageSize(filters.limit);
 		const term = filters.query ? searchTerm(filters.query) : '';
 		let query = this.#client.from('catalog_collections').select(COLLECTION_COLUMNS);
+		if (filters.state) query = query.eq('state', filters.state);
 		if (term) query = query.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
 		const cursor = cursorFilter(filters);
 		if (cursor) query = query.or(cursor);
@@ -304,6 +311,7 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 		const limit = catalogPageSize(filters.limit);
 		const term = filters.query ? searchTerm(filters.query) : '';
 		let query = this.#client.from('catalog_assets').select(ASSET_COLUMNS);
+		if (filters.state) query = query.eq('state', filters.state);
 		if (filters.collectionId) query = query.eq('collection_id', filters.collectionId);
 		if (filters.kind) query = query.eq('kind', filters.kind);
 		if (term) query = query.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
@@ -323,6 +331,7 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 		const limit = catalogPageSize(filters.limit);
 		const term = filters.query ? searchTerm(filters.query) : '';
 		let query = this.#client.from('catalog_templates').select(TEMPLATE_COLUMNS);
+		if (filters.state) query = query.eq('state', filters.state);
 		if (filters.useCase) query = query.eq('use_case', filters.useCase);
 		if (term) query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
 		const cursor = cursorFilter(filters);
@@ -333,6 +342,45 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 			.limit(limit + 1);
 		if (error) this.#fail(error, 'Could not list catalog templates');
 		return takePage((data ?? []).map(parseTemplate), limit);
+	}
+
+	async getTemplateForAdmin(id: string): Promise<CatalogTemplate> {
+		const { data, error } = await this.#client
+			.from('catalog_templates')
+			.select(TEMPLATE_COLUMNS)
+			.eq('id', id)
+			.single();
+		if (error) this.#fail(error, 'Template not found');
+		return parseTemplate(data);
+	}
+
+	async listTemplateVersionsForAdmin(
+		templateId: string,
+		options: { limit?: number } = {}
+	): Promise<CatalogTemplateVersionSummary[]> {
+		const limit = Math.min(options.limit ?? 50, CATALOG_MAX_PAGE_SIZE);
+		const { data, error } = await this.#client
+			.from('catalog_template_versions')
+			.select(TEMPLATE_VERSION_SUMMARY_COLUMNS)
+			.eq('template_id', templateId)
+			.order('version_number', { ascending: false })
+			.limit(limit);
+		if (error) this.#fail(error, 'Could not list template versions');
+		return (data ?? []).map(parseTemplateVersionSummary);
+	}
+
+	async getLatestTemplateVersionForAdmin(
+		templateId: string
+	): Promise<CatalogTemplateVersion | null> {
+		const { data, error } = await this.#client
+			.from('catalog_template_versions')
+			.select(TEMPLATE_VERSION_COLUMNS)
+			.eq('template_id', templateId)
+			.order('version_number', { ascending: false })
+			.limit(1)
+			.maybeSingle();
+		if (error) this.#fail(error, 'Could not read the template version');
+		return data === null || data === undefined ? null : parseTemplateVersion(data);
 	}
 
 	createCollection(input: CatalogCollectionInput) {
@@ -511,6 +559,26 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 				p_font_requirements: input.fontRequirements as Json
 			}),
 			'Could not create the template draft',
+			parseTemplateDraft
+		);
+	}
+
+	/**
+	 * The next immutable version of an existing template. `expected_revision` is
+	 * the stable template revision the editor read; a stale one is a business
+	 * refusal (`revision_conflict`) that carries the current template row.
+	 */
+	saveTemplateVersion(input: CatalogTemplateVersionInput) {
+		return this.#action(
+			this.#client.rpc('catalog_admin_save_template_version', {
+				p_template_id: input.templateId,
+				p_expected_revision: input.expectedRevision,
+				p_document: input.document as Json,
+				p_document_sha256: input.documentSha256,
+				p_document_bytes: input.documentBytes,
+				p_font_requirements: input.fontRequirements as Json
+			}),
+			'Could not save the template version',
 			parseTemplateDraft
 		);
 	}

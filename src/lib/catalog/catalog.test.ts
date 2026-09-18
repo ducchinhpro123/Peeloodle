@@ -852,4 +852,129 @@ describe('catalog template drafts in memory', () => {
 			code: 'permission'
 		});
 	});
+
+	const seedDraft = async () => {
+		const catalog = seeded();
+		const created = await catalog.createTemplateDraft(draftInput(draftDocument()));
+		if (!created.ok) throw new Error(JSON.stringify(created));
+		return { catalog, created };
+	};
+
+	const saveInput = (templateId: string, document: unknown, expectedRevision = 1) => ({
+		templateId,
+		expectedRevision,
+		document,
+		documentSha256: 'f'.repeat(64),
+		documentBytes: 256,
+		fontRequirements: [{ fontId: 'inter' }]
+	});
+
+	it('saves the next immutable pending version and advances the revision', async () => {
+		const { catalog, created } = await seedDraft();
+		const templateId = created.item.template.id;
+		const savedDocument = { ...draftDocument(), title: 'Template copy v2' };
+		const result = await catalog.saveTemplateVersion(saveInput(templateId, savedDocument));
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error(JSON.stringify(result));
+		expect(result.item.template).toMatchObject({ id: templateId, revision: 2 });
+		expect(result.item.version).toMatchObject({
+			templateId,
+			versionNumber: 2,
+			coverPath: null,
+			coverSha256: null,
+			slidePreviews: [],
+			validationState: 'pending',
+			documentSha256: 'f'.repeat(64),
+			documentBytes: 256,
+			fontRequirements: [{ fontId: 'inter' }]
+		});
+		expect(result.item.version.validation).toMatchObject({
+			created_by: adminId,
+			previous_version_number: 1
+		});
+		expect(catalog.templateVersions).toHaveLength(2);
+		expect(catalog.dependencies).toHaveLength(2);
+		expect(catalog.dependencies[1]).toEqual({
+			templateVersionId: result.item.version.id,
+			assetId: sourceAssetId,
+			assetVersionId: sourceVersionId
+		});
+		// The stored snapshot is a clone, never the caller's live object.
+		savedDocument.title = 'edited after the save';
+		expect((catalog.templateVersions[1]!.document as { title: string }).title).toBe(
+			'Template copy v2'
+		);
+	});
+
+	it('refuses stale revisions and invalid documents without writing anything', async () => {
+		const { catalog, created } = await seedDraft();
+		const templateId = created.item.template.id;
+		const mismatch = structuredClone(draftDocument());
+		mismatch.assets[0].width = 65;
+
+		const cases = [
+			{ input: saveInput(templateId, draftDocument(), 99), reason: 'revision_conflict' },
+			{ input: saveInput(templateId, { schemaVersion: 1, slides: [] }), reason: 'invalid_document' },
+			{ input: saveInput(templateId, mismatch), reason: 'dependency_unavailable' }
+		] as const;
+		for (const { input, reason } of cases) {
+			const result = await catalog.saveTemplateVersion(input);
+			expect(result).toMatchObject({ ok: false, reason });
+			expect(catalog.templateVersions).toHaveLength(1);
+			expect(catalog.dependencies).toHaveLength(1);
+			expect(catalog.templates[0]).toMatchObject({ revision: 1 });
+		}
+	});
+
+	it('refuses a save into an archived or unknown template', async () => {
+		const { catalog, created } = await seedDraft();
+		const templateId = created.item.template.id;
+		expect(await catalog.archiveTemplate(templateId, 1)).toMatchObject({ ok: true });
+		expect(await catalog.saveTemplateVersion(saveInput(templateId, draftDocument(), 2))).toMatchObject(
+			{ ok: false, reason: 'archived' }
+		);
+		expect(
+			await catalog.saveTemplateVersion(
+				saveInput('t0000000-0000-4000-8000-000000000009', draftDocument())
+			)
+		).toMatchObject({ ok: false, reason: 'not_found' });
+	});
+
+	it('lists version summaries without documents and reads the newest for the editor', async () => {
+		const { catalog, created } = await seedDraft();
+		const templateId = created.item.template.id;
+		await catalog.saveTemplateVersion(saveInput(templateId, { ...draftDocument(), title: 'v2' }));
+
+		const versions = await catalog.listTemplateVersionsForAdmin(templateId);
+		expect(versions.map((row) => row.versionNumber)).toEqual([2, 1]);
+		expect(versions[0]).not.toHaveProperty('document');
+		const latest = await catalog.getLatestTemplateVersionForAdmin(templateId);
+		expect(latest).toMatchObject({ versionNumber: 2 });
+		expect((latest?.document as { title: string }).title).toBe('v2');
+
+		const empty = seeded();
+		expect(await empty.getLatestTemplateVersionForAdmin(templateId)).toBeNull();
+		await expect(empty.getTemplateForAdmin(templateId)).rejects.toMatchObject({
+			code: 'not_found'
+		});
+		const anonymous = new MemoryCatalog();
+		await expect(anonymous.listTemplateVersionsForAdmin(templateId)).rejects.toMatchObject({
+			code: 'permission'
+		});
+	});
+
+	it('filters the admin template list by state', async () => {
+		const { catalog } = await seedDraft();
+		await catalog.createTemplate({
+			title: 'Published lookalike',
+			useCase: 'class',
+			description: '',
+			tags: [],
+			sortOrder: 2
+		});
+		const drafts = await catalog.listTemplatesForAdmin({ state: 'draft' });
+		expect(drafts.items).toHaveLength(2);
+		const published = await catalog.listTemplatesForAdmin({ state: 'published' });
+		expect(published.items).toHaveLength(0);
+	});
 });
