@@ -775,6 +775,114 @@ async function main(binaries) {
 				throw new Error(JSON.stringify(result.detail));
 		});
 
+		// P66: the shared editor saves the next immutable draft version against the
+		// stable template's revision. The same document/dependency rules apply, and
+		// the row lock turns a stale expected revision into a business refusal.
+		const saveVersion = (document, revision, session = asAdmin) => {
+			const json = JSON.stringify(document);
+			return session.unsafe(
+				`select public.catalog_admin_save_template_version('${draftTemplate.template.id}', ${revision}, '${json}'::jsonb, repeat('c', 64), ${Buffer.byteLength(json)}) as result`
+			);
+		};
+		const draftVersionCount = async () => {
+			const [row] = await sql.unsafe(
+				`select count(*)::int as versions from public.catalog_template_versions where template_id = '${draftTemplate.template.id}'`
+			);
+			return row.versions;
+		};
+		await check('only administrators can save a template version', async () => {
+			await expectError(saveVersion(draftDocument, 1, asEditor), '42501');
+			await expectError(saveVersion(draftDocument, 1, asAnon), '42501');
+		});
+		await check('a stale expected revision is refused and wrote nothing', async () => {
+			const before = await draftVersionCount();
+			const [refused] = await saveVersion(draftDocument, 99);
+			if (refused.result.ok || refused.result.reason !== 'revision_conflict')
+				throw new Error(JSON.stringify(refused.result));
+			if (refused.result.detail.template.revision !== 1)
+				throw new Error(JSON.stringify(refused.result.detail));
+			const stored = await draftVersionCount();
+			if (stored !== before) throw new Error(`${before} -> ${stored}`);
+		});
+		await check('an invalid document is refused and wrote nothing', async () => {
+			const before = await draftVersionCount();
+			const [refused] = await saveVersion({ schemaVersion: 1, slides: [] }, 1);
+			if (refused.result.ok || refused.result.reason !== 'invalid_document')
+				throw new Error(JSON.stringify(refused.result));
+			const stored = await draftVersionCount();
+			if (stored !== before) throw new Error(`${before} -> ${stored}`);
+		});
+		await check('a mismatched catalog dependency is refused and wrote nothing', async () => {
+			const before = await draftVersionCount();
+			const [refused] = await saveVersion(
+				{ ...draftDocument, assets: [{ ...draftDocument.assets[0], width: 65 }] },
+				1
+			);
+			if (refused.result.ok || refused.result.reason !== 'dependency_unavailable')
+				throw new Error(JSON.stringify(refused.result));
+			if (!refused.result.detail.assetIds.includes(draftAsset.id))
+				throw new Error(JSON.stringify(refused.result.detail));
+			const stored = await draftVersionCount();
+			if (stored !== before) throw new Error(`${before} -> ${stored}`);
+		});
+		const savedDocument = { ...draftDocument, title: 'Template copy v2' };
+		await check('a valid save creates pending version 2 and advances the revision', async () => {
+			const savedJson = JSON.stringify(savedDocument);
+			const [row] = await saveVersion(savedDocument, 1);
+			if (!row.result.ok) throw new Error(JSON.stringify(row.result));
+			const { template: savedTemplate, version } = row.result.item;
+			if (savedTemplate.revision !== 2) throw new Error(JSON.stringify(savedTemplate));
+			if (
+				version.version_number !== 2 ||
+				version.document.title !== 'Template copy v2' ||
+				version.cover_path !== null ||
+				version.cover_sha256 !== null ||
+				version.validation_state !== 'pending' ||
+				JSON.stringify(version.slide_previews) !== '[]' ||
+				version.document_sha256 !== 'c'.repeat(64) ||
+				version.document_bytes !== Buffer.byteLength(savedJson)
+			)
+				throw new Error(JSON.stringify(version));
+			if (version.validation.created_by !== admin || version.validation.previous_version_number !== 1)
+				throw new Error(`the actor was not journaled: ${JSON.stringify(version.validation)}`);
+		});
+		await check('version 2 has its own dependency pins and stays immutable', async () => {
+			const rows = await asAdmin.unsafe(
+				`select version_number, asset_id, asset_version_id from public.catalog_template_versions v
+				 join public.catalog_template_dependencies d on d.template_version_id = v.id
+				 where v.template_id = '${draftTemplate.template.id}' order by version_number`
+			);
+			if (rows.length !== 2) throw new Error(JSON.stringify(rows));
+			if (
+				rows[0].version_number !== 1 ||
+				rows[1].version_number !== 2 ||
+				rows[1].asset_id !== draftAsset.id ||
+				rows[1].asset_version_id !== draftVersionId
+			)
+				throw new Error(JSON.stringify(rows));
+			await expectError(
+				sql.unsafe(
+					`update public.catalog_template_versions set document = '{}'::jsonb where template_id = '${draftTemplate.template.id}' and version_number = 2`
+				),
+				'55000'
+			);
+		});
+		await check('an archived template cannot be saved and an unknown one is not found', async () => {
+			const [archivedRow] = await asAdmin.unsafe(
+				`select public.catalog_admin_archive_template('${draftTemplate.template.id}', 2) as result`
+			);
+			if (!archivedRow.result.ok) throw new Error(JSON.stringify(archivedRow.result));
+			const [archived] = await saveVersion(savedDocument, 3);
+			if (archived.result.ok || archived.result.reason !== 'archived')
+				throw new Error(JSON.stringify(archived.result));
+			const json = JSON.stringify(savedDocument);
+			const [missing] = await asAdmin.unsafe(
+				`select public.catalog_admin_save_template_version('12121212-1212-4212-8212-121212121212', 1, '${json}'::jsonb, repeat('c', 64), ${Buffer.byteLength(json)}) as result`
+			);
+			if (missing.result.ok || missing.result.reason !== 'not_found')
+				throw new Error(JSON.stringify(missing.result));
+		});
+
 		// P54/P55/P61: durable upload batches, leased processing jobs, conditional
 		// completion and bounded cleanup.
 		const storedObject = (bucket, name, size, mime) =>
