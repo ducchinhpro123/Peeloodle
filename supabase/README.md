@@ -86,3 +86,23 @@ approved SVG subset), stores the immutable derivatives and finalizes the version
   host the route does not exist, so uploads can be stored but not validated or published.
 - The administrator's browser still drives the queue (at most two files at a time), so closing the
   tab leaves the remaining jobs queued; reopening `/admin/uploads` reports exactly that.
+
+## Seeding the three shipped templates (P72–P74)
+
+The three starter decks live in `src/lib/presentations/templates/shippedTemplates.js`, the same
+module the app and its tests use. `npm run seed:templates` creates each one as an atomic catalog
+draft (stable template + first immutable pending version) through
+`catalog_admin_create_template_draft`, using an administrator's own access token:
+
+```bash
+SUPABASE_URL=https://<project>.supabase.co \
+SUPABASE_PUBLISHABLE_KEY=<publishable key> \
+SUPABASE_ADMIN_ACCESS_TOKEN=<admin access token> \
+npm run seed:templates
+```
+
+- `--dry-run` prints titles, sizes and hashes without touching the network.
+- No service-role key is used, and nothing is published. Slide previews, validation and publication
+  remain explicit administrator actions in `/admin/templates`.
+- The seeded decks ship no catalog assets: their image areas are labelled shape placeholders, so
+  cloning downloads nothing and every slide is editable text/shapes.

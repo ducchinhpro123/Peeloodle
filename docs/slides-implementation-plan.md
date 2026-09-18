@@ -32,7 +32,13 @@ the LibreOffice UNO round trip, the measured large-document/network-disabled bou
 and a production-build offline pass (font faces, builders, exports) are recorded in
 `proofs/p44-p45-readers-and-limits.md`, but P44 still needs a reader
 window screenshot and a second reader app, and P45's media ceiling is unmeasured. Review-driven
-corrections are recorded in `proofs/correction-pass.md`. Start the next session from
+corrections are recorded in `proofs/correction-pass.md`. **Milestone 6 (P65–P75) is implemented**:
+save-as-template drafts, the admin template screens, preview generation bound to the draft hash,
+server-checked validation and publication, the student browse/clone/layout-insert surfaces, and the
+three shipped decks with a seed script and a whole-journey test. The live P53 isolation check
+remains unavailable (no dedicated Supabase test project), and the shipped decks have been seeded
+only in dry-run form — publishing them is an operator step documented in `supabase/README.md`.
+Start the next session from
 [`HANDOFF.md`](../HANDOFF.md).
 
 This plan is designed for one developer working in small increments. Product scope came from the [planning interview](slides-planning.md); technical contracts are in [the architecture](slides-architecture.md).
@@ -193,10 +199,10 @@ The first coding task is **P01**, then the **export/text proof P02–P05**. Do n
 | [x]  | P69 | Add public template browser and all-slide preview.                                  | P49, P68      | Filters/empty/loading work; display actual template contents and supported editability.              |
 | [x]  | P70 | Implement atomic clone with new document/slide/element/asset IDs.                   | P14, P69      | Two clones independent; offline/incomplete download leaves no half-created presentation.             |
 | [x]  | P71 | Add template slide-layout insertion into an existing presentation.                  | P23, P70      | Copied layout and dependencies insert at chosen position; undo and theme behavior predictable.       |
-| [ ]  | P72 | Build class presentation template with 8–10 varied layouts.                         | P68, P70      | Title, agenda, concept/text-image, comparison, example, summary, references and closing covered.     |
-| [ ]  | P73 | Build research-defense template with 8–10 layouts.                                  | P72           | Problem, question, method, results image area, discussion, limitations, references and Q&A covered.  |
-| [ ]  | P74 | Build club-pitch template with 8–10 layouts.                                        | P72           | Mission, problem, proposal, activities, timeline, team, impact and call to action covered.           |
-| [ ]  | P75 | Verify clone → replace content → save/reopen → PDF/PPTX for all three templates.    | P44, P70–P74  | Original unaffected; long Vietnamese/English text and sample-image replacements fit or warn clearly. |
+| [x]  | P72 | Build class presentation template with 8–10 varied layouts.                         | P68, P70      | Title, agenda, concept/text-image, comparison, example, summary, references and closing covered.     |
+| [x]  | P73 | Build research-defense template with 8–10 layouts.                                  | P72           | Problem, question, method, results image area, discussion, limitations, references and Q&A covered.  |
+| [x]  | P74 | Build club-pitch template with 8–10 layouts.                                        | P72           | Mission, problem, proposal, activities, timeline, team, impact and call to action covered.           |
+| [x]  | P75 | Verify clone → replace content → save/reopen → PDF/PPTX for all three templates.    | P44, P70–P74  | Original unaffected; long Vietnamese/English text and sample-image replacements fit or warn clearly. |
 
 Use original or properly documented reusable artwork; sample text must be visibly sample content. Do not mass-produce template covers before the actual editable slides exist. Chart/table-looking layouts use ordinary shapes/text or image placeholders and must not imply native chart/data editing.
 

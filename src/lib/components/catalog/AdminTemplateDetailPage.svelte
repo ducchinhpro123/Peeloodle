@@ -8,7 +8,6 @@
 		generateTemplatePreviews,
 		TemplatePreviewError
 	} from '$lib/presentations/templates/templatePreviews';
-	import { prepareExportSnapshot } from '$lib/presentations/exports/snapshot';
 
 	/**
 	 * Admin template detail (P66/P67): the stable metadata, the immutable version
@@ -220,9 +219,13 @@
 		previewError = null;
 		previewNotice = null;
 		previewStage = 'Preparing the draft…';
-		/** @type {Awaited<ReturnType<typeof prepareExportSnapshot>> | null} */
+		/** @type {Awaited<ReturnType<typeof import('$lib/presentations/exports/snapshot').prepareExportSnapshot>> | null} */
 		let snapshot = null;
 		try {
+			// Loaded on demand: the preview flow is the only consumer here, and
+			// keeping the snapshot module dynamic preserves the export-builder
+			// chunking the offline journeys rely on.
+			const { prepareExportSnapshot } = await import('$lib/presentations/exports/snapshot');
 			const head = await draftRepository.getDraftHead();
 			snapshot = await prepareExportSnapshot(draftRepository, head.document);
 			const result = await generateTemplatePreviews({

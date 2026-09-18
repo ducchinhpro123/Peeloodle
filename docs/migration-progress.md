@@ -134,6 +134,69 @@ SvelteKit port, losing neither the React application nor the server-side materia
   `post-git-graft-20260915T105133Z.tar.gz`, sha256
   `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
 
+## Milestone 6 checkpoint, part 3 — student templates, shipped decks and the journey (2026-09-18, P69–P75)
+
+Scope: **the student half and the shipped content of milestone 6.** Published templates are
+browsable and previewable, clone into independent local presentations (or insert single layouts),
+and three complete decks ship as one source-of-truth module. Milestone 6 is complete except that
+P53's live RLS/Storage check still needs a dedicated Supabase test project, and the shipped decks
+have only been seeded locally (dry run); publishing them is an operator step.
+
+### Browse and clone (P69–P70)
+
+- `/presentation-templates` (linked from the header and sidebar) lists published templates through
+  the public catalog read path with search and use-case filters, cover cards from the published
+  version's cover, and an all-slide preview dialog. Loading, error, empty and unconfigured states
+  are separate; a card never renders “empty” for a request that failed.
+- `cloneTemplate` downloads and verifies every pinned dependency (published version must still be
+  the pinned one, hash/bytes must match) before one atomic local save, then remaps document, slide,
+  element and asset ids. A failure leaves no half-created presentation; two clones share nothing.
+- Layout insertion (P71) reuses the same download rule for only the chosen slides' assets:
+  `planSlideInsertion`/`adoptPersistedSlideInsertion` in the editor store plus `persistSlides` in the
+  save coordinator write media + document in one transaction and adopt as one undo entry; the
+  editor's “Insert slides” dialog picks the template and slides.
+
+### Shipped decks and seed path (P72–P74)
+
+- `src/lib/presentations/templates/shippedTemplates.js` builds three editable decks with no catalog
+  assets (image areas are labelled shape placeholders):
+  - Class presentation: 9 layouts — title, agenda, concept, text & image, comparison, example,
+    summary, references, closing.
+  - Research defense: 9 layouts — title, problem, research question, method, results image area,
+    discussion, limitations, references, Q&A.
+  - Club pitch: 8 layouts — mission, problem, proposal, activities, timeline, team, impact, call to
+    action.
+- `npm run seed:templates` (`scripts/seed-template-catalog.mjs`) creates each as an atomic draft
+  with the administrator's own access token; `--dry-run` prints sizes/hashes without network. No
+  service-role key is used and nothing is published; previews/validation/publication stay explicit
+  admin actions. `supabase/README.md` documents the step.
+
+### Whole-journey verification (P75)
+
+`template-journey.svelte.test.ts` drives the real browser screen: all three decks are cloned from a
+`MemoryCatalog`, their sample text replaced with long Vietnamese/English content, saved and reopened
+from the local repository, then exported. The test inspects the actual artifacts — PDF page count via
+`pdf-lib`, PPTX slide parts via `fflate` — and confirms the catalog source and another clone stay
+unchanged; a second test pins that overlong replacement text surfaces the existing overflow warning.
+
+### Verification at this checkpoint
+
+- `npm run check` 0 errors/0 warnings; `npm run lint` clean; `npm run build` green.
+- `npm run test:unit -- --run`: **82 files / 715 tests**.
+- `npm run test:catalog-sql`: **87 checks**.
+- `npx playwright test`: **68 journeys**; `npm run test:e2e:cloud`: **6 journeys**.
+- The server-graph guard (`presentation-editor-page.server.test.ts`) now loads the editor through a
+  dedicated Vite SSR server instead of the test runner's shared module loader: with browser tests in
+  the same run the shared loader could deadlock, while the dedicated server still fails with the real
+  `Cannot find module 'canvas'` when a static Konva import is reintroduced (verified both ways).
+- `svelte-autofixer` on every touched component: no issues; the remaining suggestions are the
+  repo's documented non-actionable class (repository-backed async loads in `$effect`, `bind:this`)
+  plus the false-positive “href without resolve()” on props that are already resolved by the route.
+- Recorded deviations/unknowns: preview rasterization and validation facts that need the real
+  presentation parser run in the administrator's browser (there is no server renderer), while the
+  guarded RPCs and Storage policies remain the trust boundary; the shipped decks have not been
+  seeded against a live Supabase project or published; P53 remains unavailable.
+
 ## Milestone 6 checkpoint, part 2 — template administration, previews and validation (2026-09-18, P66–P68)
 
 Scope: **the admin half of milestone 6.** An administrator lists templates, opens a draft in the

@@ -31,8 +31,8 @@ Provenance comments in `src/**` that mention `../Peeloodle/...` refer to that ta
   sharing), billing, background removal. The presentation model, local repositories, rendering
   layer, local library, `/presentations/<id>` editor and its PDF/PPTX/backup exports are ported;
   masks/restore brushing is fully implemented. Catalog administration was originally deferred by
-  the design and is now implemented on explicit request through milestone 5 plus P65 of milestone 6
-  (template authoring); P66–P75 and the live P53 check remain open.
+  the design and is now implemented on explicit request through milestones 5 and 6 (template
+  authoring); the live P53 check remains open and the shipped decks are unpublished.
 - Preserve: document schema versions, the `stickerlab-local` IndexedDB store names/keys, separate
   image blobs, immutable originals, image-local masks, editor draft recovery/navigation, template
   clone independence, the `stickerlab_fav_templates` localStorage key, modal/dialog regressions.
@@ -138,6 +138,19 @@ presentation flow has been prepared).
 | `src/lib/components/catalog/AdminUploadsPage.svelte`             | Bulk queue: preflight, direct uploads, per-file stages from the database, retry/cancel, honest resume, cleanup dry run                                                                                              |
 | `src/lib/components/catalog/AdminAssetsPage.svelte`              | Asset grid + inspector: filters, signed draft preview, version facts, publication refusals, conflict that adopts the server revision, pinned-archive explanation                                                    |
 | `src/lib/catalog/{types,repository,parse,memory,remote}.ts`      | Upload contracts, storage seam (`uploadSource`/`uploadDerivative`/`downloadSource`/`removeObjects`), strict parsers, and a fake that now hands out snapshots                                                        |
+
+**Key files for milestone 6 (P65–P75 — template authoring, previews, students, shipped decks):**
+
+| Path                                                                                                                     | Role                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `supabase/migrations/2026091812–160000_*.sql`                                                                            | Guarded version saves (CAS revision + row lock), preview-manifest commit with object verification, validation-as-an-immutable-successor; the SQL harness is the authority (87 checks)         |
+| `src/lib/presentations/templates/templateDraftRepository.ts`                                                             | Catalog persistence behind the shared editor: newest version in, derivative bytes out, one immutable version per explicit save, conflict adopts the server revision so a second Save replaces |
+| `src/lib/presentations/templates/{templatePreviews,catalogDerivative}.ts`                                                | Fixed-page rasterization + upload + guarded commit with staged errors; the shared verified derivative download                                                                                |
+| `src/lib/presentations/templates/{cloneTemplate,templateLayout}.ts`                                                      | Verified full clone and per-slide layout preparation, fresh ids, atomic local save / one undoable insertion                                                                                   |
+| `src/lib/presentations/templates/shippedTemplates.js`                                                                    | The three shipped decks (9/9/8 layouts, sample text, shape image placeholders, no assets); `scripts/seed-template-catalog.mjs` seeds drafts with an admin token                               |
+| `src/lib/components/catalog/AdminTemplatesPage.svelte` + `AdminTemplateDetailPage.svelte`                                | List with status/use-case filters; detail with metadata editing, covers, version facts, preview generation, validate/publish/archive                                                          |
+| `src/routes/admin/templates/**` + `src/routes/presentation-templates/+page.svelte`                                       | Admin routes (the edit route resets the admin layout and mounts the shared editor in `mode="template"`) and the student browser                                                               |
+| `src/lib/components/presentation/{SaveAsTemplateDialog,InsertTemplateDialog}.svelte`, `PresentationTemplatesPage.svelte` | The editor's template actions and the public grid; `template-journey.svelte.test.ts` is the P75 whole journey                                                                                 |
 
 **Key files for milestone 6, part 1 (P65 save-as-template drafts):**
 
@@ -400,11 +413,12 @@ harness with direct tools should re-run the autofixer if that evidence form is r
    admin RPCs, repositories, the `/admin/{collections,assets,uploads}` screens, leased upload jobs and
    server-side validation, and (P62–P64) the student catalog panel in the presentation editor with
    download-before-insert and the full admin-upload → student-insert → export browser journey.
-   **Milestone 6 is in progress**: P65 (save-as-template drafts) is implemented with the atomic draft
-   RPC and the editor action; P66–P75 (admin screens and template-mode editing, previews,
-   validation/publish, student browse/clone/insert, the three shipped templates and their journey)
-   remain. The **live** isolation check (P53) still needs a dedicated Supabase test project before it
-   can be run or claimed. Reuse the download-then-insert shape for any future remote media: never
+   **Milestone 6 (P65–P75) is implemented**: save-as-template drafts, the admin template screens and
+   template-mode editing, preview generation bound to the draft hash, validation/publication/archive,
+   the student browse/clone/layout-insert surfaces, and the three shipped decks (`shippedTemplates.js`
+   with `npm run seed:templates` and the whole-journey test). The decks have not been seeded against a
+   live project or published, and the **live** isolation check (P53) still needs a dedicated Supabase
+   test project before it can be run or claimed. Reuse the download-then-insert shape for any future remote media: never
    commit an insertion before the bytes are local.
 6. Keep README + `docs/migration-progress.md` honest at each checkpoint; never claim a slice the code
    does not implement.
@@ -468,8 +482,9 @@ harness with direct tools should re-run the autofixer if that evidence form is r
   motion, keyboard-only flows) have journeys, and **catalog milestones 4 and 5 are implemented**
   (schema/RLS/RPCs, repositories, `/admin/{collections,assets,uploads}`, leased upload jobs,
   server-side validation, the student catalog panel with download-before-insert, and the end-to-end
-  upload → publish → insert → export journey). The next catalog step is **milestone 6** (template
-  authoring), followed by the live P53 check once a real Supabase test project exists.
+  upload → publish → insert → export journey). **Milestone 6 (template authoring) is implemented**
+  through P75; the shipped decks are seeded only in dry-run form, and the live P53 check still needs
+  a real Supabase test project.
   Read the milestone-4 and milestone-5 checkpoints in `docs/migration-progress.md` before touching the
   catalog: the migrations are ordered and the policies/RPCs enforce the invariants (published-only
   reads, no write grants, CAS revisions, immutability triggers), so the client must stay read-only and

@@ -13,6 +13,7 @@
 		"test:e2e": "playwright install && playwright test",
 		"test:catalog-sql": "node scripts/verify-catalog-sql.mjs",
 		"test:catalog-live": "node scripts/verify-catalog.mjs",
+		"seed:templates": "node scripts/seed-template-catalog.mjs",
 		"test:e2e:cloud": "playwright test --config playwright.cloud.config.js",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:unit": "vitest"
