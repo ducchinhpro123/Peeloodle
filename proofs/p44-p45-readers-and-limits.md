@@ -2,6 +2,14 @@
 
 **Date:** 2026-09-14 (a first correction pass on the same day's evidence, then a
 review-driven second pass that added the production-build offline run)
+
+**Update 2026-09-18 (Svelte port):** the fixture was regenerated from the current Svelte app and
+both rows were re-run and closed. Two reader applications were exercised and screenshotted
+(LibreOffice 26.8.0.3 and ONLYOFFICE Desktop Editors 9.4.0.129); the LibreOffice round trip passes
+25/25; and P45 now has measured budget, memory and per-slide/document-size numbers. See
+_Svelte port closure_ at the end of this document. PowerPoint, Google Slides and Keynote remain
+untested, and decoded-bitmap memory at the 200 MiB budget remains unmeasured; both are stated in
+that section rather than implied away.
 **Plan rows:** P44 (reader compatibility fixture) and P45 (large-document limits and
 network-disabled local editing/export). **Both rows stay unchecked:** P44's plan
 row asks for app/version/OS **and screenshots**, and no screenshot of a reader
@@ -407,3 +415,97 @@ Not rerun in the second pass: the P44 reader script and reader spec, the two
 large-deck probes, and the sticker/browser regression specs
 (`e2e/ui-polish.spec.ts`, `e2e/foundation.spec.ts`, `e2e/fonts-stickers.spec.ts`,
 `e2e/render-parity.spec.ts`).
+
+## Svelte port closure — readers and measured limits (2026-09-18)
+
+The evidence above was produced by the React application. The Svelte port regenerated the P44
+fixture from the **current** app and closed the gaps the plan names: a reader-window screenshot and
+an independent second reader (P44), and the 200 MiB media budget, memory and the per-slide and
+document-size ceilings (P45).
+
+### Environment at the closure run
+
+| Item        | Value                                                                                                |
+| ----------- | ---------------------------------------------------------------------------------------------------- |
+| Reader 1    | LibreOffice 26.8.0.3 680(Build:3) — headless UNO for the round trip, a GUI window for the screenshot |
+| Reader 2    | ONLYOFFICE Desktop Editors 9.4.0.129 (independent engine)                                            |
+| OS          | Omarchy (Arch) Linux 7.2.5-3-omarchy, x64, 16 CPUs, 13.3 GiB RAM                                     |
+| Browser     | Chromium 153.0.8010.12 via Playwright, 1440×900, devicePixelRatio 1                                  |
+| Node        | v26.8.1                                                                                              |
+| App code    | `2d6582af6b4a90b303b849be39723c612ac1f00a`; working tree dirty only with the new e2e/proof files     |
+| Screenshots | Wayland/Hyprland live session; only the reader window rectangle captured with `grim`                 |
+
+### P44 — fixture regenerated from the Svelte app
+
+```bash
+P44_EVIDENCE=1 npx playwright test e2e/presentation-reader-fixture.spec.ts
+python3 proofs/readers/libreoffice_roundtrip.py \
+  --pptx proofs/out/p44-svelte-reader-fixture.pptx \
+  --pdf proofs/out/p44-svelte-reader-fixture.pdf \
+  --facts proofs/out/p44-svelte-reader-facts.json --prefix p44-svelte
+python3 proofs/readers/libreoffice_window_screenshot.py
+python3 proofs/readers/libreoffice_window_screenshot.py --app onlyoffice --settle 30
+```
+
+| Artifact                                                  | Bytes   | SHA-256 (prefix) |
+| --------------------------------------------------------- | ------- | ---------------- |
+| `p44-svelte-reader-fixture.pptx`                          | 320 143 | `71ba78eb…`      |
+| `p44-svelte-reader-fixture.pdf`                           | 122 257 | `2b82cb23…`      |
+| `p44-svelte-reader-window.png` (Impress, 1916×1161)       | 152 930 | `ca7ecacb…`      |
+| `p44-svelte-onlyoffice-window.png` (OnlyOffice, 955×1041) | 84 678  | `57088300…`      |
+| `p44-svelte-reader-report.json`                           | —       | `0eb66e09…`      |
+
+The PPTX is the **same byte size** as the React-era fixture above (320 143 B) but a different hash:
+the package layout is unchanged, and the hash differs because the archive embeds creation times.
+
+**Reader 1 — LibreOffice, 25/25 checks** (`p44-svelte-reader-report.json`): slide count and page
+size, Vietnamese/English text as native text, bold/italic runs, the hyperlink in the reader's own
+re-save, one independent picture object, frame within 2/100 mm, flip, rotation and crop within
+1/100 mm, fonts, the edited run after save + reopen, the one-inch picture move after reopen,
+unchanged crop/flip/rotation/styles/page count, still editable after the round trip, and the source
+file untouched. The rendering agreement matches the React run: reader import `247x256+15+97` vs the
+app's own PDF raster `246x255+16+98`.
+
+**Reader 2 — ONLYOFFICE 9.4.0.129**: opens the same file **editable** (no read-only marker), renders
+the same slide text and artwork, and reports `Slide 1 of 2`; window screenshot and metadata are in
+`p44-svelte-onlyoffice-window.json` (class `ONLYOFFICE`, title `p44-svelte-reader-fixture.pptx —
+ONLYOFFICE`). The screenshot script verifies the window is focused before capturing and refuses to
+capture an occluded window.
+
+**Limitations recorded rather than hidden:**
+
+- PowerPoint, Google Slides and Keynote were not available (accounts/install) and remain untested;
+  nothing here is a universal-compatibility claim.
+- ONLYOFFICE interactive editing was not automated: this environment has no pointer-injection tool
+  (`ydotool`/`xdotool` absent), Hyprland 0.56's Lua dispatchers are not reachable through
+  `hyprctl dispatch`, and `wtype` keyboard input cannot select canvas objects. The programmatic
+  edit/save/reopen is LibreOffice's; ONLYOFFICE contributes open-editable + faithful rendering.
+- ONLYOFFICE's own `x2t` converter CLI failed with `<error code="open">` on this file; it was not
+  used as evidence.
+- A stale LibreOffice lock file (`.~lock.p44-svelte-reader-fixture.pptx#`) from the first GUI run
+  made ONLYOFFICE open read-only until it was removed. The screenshot script now removes the lock it
+  created; the captured ONLYOFFICE window is the editable one.
+
+### P45 — measured capacity
+
+```bash
+P45_EVIDENCE=1 npx playwright test e2e/presentation-limits-evidence.spec.ts
+```
+
+| Probe                                                          | Deck                                                                                                               | Measurements                                                                                                                                                                                                                                        |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 200 MiB media budget (`p45-svelte-media-budget-report.json`)   | 3 slides, 3 assets, **190 MiB stored** (199 229 440 B)                                                             | seed 1 821 ms; editor open 959 ms; the 1 MiB insert accepted in **265 ms** (4 assets stored); the 12 MiB insert refused in **64 ms** with “past the 200.0 MB limit — 191.0 MB is already stored and this image is 12.0 MB”, document byte-identical |
+| Per-slide element ceiling (`p45-svelte-elements-report.json`)  | 1 slide at exactly **200 elements**, 58 081-char JSON                                                              | open 242 ms; PDF 555 ms / 1 page; PPTX 284 ms / 1 slide part; heap 8.9 → 31.8 MB                                                                                                                                                                    |
+| Document-size ceiling (`p45-svelte-document-size-report.json`) | **27 slides**, 8 011 421 chars = **95.5 %** of the 8 MiB JSON limit (each element at the 20 000-char text ceiling) | Node parse 49 ms; open 475 ms; a real rectangle save 1 748 ms; PPTX 1 326 ms / 27 slide parts; heap 9.0 → 79.3 MB                                                                                                                                   |
+
+The budget deck's bytes are real, decodable PNGs padded to exact sizes with a private ancillary
+chunk, so the budget is hit precisely; the inserts run through the real file input, validation,
+persist-first write and IndexedDB. The heap figures are Chromium `JSHeapUsedSize` (CDP
+`Performance` domain) and cover JS objects and Konva nodes only — IndexedDB storage and decoded
+image bitmaps live outside the JS heap. The budget probe's artwork is only 128×128 pixels, so
+**decoded-bitmap memory at the budget remains unmeasured**; that is the residual this closure keeps.
+
+Network-disabled local editing/export is already covered in this repository by
+`e2e/presentation-offline.spec.ts` (three production-build journeys: warmed-session disconnect,
+pre-warm-up disconnect, failed builder fetch), green in the 68-journey run recorded in
+`docs/migration-progress.md`.

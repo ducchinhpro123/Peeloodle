@@ -13,11 +13,10 @@ changes and the untouched crop, flip, rotation and run styles intact.
 
 What this does NOT prove
 ------------------------
-* It is not a screenshot of the application window. This machine has no display
-  session set up for a GUI reader (no Xvfb, no X client tooling), and a window on
-  the owner's live desktop was not opened. The PNGs here are produced by the reader
-  itself (LibreOffice PDF export, then pdftoppm) and are rendering evidence, not a
-  window screenshot.
+* It is not a screenshot of the application window. The PNGs here are produced by
+  the reader itself (LibreOffice PDF export, then pdftoppm) and are rendering
+  evidence, not a window screenshot; `libreoffice_window_screenshot.py` captures
+  the GUI window separately when a session is available.
 * PowerPoint and Google Slides were not exercised at all. Nothing here supports a
   claim that every reader renders the deck identically.
 * The round-trip file is written by LibreOffice, not by StickerLab: its own PPTX
@@ -28,6 +27,12 @@ Run
 ---
     python3 proofs/readers/libreoffice_roundtrip.py
     python3 proofs/readers/libreoffice_roundtrip.py --pptx proofs/out/p44-reader-fixture.pptx
+    # The Svelte app's fixture uses the same script with its own paths and prefix:
+    python3 proofs/readers/libreoffice_roundtrip.py \
+      --pptx proofs/out/p44-svelte-reader-fixture.pptx \
+      --pdf proofs/out/p44-svelte-reader-fixture.pdf \
+      --facts proofs/out/p44-svelte-reader-facts.json \
+      --prefix p44-svelte
 
 Writes:
     proofs/out/p44-libreoffice-roundtrip.pptx    the edited and re-saved deck
@@ -54,8 +59,18 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 DEFAULT_PPTX = REPO / "proofs" / "out" / "p44-reader-fixture.pptx"
 DEFAULT_PDF = REPO / "proofs" / "out" / "p44-reader-fixture.pdf"
+DEFAULT_FACTS = REPO / "proofs" / "out" / "p44-reader-facts.json"
 OUT_DIR = REPO / "proofs" / "out"
-FONT_DIR = REPO / "public" / "fonts" / "presentations"
+# The React source kept its fonts under public/; the Svelte port ships them under
+# static/. Prefer whichever tree exists so the same script serves both fixtures.
+FONT_DIR = next(
+    (
+        candidate
+        for candidate in (REPO / "static" / "fonts" / "presentations", REPO / "public" / "fonts" / "presentations")
+        if candidate.is_dir()
+    ),
+    REPO / "static" / "fonts" / "presentations",
+)
 
 # LibreOffice geometry is 1/100 mm; document units are 1/96 inch.
 HUNDREDTHS_MM_PER_INCH = 2540
@@ -577,15 +592,24 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pptx", type=Path, default=DEFAULT_PPTX)
     parser.add_argument("--pdf", type=Path, default=DEFAULT_PDF)
+    parser.add_argument("--facts", type=Path, default=DEFAULT_FACTS)
+    parser.add_argument(
+        "--prefix",
+        default="p44",
+        help="Output filename prefix; use p44-svelte for the Svelte app's fixture.",
+    )
     parser.add_argument("--out-dir", type=Path, default=OUT_DIR)
     parser.add_argument("--scratch", type=Path, default=Path("/tmp/stickerlab-p44-reader"))
     args = parser.parse_args()
 
     if not args.pptx.exists():
         raise SystemExit(f"missing {args.pptx}; run e2e/presentations-reader-limits.spec.ts first")
-    facts_path = args.out_dir / "p44-reader-facts.json"
+    facts_path = args.facts
     if not facts_path.exists():
-        raise SystemExit(f"missing {facts_path}; run e2e/presentations-reader-limits.spec.ts first")
+        raise SystemExit(
+            f"missing {facts_path}; run the reader-fixture spec first "
+            "(P44_EVIDENCE=1 npx playwright test e2e/presentation-reader-fixture.spec.ts)"
+        )
     facts = json.loads(facts_path.read_text())
     if shutil.which("soffice") is None:
         raise SystemExit("soffice is not installed; the reader round trip cannot run")
@@ -633,7 +657,7 @@ def main() -> int:
             "uno": "python3-uno (distribution package)",
             "os": platform.platform(),
             "osRelease": Path("/etc/os-release").read_text().splitlines()[0] if Path("/etc/os-release").exists() else "unknown",
-            "display": "no X/Wayland client used; no GUI window was opened",
+            "display": "headless UNO only; the GUI window screenshot is a separate script (libreoffice_window_screenshot.py)",
         },
         "inputs": {"pptx": display_path(args.pptx), "pdf": display_path(args.pdf), "facts": display_path(facts_path)},
         "expected": expected,
@@ -652,7 +676,9 @@ def main() -> int:
         # The reader's own rendering of OUR file (before any of its own re-saving).
         import_pdf = args.scratch / "import-render.pdf"
         render_pdf(document, import_pdf)
-        report["files"]["readerImportPngs"] = render_pngs(import_pdf, args.out_dir / "p44-reader-import", args.out_dir)
+        report["files"]["readerImportPngs"] = render_pngs(
+            import_pdf, args.out_dir / f"{args.prefix}-reader-import", args.out_dir
+        )
 
         pages = document.DrawPages
 
@@ -677,7 +703,7 @@ def main() -> int:
         report["edit"]["movedFromHundredthsMm"] = {"x": int(start.X), "y": int(start.Y)}
         report["edit"]["movedToHundredthsMm"] = {"x": int(moved.X), "y": int(moved.Y)}
 
-        roundtrip = args.out_dir / "p44-libreoffice-roundtrip.pptx"
+        roundtrip = args.out_dir / f"{args.prefix}-libreoffice-roundtrip.pptx"
         document.storeToURL(
             roundtrip.resolve().as_uri(),
             (property_value("FilterName", "Impress MS PowerPoint 2007 XML"), property_value("Overwrite", True)),
@@ -693,12 +719,16 @@ def main() -> int:
         # what is on disk or how the saved file reopens.
         roundtrip_pdf = args.scratch / "roundtrip-render.pdf"
         render_pdf(reopened, roundtrip_pdf)
-        report["files"]["readerRoundtripPngs"] = render_pngs(roundtrip_pdf, args.out_dir / "p44-reader-roundtrip", args.out_dir)
+        report["files"]["readerRoundtripPngs"] = render_pngs(
+            roundtrip_pdf, args.out_dir / f"{args.prefix}-reader-roundtrip", args.out_dir
+        )
         reopened.close(True)
 
         # The app's own PDF, rendered by the same external tool for comparison.
         if args.pdf.exists():
-            report["files"]["appPdfPngs"] = render_pngs(args.pdf, args.out_dir / "p44-app-pdf", args.out_dir)
+            report["files"]["appPdfPngs"] = render_pngs(
+                args.pdf, args.out_dir / f"{args.prefix}-app-pdf", args.out_dir
+            )
             pdfinfo = subprocess.run(["pdfinfo", str(args.pdf)], capture_output=True, text=True, check=False).stdout
             report["pdf"] = {
                 "pdfinfo": {
@@ -763,7 +793,7 @@ def main() -> int:
 
     failures = run_checks(report)
     report["result"] = {"failedChecks": failures, "passed": not failures}
-    report_path = args.out_dir / "p44-reader-report.json"
+    report_path = args.out_dir / f"{args.prefix}-reader-report.json"
     report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
     print(f"wrote {report_path}")
     for entry in report["checks"]:

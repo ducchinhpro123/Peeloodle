@@ -1,0 +1,52 @@
+{
+	"generatedAt": "2026-09-18T06:42:29.714Z",
+	"git": {
+		"revision": "2d6582af6b4a90b303b849be39723c612ac1f00a",
+		"dirtyWorkingTree": true
+	},
+	"environment": {
+		"browser": "chromium 153.0.8010.12",
+		"node": "v26.8.1",
+		"os": "Linux 7.2.5-3-omarchy",
+		"arch": "x64",
+		"cpus": 16,
+		"totalMemoryBytes": 14268784640,
+		"devicePixelRatio": 1
+	},
+	"deck": {
+		"id": "p45-svelte-budget",
+		"slides": 3,
+		"assets": 3
+	},
+	"mediaBudget": {
+		"limitBytes": 209715200,
+		"limitMib": 200,
+		"storedBytes": 199229440,
+		"storedMib": 190,
+		"seedMs": 1821,
+		"openMs": 959,
+		"heapBeforeSeedBytes": 8939396,
+		"heapAfterOpenBytes": 7353124,
+		"underBudget": {
+			"path": "/tmp/stickerlab-p45/p45-under-budget.png",
+			"bytes": 1048576,
+			"sha256": "a6bbaaaee2988af177d1f656ca81316af00577a9c54113e88a52000d1a198a28",
+			"insertMs": 265,
+			"assetIdsAfter": 4
+		},
+		"overBudget": {
+			"path": "/tmp/stickerlab-p45/p45-over-budget.png",
+			"bytes": 12582912,
+			"sha256": "176e1431f3e8e4ce4a1f7576bd0f98c7a136b52479fa817f5bf9622a85d4ad13",
+			"refusalMs": 64,
+			"message": "Adding \"p45-over-budget.png\" would take this presentation's artwork past the 200.0 MB limit — 191.0 MB is already stored and this image is 12.0 MB. Remove some artwork, or add it to a new presentation.",
+			"documentUnchanged": true
+		}
+	},
+	"notes": [
+		"The stored bytes are real, decodable PNGs: an ancillary private chunk pads each to an exact size, so the byte budget is hit precisely instead of approximately.",
+		"The under-budget image went through the real file input, validation, persist-first insert and IndexedDB write; the over-budget one was refused before any write (document bytes identical).",
+		"Heap numbers are Chromium JSHeapUsedSize from the CDP Performance domain; they cover JS objects and Konva nodes, not IndexedDB storage or decoded image bitmaps, which live outside the JS heap.",
+		"The stored bytes are byte-padded PNGs whose pixels are only 128×128, so this probe measures the byte budget, not decoded-bitmap memory at the budget."
+	]
+}

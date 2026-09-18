@@ -1,0 +1,25 @@
+{
+	"capturedAt": "2026-09-18T13:31:07+0700",
+	"app": "libreoffice",
+	"appVersion": "LibreOffice 26.8.0.3 680(Build:3)",
+	"osRelease": "NAME=\"Omarchy\"",
+	"display": "Wayland/Hyprland live session; only the reader window rectangle was captured",
+	"window": {
+		"class": "libreoffice-impress",
+		"initialClass": "libreoffice-startcenter",
+		"title": "p44-svelte-reader-fixture.pptx — LibreOffice Impress",
+		"geometry": "1922,449 1916x1161",
+		"workspace": "1"
+	},
+	"file": {
+		"path": "proofs/out/p44-svelte-reader-fixture.pptx",
+		"sha256": "71ba78ebb4f4294129aff14adcc99925dc5f1041c70553743df05c8929ba2f72",
+		"bytes": 320143
+	},
+	"screenshot": {
+		"path": "proofs/out/p44-svelte-reader-window.png",
+		"bytes": 152930
+	},
+	"fonts": "FONTCONFIG_FILE pointed at /tmp/stickerlab-p44-window/fonts.conf via an isolated HOME",
+	"note": "Only the reader window region was captured; no full-screen image was taken."
+}

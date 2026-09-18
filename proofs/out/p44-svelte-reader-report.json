@@ -1,0 +1,1222 @@
+{
+	"generatedAt": "2026-09-18T13:29:17+0700",
+	"reader": {
+		"application": "LibreOffice (headless, UNO automation)",
+		"version": "LibreOffice 26.8.0.3 680(Build:3)",
+		"python": "3.14.7",
+		"uno": "python3-uno (distribution package)",
+		"os": "Linux-7.2.5-3-omarchy-x86_64-with-glibc2.44",
+		"osRelease": "NAME=\"Omarchy\"",
+		"display": "headless UNO only; the GUI window screenshot is a separate script (libreoffice_window_screenshot.py)"
+	},
+	"inputs": {
+		"pptx": "proofs/out/p44-svelte-reader-fixture.pptx",
+		"pdf": "proofs/out/p44-svelte-reader-fixture.pdf",
+		"facts": "proofs/out/p44-svelte-reader-facts.json"
+	},
+	"expected": {
+		"slideCount": 2,
+		"pageSizeHundredthsMm": {
+			"width": 33867,
+			"height": 19050
+		},
+		"slide1Text": [
+			"Nghiên cứu và trình bày",
+			"Building a ",
+			"sticker",
+			" presentation",
+			"Xoay văn bản 350 độ"
+		],
+		"slide2Text": [
+			"Tóm tắt kết quả: ",
+			"ấn tượng, rõ ràng và dễ đọc.",
+			"Xem hướng dẫn",
+			" trước khi nộp bài.",
+			"Kết luận và đề xuất."
+		],
+		"linkUrl": "https://example.edu/guide",
+		"imageRotationHundredthsDeg": 1200,
+		"imagePositionHundredthsMm": {
+			"x": 23283,
+			"y": 10583
+		},
+		"imageSizeHundredthsMm": {
+			"width": 6773,
+			"height": 6773
+		},
+		"imageCropHundredthsMm": {
+			"left": 677,
+			"right": 1355,
+			"top": 813,
+			"bottom": 1761
+		},
+		"fonts": ["Be Vietnam Pro", "Spectral"]
+	},
+	"files": {
+		"pptxSha256Before": "71ba78ebb4f4294129aff14adcc99925dc5f1041c70553743df05c8929ba2f72",
+		"readerImportPngs": ["p44-svelte-reader-import-1.png", "p44-svelte-reader-import-2.png"],
+		"readerRoundtripPngs": [
+			"p44-svelte-reader-roundtrip-1.png",
+			"p44-svelte-reader-roundtrip-2.png"
+		],
+		"appPdfPngs": ["p44-svelte-app-pdf-1.png", "p44-svelte-app-pdf-2.png"],
+		"roundtrip": "proofs/out/p44-svelte-libreoffice-roundtrip.pptx",
+		"roundtripBytes": 25029,
+		"roundtripSha256": "7aeac6af2b195efbf0a5350147c8933c50f0abb370fc309a80a4a663c6308234",
+		"pptxSha256After": "71ba78ebb4f4294129aff14adcc99925dc5f1041c70553743df05c8929ba2f72"
+	},
+	"checks": [
+		{
+			"check": "reader opened the deck with the exported slide count",
+			"passed": true,
+			"detail": "reader=2 expected=2"
+		},
+		{
+			"check": "page size matches the 16:9 export",
+			"passed": true,
+			"detail": "{\"width\": 33867, \"height\": 19050}"
+		},
+		{
+			"check": "Vietnamese and English text survived as native text",
+			"passed": true,
+			"detail": "missing=[]"
+		},
+		{
+			"check": "text stays editable text objects, not rasterized",
+			"passed": true,
+			"detail": "textFrames=7"
+		},
+		{
+			"check": "bold and italic runs survive",
+			"passed": true,
+			"detail": "bold=3 italic=1"
+		},
+		{
+			"check": "the reader renders the linked run as a hyperlink",
+			"passed": true,
+			"detail": "{\"run\": {\"text\": \"Xem h\\u01b0\\u1edbng d\\u1eabn\", \"bold\": false, \"italic\": false, \"charHeightPt\": 18.0, \"font\": \"Be Vietnam Pro\", \"underline\": true, \"numberingLevel\": 1}, \"links\": [], \"note\": \"LibreOffice exposes hyperlinks neither on the text portion nor as a text field for this import; the URL itself is asserted from the OOXML in the P38 tests.\"}"
+		},
+		{
+			"check": "the hyperlink target survives the reader's own save",
+			"passed": true,
+			"detail": "{\"slides\": 2, \"mediaEntries\": 1, \"hasHyperlinkClick\": true, \"hyperlinkUrls\": [\"https://example.edu/guide\", \"../slideLayouts/slideLayout1.xml\", \"../notesSlides/notesSlide2.xml\"]}"
+		},
+		{
+			"check": "the picture stayed one independent picture object",
+			"passed": true,
+			"detail": "{\"pictures\": 1, \"name\": \"Sample sticker\"}"
+		},
+		{
+			"check": "the picture box matches the exported element box",
+			"passed": true,
+			"detail": "{\"reader\": {\"position\": {\"x\": 23285, \"y\": 10584}, \"size\": {\"width\": 6772, \"height\": 6772}}, \"expected\": {\"position\": {\"x\": 23283, \"y\": 10583}, \"size\": {\"width\": 6773, \"height\": 6773}}}"
+		},
+		{
+			"check": "the reader reports the flip the export wrote",
+			"passed": true,
+			"detail": "true"
+		},
+		{
+			"check": "the reader reports the rotation the export wrote",
+			"passed": true,
+			"detail": "{\"reader\": 34800, \"clockwiseEquivalent\": 1200, \"expected\": 1200}"
+		},
+		{
+			"check": "the reader reports the non-destructive crop the export wrote",
+			"passed": true,
+			"detail": "{\"reader\": {\"left\": 677, \"right\": 1354, \"top\": 813, \"bottom\": 1761}, \"expected\": {\"left\": 677, \"right\": 1355, \"top\": 813, \"bottom\": 1761}}"
+		},
+		{
+			"check": "the reader fonts cover the document text",
+			"passed": true,
+			"detail": "{\"readerFonts\": [\"Be Vietnam Pro\", \"Liberation Sans\", \"Spectral\"], \"expected\": [\"Be Vietnam Pro\", \"Spectral\"]}"
+		},
+		{
+			"check": "the edited run was written",
+			"passed": true,
+			"detail": "{\"oldText\": \" tr\\u01b0\\u1edbc khi n\\u1ed9p b\\u00e0i.\", \"newText\": \" sau khi ch\\u1ec9nh s\\u1eeda trong LibreOffice.\", \"movedFromHundredthsMm\": {\"x\": 23285, \"y\": 10584}, \"movedToHundredthsMm\": {\"x\": 25825, \"y\": 13124}, \"observedText\": \" sau khi ch\\u1ec9nh s\\u1eeda trong LibreOffice.\"}"
+		},
+		{
+			"check": "the moved picture kept the new position after reopening",
+			"passed": true,
+			"detail": "{\"after\": {\"x\": 25826, \"y\": 13123}, \"expected\": {\"x\": 25825, \"y\": 13124}}"
+		},
+		{
+			"check": "the reader's own save kept the picture size",
+			"passed": true,
+			"detail": "{\"before\": {\"width\": 6772, \"height\": 6772}, \"after\": {\"width\": 6771, \"height\": 6771}}"
+		},
+		{
+			"check": "the reader's own save kept the picture crop",
+			"passed": true,
+			"detail": "{\"before\": {\"left\": 677, \"right\": 1354, \"top\": 813, \"bottom\": 1761}, \"after\": {\"left\": 677, \"right\": 1354, \"top\": 813, \"bottom\": 1761}}"
+		},
+		{
+			"check": "the reader's own save kept the picture flip",
+			"passed": true,
+			"detail": "{\"before\": true, \"after\": true}"
+		},
+		{
+			"check": "the reader's own save kept the picture rotation",
+			"passed": true,
+			"detail": "{\"before\": 34800, \"after\": 34800}"
+		},
+		{
+			"check": "unedited text survived the reader's own save",
+			"passed": true,
+			"detail": "missing=[]"
+		},
+		{
+			"check": "unedited run styles survived the reader's own save",
+			"passed": true,
+			"detail": "{\"before\": {\"bold\": 3, \"italic\": 1}, \"after\": {\"bold\": 3, \"italic\": 1}}"
+		},
+		{
+			"check": "the reader's own save kept every page",
+			"passed": true,
+			"detail": "{\"before\": 2, \"after\": 2}"
+		},
+		{
+			"check": "the deck is still editable after the round trip",
+			"passed": true,
+			"detail": "{\"textFrames\": 7, \"pictures\": 1}"
+		},
+		{
+			"check": "the original export file was not modified by the reader",
+			"passed": true,
+			"detail": "71ba78ebb4f4294129aff14adcc99925dc5f1041c70553743df05c8929ba2f72"
+		},
+		{
+			"check": "the round trip produced a different, non-empty file",
+			"passed": true,
+			"detail": "25029 bytes"
+		}
+	],
+	"edit": {
+		"oldText": " trước khi nộp bài.",
+		"newText": " sau khi chỉnh sửa trong LibreOffice.",
+		"movedFromHundredthsMm": {
+			"x": 23285,
+			"y": 10584
+		},
+		"movedToHundredthsMm": {
+			"x": 25825,
+			"y": 13124
+		},
+		"observedText": " sau khi chỉnh sửa trong LibreOffice."
+	},
+	"observations": [
+		"Picture region: reader import 247x256+15+97 vs the app's own PDF raster 246x255+16+98.",
+		"Round-trip geometry: reopening the reader's re-saved deck renders the picture at 247x188+111+193, i.e. +96/+96 px from the import position; the script moved it 96 px (one inch at 96 dpi) on each axis."
+	],
+	"before": {
+		"slideCount": 2,
+		"pageSizeHundredthsMm": {
+			"width": 33867,
+			"height": 19050
+		},
+		"slides": [
+			{
+				"name": "page1",
+				"shapes": [
+					{
+						"name": "Panel",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 1270,
+							"y": 1270
+						},
+						"sizeHundredthsMm": {
+							"width": 31326,
+							"height": 16509
+						},
+						"rotateHundredthsDeg": 0,
+						"fillColor": "#12314f",
+						"fillStyle": "SOLID",
+						"lineColor": "#1f4f7a",
+						"lineWidth": 106,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Liberation Sans",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Liberation Sans"],
+							"fields": []
+						}
+					},
+					{
+						"name": "Title",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 2117,
+							"y": 2540
+						},
+						"sizeHundredthsMm": {
+							"width": 29632,
+							"height": 6349
+						},
+						"rotateHundredthsDeg": 0,
+						"fillColor": "#18a303",
+						"fillStyle": "NONE",
+						"lineColor": "#127a02",
+						"lineWidth": 0,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Nghiên cứu và trình bày",
+											"bold": true,
+											"italic": false,
+											"charHeightPt": 54.0,
+											"font": "Spectral",
+											"underline": true
+										}
+									]
+								},
+								{
+									"runs": [
+										{
+											"text": "Building a ",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 27.0,
+											"font": "Be Vietnam Pro",
+											"underline": true
+										},
+										{
+											"text": "sticker",
+											"bold": false,
+											"italic": true,
+											"charHeightPt": 27.0,
+											"font": "Be Vietnam Pro",
+											"underline": true
+										},
+										{
+											"text": " presentation",
+											"bold": true,
+											"italic": false,
+											"charHeightPt": 27.0,
+											"font": "Be Vietnam Pro",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Spectral", "Be Vietnam Pro"],
+							"fields": []
+						}
+					},
+					{
+						"name": "Sample sticker",
+						"services": ["com.sun.star.drawing.Text", "com.sun.star.drawing.GraphicObjectShape"],
+						"positionHundredthsMm": {
+							"x": 23285,
+							"y": 10584
+						},
+						"sizeHundredthsMm": {
+							"width": 6772,
+							"height": 6772
+						},
+						"rotateHundredthsDeg": 34800,
+						"isMirrored": true,
+						"fillColor": "#18a303",
+						"fillStyle": "NONE",
+						"lineColor": "#127a02",
+						"lineWidth": 0,
+						"graphicCropHundredthsMm": {
+							"left": 677,
+							"right": 1354,
+							"top": 813,
+							"bottom": 1761
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Liberation Sans",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Liberation Sans"],
+							"fields": []
+						}
+					},
+					{
+						"name": "Accent circle",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 3175,
+							"y": 11113
+						},
+						"sizeHundredthsMm": {
+							"width": 4232,
+							"height": 4232
+						},
+						"rotateHundredthsDeg": 0,
+						"fillColor": "#ffd166",
+						"fillStyle": "SOLID",
+						"lineColor": "#ffffff",
+						"lineWidth": 35,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Liberation Sans",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Liberation Sans"],
+							"fields": []
+						}
+					},
+					{
+						"name": "Rotated note",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 16404,
+							"y": 14817
+						},
+						"sizeHundredthsMm": {
+							"width": 11112,
+							"height": 3174
+						},
+						"rotateHundredthsDeg": 1000,
+						"fillColor": "#18a303",
+						"fillStyle": "NONE",
+						"lineColor": "#127a02",
+						"lineWidth": 0,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Xoay văn bản 350 độ",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 21.0,
+											"font": "Be Vietnam Pro",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Be Vietnam Pro"],
+							"fields": []
+						}
+					}
+				]
+			},
+			{
+				"name": "page2",
+				"shapes": [
+					{
+						"name": "Bullets",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 2117,
+							"y": 5927
+						},
+						"sizeHundredthsMm": {
+							"width": 16932,
+							"height": 10582
+						},
+						"rotateHundredthsDeg": 0,
+						"fillColor": "#18a303",
+						"fillStyle": "NONE",
+						"lineColor": "#127a02",
+						"lineWidth": 0,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Tóm tắt kết quả: ",
+											"bold": true,
+											"italic": false,
+											"charHeightPt": 21.0,
+											"font": "Be Vietnam Pro",
+											"underline": true,
+											"numberingLevel": 0
+										},
+										{
+											"text": "ấn tượng, rõ ràng và dễ đọc.",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 21.0,
+											"font": "Be Vietnam Pro",
+											"underline": true,
+											"numberingLevel": 0
+										}
+									]
+								},
+								{
+									"runs": [
+										{
+											"text": "Xem hướng dẫn",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Be Vietnam Pro",
+											"underline": true,
+											"numberingLevel": 1
+										},
+										{
+											"text": " trước khi nộp bài.",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Be Vietnam Pro",
+											"underline": true,
+											"numberingLevel": 1
+										}
+									]
+								},
+								{
+									"runs": [
+										{
+											"text": "Kết luận và đề xuất.",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 21.0,
+											"font": "Be Vietnam Pro",
+											"underline": true,
+											"numberingLevel": 0
+										}
+									]
+								}
+							],
+							"fonts": ["Be Vietnam Pro"],
+							"fields": []
+						}
+					},
+					{
+						"name": "Divider",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 2116,
+							"y": 17462
+						},
+						"sizeHundredthsMm": {
+							"width": 29634,
+							"height": 1
+						},
+						"rotateHundredthsDeg": 0,
+						"fillColor": "#18a303",
+						"fillStyle": "NONE",
+						"lineColor": "#c9d6e4",
+						"lineWidth": 106,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Liberation Sans",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Liberation Sans"],
+							"fields": []
+						}
+					}
+				]
+			}
+		],
+		"slideText": "Nghiên cứu và trình bàyBuilding a sticker presentationXoay văn bản 350 độTóm tắt kết quả: ấn tượng, rõ ràng và dễ đọc.Xem hướng dẫn trước khi nộp bài.Kết luận và đề xuất.",
+		"fonts": ["Liberation Sans", "Spectral", "Be Vietnam Pro"],
+		"boldRuns": 3,
+		"italicRuns": 1,
+		"textFrames": 7,
+		"pictureCount": 1,
+		"pictures": [
+			{
+				"name": "Sample sticker",
+				"services": ["com.sun.star.drawing.Text", "com.sun.star.drawing.GraphicObjectShape"],
+				"positionHundredthsMm": {
+					"x": 23285,
+					"y": 10584
+				},
+				"sizeHundredthsMm": {
+					"width": 6772,
+					"height": 6772
+				},
+				"rotateHundredthsDeg": 34800,
+				"isMirrored": true,
+				"fillColor": "#18a303",
+				"fillStyle": "NONE",
+				"lineColor": "#127a02",
+				"lineWidth": 0,
+				"graphicCropHundredthsMm": {
+					"left": 677,
+					"right": 1354,
+					"top": 813,
+					"bottom": 1761
+				},
+				"isText": true,
+				"text": {
+					"paragraphs": [
+						{
+							"runs": [
+								{
+									"text": "",
+									"bold": false,
+									"italic": false,
+									"charHeightPt": 18.0,
+									"font": "Liberation Sans",
+									"underline": true
+								}
+							]
+						}
+					],
+					"fonts": ["Liberation Sans"],
+					"fields": []
+				}
+			}
+		],
+		"links": [],
+		"picture": {
+			"name": "Sample sticker",
+			"services": ["com.sun.star.drawing.Text", "com.sun.star.drawing.GraphicObjectShape"],
+			"positionHundredthsMm": {
+				"x": 23285,
+				"y": 10584
+			},
+			"sizeHundredthsMm": {
+				"width": 6772,
+				"height": 6772
+			},
+			"rotateHundredthsDeg": 34800,
+			"isMirrored": true,
+			"fillColor": "#18a303",
+			"fillStyle": "NONE",
+			"lineColor": "#127a02",
+			"lineWidth": 0,
+			"graphicCropHundredthsMm": {
+				"left": 677,
+				"right": 1354,
+				"top": 813,
+				"bottom": 1761
+			},
+			"isText": true,
+			"text": {
+				"paragraphs": [
+					{
+						"runs": [
+							{
+								"text": "",
+								"bold": false,
+								"italic": false,
+								"charHeightPt": 18.0,
+								"font": "Liberation Sans",
+								"underline": true
+							}
+						]
+					}
+				],
+				"fonts": ["Liberation Sans"],
+				"fields": []
+			}
+		}
+	},
+	"after": {
+		"slideCount": 2,
+		"pageSizeHundredthsMm": {
+			"width": 33867,
+			"height": 19050
+		},
+		"slides": [
+			{
+				"name": "page1",
+				"shapes": [
+					{
+						"name": "Panel",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 1270,
+							"y": 1270
+						},
+						"sizeHundredthsMm": {
+							"width": 31325,
+							"height": 16508
+						},
+						"rotateHundredthsDeg": 0,
+						"fillColor": "#12314f",
+						"fillStyle": "SOLID",
+						"lineColor": "#1f4f7a",
+						"lineWidth": 106,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Liberation Sans",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Liberation Sans"],
+							"fields": []
+						}
+					},
+					{
+						"name": "Title",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 2117,
+							"y": 2540
+						},
+						"sizeHundredthsMm": {
+							"width": 29631,
+							"height": 6348
+						},
+						"rotateHundredthsDeg": 0,
+						"fillColor": "#18a303",
+						"fillStyle": "NONE",
+						"lineColor": "#127a02",
+						"lineWidth": 0,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Nghiên cứu và trình bày",
+											"bold": true,
+											"italic": false,
+											"charHeightPt": 54.0,
+											"font": "Spectral",
+											"underline": true
+										}
+									]
+								},
+								{
+									"runs": [
+										{
+											"text": "Building a ",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 27.0,
+											"font": "Be Vietnam Pro",
+											"underline": true
+										},
+										{
+											"text": "sticker",
+											"bold": false,
+											"italic": true,
+											"charHeightPt": 27.0,
+											"font": "Be Vietnam Pro",
+											"underline": true
+										},
+										{
+											"text": " presentation",
+											"bold": true,
+											"italic": false,
+											"charHeightPt": 27.0,
+											"font": "Be Vietnam Pro",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Spectral", "Be Vietnam Pro"],
+							"fields": []
+						}
+					},
+					{
+						"name": "Sample sticker",
+						"services": ["com.sun.star.drawing.Text", "com.sun.star.drawing.GraphicObjectShape"],
+						"positionHundredthsMm": {
+							"x": 25826,
+							"y": 13123
+						},
+						"sizeHundredthsMm": {
+							"width": 6771,
+							"height": 6771
+						},
+						"rotateHundredthsDeg": 34800,
+						"isMirrored": true,
+						"fillColor": "#18a303",
+						"fillStyle": "NONE",
+						"lineColor": "#127a02",
+						"lineWidth": 0,
+						"graphicCropHundredthsMm": {
+							"left": 677,
+							"right": 1354,
+							"top": 813,
+							"bottom": 1761
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Liberation Sans",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Liberation Sans"],
+							"fields": []
+						}
+					},
+					{
+						"name": "Accent circle",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 3175,
+							"y": 11113
+						},
+						"sizeHundredthsMm": {
+							"width": 4231,
+							"height": 4231
+						},
+						"rotateHundredthsDeg": 0,
+						"fillColor": "#ffd166",
+						"fillStyle": "SOLID",
+						"lineColor": "#ffffff",
+						"lineWidth": 35,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Liberation Sans",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Liberation Sans"],
+							"fields": []
+						}
+					},
+					{
+						"name": "Rotated note",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 16404,
+							"y": 14817
+						},
+						"sizeHundredthsMm": {
+							"width": 11111,
+							"height": 3173
+						},
+						"rotateHundredthsDeg": 1000,
+						"fillColor": "#18a303",
+						"fillStyle": "NONE",
+						"lineColor": "#127a02",
+						"lineWidth": 0,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Xoay văn bản 350 độ",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 21.0,
+											"font": "Be Vietnam Pro",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Be Vietnam Pro"],
+							"fields": []
+						}
+					}
+				]
+			},
+			{
+				"name": "page2",
+				"shapes": [
+					{
+						"name": "Bullets",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 2117,
+							"y": 5927
+						},
+						"sizeHundredthsMm": {
+							"width": 16931,
+							"height": 10581
+						},
+						"rotateHundredthsDeg": 0,
+						"fillColor": "#18a303",
+						"fillStyle": "NONE",
+						"lineColor": "#127a02",
+						"lineWidth": 0,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Tóm tắt kết quả: ",
+											"bold": true,
+											"italic": false,
+											"charHeightPt": 21.0,
+											"font": "Be Vietnam Pro",
+											"underline": true,
+											"numberingLevel": 0
+										},
+										{
+											"text": "ấn tượng, rõ ràng và dễ đọc.",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 21.0,
+											"font": "Be Vietnam Pro",
+											"underline": true,
+											"numberingLevel": 0
+										}
+									]
+								},
+								{
+									"runs": [
+										{
+											"text": "Xem hướng dẫn",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Be Vietnam Pro",
+											"underline": true,
+											"numberingLevel": 1
+										},
+										{
+											"text": " sau khi chỉnh sửa trong LibreOffice.",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Be Vietnam Pro",
+											"underline": true,
+											"numberingLevel": 1
+										}
+									]
+								},
+								{
+									"runs": [
+										{
+											"text": "Kết luận và đề xuất.",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 21.0,
+											"font": "Be Vietnam Pro",
+											"underline": true,
+											"numberingLevel": 0
+										}
+									]
+								}
+							],
+							"fonts": ["Be Vietnam Pro"],
+							"fields": []
+						}
+					},
+					{
+						"name": "Divider",
+						"services": ["com.sun.star.drawing.Text"],
+						"positionHundredthsMm": {
+							"x": 2116,
+							"y": 17462
+						},
+						"sizeHundredthsMm": {
+							"width": 29634,
+							"height": 1
+						},
+						"rotateHundredthsDeg": 0,
+						"fillColor": "#18a303",
+						"fillStyle": "NONE",
+						"lineColor": "#c9d6e4",
+						"lineWidth": 106,
+						"graphicCropHundredthsMm": {
+							"left": 0,
+							"right": 0,
+							"top": 0,
+							"bottom": 0
+						},
+						"isText": true,
+						"text": {
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "",
+											"bold": false,
+											"italic": false,
+											"charHeightPt": 18.0,
+											"font": "Liberation Sans",
+											"underline": true
+										}
+									]
+								}
+							],
+							"fonts": ["Liberation Sans"],
+							"fields": []
+						}
+					}
+				]
+			}
+		],
+		"slideText": "Nghiên cứu và trình bàyBuilding a sticker presentationXoay văn bản 350 độTóm tắt kết quả: ấn tượng, rõ ràng và dễ đọc.Xem hướng dẫn sau khi chỉnh sửa trong LibreOffice.Kết luận và đề xuất.",
+		"fonts": ["Liberation Sans", "Spectral", "Be Vietnam Pro"],
+		"boldRuns": 3,
+		"italicRuns": 1,
+		"textFrames": 7,
+		"pictureCount": 1,
+		"pictures": [
+			{
+				"name": "Sample sticker",
+				"services": ["com.sun.star.drawing.Text", "com.sun.star.drawing.GraphicObjectShape"],
+				"positionHundredthsMm": {
+					"x": 25826,
+					"y": 13123
+				},
+				"sizeHundredthsMm": {
+					"width": 6771,
+					"height": 6771
+				},
+				"rotateHundredthsDeg": 34800,
+				"isMirrored": true,
+				"fillColor": "#18a303",
+				"fillStyle": "NONE",
+				"lineColor": "#127a02",
+				"lineWidth": 0,
+				"graphicCropHundredthsMm": {
+					"left": 677,
+					"right": 1354,
+					"top": 813,
+					"bottom": 1761
+				},
+				"isText": true,
+				"text": {
+					"paragraphs": [
+						{
+							"runs": [
+								{
+									"text": "",
+									"bold": false,
+									"italic": false,
+									"charHeightPt": 18.0,
+									"font": "Liberation Sans",
+									"underline": true
+								}
+							]
+						}
+					],
+					"fonts": ["Liberation Sans"],
+					"fields": []
+				}
+			}
+		],
+		"links": [],
+		"picture": {
+			"name": "Sample sticker",
+			"services": ["com.sun.star.drawing.Text", "com.sun.star.drawing.GraphicObjectShape"],
+			"positionHundredthsMm": {
+				"x": 25826,
+				"y": 13123
+			},
+			"sizeHundredthsMm": {
+				"width": 6771,
+				"height": 6771
+			},
+			"rotateHundredthsDeg": 34800,
+			"isMirrored": true,
+			"fillColor": "#18a303",
+			"fillStyle": "NONE",
+			"lineColor": "#127a02",
+			"lineWidth": 0,
+			"graphicCropHundredthsMm": {
+				"left": 677,
+				"right": 1354,
+				"top": 813,
+				"bottom": 1761
+			},
+			"isText": true,
+			"text": {
+				"paragraphs": [
+					{
+						"runs": [
+							{
+								"text": "",
+								"bold": false,
+								"italic": false,
+								"charHeightPt": 18.0,
+								"font": "Liberation Sans",
+								"underline": true
+							}
+						]
+					}
+				],
+				"fonts": ["Liberation Sans"],
+				"fields": []
+			}
+		}
+	},
+	"pdf": {
+		"pdfinfo": {
+			"Creator": "StickerLab presentations",
+			"Producer": "StickerLab",
+			"Pages": "2",
+			"Encrypted": "no",
+			"Page size": "960 x 540 pts"
+		},
+		"textLayer": "\f\f",
+		"limitation": "Image-based by design: the PDF has no selectable text layer, which is the documented P37 behaviour."
+	},
+	"roundtripPackage": {
+		"slides": 2,
+		"mediaEntries": 1,
+		"hasHyperlinkClick": true,
+		"hyperlinkUrls": [
+			"https://example.edu/guide",
+			"../slideLayouts/slideLayout1.xml",
+			"../notesSlides/notesSlide2.xml"
+		]
+	},
+	"rendering": {
+		"region": "420x480+819+339",
+		"colour": "#08b879",
+		"readerImportPage1": "247x256+15+97",
+		"readerRoundtripPage1": "247x188+111+193",
+		"appPdfPage1": "246x255+16+98",
+		"note": "Bounding box of the cropped/flipped/rotated artwork. readerImportPage1 renders our file as first imported; readerRoundtripPage1 renders the reader's re-saved .pptx after closing and reopening it as a new document; appPdfPage1 is the app's own PDF page.",
+		"roundtripGeometry": {
+			"intendedMovePx": {
+				"x": 96,
+				"y": 96
+			},
+			"measuredMovePx": {
+				"x": 96,
+				"y": 96
+			},
+			"matchesIntendedMove": true,
+			"visibleHeightChangePx": -68,
+			"note": "The picture moves 1 inch right and down, so its visible height shrinks where the slide edge clips it; the bounding box therefore cannot be compared without subtracting the move."
+		}
+	},
+	"result": {
+		"failedChecks": [],
+		"passed": true
+	}
+}

@@ -1,11 +1,12 @@
 # Peeloodle React → Svelte migration progress
 
-Last verified: 2026-09-18, **Milestone 6 of the slides plan complete (P65–P75)** — save-as-template
+Last verified: 2026-09-18, **Milestone 6 of the slides plan complete (P65–P75) and the P44/P45
+reader/limit evidence closed** — save-as-template
 drafts, the admin template screens with shared-editor draft versions, previews bound to the draft
 hash, server-checked validation/publication/archive, the student template browser with verified
 atomic cloning and layout insertion, and the three shipped starter decks with their whole journey
-(see the newest checkpoint; P53's live isolation check and P44/P45's remaining reader/limit evidence
-are still open), on top of
+(see the newest checkpoint; the only remaining open item is P53's live isolation check, which needs
+a dedicated Supabase project), on top of
 **Milestone 5 of the slides plan (P54–P64)** — durable upload
 batches with leased validation jobs, server-side PNG/WebP/SVG processing with a strict static-subset
 policy, the `/admin/uploads` + `/admin/assets` review screens, and the student catalog panel in the
@@ -139,6 +140,43 @@ SvelteKit port, losing neither the React application nor the server-side materia
   working tree **and** `.git` (86 MB, so full history) at
   `post-git-graft-20260915T105133Z.tar.gz`, sha256
   `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
+
+## P44/P45 closure checkpoint — readers and measured limits from the Svelte app (2026-09-18)
+
+Scope: the two evidence gaps milestone 3 left open, closed against the **current** app rather than
+the React-era artifacts. P44: the reader fixture was regenerated through the real export dialog, the
+LibreOffice 26.8.0.3 round trip re-run (25/25), and two reader windows captured — LibreOffice
+Impress and ONLYOFFICE Desktop Editors 9.4.0.129. P45: the 200 MiB media budget, the per-slide
+element ceiling and the document-size ceiling were measured with real bytes and Chromium CDP heap
+figures. Full detail and commands are in `proofs/p44-p45-readers-and-limits.md` (Svelte port
+closure); plan rows P44/P45 are now checked.
+
+- `P44_EVIDENCE=1 npx playwright test e2e/presentation-reader-fixture.spec.ts` regenerates
+  `p44-svelte-reader-fixture.{pptx,pdf}` plus the facts from the current model; the PPTX is the same
+  byte size as the React fixture (320 143 B; the hash differs because the archive embeds creation
+  times).
+- `python3 proofs/readers/libreoffice_roundtrip.py --prefix p44-svelte …` passes **25/25** with the
+  same sub-millimetre geometry agreement as the React run and edit → save → reopen intact;
+  `p44-svelte-reader-report.json`.
+- `python3 proofs/readers/libreoffice_window_screenshot.py [--app onlyoffice]` opens the reader on
+  the live Wayland session, captures only the reader window with grim (verifying focus first),
+  removes its own office lock and terminates the process group. Artifacts:
+  `p44-svelte-reader-window.png` (Impress), `p44-svelte-onlyoffice-window.png`, each with a metadata
+  JSON recording app/version/OS/window geometry/file hash.
+- `P45_EVIDENCE=1 npx playwright test e2e/presentation-limits-evidence.spec.ts` writes three
+  reports: 190 MiB stored → 1 MiB insert accepted (265 ms) and 12 MiB refused (64 ms, document
+  byte-identical); a slide at exactly 200 elements → PDF 555 ms / PPTX 284 ms; a 27-slide,
+  8 011 421-char document (95.5 % of the 8 MiB JSON ceiling) → parse 49 ms, open 475 ms, save
+  1 748 ms, PPTX 1 326 ms.
+- Both evidence probes are gated behind their environment variables; the fixture spec still runs
+  (without writing artifacts) inside the normal e2e suite, and the capacity spec skips.
+
+Residuals recorded, not hidden: PowerPoint, Google Slides and Keynote remain untested (no
+accounts/install); ONLYOFFICE interactive editing was not automated (no pointer-injection tool in
+this environment), so LibreOffice carries the programmatic edit/save/reopen evidence while
+ONLYOFFICE proves open-editable and faithful rendering; decoded-bitmap memory at the full 200 MiB
+budget is unmeasured because the budget probe's PNGs are deliberately pixel-light. P53's live
+RLS/Storage check remains unavailable.
 
 ## Milestone 6 checkpoint, part 3 — student templates, shipped decks and the journey (2026-09-18, P69–P75)
 

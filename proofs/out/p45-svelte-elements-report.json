@@ -1,0 +1,36 @@
+{
+	"generatedAt": "2026-09-18T06:42:31.162Z",
+	"git": {
+		"revision": "2d6582af6b4a90b303b849be39723c612ac1f00a",
+		"dirtyWorkingTree": true
+	},
+	"environment": {
+		"browser": "chromium 153.0.8010.12",
+		"node": "v26.8.1",
+		"os": "Linux 7.2.5-3-omarchy",
+		"arch": "x64",
+		"cpus": 16,
+		"totalMemoryBytes": 14268784640,
+		"devicePixelRatio": 1
+	},
+	"deck": {
+		"id": "p45-svelte-elements",
+		"slides": 1,
+		"elementsOnSlide": 200,
+		"limitPerSlide": 200,
+		"documentChars": 58081
+	},
+	"measurements": {
+		"openMs": 242,
+		"pdfMs": 555,
+		"pdfPages": 1,
+		"pptxMs": 284,
+		"pptxSlideParts": 1,
+		"heapBeforeOpenBytes": 8920324,
+		"heapAfterOpenBytes": 31758520
+	},
+	"notes": [
+		"The deck sits exactly on the per-slide element ceiling; the parser and the store refuse one more.",
+		"Both exports ran through the real dialog and their artifacts were inspected (PDF page count, PPTX slide parts)."
+	]
+}

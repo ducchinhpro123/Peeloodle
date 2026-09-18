@@ -1,0 +1,40 @@
+{
+	"generatedAt": "2026-09-18T06:42:35.855Z",
+	"git": {
+		"revision": "2d6582af6b4a90b303b849be39723c612ac1f00a",
+		"dirtyWorkingTree": true
+	},
+	"environment": {
+		"browser": "chromium 153.0.8010.12",
+		"node": "v26.8.1",
+		"os": "Linux 7.2.5-3-omarchy",
+		"arch": "x64",
+		"cpus": 16,
+		"totalMemoryBytes": 14268784640,
+		"devicePixelRatio": 1
+	},
+	"deck": {
+		"id": "p45-svelte-size",
+		"slides": 27,
+		"elements": 27,
+		"documentChars": 8011421,
+		"limitChars": 8388608,
+		"ratio": 0.9550358057022095,
+		"textCharsPerElement": 20000,
+		"limitTextLength": 20000
+	},
+	"measurements": {
+		"nodeParseMs": 49.0565059999999,
+		"openMs": 475,
+		"saveMs": 1748,
+		"pptxMs": 1326,
+		"pptxSlideParts": 27,
+		"heapBeforeOpenBytes": 9016940,
+		"heapAfterOpenBytes": 79260120
+	},
+	"notes": [
+		"Each slide carries one text element at the per-element text ceiling (200 paragraphs × 20 runs), which is what gives the JSON its bulk.",
+		"The save is a real command (a new rectangle) written through the autosave coordinator; \"Saved locally\" is the app’s own confirmation.",
+		"The parser’s over-limit rejection is covered by src/lib/presentations/model/parse.test.ts; this probe measures capacity, not the rule."
+	]
+}

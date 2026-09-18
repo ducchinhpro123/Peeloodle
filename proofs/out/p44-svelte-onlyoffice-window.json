@@ -1,0 +1,25 @@
+{
+	"capturedAt": "2026-09-18T13:35:22+0700",
+	"app": "onlyoffice",
+	"appVersion": "ONLYOFFICE ver. 9.4.0.129",
+	"osRelease": "NAME=\"Omarchy\"",
+	"display": "Wayland/Hyprland live session; only the reader window rectangle was captured",
+	"window": {
+		"class": "ONLYOFFICE",
+		"initialClass": "ONLYOFFICE",
+		"title": "p44-svelte-reader-fixture.pptx — ONLYOFFICE",
+		"geometry": "2883,-631 955x1041",
+		"workspace": "3"
+	},
+	"file": {
+		"path": "proofs/out/p44-svelte-reader-fixture.pptx",
+		"sha256": "71ba78ebb4f4294129aff14adcc99925dc5f1041c70553743df05c8929ba2f72",
+		"bytes": 320143
+	},
+	"screenshot": {
+		"path": "proofs/out/p44-svelte-onlyoffice-window.png",
+		"bytes": 84678
+	},
+	"fonts": "FONTCONFIG_FILE pointed at /tmp/stickerlab-p44-window/fonts.conf via an isolated HOME",
+	"note": "Only the reader window region was captured; no full-screen image was taken."
+}
