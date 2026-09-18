@@ -141,12 +141,12 @@ presentation flow has been prepared).
 
 **Key files for milestone 6, part 1 (P65 save-as-template drafts):**
 
-| Path                                                                                | Role                                                                                                                                                                                                                       |
-| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `supabase/migrations/20260916180000_catalog_template_drafts.sql`                    | Nullable pending-cover constraint plus the atomic `catalog_admin_create_template_draft` RPC (document/dependency validation, stable template + version 1 + pins in one transaction)                                        |
-| `src/lib/presentations/templates/saveAsTemplateDraft.ts`                            | Clone → resolve exact catalog versions → upload local media via the existing batch/processing pipeline → rewrite only cloned assets → hash → draft RPC. Never writes the local presentation                                   |
-| `src/lib/components/presentation/SaveAsTemplateDialog.svelte`                       | Admin-only metadata/collection form, mounted by `PresentationEditorPage.svelte` only after `isAdmin()` |
-| `src/lib/catalog/{types,repository,parse,memory,remote}.ts`, `src/lib/cloud/database.ts` | `getAssetVersion` + `createTemplateDraft`, the complete template-version projection with nullable cover pair, and the RPC declaration                                  |
+| Path                                                                                     | Role                                                                                                                                                                                        |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `supabase/migrations/20260916180000_catalog_template_drafts.sql`                         | Nullable pending-cover constraint plus the atomic `catalog_admin_create_template_draft` RPC (document/dependency validation, stable template + version 1 + pins in one transaction)         |
+| `src/lib/presentations/templates/saveAsTemplateDraft.ts`                                 | Clone → resolve exact catalog versions → upload local media via the existing batch/processing pipeline → rewrite only cloned assets → hash → draft RPC. Never writes the local presentation |
+| `src/lib/components/presentation/SaveAsTemplateDialog.svelte`                            | Admin-only metadata/collection form, mounted by `PresentationEditorPage.svelte` only after `isAdmin()`                                                                                      |
+| `src/lib/catalog/{types,repository,parse,memory,remote}.ts`, `src/lib/cloud/database.ts` | `getAssetVersion` + `createTemplateDraft`, the complete template-version projection with nullable cover pair, and the RPC declaration                                                       |
 
 **Key files for milestone 4 (trusted catalog backend, repositories, admin console):**
 

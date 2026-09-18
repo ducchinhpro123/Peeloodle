@@ -43,6 +43,7 @@
 			collectionsHref={resolve('/admin/collections')}
 			assetsHref={resolve('/admin/assets')}
 			uploadsHref={resolve('/admin/uploads')}
+			templatesHref={resolve('/admin/templates')}
 			pathname={page.url.pathname}
 		>
 			{@render children()}

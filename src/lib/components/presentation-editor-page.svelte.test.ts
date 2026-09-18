@@ -25,6 +25,10 @@ import {
 	fixtureImagePng
 } from '$lib/presentations/model/fixtures/fixture';
 import { MemoryCatalog } from '$lib/catalog/memory';
+import { sha256Hex } from '$lib/hash';
+import { presentationDocumentToJson } from '$lib/presentations/model/parse';
+import { createTemplateDraftRepository } from '$lib/presentations/templates/templateDraftRepository';
+import type { CatalogAssetVersion } from '$lib/catalog/types';
 import type { PresentationDocument, TextElement } from '$lib/presentations/model/types';
 
 const PRESENTATION_ID = 'editor-deck';
@@ -810,3 +814,219 @@ describe('presentation editor page', () => {
 function fixturePngBuffer(): ArrayBuffer {
 	return new Uint8Array(fixtureImagePng()).buffer;
 }
+
+describe('presentation editor page in template mode', () => {
+	async function openTemplateEditor(onreload: () => void = () => {}) {
+		const bytes = fixtureImagePng();
+		const sha = await sha256Hex(bytes);
+		const assetId = 'a0000000-0000-4000-8000-0000000000b1';
+		const versionId = 'v0000000-0000-4000-8000-0000000000b1';
+		const derivativePath = `assets/${assetId}/${versionId}/asset.png`;
+		const version: CatalogAssetVersion = {
+			id: versionId,
+			assetId,
+			versionNumber: 1,
+			sourcePath: 'batches/b/j.png',
+			sourceSha256: 'a'.repeat(64),
+			sourceBytes: 1024,
+			sourceMime: 'image/png',
+			derivativePath,
+			derivativeSha256: sha,
+			derivativeBytes: bytes.length,
+			derivativeMime: 'image/png',
+			derivativeWidth: 256,
+			derivativeHeight: 256,
+			thumbnailPath: null,
+			validationState: 'validated',
+			createdAt: '2026-09-16T00:00:00.000Z'
+		};
+		const document = createPresentationDocument({ id: 'template-doc', title: 'Template draft' });
+		const asset = {
+			id: `asset-${sha}`,
+			blobKey: `catalog/${sha}`,
+			mimeType: 'image/png' as const,
+			width: 256,
+			height: 256,
+			sha256: sha,
+			byteLength: bytes.length,
+			provenance: {
+				source: 'catalog' as const,
+				label: 'Catalog art',
+				catalogItemId: assetId,
+				catalogVersionId: versionId
+			}
+		};
+		document.assets = [asset];
+		document.slides[0]!.elements.push(
+			createImageElement({ assetId: asset.id, width: 256, height: 256 })
+		);
+		const json = presentationDocumentToJson(document);
+		const encoded = new TextEncoder().encode(json);
+		const catalog = new MemoryCatalog(
+			{
+				admins: [ADMIN_ACTOR],
+				versions: [version],
+				derivativeUrls: new Map([[derivativePath, 'https://example.test/template.png']])
+			},
+			ADMIN_ACTOR
+		);
+		const created = await catalog.createTemplateDraft({
+			metadata: {
+				title: 'Template draft',
+				useCase: 'class',
+				description: '',
+				tags: [],
+				sortOrder: 0
+			},
+			document: JSON.parse(json),
+			documentSha256: await sha256Hex(encoded),
+			documentBytes: encoded.length,
+			fontRequirements: []
+		});
+		if (!created.ok) throw new Error(JSON.stringify(created));
+		const templateId = created.item.template.id;
+		const repository = createTemplateDraftRepository({
+			catalog,
+			templateId,
+			fetch: async () =>
+				new Response(bytes.slice(), { status: 200, headers: { 'content-type': 'image/png' } })
+		});
+		const store = createPresentationStore();
+		const rendered = await render(PresentationEditorPage, {
+			presentationId: templateId,
+			repository,
+			catalogRepository: catalog,
+			store,
+			mode: 'template',
+			backhref: '/admin/templates',
+			onback: () => {},
+			onreload,
+			leaveguard: null
+		});
+		await waitFor(
+			() => rendered.container.querySelector('.presentation-editor'),
+			'the template editor to open'
+		);
+		return {
+			bytes,
+			catalog,
+			templateId,
+			store,
+			container: rendered.container,
+			unmount: async () => {
+				await rendered.unmount();
+				store.getState().closeDocument();
+			}
+		};
+	}
+
+	it('offers template actions and hides local-media and export actions', async () => {
+		const editor = await openTemplateEditor();
+
+		expect(editor.container.textContent).toContain('Template draft');
+		expect(hasButtonWithText(editor.container, 'Save version')).toBe(true);
+		expect(hasButtonWithText(editor.container, 'Add image')).toBe(false);
+		expect(hasButtonWithText(editor.container, 'Export')).toBe(false);
+		expect(hasButtonWithText(editor.container, 'Save as template')).toBe(false);
+		expect(editor.container.querySelector('[data-testid="presentation-image-input"]')).toBeNull();
+		expect(
+			editor.container.querySelector('button[aria-label="Add a catalog image"]')
+		).not.toBeNull();
+
+		await editor.unmount();
+	});
+
+	it('creates one immutable version per explicit save and never autosaves', async () => {
+		const editor = await openTemplateEditor();
+		buttonWithText(editor.container, 'Add text').click();
+		await waitFor(() => editor.store.getState().dirty, 'the edit to land');
+
+		// Template mode has no autosave: waiting past the local debounce adds nothing.
+		await new Promise((resolve) => setTimeout(resolve, 1100));
+		expect(editor.catalog.templateVersions).toHaveLength(1);
+
+		buttonWithText(editor.container, 'Save version').click();
+		await waitFor(
+			() => editor.container.textContent?.includes('Saved as a new draft version.'),
+			'the saved note'
+		);
+		expect(editor.catalog.templateVersions).toHaveLength(2);
+		expect(editor.catalog.templateVersions[1]!.versionNumber).toBe(2);
+		expect(editor.store.getState().dirty).toBe(false);
+
+		await editor.unmount();
+	});
+
+	it('keeps the work on a conflict and replaces only on an explicit second save', async () => {
+		const editor = await openTemplateEditor();
+		buttonWithText(editor.container, 'Add text').click();
+		await waitFor(() => editor.store.getState().dirty, 'the edit to land');
+
+		// Another administrator saves version 2 first.
+		const stored = editor.catalog.templateVersions[0]!.document as PresentationDocument;
+		const other = { ...JSON.parse(JSON.stringify(stored)), title: 'Other tab' };
+		const otherJson = JSON.stringify(other);
+		const saved = await editor.catalog.saveTemplateVersion({
+			templateId: editor.templateId,
+			expectedRevision: 1,
+			document: other,
+			documentSha256: await sha256Hex(new TextEncoder().encode(otherJson)),
+			documentBytes: otherJson.length,
+			fontRequirements: []
+		});
+		expect(saved.ok).toBe(true);
+
+		buttonWithText(editor.container, 'Save version').click();
+		await waitFor(
+			() =>
+				editor.container.textContent?.includes('Another administrator saved a newer draft first'),
+			'the conflict message'
+		);
+		expect(hasButtonWithText(editor.container, 'Reload draft (discards my changes)')).toBe(true);
+		expect(editor.store.getState().dirty).toBe(true);
+		expect(editor.catalog.templateVersions).toHaveLength(2);
+
+		// The explicit retry replaces the other version.
+		buttonWithText(editor.container, 'Save version').click();
+		await waitFor(
+			() => editor.container.textContent?.includes('Saved as a new draft version.'),
+			'the retry save'
+		);
+		expect(editor.catalog.templateVersions).toHaveLength(3);
+		expect((editor.catalog.templateVersions[2]!.document as PresentationDocument).title).toBe(
+			'Template draft'
+		);
+
+		await editor.unmount();
+	});
+
+	it('asks the route to discard and reload when the conflict is abandoned', async () => {
+		let reloads = 0;
+		const editor = await openTemplateEditor(() => (reloads += 1));
+		buttonWithText(editor.container, 'Add text').click();
+		await waitFor(() => editor.store.getState().dirty, 'the edit to land');
+
+		const stored = editor.catalog.templateVersions[0]!.document as PresentationDocument;
+		const other = { ...JSON.parse(JSON.stringify(stored)), title: 'Other tab' };
+		const otherJson = JSON.stringify(other);
+		const saved = await editor.catalog.saveTemplateVersion({
+			templateId: editor.templateId,
+			expectedRevision: 1,
+			document: other,
+			documentSha256: await sha256Hex(new TextEncoder().encode(otherJson)),
+			documentBytes: otherJson.length,
+			fontRequirements: []
+		});
+		expect(saved.ok).toBe(true);
+
+		buttonWithText(editor.container, 'Save version').click();
+		await waitFor(
+			() => hasButtonWithText(editor.container, 'Reload draft (discards my changes)'),
+			'the reload button'
+		);
+		buttonWithText(editor.container, 'Reload draft (discards my changes)').click();
+		expect(reloads).toBe(1);
+
+		await editor.unmount();
+	});
+});

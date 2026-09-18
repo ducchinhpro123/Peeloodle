@@ -668,7 +668,10 @@ describe('supabase catalog template drafts', () => {
 	it('reads the newest template version including its document', async () => {
 		const { calls, client } = fakeClient([{ data: templateVersionRow, error: null }]);
 		const version = await catalogUsing(client).getLatestTemplateVersionForAdmin(templateRow.id);
-		expect(version).toMatchObject({ id: templateVersionRow.id, document: templateVersionRow.document });
+		expect(version).toMatchObject({
+			id: templateVersionRow.id,
+			document: templateVersionRow.document
+		});
 		expect(calls).toContainEqual(['eq', 'template_id', templateRow.id]);
 		expect(calls).toContainEqual(['order', 'version_number']);
 		expect(calls).toContainEqual(['limit', 1]);

@@ -914,7 +914,10 @@ describe('catalog template drafts in memory', () => {
 
 		const cases = [
 			{ input: saveInput(templateId, draftDocument(), 99), reason: 'revision_conflict' },
-			{ input: saveInput(templateId, { schemaVersion: 1, slides: [] }), reason: 'invalid_document' },
+			{
+				input: saveInput(templateId, { schemaVersion: 1, slides: [] }),
+				reason: 'invalid_document'
+			},
 			{ input: saveInput(templateId, mismatch), reason: 'dependency_unavailable' }
 		] as const;
 		for (const { input, reason } of cases) {
@@ -930,9 +933,9 @@ describe('catalog template drafts in memory', () => {
 		const { catalog, created } = await seedDraft();
 		const templateId = created.item.template.id;
 		expect(await catalog.archiveTemplate(templateId, 1)).toMatchObject({ ok: true });
-		expect(await catalog.saveTemplateVersion(saveInput(templateId, draftDocument(), 2))).toMatchObject(
-			{ ok: false, reason: 'archived' }
-		);
+		expect(
+			await catalog.saveTemplateVersion(saveInput(templateId, draftDocument(), 2))
+		).toMatchObject({ ok: false, reason: 'archived' });
 		expect(
 			await catalog.saveTemplateVersion(
 				saveInput('t0000000-0000-4000-8000-000000000009', draftDocument())

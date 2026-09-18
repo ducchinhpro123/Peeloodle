@@ -577,7 +577,9 @@ async function main(binaries) {
 			try {
 				[result] = await call;
 			} catch (error) {
-				throw new Error(`expected ${reason}, but the call raised ${error.code}: ${error.message}`);
+				throw new Error(`expected ${reason}, but the call raised ${error.code}: ${error.message}`, {
+					cause: error
+				});
 			}
 			result = result.result;
 			if (!result || result.ok || result.reason !== reason)
@@ -843,7 +845,10 @@ async function main(binaries) {
 				version.document_bytes !== Buffer.byteLength(savedJson)
 			)
 				throw new Error(JSON.stringify(version));
-			if (version.validation.created_by !== admin || version.validation.previous_version_number !== 1)
+			if (
+				version.validation.created_by !== admin ||
+				version.validation.previous_version_number !== 1
+			)
 				throw new Error(`the actor was not journaled: ${JSON.stringify(version.validation)}`);
 		});
 		await check('version 2 has its own dependency pins and stays immutable', async () => {
@@ -867,21 +872,24 @@ async function main(binaries) {
 				'55000'
 			);
 		});
-		await check('an archived template cannot be saved and an unknown one is not found', async () => {
-			const [archivedRow] = await asAdmin.unsafe(
-				`select public.catalog_admin_archive_template('${draftTemplate.template.id}', 2) as result`
-			);
-			if (!archivedRow.result.ok) throw new Error(JSON.stringify(archivedRow.result));
-			const [archived] = await saveVersion(savedDocument, 3);
-			if (archived.result.ok || archived.result.reason !== 'archived')
-				throw new Error(JSON.stringify(archived.result));
-			const json = JSON.stringify(savedDocument);
-			const [missing] = await asAdmin.unsafe(
-				`select public.catalog_admin_save_template_version('12121212-1212-4212-8212-121212121212', 1, '${json}'::jsonb, repeat('c', 64), ${Buffer.byteLength(json)}) as result`
-			);
-			if (missing.result.ok || missing.result.reason !== 'not_found')
-				throw new Error(JSON.stringify(missing.result));
-		});
+		await check(
+			'an archived template cannot be saved and an unknown one is not found',
+			async () => {
+				const [archivedRow] = await asAdmin.unsafe(
+					`select public.catalog_admin_archive_template('${draftTemplate.template.id}', 2) as result`
+				);
+				if (!archivedRow.result.ok) throw new Error(JSON.stringify(archivedRow.result));
+				const [archived] = await saveVersion(savedDocument, 3);
+				if (archived.result.ok || archived.result.reason !== 'archived')
+					throw new Error(JSON.stringify(archived.result));
+				const json = JSON.stringify(savedDocument);
+				const [missing] = await asAdmin.unsafe(
+					`select public.catalog_admin_save_template_version('12121212-1212-4212-8212-121212121212', 1, '${json}'::jsonb, repeat('c', 64), ${Buffer.byteLength(json)}) as result`
+				);
+				if (missing.result.ok || missing.result.reason !== 'not_found')
+					throw new Error(JSON.stringify(missing.result));
+			}
+		);
 
 		// P54/P55/P61: durable upload batches, leased processing jobs, conditional
 		// completion and bounded cleanup.

@@ -8,16 +8,18 @@
 	 *   collectionsHref: string,
 	 *   assetsHref: string,
 	 *   uploadsHref: string,
+	 *   templatesHref: string,
 	 *   pathname: string,
 	 *   children: import('svelte').Snippet
 	 * }}
 	 */
-	let { collectionsHref, assetsHref, uploadsHref, pathname, children } = $props();
+	let { collectionsHref, assetsHref, uploadsHref, templatesHref, pathname, children } = $props();
 
 	const sections = $derived([
 		{ href: collectionsHref, label: 'Collections' },
 		{ href: assetsHref, label: 'Assets' },
-		{ href: uploadsHref, label: 'Uploads' }
+		{ href: uploadsHref, label: 'Uploads' },
+		{ href: templatesHref, label: 'Templates' }
 	]);
 
 	/** @param {string} href */

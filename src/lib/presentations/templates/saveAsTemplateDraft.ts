@@ -47,9 +47,7 @@ export class TemplateDraftError extends Error {
 	}
 }
 
-export function collectFontRequirements(
-	document: PresentationDocument
-): { fontId: string }[] {
+export function collectFontRequirements(document: PresentationDocument): { fontId: string }[] {
 	const ids = new Set([document.theme.headingFontId, document.theme.bodyFontId]);
 	for (const slide of document.slides)
 		for (const element of slide.elements)

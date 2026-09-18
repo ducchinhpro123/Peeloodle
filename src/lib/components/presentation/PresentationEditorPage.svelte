@@ -45,6 +45,10 @@
 	import ExportDialog from './ExportDialog.svelte';
 	import SaveAsTemplateDialog from './SaveAsTemplateDialog.svelte';
 	import { saveAsTemplateDraft } from '$lib/presentations/templates/saveAsTemplateDraft';
+	import {
+		describeTemplateSaveFailure,
+		TEMPLATE_SAVE_CONFLICT_MESSAGE
+	} from '$lib/presentations/templates/templateDraftRepository';
 
 	/**
 	 * @typedef {(
@@ -66,12 +70,19 @@
 	 *   store: import('$lib/presentations/editor/store.svelte').PresentationStore,
 	 *   backhref: string,
 	 *   onback: () => void | Promise<void>,
+	 *   mode?: 'local' | 'template',
+	 *   onreload?: (() => void) | null,
 	 *   leaveguard?: {
 	 *     hasUnsavedWork: () => boolean,
 	 *     saveBeforeLeave: () => Promise<boolean>,
 	 *     reportFailure: () => void
 	 *   } | null
 	 * }} */
+	// `mode: 'template'` swaps the persistence story: the repository is the
+	// catalog adapter (one immutable draft version per explicit save), autosave is
+	// off, and insert-local-media/export actions are hidden because a template
+	// draft may only reference catalog artwork. `onreload` is template mode's
+	// explicit “discard my changes and reload the server draft” edge.
 	let {
 		presentationId,
 		repository,
@@ -81,6 +92,8 @@
 		store,
 		backhref,
 		onback,
+		mode = 'local',
+		onreload = null,
 		// `$bindable` compiles to a prop getter/setter, so this component only ever
 		// publishes the guard; the route reads it back through the binding, which
 		// leaves the initial value unread here. The repo's ESLint flags this without
@@ -88,6 +101,8 @@
 		// eslint-disable-next-line no-useless-assignment
 		leaveguard = $bindable(null)
 	} = $props();
+
+	const templateMode = $derived(mode === 'template');
 
 	/** The editor that opens a text session owns it; save flushes through it. */
 	const textSession = createTextEditSession();
@@ -99,7 +114,15 @@
 		repository,
 		documentId: presentationId,
 		flushText: () => textSession.flush(),
-		store
+		store,
+		// Template mode writes catalog versions, so a local-storage failure message
+		// would be wrong: the adapter's own wording is shown instead.
+		...(mode === 'template'
+			? {
+					describeFailure: describeTemplateSaveFailure,
+					conflictMessage: TEMPLATE_SAVE_CONFLICT_MESSAGE
+				}
+			: {})
 	});
 	let saveState = $state.raw(saving.getStatus());
 
@@ -181,10 +204,14 @@
 			: saveState.status === 'failed'
 				? 'Save failed'
 				: saveState.status === 'saving'
-					? 'Saving…'
+					? templateMode
+						? 'Saving version…'
+						: 'Saving…'
 					: editorState.dirty
 						? 'Unsaved changes'
-						: 'Saved locally'
+						: templateMode
+							? 'Draft saved'
+							: 'Saved locally'
 	);
 	// A failure is shown in words, not only in a tooltip: what happened and that
 	// the edit is still here with a way to retry it.
@@ -202,10 +229,13 @@
 
 	$effect(() => {
 		const unsubscribe = saving.subscribeStatus(() => (saveState = saving.getStatus()));
-		const autosave = saving.attachAutosave();
+		// Template mode has no autosave: every write creates an immutable version,
+		// so a version is only ever created by an explicit Save (or a held
+		// navigation the leave guard commits).
+		const autosave = templateMode ? null : saving.attachAutosave();
 		return () => {
 			unsubscribe();
-			autosave.detach();
+			autosave?.detach();
 		};
 	});
 
@@ -229,10 +259,16 @@
 				const current = store.getState();
 				return current.dirty && current.document?.id === presentationId;
 			},
-			saveBeforeLeave: saving.saveBeforeLeave,
+			saveBeforeLeave: async () => {
+				// A conflict needs a deliberate answer from the administrator;
+				// navigating away must not replace the other tab's version.
+				if (templateMode && saving.getStatus().status === 'conflict') return false;
+				return saving.saveBeforeLeave();
+			},
 			reportFailure: () =>
-				(editorNote =
-					'This presentation could not be saved, so it is still open. Press Save to try again — or press Keep my copy if another tab or window has a newer version.')
+				(editorNote = templateMode
+					? 'This draft could not be saved, so it is still open. Press Save version to try again — or reload the draft to discard these changes.'
+					: 'This presentation could not be saved, so it is still open. Press Save to try again — or press Keep my copy if another tab or window has a newer version.')
 		};
 		return () => {
 			// The guard must not outlive the editor it speaks for.
@@ -515,9 +551,20 @@
 		);
 	}
 
-	function requestSave() {
+	async function requestSave() {
 		editorNote = null;
-		void saving.save();
+		const result = await saving.save();
+		if (templateMode && result === 'saved') editorNote = 'Saved as a new draft version.';
+	}
+
+	/**
+	 * Template mode's conflict exit: discards the local edits and reloads the
+	 * newest server draft. Only ever reached through its explicit button.
+	 */
+	function reloadDraft() {
+		if (!onreload) return;
+		editorNote = null;
+		onreload();
 	}
 
 	/**
@@ -603,7 +650,11 @@
 		event.preventDefault();
 		event.returnValue = '';
 	}}
-	onpagehide={() => void saving.save()}
+	onpagehide={() => {
+		// A template version is only ever created deliberately (or by the leave
+		// guard, which can report back); the unload path cannot.
+		if (!templateMode) void saving.save();
+	}}
 />
 
 {#if loadState === 'loading'}
@@ -650,7 +701,7 @@
 				><ArrowLeft size={19} /></a
 			>
 			<div class="presentation-editor-title">
-				<p>Presentation</p>
+				<p>{templateMode ? 'Template draft' : 'Presentation'}</p>
 				<h1 title={presentation.title}>{presentation.title}</h1>
 			</div>
 			<div class="presentation-editor-actions">
@@ -692,23 +743,25 @@
 				<button type="button" class={button} onclick={addTextBox}
 					><Type size={16} aria-hidden="true" /> Add text</button
 				>
-				<button
-					type="button"
-					class={button}
-					disabled={inserting}
-					onclick={() => {
-						replaceTargetId = null;
-						imageInput?.click();
-					}}
-					><ImagePlus size={16} aria-hidden="true" />
-					{inserting ? 'Adding image…' : 'Add image'}</button
-				>
+				{#if !templateMode}
+					<button
+						type="button"
+						class={button}
+						disabled={inserting}
+						onclick={() => {
+							replaceTargetId = null;
+							imageInput?.click();
+						}}
+						><ImagePlus size={16} aria-hidden="true" />
+						{inserting ? 'Adding image…' : 'Add image'}</button
+					>
+				{/if}
 				{#if catalogRepository}<CatalogPickerDialog
 						repository={catalogRepository}
 						disabled={inserting}
 						oninsert={addCatalogImage}
 					/>{/if}
-				{#if catalogAdminRepository}<SaveAsTemplateDialog
+				{#if catalogAdminRepository && !templateMode}<SaveAsTemplateDialog
 						repository={catalogAdminRepository}
 						needsCollection={presentation.assets.some(
 							(asset) => asset.provenance.source !== 'catalog'
@@ -716,27 +769,29 @@
 						defaultTitle={presentation.title}
 						onsave={(input) => saveAsTemplate(input)}
 					/>{/if}
-				{#if stickerRepository}<StickerPickerDialog
+				{#if stickerRepository && !templateMode}<StickerPickerDialog
 						repository={stickerRepository}
 						disabled={inserting}
 						onpick={(projectId) => void addSticker(projectId)}
 					/>{/if}
-				<input
-					bind:this={imageInput}
-					class="sr-only"
-					type="file"
-					accept="image/png,image/jpeg,image/webp"
-					aria-label="Choose image file"
-					data-testid="presentation-image-input"
-					onchange={(event) => {
-						const input = event.currentTarget;
-						const file = input.files?.[0];
-						input.value = '';
-						if (!file) return;
-						if (replaceTargetId) void replacePhoto(file);
-						else void addImage(file);
-					}}
-				/>
+				{#if !templateMode}
+					<input
+						bind:this={imageInput}
+						class="sr-only"
+						type="file"
+						accept="image/png,image/jpeg,image/webp"
+						aria-label="Choose image file"
+						data-testid="presentation-image-input"
+						onchange={(event) => {
+							const input = event.currentTarget;
+							const file = input.files?.[0];
+							input.value = '';
+							if (!file) return;
+							if (replaceTargetId) void replacePhoto(file);
+							else void addImage(file);
+						}}
+					/>
+				{/if}
 				{#if selectedText}<button
 						type="button"
 						class={button}
@@ -760,24 +815,35 @@
 					bind:this={themeOpener}
 					onclick={() => (themeOpen = true)}>Theme</button
 				>
-				<ExportDialog
-					{exportState}
-					offline={offline.snapshot}
-					reloadSafety={{ unsavedWork: editorState.dirty, saveFailed: saveReported }}
-					onexport={(format) => void exportController.exportDeck(format)}
-					oncancel={() => exportController.cancel()}
-				/>
+				{#if !templateMode}
+					<ExportDialog
+						{exportState}
+						offline={offline.snapshot}
+						reloadSafety={{ unsavedWork: editorState.dirty, saveFailed: saveReported }}
+						onexport={(format) => void exportController.exportDeck(format)}
+						oncancel={() => exportController.cancel()}
+					/>
+				{/if}
 				<button type="button" class={button} onclick={requestSave}
-					><Save size={16} aria-hidden="true" /> Save</button
+					><Save size={16} aria-hidden="true" /> {templateMode ? 'Save version' : 'Save'}</button
 				>
-				{#if saveState.status === 'conflict'}<button
+				{#if saveState.status === 'conflict' && templateMode}
+					<button
+						type="button"
+						class={button}
+						title="Discard your changes and load the newest saved draft"
+						onclick={reloadDraft}>Reload draft (discards my changes)</button
+					>
+				{:else if saveState.status === 'conflict'}
+					<button
 						type="button"
 						class={button}
 						disabled={recovering}
 						onclick={() => void recoverFromConflict()}
 						>{recovering ? 'Keeping your copy…' : 'Keep my copy'}</button
-					>{/if}
-				{#if saveReported}
+					>
+				{/if}
+				{#if saveReported && !templateMode}
 					<!-- Recovery guidance: if the local write fails, the work can still leave
 					     the browser as a backup archive. -->
 					<button
@@ -927,7 +993,7 @@
 					<ElementGeometryInspector
 						element={selectedElement}
 						{store}
-						onreplaceimage={beginReplaceImage}
+						onreplaceimage={templateMode ? undefined : beginReplaceImage}
 					/>
 				{/if}
 				<p class="muted [color:var(--muted)]">
@@ -949,7 +1015,7 @@
 		{#if selectedElement}<ElementGeometryInspector
 				element={selectedElement}
 				{store}
-				onreplaceimage={beginReplaceImage}
+				onreplaceimage={templateMode ? undefined : beginReplaceImage}
 			/>{/if}
 	</Modal>
 

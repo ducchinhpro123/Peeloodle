@@ -10,10 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { sha256Hex } from '$lib/hash';
 import { fixtureImagePng } from '$lib/presentations/model/fixtures/fixture';
-import {
-	createImageElement,
-	createPresentationDocument
-} from '$lib/presentations/model/factories';
+import { createImageElement, createPresentationDocument } from '$lib/presentations/model/factories';
 import { presentationDocumentToJson } from '$lib/presentations/model/parse';
 import { MemoryCatalog } from '$lib/catalog/memory';
 import {

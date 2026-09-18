@@ -605,7 +605,9 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			});
 	}
 
-	async getLatestTemplateVersionForAdmin(templateId: string): Promise<CatalogTemplateVersion | null> {
+	async getLatestTemplateVersionForAdmin(
+		templateId: string
+	): Promise<CatalogTemplateVersion | null> {
 		this.#assertAdmin();
 		const row = this.templateVersions
 			.filter((candidate) => candidate.templateId === templateId)
@@ -827,7 +829,9 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 	 * `catalog_validate_template_document`; the fake skips the SQL's uuid-format
 	 * regexes, which exist to keep casts from raising and have no analogue here.
 	 */
-	#resolveTemplateDependencies(document: unknown):
+	#resolveTemplateDependencies(
+		document: unknown
+	):
 		| { ok: true; pins: Map<string, { assetId: string; assetVersionId: string }> }
 		| { ok: false; reason: CatalogRefusal; detail: Record<string, unknown> } {
 		if (!document || typeof document !== 'object' || Array.isArray(document))
