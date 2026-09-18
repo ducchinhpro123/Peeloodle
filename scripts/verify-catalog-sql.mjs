@@ -891,6 +891,126 @@ async function main(binaries) {
 			}
 		);
 
+		// P67: attaching generated slide previews. The objects are uploaded first
+		// (admin, private bucket), then one guarded transaction creates the
+		// successor immutable version with the manifest and cover.
+		const [previewDraftRow] = await createDraft(draftDocument);
+		const previewTemplate = previewDraftRow.result.item;
+		const previewVersionId = previewTemplate.version.id;
+		const previewPath = (ordinal) =>
+			`templates/${previewTemplate.template.id}/${previewVersionId}/preview-${String(ordinal + 1).padStart(2, '0')}.png`;
+		const previewManifest = () => [
+			{ ordinal: 0, path: previewPath(0), sha256: '1'.repeat(64), bytes: 1024, width: 960, height: 540 },
+			{ ordinal: 1, path: previewPath(1), sha256: '2'.repeat(64), bytes: 2048, width: 960, height: 540 }
+		];
+		const attachPreviews = (
+			previews,
+			{ revision = 1, sha = 'e'.repeat(64), cover = 0, session = asAdmin } = {}
+		) =>
+			session.unsafe(
+				`select public.catalog_admin_attach_template_previews('${previewTemplate.template.id}', '${previewVersionId}', ${revision}, '${sha}', ${cover}, '${JSON.stringify(previews)}'::jsonb) as result`
+			);
+		const storePreviewObjects = async (previews) => {
+			for (const preview of previews) {
+				await sql.unsafe(
+					`insert into storage.objects (bucket_id, name, metadata) values ('catalog-derivatives', '${preview.path}', '{"size": ${preview.bytes}, "mimetype": "image/png"}'::jsonb)`
+				);
+			}
+		};
+		const previewVersionCount = async () => {
+			const [row] = await sql.unsafe(
+				`select count(*)::int as versions from public.catalog_template_versions where template_id = '${previewTemplate.template.id}'`
+			);
+			return row.versions;
+		};
+		await check('only administrators can attach template previews', async () => {
+			await expectError(attachPreviews(previewManifest(), { session: asEditor }), '42501');
+			await expectError(attachPreviews(previewManifest(), { session: asAnon }), '42501');
+		});
+		await check('a malformed manifest or a wrong document hash is refused', async () => {
+			const before = await previewVersionCount();
+			const gap = previewManifest();
+			gap[1].ordinal = 2;
+			const [gapResult] = await attachPreviews(gap);
+			if (gapResult.result.reason !== 'invalid_document')
+				throw new Error(JSON.stringify(gapResult.result));
+			const [coverResult] = await attachPreviews(previewManifest(), { cover: 9 });
+			if (coverResult.result.reason !== 'invalid_document')
+				throw new Error(JSON.stringify(coverResult.result));
+			const [hashResult] = await attachPreviews(previewManifest(), { sha: 'f'.repeat(64) });
+			if (hashResult.result.reason !== 'invalid_document')
+				throw new Error(JSON.stringify(hashResult.result));
+			const stored = await previewVersionCount();
+			if (stored !== before) throw new Error(`${before} -> ${stored}`);
+		});
+		await check('missing preview objects are refused with their paths', async () => {
+			const before = await previewVersionCount();
+			const previews = previewManifest();
+			const [refused] = await attachPreviews(previews);
+			if (refused.result.reason !== 'media_missing') throw new Error(JSON.stringify(refused.result));
+			if (
+				refused.result.detail.paths.length !== 2 ||
+				!refused.result.detail.paths.includes(previews[0].path)
+			)
+				throw new Error(JSON.stringify(refused.result.detail));
+			const stored = await previewVersionCount();
+			if (stored !== before) throw new Error(`${before} -> ${stored}`);
+		});
+		await check('a stale revision is refused before any version is written', async () => {
+			const previews = previewManifest();
+			await storePreviewObjects(previews);
+			const before = await previewVersionCount();
+			const [refused] = await attachPreviews(previews, { revision: 7 });
+			if (refused.result.reason !== 'revision_conflict') throw new Error(JSON.stringify(refused.result));
+			const stored = await previewVersionCount();
+			if (stored !== before) throw new Error(`${before} -> ${stored}`);
+		});
+		await check('a valid manifest creates the successor version with cover and pins', async () => {
+			const previews = previewManifest();
+			const [row] = await attachPreviews(previews, { cover: 1 });
+			if (!row.result.ok) throw new Error(JSON.stringify(row.result));
+			const version = row.result.item.version;
+			if (
+				version.version_number !== 2 ||
+				version.validation_state !== 'pending' ||
+				version.cover_path !== previews[1].path ||
+				version.cover_sha256 !== previews[1].sha256 ||
+				version.slide_previews.length !== previews.length ||
+				version.slide_previews.some(
+					(preview, index) =>
+						preview.ordinal !== previews[index].ordinal ||
+						preview.path !== previews[index].path ||
+						preview.sha256 !== previews[index].sha256 ||
+						preview.bytes !== previews[index].bytes ||
+						preview.width !== previews[index].width ||
+						preview.height !== previews[index].height
+				) ||
+				version.document_sha256 !== 'e'.repeat(64) ||
+				version.validation.previews_of !== previewVersionId ||
+				version.validation.cover_ordinal !== 1
+			)
+				throw new Error(JSON.stringify(version));
+			if (row.result.item.template.revision !== 2)
+				throw new Error(JSON.stringify(row.result.item.template));
+			const dependencies = await asAdmin.unsafe(
+				`select asset_id, asset_version_id from public.catalog_template_dependencies where template_version_id = '${version.id}'`
+			);
+			if (dependencies.length !== 1 || dependencies[0].asset_id !== draftAsset.id)
+				throw new Error(JSON.stringify(dependencies));
+		});
+		await check('a superseded pending version cannot gain previews', async () => {
+			const [refused] = await attachPreviews(previewManifest(), { revision: 2 });
+			if (refused.result.reason !== 'version_not_pending')
+				throw new Error(JSON.stringify(refused.result));
+			const [archived] = await asAdmin.unsafe(
+				`select public.catalog_admin_archive_template('${previewTemplate.template.id}', 2) as result`
+			);
+			if (!archived.result.ok) throw new Error(JSON.stringify(archived.result));
+			const [archivedRefusal] = await attachPreviews(previewManifest(), { revision: 3 });
+			if (archivedRefusal.result.reason !== 'archived')
+				throw new Error(JSON.stringify(archivedRefusal.result));
+		});
+
 		// P54/P55/P61: durable upload batches, leased processing jobs, conditional
 		// completion and bounded cleanup.
 		const storedObject = (bucket, name, size, mime) =>
