@@ -4,6 +4,7 @@ import {
 	imageReplaceRefusal,
 	planImageInsert,
 	planImageReplacement,
+	planSlideInsertion,
 	createPresentationStore
 } from './store.svelte';
 
@@ -961,5 +962,63 @@ describe('presentation image insertion', () => {
 		expect(state().past).toHaveLength(history + 1);
 		expect(state().view.selectedElementIds).toEqual([plan.elementId]);
 		expect(state().document!.assets[0]!.byteLength).toBe(4);
+	});
+});
+
+describe('slide insertion planning', () => {
+	beforeEach(() => {
+		reset();
+	});
+
+	it('inserts fresh slides after the anchor as one undo entry', () => {
+		const document = reset();
+		const incoming = {
+			...structuredClone(document.slides[0]!),
+			id: 'inserted-slide',
+			name: 'Agenda'
+		};
+		const plan = planSlideInsertion(document, [incoming], []);
+		expect(plan).not.toBeNull();
+		if (!plan) throw new Error('expected a plan');
+
+		state().adoptPersistedSlideInsertion(plan);
+		expect(state().document!.slides.map((slide) => slide.name)).toEqual(['Slide 1', 'Agenda']);
+		expect(state().view.activeSlideId).toBe('inserted-slide');
+		expect(state().dirty).toBe(false);
+		expect(state().past).toHaveLength(1);
+
+		state().undo();
+		expect(state().document!.slides).toHaveLength(1);
+	});
+
+	it('carries prepared assets into the document and refuses past the caps', () => {
+		const document = reset();
+		const incoming = {
+			...structuredClone(document.slides[0]!),
+			id: 'inserted-slide',
+			name: 'Agenda'
+		};
+		const asset: PresentationAsset = {
+			id: 'asset-catalog',
+			blobKey: `catalog/${'a'.repeat(64)}`,
+			mimeType: 'image/png',
+			width: 8,
+			height: 8,
+			sha256: 'a'.repeat(64),
+			byteLength: 10,
+			provenance: { source: 'catalog', label: 'Art' }
+		};
+		const plan = planSlideInsertion(document, [incoming], [asset]);
+		expect(plan).not.toBeNull();
+		if (!plan) throw new Error('expected a plan');
+		state().adoptPersistedSlideInsertion(plan);
+		expect(state().document!.assets.map((entry) => entry.id)).toContain('asset-catalog');
+
+		const full = createPresentationDocument({ id: 'full', title: 'Full' });
+		full.slides = Array.from({ length: PRESENTATION_LIMITS.maxSlides }, (_, index) => ({
+			...structuredClone(full.slides[0]!),
+			id: `slide-${index}`
+		}));
+		expect(planSlideInsertion(full, [incoming], [])).toBeNull();
 	});
 });

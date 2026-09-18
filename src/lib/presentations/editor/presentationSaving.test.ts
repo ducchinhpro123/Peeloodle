@@ -199,4 +199,52 @@ describe('presentation saving coordinator', () => {
 		expect(copy.slides[0]!.id).not.toBe(localSlideId);
 		expect(presentationStore.getState().document!.slides[0]!.name).toBe('Newer work');
 	});
+
+	it('persists template slides and their media atomically before adopting them', async () => {
+		const repository = new RecordingRepository();
+		const saving = await open(repository);
+		const source = presentationStore.getState().document!;
+		const incoming = {
+			...structuredClone(source.slides[0]!),
+			id: 'template-slide',
+			name: 'Agenda'
+		};
+		const asset = preparedImage('asset-template');
+		const outcome = await saving.persistSlides({
+			slides: [incoming],
+			assets: [asset.asset],
+			media: [asset.media]
+		});
+		expect(outcome.ok).toBe(true);
+		expect(repository.writes).toEqual([
+			{ revision: 1, baseRevision: 0, assetIds: ['asset-template'] }
+		]);
+		expect(presentationStore.getState().document!.slides).toHaveLength(2);
+		expect(presentationStore.getState().view.activeSlideId).toBe('template-slide');
+		expect(presentationStore.getState().dirty).toBe(false);
+
+		// One undo entry removes both the slide and its asset reference.
+		presentationStore.getState().undo();
+		expect(presentationStore.getState().document!.slides).toHaveLength(1);
+	});
+
+	it('leaves the deck untouched when a slide insertion write fails', async () => {
+		const repository = new RecordingRepository();
+		const saving = await open(repository);
+		repository.injectWriteFailure();
+		const source = presentationStore.getState().document!;
+		const before = JSON.stringify(source);
+		const incoming = {
+			...structuredClone(source.slides[0]!),
+			id: 'template-slide',
+			name: 'Agenda'
+		};
+		const outcome = await saving.persistSlides({
+			slides: [incoming],
+			assets: [],
+			media: []
+		});
+		expect(outcome).toMatchObject({ ok: false, reason: 'failed' });
+		expect(JSON.stringify(presentationStore.getState().document)).toBe(before);
+	});
 });

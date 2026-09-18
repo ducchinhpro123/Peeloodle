@@ -25,14 +25,17 @@ import { isPersistenceError } from '$lib/persistence/repository';
 import type { PresentationMediaRecord, PresentationRepository } from '../persistence/repository';
 import { clonePresentationDocumentWithNewIds } from '../model/factories';
 import { PRESENTATION_LIMITS } from '../model/limits';
-import type { PresentationDocument } from '../model/types';
+import type { PresentationAsset, PresentationDocument, Slide } from '../model/types';
 import type { PreparedPresentationImage } from './insertImageAsset';
 import {
 	imageReplaceRefusal,
 	planImageInsert,
 	planImageReplacement,
+	planSlideInsertion,
+	slideInsertionRefusal,
 	type PresentationStore,
-	type ImageInsertRefusalReason
+	type ImageInsertRefusalReason,
+	type SlideInsertionRefusalReason
 } from './store.svelte';
 
 export type PresentationSaveStatus = 'clean' | 'saving' | 'saved' | 'failed' | 'conflict';
@@ -44,6 +47,13 @@ export type PersistInsertOutcome =
 	| { ok: true; elementId: string }
 	| { ok: false; reason: ImageInsertRefusalReason | 'failed' | 'conflict'; message: string };
 export type ConflictRecoveryOutcome = { ok: true; copyId: string } | { ok: false; message: string };
+export type PersistSlidesOutcome =
+	| { ok: true; slideId: string | null }
+	| {
+			ok: false;
+			reason: SlideInsertionRefusalReason | 'failed' | 'conflict' | 'no-slide';
+			message: string;
+	  };
 
 export type SaveResult = 'saved' | 'skipped' | 'failed' | 'conflict';
 
@@ -283,6 +293,44 @@ export function createPresentationSaving(input: {
 	};
 
 	/**
+	 * Persist-first layout insertion (P71): the prepared slides' media and the
+	 * document are written in one transaction before the store adopts them, so a
+	 * failure leaves the deck untouched and there is no half-inserted layout.
+	 */
+	const persistSlides = async (input: {
+		slides: Slide[];
+		assets: PresentationAsset[];
+		media: PresentationMediaRecord[];
+		afterSlideId?: string | null;
+	}): Promise<PersistSlidesOutcome> => {
+		const current = store.getState();
+		const document = current.document;
+		if (!document || document.id !== documentId) {
+			return {
+				ok: false,
+				reason: 'no-slide',
+				message: 'Open a presentation before inserting slides.'
+			};
+		}
+		const refusal = slideInsertionRefusal(document, input.slides, input.assets);
+		if (refusal) return { ok: false, reason: refusal.reason, message: refusal.message };
+		const plan = planSlideInsertion(document, input.slides, input.assets, {
+			afterSlideId: input.afterSlideId ?? store.getState().view.activeSlideId
+		});
+		if (!plan)
+			return {
+				ok: false,
+				reason: 'no-slide',
+				message: 'There is no place to insert these slides.'
+			};
+		const outcome = await persistDocument(plan.document, input.media);
+		if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message };
+		store.getState().adoptPersistedSlideInsertion(plan);
+		publish({ status: 'saved', message: null });
+		return { ok: true, slideId: plan.slideIds[0] ?? null };
+	};
+
+	/**
 	 * A stale revision must not dead-end the editor. Keep the local work as an
 	 * independent copy, then load the newer stored revision so the user is no
 	 * longer editing something that can never be written.
@@ -408,6 +456,7 @@ export function createPresentationSaving(input: {
 		saveBeforeLeave,
 		persistInsert,
 		persistReplace,
+		persistSlides,
 		keepMineAsCopy,
 		attachAutosave
 	};

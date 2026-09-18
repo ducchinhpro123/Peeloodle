@@ -134,6 +134,65 @@ SvelteKit port, losing neither the React application nor the server-side materia
   `post-git-graft-20260915T105133Z.tar.gz`, sha256
   `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
 
+## Milestone 6 checkpoint, part 2 — template administration, previews and validation (2026-09-18, P66–P68)
+
+Scope: **the admin half of milestone 6.** An administrator lists templates, opens a draft in the
+shared presentation editor, saves immutable draft versions, generates slide previews from the exact
+pending snapshot, validates, publishes and archives. P69–P75 (student browse/clone/layout insertion
+and the three shipped templates) remain open; P53's live RLS/Storage check is still unavailable.
+
+### Database — `20260918120000_catalog_template_version_saves.sql`, `...140000_catalog_template_previews.sql`, `...160000_catalog_template_validation.sql`
+
+- `catalog_admin_save_template_version` appends the next pending immutable version against a
+  compare-and-set template revision. A `for update` row lock serializes concurrent saves, so the
+  loser reads the new revision and gets `revision_conflict` with the current template row. The
+  document/dependency rules moved into `catalog_validate_template_document`, which P65's draft RPC
+  now shares.
+- `catalog_admin_attach_template_previews` is P67's commit point. The administrator's browser
+  rasterizes with the shared fixed-page renderer (the same one PDF export uses; this codebase has no
+  server-side renderer) and uploads PNGs to the private derivative bucket under the pending
+  version's own path. The RPC re-checks membership, that the source is the newest pending version
+  with the expected document hash, and that every declared object exists with its declared size and
+  MIME, then inserts the successor immutable version plus dependency pins and advances the revision.
+- `catalog_admin_validate_template_version` inserts the **validated** immutable successor (version
+  rows stay write-once, so validation is another version, not an update). It re-checks enumerable
+  document shape and limits, catalog-only `blobKey`s, absence of private/source/signed-URL text,
+  preview completeness/cover consistency, the bundled font set
+  (`be-vietnam-pro`, `spectral`, mirroring `fonts.ts`) and that every pinned asset version is still
+  the published one. A missing dependency is refused as `dependency_unavailable` and blocks
+  publication.
+- The SQL harness grew to **87 checks**: version-save authorization/conflicts/immutability, preview
+  manifest shape, missing objects, superseded versions, archived templates, validation refusals for
+  incomplete previews/unbundled fonts/archived dependencies, and the validate → publish pointer.
+
+### Repositories and services — `src/lib/catalog/`, `src/lib/presentations/templates/`
+
+- `CatalogAdminRepository` gained `saveTemplateVersion`, `attachTemplatePreviews`,
+  `validateTemplateVersion`, `getTemplateForAdmin`, `listTemplateVersionsForAdmin` (document-free
+  summaries) and `getLatestTemplateVersionForAdmin`; `CatalogListFilters.state` filters admin lists.
+  `CatalogSlidePreview` now carries per-preview `sha256`/`bytes`/`width`/`height`.
+- `TemplateDraftRepository` maps the shared editor's `PresentationRepository` contract onto the
+  catalog: newest version in, derivative bytes through the admin's signed URL, one immutable version
+  per explicit save, a conflict that adopts the server revision so an explicit second Save replaces.
+  `getDraftHead()` gives preview generation the exact version/revision/hash.
+- `generateTemplatePreviews` renders, uploads and commits with staged errors
+  (`render_failed`/`upload_failed`/`attach_refused`) and progress callbacks; component tests run the
+  real Konva rasterizer over fixture bytes.
+
+### Screens
+
+- `/admin/templates` (search, use-case and status filters, real metadata) and
+  `/admin/templates/<id>` (metadata with compare-and-set editing, cover thumbnail, version facts,
+  preview generation with cover choice, validate/publish/archive).
+- `/admin/templates/<id>/edit` resets the admin layout and mounts the **same**
+  `PresentationEditorPage` in `mode="template"`: autosave off, save = new immutable version, local
+  file/sticker insertion and exports hidden (a draft may only reference catalog artwork), catalog
+  picking allowed, conflict UI offering “Reload draft (discards my changes)”.
+- Deviations recorded rather than hidden: (1) preview rasterization runs in the administrator's
+  browser because there is no server renderer; the guarded RPC and Storage policies remain the trust
+  boundary and no service-role key exists; (2) template mode does not add local artwork — that
+  enters through P65's “Save as template”, which uploads it first.
+
 ## Milestone 6 checkpoint, part 1 — save-as-template drafts (2026-09-17, P65)
 
 Scope: **P65 of milestone 6** — an administrator turns the presentation open in the editor into one

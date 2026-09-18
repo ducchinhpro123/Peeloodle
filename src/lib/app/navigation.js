@@ -7,12 +7,12 @@
  */
 
 import { resolve } from '$app/paths';
-import { Home, ImagePlus, LayoutGrid, Plus, Presentation } from 'lucide-svelte';
+import { Home, ImagePlus, LayoutGrid, LayoutTemplate, Plus, Presentation } from 'lucide-svelte';
 
 /**
  * The shell's internal link targets. Every one of them is a real route now that
  * the sticker library landed.
- * @typedef {'/' | '/create' | '/templates' | '/my-stickers' | '/presentations' | '/my-stickers#local-stickers'
+ * @typedef {'/' | '/create' | '/templates' | '/presentation-templates' | '/my-stickers' | '/presentations' | '/my-stickers#local-stickers'
  *   | '/create?tool=erase' | '/create?tool=text' | '/create?tool=effects' | '/create?tool=export'} ShellLink
  */
 
@@ -34,6 +34,7 @@ export function shellHref(link) {
 	if (link === '/create?tool=effects') return resolve('/create?tool=effects');
 	if (link === '/create?tool=export') return resolve('/create?tool=export');
 	if (link === '/templates') return resolve('/templates');
+	if (link === '/presentation-templates') return resolve('/presentation-templates');
 	if (link === '/presentations') return resolve('/presentations');
 	if (link === '/my-stickers') return resolve('/my-stickers');
 	return resolve('/my-stickers#local-stickers');
@@ -51,6 +52,11 @@ export const primaryNavigation = [
 	{ to: '/create', label: 'Create', active: (pathname) => inEditor(pathname) },
 	{ to: '/templates', label: 'Templates', active: (pathname) => pathname === '/templates' },
 	{
+		to: '/presentation-templates',
+		label: 'Deck Templates',
+		active: (pathname) => pathname === '/presentation-templates'
+	},
+	{
 		to: '/presentations',
 		label: 'Presentations',
 		active: (pathname) => pathname === '/presentations' || pathname.startsWith('/presentations/')
@@ -67,6 +73,12 @@ export const sidebarNavigation = [
 		label: 'Presentations',
 		icon: Presentation,
 		active: (pathname) => pathname === '/presentations' || pathname.startsWith('/presentations/')
+	},
+	{
+		to: '/presentation-templates',
+		label: 'Deck Templates',
+		icon: LayoutTemplate,
+		active: (pathname) => pathname === '/presentation-templates'
 	},
 	{
 		to: '/templates',

@@ -49,6 +49,8 @@
 		describeTemplateSaveFailure,
 		TEMPLATE_SAVE_CONFLICT_MESSAGE
 	} from '$lib/presentations/templates/templateDraftRepository';
+	import { loadTemplateLayout } from '$lib/presentations/templates/templateLayout';
+	import InsertTemplateDialog from './InsertTemplateDialog.svelte';
 
 	/**
 	 * @typedef {(
@@ -589,6 +591,38 @@
 	}
 
 	/**
+	 * Downloads the chosen slides from a published template and writes them into
+	 * this deck as one persisted, undoable insertion (P71). A failure leaves the
+	 * deck untouched; the dialog shows the staged message.
+	 * @param {string} templateId
+	 * @param {number[]} slideOrdinals
+	 */
+	async function insertTemplateLayout(templateId, slideOrdinals) {
+		if (!catalogRepository)
+			return { ok: false, message: 'The catalog is not configured for this site.' };
+		try {
+			const layout = await loadTemplateLayout({
+				catalogRepository,
+				templateId,
+				slideOrdinals
+			});
+			const outcome = await saving.persistSlides({
+				slides: layout.slides,
+				assets: layout.assets,
+				media: layout.media
+			});
+			if (!outcome.ok) return { ok: false, message: outcome.message };
+			editorNote = 'Template slides inserted.';
+			return { ok: true };
+		} catch (error) {
+			return {
+				ok: false,
+				message: error instanceof Error ? error.message : 'The slides could not be inserted.'
+			};
+		}
+	}
+
+	/**
 	 * The way out of a stale revision: keep the local work as a copy, then re-open
 	 * the newer stored revision so Save is no longer dead.
 	 */
@@ -760,6 +794,11 @@
 						repository={catalogRepository}
 						disabled={inserting}
 						oninsert={addCatalogImage}
+					/>{/if}
+				{#if catalogRepository && !templateMode}<InsertTemplateDialog
+						repository={catalogRepository}
+						disabled={inserting}
+						oninsert={insertTemplateLayout}
 					/>{/if}
 				{#if catalogAdminRepository && !templateMode}<SaveAsTemplateDialog
 						repository={catalogAdminRepository}

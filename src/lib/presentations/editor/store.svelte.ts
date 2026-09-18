@@ -19,6 +19,7 @@ import type { AlignmentGuide } from './alignmentGuides';
 import type {
 	Element,
 	NormalizedCrop,
+	PresentationAsset,
 	PresentationDocument,
 	Slide,
 	TextParagraph,
@@ -101,6 +102,11 @@ export type PresentationStoreState = {
 	adoptPersistedInsert(plan: ImageInsertPlan, image: PreparedPresentationImage): void;
 	/** Adopts a persisted replacement, as exactly one undo entry. */
 	adoptPersistedReplacement(plan: ImageReplacePlan, image: PreparedPresentationImage): void;
+	/**
+	 * Adopts a persisted template-layout insertion, as exactly one undo entry;
+	 * a command that landed during the write is replayed on the live document.
+	 */
+	adoptPersistedSlideInsertion(plan: SlideInsertionPlan): void;
 	updateElement(
 		elementId: string,
 		patch: Partial<Element>,
@@ -393,6 +399,84 @@ export function planImageReplacement(
 	};
 }
 
+export type SlideInsertionRefusalReason = 'slide-cap' | 'element-cap' | 'asset-cap';
+export type SlideInsertionRefusal = { reason: SlideInsertionRefusalReason; message: string };
+
+/** Why inserting prepared slides/assets would be refused, resolved before any mutation. */
+export function slideInsertionRefusal(
+	document: PresentationDocument,
+	slides: Slide[],
+	assets: PresentationAsset[]
+): SlideInsertionRefusal | null {
+	if (document.slides.length + slides.length > PRESENTATION_LIMITS.maxSlides) {
+		return {
+			reason: 'slide-cap',
+			message: `This presentation already holds the maximum of ${PRESENTATION_LIMITS.maxSlides} slides.`
+		};
+	}
+	const existing = document.slides.reduce((sum, slide) => sum + slide.elements.length, 0);
+	const incoming = slides.reduce((sum, slide) => sum + slide.elements.length, 0);
+	if (existing + incoming > PRESENTATION_LIMITS.maxElements) {
+		return {
+			reason: 'element-cap',
+			message: `Inserting these slides would take the presentation past ${PRESENTATION_LIMITS.maxElements} elements. Remove some content first.`
+		};
+	}
+	const known = document.assets.map((asset) => asset.id);
+	const added = assets.filter((asset) => !known.includes(asset.id)).length;
+	if (document.assets.length + added > PRESENTATION_LIMITS.maxAssets) {
+		return {
+			reason: 'asset-cap',
+			message: `Inserting these slides would take the presentation past ${PRESENTATION_LIMITS.maxAssets} images.`
+		};
+	}
+	return null;
+}
+
+export type SlideInsertionPlan = {
+	document: PresentationDocument;
+	/** Inserted slide ids in order; the first one becomes active. */
+	slideIds: string[];
+	/** The exact prepared slides/assets, kept so a raced write can be replayed. */
+	slides: Slide[];
+	assets: PresentationAsset[];
+	afterSlideId: string | null;
+};
+
+/**
+ * Builds the next document for a template-layout insertion without touching the
+ * store: fresh-id slides and assets are inserted after the anchor (or at the
+ * end), and the plan carries the prepared content for a raced-write replay.
+ */
+export function planSlideInsertion(
+	document: PresentationDocument,
+	slides: Slide[],
+	assets: PresentationAsset[],
+	options: { afterSlideId?: string | null } = {}
+): SlideInsertionPlan | null {
+	if (slides.length === 0) return null;
+	if (slideInsertionRefusal(document, slides, assets)) return null;
+	const draft = structuredClone(document);
+	for (const asset of assets) {
+		if (!draft.assets.some((existing) => existing.id === asset.id))
+			draft.assets.push(structuredClone(asset));
+	}
+	const afterSlideId = options.afterSlideId ?? null;
+	const anchorIndex = afterSlideId
+		? draft.slides.findIndex((slide) => slide.id === afterSlideId)
+		: -1;
+	const insertAt = anchorIndex === -1 ? draft.slides.length : anchorIndex + 1;
+	const copies = slides.map((slide) => structuredClone(slide));
+	draft.slides.splice(insertAt, 0, ...copies);
+	return {
+		document: serializePresentationDocument(withRevision(document, draft)),
+		slideIds: copies.map((slide) => slide.id),
+		slides: copies,
+		assets,
+		afterSlideId
+	};
+}
+
 export function createPresentationStore(): PresentationStore {
 	return createStore((set, get) => {
 		/** Validates, bumps the revision and records one undo entry. Updaters return
@@ -468,6 +552,42 @@ export function createPresentationStore(): PresentationStore {
 				saving: input.persisted ? false : get().saving,
 				saveError: input.persisted ? null : get().saveError
 			});
+		};
+
+		/** Slide-insertion counterpart of `applyInsert`; selection moves to the first new slide. */
+		const applySlideInsertion = (input: { plan: SlideInsertionPlan; persisted: boolean }): void => {
+			const current = get().document;
+			if (!current || current.id !== input.plan.document.id) return;
+			const recorded = recordHistory(
+				{ past: get().past, future: [], lastHistoryGroup: get().lastHistoryGroup },
+				current
+			);
+			set({
+				document: input.plan.document,
+				past: recorded.past,
+				future: recorded.future,
+				lastHistoryGroup: recorded.lastHistoryGroup,
+				view: {
+					...get().view,
+					activeSlideId: input.plan.slideIds[0] ?? get().view.activeSlideId,
+					selectedElementIds: [],
+					editingElementId: null
+				},
+				savedRevision: input.persisted ? input.plan.document.revision : get().savedRevision,
+				dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision,
+				saving: input.persisted ? false : get().saving,
+				saveError: input.persisted ? null : get().saveError
+			});
+		};
+
+		/** Re-plans a slide insertion on the live document after a raced write. */
+		const replaySlideInsertion = (plan: SlideInsertionPlan): void => {
+			const current = get().document;
+			if (!current || current.id !== plan.document.id) return;
+			const replanned = planSlideInsertion(current, plan.slides, plan.assets, {
+				afterSlideId: plan.afterSlideId
+			});
+			if (replanned) applySlideInsertion({ plan: replanned, persisted: false });
 		};
 
 		/**
@@ -873,6 +993,25 @@ export function createPresentationStore(): PresentationStore {
 					return;
 				}
 				applyReplace({ plan, persisted: true });
+			},
+
+			adoptPersistedSlideInsertion(plan) {
+				const current = get().document;
+				if (
+					current &&
+					current.id === plan.document.id &&
+					current.revision !== plan.document.revision - 1
+				) {
+					set({
+						saving: false,
+						saveError: null,
+						savedRevision: plan.document.revision,
+						dirty: true
+					});
+					replaySlideInsertion(plan);
+					return;
+				}
+				applySlideInsertion({ plan, persisted: true });
 			},
 
 			updateElement(elementId, patch, options) {
