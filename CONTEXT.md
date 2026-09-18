@@ -27,11 +27,12 @@ Provenance comments in `src/**` that mention `../Peeloodle/...` refer to that ta
   accounts) and the cloud journeys run against a synthetic in-process backend — report that
   honestly rather than claiming deployed-backend verification. Presentations stay local (the source
   has no presentation cloud tables).
-- **Not ported, on purpose:** catalog administration (deferred by the design), cloud pack views
-  (shared packs, cloud export history, public sharing), billing, background removal. The
-  presentation model, local repositories, rendering layer, local library,
-  `/presentations/<id>` editor and its PDF/PPTX/backup exports are ported; masks/restore brushing is
-  fully implemented.
+- **Not ported, on purpose:** cloud pack views (shared packs, cloud export history, public
+  sharing), billing, background removal. The presentation model, local repositories, rendering
+  layer, local library, `/presentations/<id>` editor and its PDF/PPTX/backup exports are ported;
+  masks/restore brushing is fully implemented. Catalog administration was originally deferred by
+  the design and is now implemented on explicit request through milestone 5 plus P65 of milestone 6
+  (template authoring); P66–P75 and the live P53 check remain open.
 - Preserve: document schema versions, the `stickerlab-local` IndexedDB store names/keys, separate
   image blobs, immutable originals, image-local masks, editor draft recovery/navigation, template
   clone independence, the `stickerlab_fav_templates` localStorage key, modal/dialog regressions.
@@ -137,6 +138,15 @@ presentation flow has been prepared).
 | `src/lib/components/catalog/AdminUploadsPage.svelte`             | Bulk queue: preflight, direct uploads, per-file stages from the database, retry/cancel, honest resume, cleanup dry run                                                                                              |
 | `src/lib/components/catalog/AdminAssetsPage.svelte`              | Asset grid + inspector: filters, signed draft preview, version facts, publication refusals, conflict that adopts the server revision, pinned-archive explanation                                                    |
 | `src/lib/catalog/{types,repository,parse,memory,remote}.ts`      | Upload contracts, storage seam (`uploadSource`/`uploadDerivative`/`downloadSource`/`removeObjects`), strict parsers, and a fake that now hands out snapshots                                                        |
+
+**Key files for milestone 6, part 1 (P65 save-as-template drafts):**
+
+| Path                                                                                | Role                                                                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `supabase/migrations/20260916180000_catalog_template_drafts.sql`                    | Nullable pending-cover constraint plus the atomic `catalog_admin_create_template_draft` RPC (document/dependency validation, stable template + version 1 + pins in one transaction)                                        |
+| `src/lib/presentations/templates/saveAsTemplateDraft.ts`                            | Clone → resolve exact catalog versions → upload local media via the existing batch/processing pipeline → rewrite only cloned assets → hash → draft RPC. Never writes the local presentation                                   |
+| `src/lib/components/presentation/SaveAsTemplateDialog.svelte`                       | Admin-only metadata/collection form, mounted by `PresentationEditorPage.svelte` only after `isAdmin()` |
+| `src/lib/catalog/{types,repository,parse,memory,remote}.ts`, `src/lib/cloud/database.ts` | `getAssetVersion` + `createTemplateDraft`, the complete template-version projection with nullable cover pair, and the RPC declaration                                  |
 
 **Key files for milestone 4 (trusted catalog backend, repositories, admin console):**
 
@@ -389,10 +399,13 @@ harness with direct tools should re-run the autofixer if that evidence form is r
 5. **Catalog milestones 4 and 5 are implemented** on explicit request: schema/RLS/policies, guarded
    admin RPCs, repositories, the `/admin/{collections,assets,uploads}` screens, leased upload jobs and
    server-side validation, and (P62–P64) the student catalog panel in the presentation editor with
-   download-before-insert and the full admin-upload → student-insert → export browser journey. What
-   remains: **milestone 6** (template authoring), plus the **live** isolation check (P53), which needs
-   a dedicated Supabase test project before it can be run or claimed. Reuse the download-then-insert
-   shape for any future remote media: never commit an insertion before the bytes are local.
+   download-before-insert and the full admin-upload → student-insert → export browser journey.
+   **Milestone 6 is in progress**: P65 (save-as-template drafts) is implemented with the atomic draft
+   RPC and the editor action; P66–P75 (admin screens and template-mode editing, previews,
+   validation/publish, student browse/clone/insert, the three shipped templates and their journey)
+   remain. The **live** isolation check (P53) still needs a dedicated Supabase test project before it
+   can be run or claimed. Reuse the download-then-insert shape for any future remote media: never
+   commit an insertion before the bytes are local.
 6. Keep README + `docs/migration-progress.md` honest at each checkpoint; never claim a slice the code
    does not implement.
 

@@ -186,7 +186,7 @@ The first coding task is **P01**, then the **export/text proof P02–P05**. Do n
 
 | Done | ID  | Work item                                                                           | Depends on    | Completion evidence                                                                                  |
 | ---- | --- | ----------------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------- |
-| [ ]  | P65 | Add save-as-template draft action for admin, copying document and dependencies.     | P34, P46, P53 | All media uploaded before committing draft; personal presentation stays private/independent.         |
+| [x]  | P65 | Add save-as-template draft action for admin, copying document and dependencies.     | P34, P46, P53 | All media uploaded before committing draft; personal presentation stays private/independent.         |
 | [ ]  | P66 | Add template list/detail admin screens with metadata, status and edit-draft action. | P51, P65      | Draft opens in shared editor; save uses expected revision; no second editor implementation.          |
 | [ ]  | P67 | Generate cover and slide previews from immutable draft snapshots.                   | P36, P66      | Preview revision/hash matches document; edits invalidate stale previews.                             |
 | [ ]  | P68 | Add template schema/media/font validation, publish and archive.                     | P50, P67      | Missing dependency blocks publication; archive of a dependency cannot silently break live templates. |

@@ -134,6 +134,62 @@ SvelteKit port, losing neither the React application nor the server-side materia
   `post-git-graft-20260915T105133Z.tar.gz`, sha256
   `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
 
+## Milestone 6 checkpoint, part 1 — save-as-template drafts (2026-09-17, P65)
+
+Scope: **P65 of milestone 6** — an administrator turns the presentation open in the editor into one
+independent, immutable template draft after every referenced image has a validated catalog version.
+P66–P75 remain open, and P53's live RLS/Storage check is still unavailable (no Supabase test
+project).
+
+### Backend — `supabase/migrations/20260916180000_catalog_template_drafts.sql`
+
+- Pending template versions may have `cover_path`/`cover_sha256` both null; a check keeps the pair
+  all-null or all-present and forbids a `validated` version without a cover. The version immutability
+  triggers are unchanged.
+- `catalog_admin_create_template_draft` creates the stable template, its first immutable pending
+  version and every dependency pin in one security-definer transaction. Before any insert it
+  validates the document's asset shape NULL-safely (malformed UUIDs, byte lengths, dimensions and
+  MIME are business refusals, not raised casts) and verifies each referenced asset version is
+  `validated` and byte-for-byte the derivative the document claims (hash, bytes, MIME, width,
+  height). No template row can exist without its first version and pins; newly uploaded supporting
+  assets stay ordinary drafts and are never published implicitly.
+- `scripts/verify-catalog-sql.mjs` grew from 52 to **66 checks**: ordinary-user denial, invalid
+  documents and mismatched derivatives refused without writes, pending cover fields, version 1 plus
+  exactly one dependency row, and immutability of the inserted version/dependency rows.
+
+### Repositories — `src/lib/catalog/`
+
+- `CatalogAdminRepository` gained `getAssetVersion(assetId, versionId)` (an exact asset/version pair,
+  whatever its state) and `createTemplateDraft(input)`; `CatalogTemplateVersion` now carries the
+  complete projection (document hash/bytes, nullable cover pair, previews, font requirements,
+  validation payload). `parseTemplateVersion` refuses a validated version whose cover is null.
+  `parseTemplateDraft` parses the nested `{template, version}` envelope. `remote.ts` maps the RPC and
+  the exact-version read; `memory.ts` mirrors both semantics, validating the whole cloned document
+  before touching any array.
+
+### Orchestration and editor action
+
+- `src/lib/presentations/templates/saveAsTemplateDraft.ts` clones the open presentation with fresh
+  document/slide/element/asset IDs, verifies catalog-provenance images against their exact pinned
+  version (hash, bytes, MIME, dimensions), uploads every remaining local image through the existing
+  upload/processing pipeline in one batch in an administrator-chosen collection, rewrites only the
+  cloned assets to catalog provenance, hashes the serialized document, and calls the draft RPC last.
+  The local presentation and its stored media are never written. Errors are domain codes
+  (`collection_required`, `missing_media`, `dependency_mismatch`, `upload_failed`, `draft_refused`).
+- `SaveAsTemplateDialog.svelte` is rendered by `PresentationEditorPage.svelte` only when the route
+  resolved a real administrator (`repository.isAdmin()`); it collects title/use-case/tags/description
+  and, when any asset is local, a non-archived collection. The route passes the admin repository
+  separately from the public read path; the RPC remains the authority.
+
+### Verification at this checkpoint
+
+- `npm run test:catalog-sql`: **66 checks passed**.
+- Focused suites: `catalog.test.ts` 26, `remote.test.ts` 20, `saveAsTemplateDraft.test.ts` 7 —
+  **53 passed**. The presentation-editor browser contract for the dialog is part of
+  `presentation-editor-page.svelte.test.ts`.
+- The full format/check/lint/build sweep and the whole unit/browser suites are run and recorded
+  with the P66 checkpoint rather than claimed here.
+
 ## Milestone 5 checkpoint, part 2 — the student panel and the whole journey (2026-09-16, P62–P64)
 
 Scope: **the last three work items of milestone 5**, on the branch that already had P54–P61 (see the
