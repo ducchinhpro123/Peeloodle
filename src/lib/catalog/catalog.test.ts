@@ -943,6 +943,84 @@ describe('catalog template drafts in memory', () => {
 		).toMatchObject({ ok: false, reason: 'not_found' });
 	});
 
+	it('commits uploaded slide previews as the successor pending version', async () => {
+		const { catalog, created } = await seedDraft();
+		const templateId = created.item.template.id;
+		const versionId = created.item.version.id;
+		const previewPath = (ordinal: number) =>
+			`templates/${templateId}/${versionId}/preview-${String(ordinal + 1).padStart(2, '0')}.png`;
+		const previews = [0, 1].map((ordinal) => ({
+			ordinal,
+			path: previewPath(ordinal),
+			sha256: String(ordinal + 1).repeat(64),
+			bytes: 1024 + ordinal,
+			width: 960,
+			height: 540
+		}));
+		const input = {
+			templateId,
+			versionId,
+			expectedRevision: 1,
+			documentSha256: 'e'.repeat(64),
+			coverOrdinal: 1,
+			previews
+		};
+
+		// Objects that were never uploaded are refused with their paths.
+		expect(await catalog.attachTemplatePreviews(input)).toMatchObject({
+			ok: false,
+			reason: 'media_missing',
+			detail: { paths: [previews[0]!.path, previews[1]!.path] }
+		});
+		expect(catalog.templateVersions).toHaveLength(1);
+
+		for (const preview of previews)
+			catalog.objects.push({
+				bucket: 'catalog-derivatives',
+				path: preview.path,
+				bytes: preview.bytes,
+				mime: 'image/png'
+			});
+		expect(await catalog.attachTemplatePreviews({ ...input, expectedRevision: 5 })).toMatchObject({
+			ok: false,
+			reason: 'revision_conflict'
+		});
+		expect(
+			await catalog.attachTemplatePreviews({
+				...input,
+				previews: [{ ...previews[0]!, ordinal: 2 }]
+			})
+		).toMatchObject({ ok: false, reason: 'invalid_document' });
+
+		const result = await catalog.attachTemplatePreviews(input);
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error(JSON.stringify(result));
+		expect(result.item.version).toMatchObject({
+			versionNumber: 2,
+			coverPath: previews[1]!.path,
+			coverSha256: previews[1]!.sha256,
+			validationState: 'pending',
+			documentSha256: 'e'.repeat(64)
+		});
+		expect(result.item.version.slidePreviews).toEqual(previews);
+		expect(result.item.template.revision).toBe(2);
+		expect(
+			catalog.dependencies.filter((row) => row.templateVersionId === result.item.version.id)
+		).toEqual([
+			{
+				templateVersionId: result.item.version.id,
+				assetId: sourceAssetId,
+				assetVersionId: sourceVersionId
+			}
+		]);
+
+		// The superseded version can no longer gain previews.
+		expect(await catalog.attachTemplatePreviews({ ...input, expectedRevision: 2 })).toMatchObject({
+			ok: false,
+			reason: 'version_not_pending'
+		});
+	});
+
 	it('lists version summaries without documents and reads the newest for the editor', async () => {
 		const { catalog, created } = await seedDraft();
 		const templateId = created.item.template.id;

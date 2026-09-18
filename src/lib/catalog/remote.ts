@@ -28,6 +28,7 @@ import {
 	type CatalogRepository,
 	type CatalogTemplateDraftInput,
 	type CatalogTemplateInput,
+	type CatalogTemplatePreviewsInput,
 	type CatalogTemplateVersionInput,
 	type CatalogUploadClaimResult,
 	type CatalogUploadCompletionResult,
@@ -559,6 +560,26 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 				p_font_requirements: input.fontRequirements as Json
 			}),
 			'Could not create the template draft',
+			parseTemplateDraft
+		);
+	}
+
+	/**
+	 * Commits the preview manifest after the caller uploaded the PNGs. The
+	 * server re-checks the version is the newest pending one with this document
+	 * hash, and that every declared object exists with its declared size.
+	 */
+	attachTemplatePreviews(input: CatalogTemplatePreviewsInput) {
+		return this.#action(
+			this.#client.rpc('catalog_admin_attach_template_previews', {
+				p_template_id: input.templateId,
+				p_version_id: input.versionId,
+				p_expected_revision: input.expectedRevision,
+				p_document_sha256: input.documentSha256,
+				p_cover_ordinal: input.coverOrdinal,
+				p_previews: input.previews as unknown as Json
+			}),
+			'Could not attach the template previews',
 			parseTemplateDraft
 		);
 	}

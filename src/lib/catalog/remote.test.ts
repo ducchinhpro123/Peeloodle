@@ -753,6 +753,96 @@ describe('supabase catalog template drafts', () => {
 			detail: { template: { id: templateRow.id, revision: 4 } }
 		});
 	});
+
+	it('attaches previews through the guarded RPC and parses the successor version', async () => {
+		const previews = [
+			{
+				ordinal: 0,
+				path: `templates/${templateRow.id}/${templateVersionRow.id}/preview-01.png`,
+				sha256: '1'.repeat(64),
+				bytes: 1024,
+				width: 960,
+				height: 540
+			},
+			{
+				ordinal: 1,
+				path: `templates/${templateRow.id}/${templateVersionRow.id}/preview-02.png`,
+				sha256: '2'.repeat(64),
+				bytes: 2048,
+				width: 960,
+				height: 540
+			}
+		];
+		const { calls, client } = fakeClient([
+			{
+				data: {
+					ok: true,
+					item: {
+						template: { ...templateRow, revision: 2 },
+						version: {
+							...templateVersionRow,
+							version_number: 2,
+							cover_path: previews[0].path,
+							cover_sha256: previews[0].sha256,
+							slide_previews: previews
+						}
+					}
+				},
+				error: null
+			}
+		]);
+		const result = await catalogUsing(client).attachTemplatePreviews({
+			templateId: templateRow.id,
+			versionId: templateVersionRow.id,
+			expectedRevision: 1,
+			documentSha256: 'e'.repeat(64),
+			coverOrdinal: 0,
+			previews
+		});
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error('expected the previews to attach');
+		expect(result.item.version.slidePreviews).toEqual(previews);
+		expect(result.item.version.coverPath).toBe(previews[0].path);
+		expect(calls.at(-1)).toEqual([
+			'rpc',
+			'catalog_admin_attach_template_previews',
+			{
+				p_template_id: templateRow.id,
+				p_version_id: templateVersionRow.id,
+				p_expected_revision: 1,
+				p_document_sha256: 'e'.repeat(64),
+				p_cover_ordinal: 0,
+				p_previews: previews
+			}
+		]);
+	});
+
+	it('parses a media_missing preview refusal with its paths', async () => {
+		const path = `templates/${templateRow.id}/${templateVersionRow.id}/preview-01.png`;
+		const { client } = fakeClient([
+			{
+				data: {
+					ok: false,
+					reason: 'media_missing',
+					detail: { paths: [path] }
+				},
+				error: null
+			}
+		]);
+		const result = await catalogUsing(client).attachTemplatePreviews({
+			templateId: templateRow.id,
+			versionId: templateVersionRow.id,
+			expectedRevision: 1,
+			documentSha256: 'e'.repeat(64),
+			coverOrdinal: 0,
+			previews: [{ ordinal: 0, path, sha256: '1'.repeat(64), bytes: 1024, width: 960, height: 540 }]
+		});
+		expect(result).toMatchObject({
+			ok: false,
+			reason: 'media_missing',
+			detail: { paths: [path] }
+		});
+	});
 });
 
 describe('template version wire parsing', () => {

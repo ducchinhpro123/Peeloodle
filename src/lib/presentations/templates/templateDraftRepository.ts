@@ -22,6 +22,7 @@
 import { sha256Hex } from '$lib/hash';
 import { PersistenceError, isPersistenceError } from '$lib/persistence/repository';
 import type { CatalogAdminRepository } from '$lib/catalog/repository';
+import type { CatalogTemplate, CatalogTemplateVersion } from '$lib/catalog/types';
 import { parsePresentationDocument, presentationDocumentToJson } from '../model/parse';
 import type { PresentationAsset, PresentationDocument } from '../model/types';
 import type {
@@ -78,6 +79,7 @@ export class TemplateDraftRepository implements PresentationRepository {
 	/** One in-flight load, so concurrent first reads do not double-fetch. */
 	#loading: Promise<PresentationDocument> | null = null;
 	#media = new Map<string, PresentationMediaRecord>();
+	#head: { template: CatalogTemplate; version: CatalogTemplateVersion } | null = null;
 
 	constructor(input: TemplateDraftRepositoryInput) {
 		this.#catalog = input.catalog;
@@ -95,6 +97,7 @@ export class TemplateDraftRepository implements PresentationRepository {
 		this.#document = null;
 		this.#loading = null;
 		this.#media.clear();
+		this.#head = null;
 	}
 
 	async listPresentations() {
@@ -182,6 +185,10 @@ export class TemplateDraftRepository implements PresentationRepository {
 
 		this.#expectedRevision = result.item.template.revision;
 		this.#document = structuredClone(document);
+		this.#head = {
+			template: structuredClone(result.item.template),
+			version: structuredClone(result.item.version)
+		};
 	}
 
 	async deletePresentation(): Promise<void> {
@@ -207,6 +214,25 @@ export class TemplateDraftRepository implements PresentationRepository {
 		const record = await this.#downloadDerivative(asset);
 		this.#media.set(assetId, record);
 		return { ...record, bytes: record.bytes.slice() };
+	}
+
+	/**
+	 * The newest draft version and its stable template, for preview generation
+	 * (P67): the caller needs the exact version id, document hash and revision
+	 * the commit RPC compares against, not only the parsed document.
+	 */
+	async getDraftHead(): Promise<{
+		document: PresentationDocument;
+		version: CatalogTemplateVersion;
+		template: CatalogTemplate;
+	}> {
+		const document = await this.#load();
+		if (!this.#head) throw new PersistenceError('not_found', 'This template has no draft version.');
+		return {
+			document: structuredClone(document),
+			version: structuredClone(this.#head.version),
+			template: structuredClone(this.#head.template)
+		};
 	}
 
 	/**
@@ -252,6 +278,7 @@ export class TemplateDraftRepository implements PresentationRepository {
 		const document: PresentationDocument = { ...parsed, id: this.#templateId };
 		this.#document = document;
 		this.#expectedRevision = template.revision;
+		this.#head = { template, version };
 		return document;
 	}
 

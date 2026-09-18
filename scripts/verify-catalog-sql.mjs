@@ -900,8 +900,22 @@ async function main(binaries) {
 		const previewPath = (ordinal) =>
 			`templates/${previewTemplate.template.id}/${previewVersionId}/preview-${String(ordinal + 1).padStart(2, '0')}.png`;
 		const previewManifest = () => [
-			{ ordinal: 0, path: previewPath(0), sha256: '1'.repeat(64), bytes: 1024, width: 960, height: 540 },
-			{ ordinal: 1, path: previewPath(1), sha256: '2'.repeat(64), bytes: 2048, width: 960, height: 540 }
+			{
+				ordinal: 0,
+				path: previewPath(0),
+				sha256: '1'.repeat(64),
+				bytes: 1024,
+				width: 960,
+				height: 540
+			},
+			{
+				ordinal: 1,
+				path: previewPath(1),
+				sha256: '2'.repeat(64),
+				bytes: 2048,
+				width: 960,
+				height: 540
+			}
 		];
 		const attachPreviews = (
 			previews,
@@ -947,7 +961,8 @@ async function main(binaries) {
 			const before = await previewVersionCount();
 			const previews = previewManifest();
 			const [refused] = await attachPreviews(previews);
-			if (refused.result.reason !== 'media_missing') throw new Error(JSON.stringify(refused.result));
+			if (refused.result.reason !== 'media_missing')
+				throw new Error(JSON.stringify(refused.result));
 			if (
 				refused.result.detail.paths.length !== 2 ||
 				!refused.result.detail.paths.includes(previews[0].path)
@@ -961,7 +976,8 @@ async function main(binaries) {
 			await storePreviewObjects(previews);
 			const before = await previewVersionCount();
 			const [refused] = await attachPreviews(previews, { revision: 7 });
-			if (refused.result.reason !== 'revision_conflict') throw new Error(JSON.stringify(refused.result));
+			if (refused.result.reason !== 'revision_conflict')
+				throw new Error(JSON.stringify(refused.result));
 			const stored = await previewVersionCount();
 			if (stored !== before) throw new Error(`${before} -> ${stored}`);
 		});

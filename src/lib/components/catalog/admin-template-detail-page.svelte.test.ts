@@ -3,11 +3,20 @@
  * immutable version facts, compare-and-set metadata editing with a conflict that
  * keeps the typed values, and the missing / no-version states.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import '$lib/presentations/rendering/presentation-fonts.css';
 import AdminTemplateDetailPage from './AdminTemplateDetailPage.svelte';
 import { MemoryCatalog } from '$lib/catalog/memory';
-import type { CatalogTemplate, CatalogTemplateVersion } from '$lib/catalog/types';
+import { sha256Hex } from '$lib/hash';
+import { fixtureImagePng } from '$lib/presentations/model/fixtures/fixture';
+import { createImageElement, createPresentationDocument } from '$lib/presentations/model/factories';
+import { presentationDocumentToJson } from '$lib/presentations/model/parse';
+import type {
+	CatalogAssetVersion,
+	CatalogTemplate,
+	CatalogTemplateVersion
+} from '$lib/catalog/types';
 
 const ADMIN = '11111111-1111-4111-8111-111111111111';
 const now = '2026-09-16T00:00:00.000Z';
@@ -192,6 +201,119 @@ describe('admin template detail page', () => {
 		const title = dialog.querySelector<HTMLInputElement>('#catalog-template-title');
 		expect(title?.value).toBe('My title');
 		expect(catalog.templates[0]).toMatchObject({ title: 'Other title', revision: 3 });
+	});
+
+	it('generates and attaches slide previews from the exact pending draft', async () => {
+		const bytes = fixtureImagePng();
+		const sha = await sha256Hex(bytes);
+		const assetId = 'a0000000-0000-4000-8000-0000000000c1';
+		const assetVersionId = 'v0000000-0000-4000-8000-0000000000c1';
+		const derivativePath = `assets/${assetId}/${assetVersionId}/asset.png`;
+		const version: CatalogAssetVersion = {
+			id: assetVersionId,
+			assetId,
+			versionNumber: 1,
+			sourcePath: 'batches/b/j.png',
+			sourceSha256: 'a'.repeat(64),
+			sourceBytes: 1024,
+			sourceMime: 'image/png',
+			derivativePath,
+			derivativeSha256: sha,
+			derivativeBytes: bytes.length,
+			derivativeMime: 'image/png',
+			derivativeWidth: 256,
+			derivativeHeight: 256,
+			thumbnailPath: null,
+			validationState: 'validated',
+			createdAt: now
+		};
+		const document = createPresentationDocument({ id: 'template-doc', title: 'Template' });
+		const asset = {
+			id: `asset-${sha}`,
+			blobKey: `catalog/${sha}`,
+			mimeType: 'image/png' as const,
+			width: 256,
+			height: 256,
+			sha256: sha,
+			byteLength: bytes.length,
+			provenance: {
+				source: 'catalog' as const,
+				label: 'Catalog art',
+				catalogItemId: assetId,
+				catalogVersionId: assetVersionId
+			}
+		};
+		document.assets = [asset];
+		document.slides[0]!.elements.push(
+			createImageElement({ assetId: asset.id, width: 256, height: 256 })
+		);
+		const json = presentationDocumentToJson(document);
+		const encoded = new TextEncoder().encode(json);
+		const catalog = new MemoryCatalog({ admins: [ADMIN], versions: [version] }, ADMIN);
+		const created = await catalog.createTemplateDraft({
+			metadata: {
+				title: 'Preview deck',
+				useCase: 'class',
+				description: '',
+				tags: [],
+				sortOrder: 0
+			},
+			document: JSON.parse(json),
+			documentSha256: await sha256Hex(encoded),
+			documentBytes: encoded.length,
+			fontRequirements: []
+		});
+		if (!created.ok) throw new Error(JSON.stringify(created));
+		const templateId = created.item.template.id;
+		catalog.derivativeUrls.set(derivativePath, 'https://example.test/template.png');
+
+		const fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(
+				new Response(bytes.slice(), { status: 200, headers: { 'content-type': 'image/png' } })
+			);
+		try {
+			const page = render(AdminTemplateDetailPage, {
+				templateId,
+				repository: catalog,
+				listHref,
+				editHref
+			});
+			await waitFor(
+				() => page.container.textContent?.includes('Generate previews'),
+				'the generate button'
+			);
+			buttonByText(page.container, 'Generate previews').click();
+
+			const dialog = await waitFor(
+				() =>
+					[...page.container.querySelectorAll('dialog')].find(
+						(row) => row.open && (row.textContent ?? '').includes('Cover slide')
+					),
+				'the preview dialog'
+			);
+			expect(dialog.querySelectorAll('input[type="radio"]').length).toBe(1);
+			buttonByText(dialog, 'Generate previews').click();
+
+			await waitFor(
+				() => page.container.textContent?.includes('Previews attached as version 2.'),
+				'the attached notice'
+			);
+			expect(catalog.templateVersions).toHaveLength(2);
+			const successor = catalog.templateVersions[1]!;
+			expect(successor).toMatchObject({
+				versionNumber: 2,
+				validationState: 'pending',
+				documentSha256: created.item.version.documentSha256
+			});
+			expect(successor.slidePreviews).toHaveLength(1);
+			expect(successor.coverPath).toBe(successor.slidePreviews[0]!.path);
+			expect(
+				catalog.objects.filter((object) => object.bucket === 'catalog-derivatives')
+			).toHaveLength(1);
+		} finally {
+			fetchSpy.mockRestore();
+		}
 	});
 
 	it('reports a missing template and a template without versions', async () => {

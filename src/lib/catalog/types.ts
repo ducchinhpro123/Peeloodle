@@ -78,7 +78,15 @@ export type CatalogTemplate = {
 	updatedAt: string;
 };
 
-export type CatalogSlidePreview = { path: string; ordinal: number };
+/** One rendered slide preview, bound to the document hash of its version. */
+export type CatalogSlidePreview = {
+	path: string;
+	ordinal: number;
+	sha256: string;
+	bytes: number;
+	width: number;
+	height: number;
+};
 
 export type CatalogFontRequirement = { fontId: string };
 

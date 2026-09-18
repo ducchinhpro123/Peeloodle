@@ -186,7 +186,14 @@ function parseSlidePreviews(value: unknown): CatalogSlidePreview[] {
 	if (!Array.isArray(value)) invalid('Invalid slide_previews');
 	return value.map((entry) => {
 		const preview = record(entry, 'slide preview');
-		return { path: text(preview, 'path'), ordinal: integer(preview, 'ordinal') };
+		return {
+			path: text(preview, 'path'),
+			ordinal: integer(preview, 'ordinal'),
+			sha256: text(preview, 'sha256'),
+			bytes: integer(preview, 'bytes', 1),
+			width: integer(preview, 'width', 1),
+			height: integer(preview, 'height', 1)
+		};
 	});
 }
 
@@ -277,6 +284,7 @@ const REFUSALS: CatalogRefusal[] = [
 	'collection_not_published',
 	'version_not_found',
 	'version_not_validated',
+	'version_not_pending',
 	'dependency_unavailable',
 	'invalid_document',
 	'none_pending',

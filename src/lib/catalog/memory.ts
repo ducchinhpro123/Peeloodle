@@ -23,6 +23,7 @@ import {
 	type CatalogAssetVersionReport,
 	type CatalogTemplateDraftInput,
 	type CatalogTemplateInput,
+	type CatalogTemplatePreviewsInput,
 	type CatalogTemplateVersionInput,
 	type CatalogUploadRequest,
 	decodeUploadCursor,
@@ -814,6 +815,116 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 			templateVersionId: version.id,
 			...pin
 		}));
+		this.templateVersions.push(version);
+		this.dependencies.push(...dependencies);
+		Object.assign(current, { revision: current.revision + 1, updatedAt: now() });
+		return {
+			ok: true,
+			item: { template: this.#snapshot(current), version: this.#snapshot(version) }
+		};
+	}
+
+	/**
+	 * Mirrors `catalog_admin_attach_template_previews`: the objects have already
+	 * been uploaded to the private bucket stand-in, and this commits the
+	 * successor immutable version with the manifest and cover. The fake checks
+	 * the same gates the SQL does, minus the uuid-format regexes.
+	 */
+	async attachTemplatePreviews(
+		input: CatalogTemplatePreviewsInput
+	): Promise<CatalogActionResult<CatalogTemplateDraft>> {
+		const createdBy = this.#assertAdmin();
+		const current = this.templates.find((row) => row.id === input.templateId);
+		if (!current) return this.#refusal('not_found');
+		if (current.state === 'archived') return this.#refusal('archived', { template: current });
+		if (current.revision !== input.expectedRevision)
+			return this.#refusal('revision_conflict', { template: current });
+
+		const source = this.templateVersions.find(
+			(row) => row.id === input.versionId && row.templateId === input.templateId
+		);
+		if (!source) return this.#refusal('version_not_found');
+		const superseded = this.templateVersions.some(
+			(row) => row.templateId === input.templateId && row.versionNumber > source.versionNumber
+		);
+		if (source.validationState !== 'pending' || superseded)
+			return this.#refusal('version_not_pending', { version: source });
+		if (source.documentSha256 !== input.documentSha256) return this.#refusal('invalid_document');
+
+		if (!Array.isArray(input.previews) || input.previews.length < 1 || input.previews.length > 50)
+			return this.#refusal('invalid_document');
+		const prefix = `templates/${input.templateId}/${input.versionId}/`;
+		const ordinals = new Set<number>();
+		for (const preview of input.previews) {
+			if (
+				!Number.isSafeInteger(preview.ordinal) ||
+				preview.ordinal < 0 ||
+				ordinals.has(preview.ordinal) ||
+				!/^[a-f0-9]{64}$/.test(preview.sha256) ||
+				!Number.isSafeInteger(preview.bytes) ||
+				preview.bytes < 1 ||
+				!Number.isSafeInteger(preview.width) ||
+				preview.width < 1 ||
+				!Number.isSafeInteger(preview.height) ||
+				preview.height < 1 ||
+				!preview.path.startsWith(prefix) ||
+				!/^[A-Za-z0-9._-]{1,100}$/.test(preview.path.slice(prefix.length))
+			) {
+				return this.#refusal('invalid_document');
+			}
+			ordinals.add(preview.ordinal);
+		}
+		if (ordinals.size !== input.previews.length) return this.#refusal('invalid_document');
+		for (let ordinal = 0; ordinal < input.previews.length; ordinal += 1) {
+			if (!ordinals.has(ordinal)) return this.#refusal('invalid_document');
+		}
+		if (!Number.isSafeInteger(input.coverOrdinal) || !ordinals.has(input.coverOrdinal))
+			return this.#refusal('invalid_document');
+
+		const missing = input.previews
+			.filter(
+				(preview) =>
+					!this.objects.some(
+						(object) =>
+							object.bucket === 'catalog-derivatives' &&
+							object.path === preview.path &&
+							object.bytes === preview.bytes &&
+							object.mime === 'image/png'
+					)
+			)
+			.map((preview) => preview.path);
+		if (missing.length > 0) return this.#refusal('media_missing', { paths: missing });
+
+		const cover = input.previews.find((preview) => preview.ordinal === input.coverOrdinal)!;
+		const previousNumber = this.templateVersions
+			.filter((row) => row.templateId === current.id)
+			.reduce((highest, row) => Math.max(highest, row.versionNumber), 0);
+		const version: CatalogTemplateVersion = {
+			id: uuid(),
+			templateId: current.id,
+			versionNumber: previousNumber + 1,
+			document: structuredClone(source.document),
+			documentSha256: source.documentSha256,
+			documentBytes: source.documentBytes,
+			coverPath: cover.path,
+			coverSha256: cover.sha256,
+			slidePreviews: structuredClone(input.previews),
+			fontRequirements: structuredClone(source.fontRequirements),
+			validationState: 'pending',
+			validation: {
+				created_by: createdBy,
+				previews_of: source.id,
+				cover_ordinal: input.coverOrdinal
+			},
+			createdAt: now()
+		};
+		const dependencies: CatalogTemplateDependency[] = this.dependencies
+			.filter((row) => row.templateVersionId === source.id)
+			.map((row) => ({
+				templateVersionId: version.id,
+				assetId: row.assetId,
+				assetVersionId: row.assetVersionId
+			}));
 		this.templateVersions.push(version);
 		this.dependencies.push(...dependencies);
 		Object.assign(current, { revision: current.revision + 1, updatedAt: now() });

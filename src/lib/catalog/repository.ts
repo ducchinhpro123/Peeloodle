@@ -69,6 +69,7 @@ export type CatalogRefusal =
 	| 'collection_not_published'
 	| 'version_not_found'
 	| 'version_not_validated'
+	| 'version_not_pending'
 	| 'dependency_unavailable'
 	| 'invalid_document'
 	| 'none_pending'
@@ -219,6 +220,30 @@ export type CatalogTemplateVersionInput = {
 	documentSha256: string;
 	documentBytes: number;
 	fontRequirements: { fontId: string }[];
+};
+
+/** One rendered slide preview the caller uploads before the commit RPC. */
+export type CatalogTemplatePreviewInput = {
+	ordinal: number;
+	path: string;
+	sha256: string;
+	bytes: number;
+	width: number;
+	height: number;
+};
+
+/**
+ * The commit envelope for generated previews. The caller has already uploaded
+ * the objects to the private derivative bucket; the server verifies they exist
+ * with the declared size and creates the successor immutable version.
+ */
+export type CatalogTemplatePreviewsInput = {
+	templateId: string;
+	versionId: string;
+	expectedRevision: number;
+	documentSha256: string;
+	coverOrdinal: number;
+	previews: CatalogTemplatePreviewInput[];
 };
 
 /** One file the administrator selected; `bytes` is the browser's claimed size. */
@@ -383,6 +408,15 @@ export interface CatalogAdminRepository {
 	 */
 	saveTemplateVersion(
 		input: CatalogTemplateVersionInput
+	): Promise<CatalogActionResult<CatalogTemplateDraft>>;
+	/**
+	 * Commits already-uploaded slide previews as the successor immutable version
+	 * of the newest pending draft. Refused when the source is superseded or no
+	 * longer pending (`version_not_pending`), the document hash differs, or an
+	 * object is missing (`media_missing`); a refusal writes nothing.
+	 */
+	attachTemplatePreviews(
+		input: CatalogTemplatePreviewsInput
 	): Promise<CatalogActionResult<CatalogTemplateDraft>>;
 
 	// P54/P55: durable batches and leased jobs. Every method re-checks admin

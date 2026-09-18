@@ -419,6 +419,17 @@ export type Database = {
 				};
 				Returns: Json;
 			};
+			catalog_admin_attach_template_previews: {
+				Args: {
+					p_cover_ordinal: number;
+					p_document_sha256: string;
+					p_expected_revision: number;
+					p_previews: Json;
+					p_template_id: string;
+					p_version_id: string;
+				};
+				Returns: Json;
+			};
 			catalog_admin_publish_asset: {
 				Args: { expected_revision: number; id: string; version_id: string };
 				Returns: Json;
