@@ -32,7 +32,7 @@
 
 	/** @param {string} id */
 	function openClone(id) {
-		void goto(`${resolve('/presentations')}/${encodeURIComponent(id)}`);
+		void goto(resolve('/presentations/[presentationId]', { presentationId: id }));
 	}
 </script>
 
