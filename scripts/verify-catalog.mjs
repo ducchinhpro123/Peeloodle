@@ -4,6 +4,11 @@
 //
 //   node --env-file=.env.catalog-test scripts/verify-catalog.mjs
 //
+// The dedicated test project is `peeloodle-catalog-test` (ref
+// `wkmivbdheoynxaqolzdr`); see `supabase/README.md` and
+// `proofs/p53-live-catalog-isolation.md` for provisioning and results. Never point
+// this at the production project.
+//
 // Required: SUPABASE_TEST_URL, SUPABASE_TEST_KEY (publishable/anon only),
 // SUPABASE_TEST_ADMIN_EMAIL, SUPABASE_TEST_ADMIN_PASSWORD,
 // SUPABASE_TEST_USER_EMAIL, SUPABASE_TEST_USER_PASSWORD.
@@ -97,6 +102,28 @@ try {
 				name: `Denied ${stamp}`
 			});
 			assert(attempt.error, 'the call unexpectedly succeeded');
+		}
+	});
+
+	await check('ordinary and anonymous clients cannot insert catalog rows directly', async () => {
+		for (const actor of [user, anon]) {
+			const attempt = await actor
+				.from('catalog_collections')
+				.insert({ name: `Denied insert ${stamp}` });
+			assert(attempt.error, 'a direct insert unexpectedly succeeded');
+		}
+	});
+
+	await check('ordinary and anonymous clients cannot write the catalog buckets', async () => {
+		for (const actor of [user, anon]) {
+			for (const bucket of ['catalog-derivatives', 'catalog-sources']) {
+				const attempt = await actor.storage
+					.from(bucket)
+					.upload(`p53-denied-${bucket}-${stamp}.png`, new Uint8Array([1, 2, 3]), {
+						contentType: 'image/png'
+					});
+				assert(attempt.error, `a ${bucket} upload unexpectedly succeeded`);
+			}
 		}
 	});
 
@@ -232,5 +259,5 @@ if (failures > 0) {
 	process.exit(1);
 }
 console.log(
-	'PASS: live catalog isolation (admin/ordinary/anonymous reads, denied admin RPCs, publish race, signed derivative reads, archive revocation).'
+	'PASS: live catalog isolation (admin/ordinary/anonymous reads, denied admin RPCs, denied direct writes and bucket writes, publish race, signed derivative reads, archive revocation).'
 );

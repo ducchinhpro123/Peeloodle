@@ -106,3 +106,28 @@ npm run seed:templates
   remain explicit administrator actions in `/admin/templates`.
 - The seeded decks ship no catalog assets: their image areas are labelled shape placeholders, so
   cloning downloads nothing and every slide is editable text/shapes.
+
+## Live isolation verification (P53)
+
+The local SQL harness proves the policies against real PostgreSQL; the live check proves them against
+a real Supabase project. The dedicated test project is `peeloodle-catalog-test`
+(ref `wkmivbdheoynxaqolzdr`, org `tehottmpdqzssgrvbcqg`, Singapore `ap-southeast-1`, free plan).
+The production project (`StickerLab`, `ckmeozlmyvhjrzliwllz`) must never be used for these checks.
+
+- Apply the committed migrations: `npx supabase link --project-ref wkmivbdheoynxaqolzdr` then
+  `npx supabase db push --linked`.
+- Test accounts: `peeloodle-catalog-admin@example.com` (a catalog administrator) and
+  `peeloodle-catalog-user@example.com` (ordinary). Both have confirmed emails; the admin membership
+  row is bootstrapped by operator SQL (`insert into public.catalog_admins (user_id) values (…)`), as
+  above. Passwords live only in the gitignored `.env.catalog-test`, never in the repository.
+- Run: `node --env-file=.env.catalog-test scripts/verify-catalog.mjs` — 10 checks covering the admin
+  predicate, denied admin RPCs, denied direct inserts and bucket writes, hidden membership/jobs/
+  journal, published-only reads, draft→publish visibility, the one-conflict publish race, signed
+  derivative reads as an ordinary and an anonymous client, and archive revocation.
+- Role revocation is an operator cycle: `insert` the ordinary account into `catalog_admins`, verify
+  its admin RPCs succeed, `delete` the row, and verify `catalog_is_admin()` is `false` and the RPC
+  is denied `42501` on a fresh sign-in. The full evidence is in
+  `proofs/p53-live-catalog-isolation.md`.
+- Secret/service credentials are used only to provision the accounts and seed a published fixture
+  asset; the verifier itself signs in as the test users with the publishable key, so an ordinary
+  user is never simulated with elevated credentials.

@@ -32,7 +32,8 @@ Provenance comments in `src/**` that mention `../Peeloodle/...` refer to that ta
   layer, local library, `/presentations/<id>` editor and its PDF/PPTX/backup exports are ported;
   masks/restore brushing is fully implemented. Catalog administration was originally deferred by
   the design and is now implemented on explicit request through milestones 5 and 6 (template
-  authoring); the live P53 check remains open and the shipped decks are unpublished.
+  authoring); P53's live isolation check is closed against the dedicated test project
+  `wkmivbdheoynxaqolzdr`, and the shipped decks are unpublished (dry-run seed only).
 - Preserve: document schema versions, the `stickerlab-local` IndexedDB store names/keys, separate
   image blobs, immutable originals, image-local masks, editor draft recovery/navigation, template
   clone independence, the `stickerlab_fav_templates` localStorage key, modal/dialog regressions.
@@ -84,7 +85,7 @@ first eight items of milestone 5 of `docs/slides-implementation-plan.md` were im
 explicit request** — catalog schema/RLS/policies, guarded admin RPCs, typed repositories, the
 `/admin` guard with the collections console, then durable upload batches with leased validation jobs,
 server-side PNG/WebP/SVG processing, and the `/admin/uploads` + `/admin/assets` review screens, with
-a local PostgreSQL harness (52 checks) standing in for the live isolation check that needs a
+a local PostgreSQL harness (87 checks) and, since 2026-09-19, the live P53 isolation run against a
 dedicated test project. **Milestone 5 (P54–P64) is implemented**, including the student catalog
 panel, snapshot-before-insert and the end-to-end journey; milestone 6 (P65–P75) is implemented as
 well. Slice 3 is complete as written — presentation model, local storage, rendering, the
@@ -343,9 +344,11 @@ harness with direct tools should re-run the autofixer if that evidence form is r
   not bytes (storage-js has no progress event; a synthetic counter would be a lie). Validation needs a
   **server deployment** — on a static host `/api/catalog/process` does not exist and the screens say
   so rather than pretending a file was processed. The SVG policy rejects text elements by design.
-- **Catalog (milestone 4) residuals:** the live isolation check (P53) is **unavailable** (no
-  dedicated Supabase test project or credentials; `npm run test:catalog-live` is ready to run
-  there) — do not claim live RLS/Storage verification. The admin console covers collections only;
+- **Catalog (milestone 4): P53's live isolation check is closed** against the dedicated free-plan
+  project `wkmivbdheoynxaqolzdr` (`proofs/p53-live-catalog-isolation.md`): 10/10 live checks plus a
+  grant→revoke cycle, with the committed migrations applied and test accounts provisioned. Re-run
+  with `node --env-file=.env.catalog-test scripts/verify-catalog.mjs`; the secret/service key is
+  never used to act as a user. The admin console covers collections only;
   asset upload/review and template authoring are milestones 5–6 of
   `docs/slides-implementation-plan.md`. Search is sanitized `ILIKE` with a keyset cursor, not
   full-text. Archive is the terminal state (no delete); no background processing worker exists, so
@@ -397,8 +400,9 @@ harness with direct tools should re-run the autofixer if that evidence form is r
    `docs/migration-progress.md` for what the cloud journeys do and do not prove. The source P44
    reader-fixture proof is now ported and closed (see `proofs/p44-p45-readers-and-limits.md`, Svelte
    closure), with P45's budget and document ceilings measured; PowerPoint/Google Slides/Keynote
-   remain untested. **Live cross-user RLS/Storage verification is unavailable** — do not claim it
-   without dedicated ordinary-user accounts and a deployed test project. The presentation
+   remain untested. **Live cross-user RLS/Storage verification is closed** for the catalog test
+   project (P53, `proofs/p53-live-catalog-isolation.md`); the optional cloud/sticker RLS still has
+   no dedicated ordinary-user accounts, so do not generalise the catalog result to it. The presentation
    editor's client-only Konva seam has a server-graph guard
    (`src/lib/components/presentation-editor-page.server.test.ts`): never import Konva
    (`PresentationCanvas.svelte` / `KonvaArtboard.svelte` / `konvaText.ts`) statically into an
@@ -420,8 +424,9 @@ harness with direct tools should re-run the autofixer if that evidence form is r
    template-mode editing, preview generation bound to the draft hash, validation/publication/archive,
    the student browse/clone/layout-insert surfaces, and the three shipped decks (`shippedTemplates.js`
    with `npm run seed:templates` and the whole-journey test). The decks have not been seeded against a
-   live project or published, and the **live** isolation check (P53) still needs a dedicated Supabase
-   test project before it can be run or claimed. Reuse the download-then-insert shape for any future remote media: never
+   live project or published; the **live** isolation check (P53) is closed against the dedicated
+   test project `wkmivbdheoynxaqolzdr` (`proofs/p53-live-catalog-isolation.md`). Reuse the
+   download-then-insert shape for any future remote media: never
    commit an insertion before the bytes are local.
 6. Keep README + `docs/migration-progress.md` honest at each checkpoint; never claim a slice the code
    does not implement.
@@ -488,8 +493,9 @@ harness with direct tools should re-run the autofixer if that evidence form is r
   (schema/RLS/RPCs, repositories, `/admin/{collections,assets,uploads}`, leased upload jobs,
   server-side validation, the student catalog panel with download-before-insert, and the end-to-end
   upload → publish → insert → export journey). **Milestone 6 (template authoring) is implemented**
-  through P75; the shipped decks are seeded only in dry-run form, and the live P53 check still needs
-  a real Supabase test project.
+  through P75; the shipped decks are seeded only in dry-run form. P53's live catalog isolation is
+  closed against the dedicated test project `wkmivbdheoynxaqolzdr` (10/10 checks plus a revocation
+  cycle).
   Read the milestone-4 and milestone-5 checkpoints in `docs/migration-progress.md` before touching the
   catalog: the migrations are ordered and the policies/RPCs enforce the invariants (published-only
   reads, no write grants, CAS revisions, immutability triggers), so the client must stay read-only and

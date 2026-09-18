@@ -1,21 +1,21 @@
 # Peeloodle React → Svelte migration progress
 
-Last verified: 2026-09-18, **Milestone 6 of the slides plan complete (P65–P75) and the P44/P45
+Last verified: 2026-09-19, **P53's live catalog isolation check closed against a dedicated Supabase
+test project** — 10/10 live checks plus a grant→revoke cycle, and on top of
+**Milestone 6 of the slides plan complete (P65–P75) and the P44/P45
 reader/limit evidence closed** — save-as-template
 drafts, the admin template screens with shared-editor draft versions, previews bound to the draft
 hash, server-checked validation/publication/archive, the student template browser with verified
 atomic cloning and layout insertion, and the three shipped starter decks with their whole journey
-(see the newest checkpoint; the only remaining open item is P53's live isolation check, which needs
-a dedicated Supabase project), on top of
+(see the newest checkpoint), on top of
 **Milestone 5 of the slides plan (P54–P64)** — durable upload
 batches with leased validation jobs, server-side PNG/WebP/SVG processing with a strict static-subset
 policy, the `/admin/uploads` + `/admin/assets` review screens, and the student catalog panel in the
-presentation editor with download-then-insert and the end-to-end journey (see the newest checkpoint;
-only P53's live isolation check remains open), on top of
+presentation editor with download-then-insert and the end-to-end journey, on top of
 **Milestone 4 of the slides plan (P46–P53)** — the catalog schema, RLS
-policies and guarded admin RPCs with a 35-check SQL harness, the typed catalog repositories, and the
-admin guard plus collections console (P53's live isolation check is runnable but unrun; no test
-project exists — see the newest checkpoint), on top of
+policies and guarded admin RPCs with a 35-check local SQL harness, the typed catalog repositories,
+and the admin guard plus collections console (P53 is now verified live — see the newest checkpoint),
+on top of
 the presentation editor's client-only Konva seam — the dev-server 500 fix,
 its server-graph regression guard and the Svelte-best-practice cleanup (see the newest checkpoint
 below), on top of Slice 4 (cloud/Supabase) plus the slice-5 leftovers — the cloud port with its
@@ -140,6 +140,36 @@ SvelteKit port, losing neither the React application nor the server-side materia
   working tree **and** `.git` (86 MB, so full history) at
   `post-git-graft-20260915T105133Z.tar.gz`, sha256
   `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
+
+## P53 checkpoint — live catalog isolation against a dedicated Supabase project (2026-09-19)
+
+Scope: the last open catalog item, verified against a real backend instead of the local harness or a
+synthetic server. The owner provisioned a free-plan test project via the Supabase CLI;
+`StickerLab` (`ckmeozlmyvhjrzliwllz`), documented as production, was not touched.
+
+- Project `peeloodle-catalog-test` — ref `wkmivbdheoynxaqolzdr`, org `tehottmpdqzssgrvbcqg`,
+  Singapore (`ap-southeast-1`), free plan. All **11 committed migrations** applied with
+  `npx supabase db push --linked`.
+- Two confirmed test accounts were created through the Auth admin API
+  (`peeloodle-catalog-admin@example.com`, `peeloodle-catalog-user@example.com`); the admin was
+  bootstrapped with one `insert into public.catalog_admins` and one published fixture asset was
+  seeded (derivative uploaded to `catalog-derivatives`, then published by operator SQL) so the
+  signed-URL check can run. Secret/service credentials were used only for that provisioning, never
+  to act as a user.
+- `node --env-file=.env.catalog-test scripts/verify-catalog.mjs` reports **10/10**: the admin
+  predicate for all three clients; denied admin RPCs; denied direct catalog inserts; denied bucket
+  writes; invisible membership/jobs/journal; published-only ordinary reads; draft invisible until
+  published; a publish race resolving to exactly one `revision_conflict`; a signed derivative read
+  by the ordinary and anonymous clients; and archive revocation.
+- **Role revocation** was exercised live around fresh sign-ins: no membership → `is_admin=false`,
+  admin RPC denied `42501`; after operator grant → `is_admin=true`, create and archive succeed;
+  after operator delete → denied again. The verifier grew two checks (denied direct inserts and
+  denied bucket writes) to cover the row's "reads/writes" wording.
+- Local `.env.catalog-test` and the CLI's `supabase/.temp/` are gitignored; account passwords are
+  not recorded anywhere in the repository. Evidence: `proofs/p53-live-catalog-isolation.md`.
+- Still separate: **P08** (native processing packaging in an authorized preview environment) — the
+  processing endpoint is not deployed for this project, so the published asset was seeded rather
+  than processed; the milestone-0 row remains open.
 
 ## P44/P45 closure checkpoint — readers and measured limits from the Svelte app (2026-09-18)
 
