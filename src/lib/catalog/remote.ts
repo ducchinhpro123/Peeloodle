@@ -29,6 +29,7 @@ import {
 	type CatalogTemplateDraftInput,
 	type CatalogTemplateInput,
 	type CatalogTemplatePreviewsInput,
+	type CatalogTemplateValidationInput,
 	type CatalogTemplateVersionInput,
 	type CatalogUploadClaimResult,
 	type CatalogUploadCompletionResult,
@@ -569,6 +570,18 @@ export class SupabaseCatalog implements CatalogRepository, CatalogAdminRepositor
 	 * server re-checks the version is the newest pending one with this document
 	 * hash, and that every declared object exists with its declared size.
 	 */
+	validateTemplateVersion(input: CatalogTemplateValidationInput) {
+		return this.#action(
+			this.#client.rpc('catalog_admin_validate_template_version', {
+				p_template_id: input.templateId,
+				p_version_id: input.versionId,
+				p_expected_revision: input.expectedRevision
+			}),
+			'Could not validate the template version',
+			parseTemplateDraft
+		);
+	}
+
 	attachTemplatePreviews(input: CatalogTemplatePreviewsInput) {
 		return this.#action(
 			this.#client.rpc('catalog_admin_attach_template_previews', {

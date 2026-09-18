@@ -419,6 +419,10 @@ export type Database = {
 				};
 				Returns: Json;
 			};
+			catalog_admin_validate_template_version: {
+				Args: { p_expected_revision: number; p_template_id: string; p_version_id: string };
+				Returns: Json;
+			};
 			catalog_admin_attach_template_previews: {
 				Args: {
 					p_cover_ordinal: number;

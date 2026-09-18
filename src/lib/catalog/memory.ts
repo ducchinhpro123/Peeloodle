@@ -24,6 +24,7 @@ import {
 	type CatalogTemplateDraftInput,
 	type CatalogTemplateInput,
 	type CatalogTemplatePreviewsInput,
+	type CatalogTemplateValidationInput,
 	type CatalogTemplateVersionInput,
 	type CatalogUploadRequest,
 	decodeUploadCursor,
@@ -925,6 +926,155 @@ export class MemoryCatalog implements CatalogRepository, CatalogAdminRepository 
 				assetId: row.assetId,
 				assetVersionId: row.assetVersionId
 			}));
+		this.templateVersions.push(version);
+		this.dependencies.push(...dependencies);
+		Object.assign(current, { revision: current.revision + 1, updatedAt: now() });
+		return {
+			ok: true,
+			item: { template: this.#snapshot(current), version: this.#snapshot(version) }
+		};
+	}
+
+	/**
+	 * Mirrors `catalog_admin_validate_template_version`: the checks the SQL can
+	 * make are repeated here, and the validated successor is appended so version
+	 * rows stay write-once. A refusal writes nothing.
+	 */
+	async validateTemplateVersion(
+		input: CatalogTemplateValidationInput
+	): Promise<CatalogActionResult<CatalogTemplateDraft>> {
+		const validatedBy = this.#assertAdmin();
+		const current = this.templates.find((row) => row.id === input.templateId);
+		if (!current) return this.#refusal('not_found');
+		if (current.state === 'archived') return this.#refusal('archived', { template: current });
+		if (current.revision !== input.expectedRevision)
+			return this.#refusal('revision_conflict', { template: current });
+
+		const source = this.templateVersions.find(
+			(row) => row.id === input.versionId && row.templateId === input.templateId
+		);
+		if (!source) return this.#refusal('version_not_found');
+		const superseded = this.templateVersions.some(
+			(row) => row.templateId === input.templateId && row.versionNumber > source.versionNumber
+		);
+		if (source.validationState !== 'pending' || superseded)
+			return this.#refusal('version_not_pending', { version: source });
+
+		const invalid = () => this.#refusal<CatalogTemplateDraft>('invalid_document');
+		if (source.coverPath === null || source.coverSha256 === null) return invalid();
+		if (source.slidePreviews.length < 1 || source.slidePreviews.length > 50) return invalid();
+		const ordinals = new Set<number>();
+		for (const preview of source.slidePreviews) {
+			if (
+				!Number.isSafeInteger(preview.ordinal) ||
+				preview.ordinal < 0 ||
+				ordinals.has(preview.ordinal) ||
+				!/^[a-f0-9]{64}$/.test(preview.sha256) ||
+				!Number.isSafeInteger(preview.bytes) ||
+				preview.bytes < 1 ||
+				!Number.isSafeInteger(preview.width) ||
+				preview.width < 1 ||
+				!Number.isSafeInteger(preview.height) ||
+				preview.height < 1
+			)
+				return invalid();
+			ordinals.add(preview.ordinal);
+		}
+		for (let ordinal = 0; ordinal < source.slidePreviews.length; ordinal += 1) {
+			if (!ordinals.has(ordinal)) return invalid();
+		}
+		if (
+			!source.slidePreviews.some(
+				(preview) => preview.path === source.coverPath && preview.sha256 === source.coverSha256
+			)
+		)
+			return invalid();
+
+		const document = source.document;
+		if (!document || typeof document !== 'object' || Array.isArray(document)) return invalid();
+		const shape = document as { schemaVersion?: unknown; slides?: unknown; assets?: unknown };
+		if (
+			shape.schemaVersion !== 1 ||
+			!Array.isArray(shape.slides) ||
+			shape.slides.length < 1 ||
+			shape.slides.length > 50 ||
+			!Array.isArray(shape.assets)
+		)
+			return invalid();
+		if (
+			shape.assets.some((asset) => {
+				if (!asset || typeof asset !== 'object' || Array.isArray(asset)) return true;
+				const row = asset as Record<string, unknown>;
+				return row.blobKey !== `catalog/${String(row.sha256)}`;
+			})
+		)
+			return invalid();
+		const text = JSON.stringify(document);
+		if (
+			text.includes('catalog-sources') ||
+			text.includes('storage/v1') ||
+			text.includes('token=') ||
+			text.includes('<script')
+		)
+			return invalid();
+		if (
+			!Array.isArray(source.fontRequirements) ||
+			source.fontRequirements.length === 0 ||
+			source.fontRequirements.some(
+				(font) => font.fontId !== 'be-vietnam-pro' && font.fontId !== 'spectral'
+			)
+		)
+			return invalid();
+
+		const pins = this.dependencies.filter((row) => row.templateVersionId === source.id);
+		const unavailable = new Set<string>();
+		for (const dependency of pins) {
+			const owner = this.#findAsset(dependency.assetId);
+			if (
+				!owner ||
+				owner.state !== 'published' ||
+				owner.publishedVersionId !== dependency.assetVersionId
+			)
+				unavailable.add(dependency.assetId);
+		}
+		if (unavailable.size > 0)
+			return this.#refusal('dependency_unavailable', { assetIds: [...unavailable] });
+
+		const previousNumber = this.templateVersions
+			.filter((row) => row.templateId === current.id)
+			.reduce((highest, row) => Math.max(highest, row.versionNumber), 0);
+		const version: CatalogTemplateVersion = {
+			id: uuid(),
+			templateId: current.id,
+			versionNumber: previousNumber + 1,
+			document: structuredClone(source.document),
+			documentSha256: source.documentSha256,
+			documentBytes: source.documentBytes,
+			coverPath: source.coverPath,
+			coverSha256: source.coverSha256,
+			slidePreviews: structuredClone(source.slidePreviews),
+			fontRequirements: structuredClone(source.fontRequirements),
+			validationState: 'validated',
+			validation: {
+				validated_by: validatedBy,
+				validated_from: source.id,
+				checks: {
+					schemaVersion: 1,
+					slides: shape.slides.length,
+					assets: shape.assets.length,
+					previews: source.slidePreviews.length,
+					cover: source.coverPath,
+					fonts: source.fontRequirements,
+					dependencies: pins.length
+				}
+			},
+			createdAt: now()
+		};
+		const dependencies: CatalogTemplateDependency[] = pins.map((row) => ({
+			templateVersionId: version.id,
+			assetId: row.assetId,
+			assetVersionId: row.assetVersionId
+		}));
 		this.templateVersions.push(version);
 		this.dependencies.push(...dependencies);
 		Object.assign(current, { revision: current.revision + 1, updatedAt: now() });

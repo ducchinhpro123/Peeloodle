@@ -1057,11 +1057,21 @@ async function main(binaries) {
 
 		await check('only administrators can validate a template version', async () => {
 			await expectError(
-				validateVersion('12121212-1212-4212-8212-121212121212', '12121212-1212-4212-8212-121212121212', 1, asEditor),
+				validateVersion(
+					'12121212-1212-4212-8212-121212121212',
+					'12121212-1212-4212-8212-121212121212',
+					1,
+					asEditor
+				),
 				'42501'
 			);
 			await expectError(
-				validateVersion('12121212-1212-4212-8212-121212121212', '12121212-1212-4212-8212-121212121212', 1, asAnon),
+				validateVersion(
+					'12121212-1212-4212-8212-121212121212',
+					'12121212-1212-4212-8212-121212121212',
+					1,
+					asAnon
+				),
 				'42501'
 			);
 		});
@@ -1069,7 +1079,12 @@ async function main(binaries) {
 		const p68Document = (provenance = draftDocument.assets[0].provenance) => ({
 			...draftDocument,
 			slides: [
-				{ id: '99999999-9999-4999-8999-999999999999', name: 'Slide 1', background: '#ffffff', elements: [] }
+				{
+					id: '99999999-9999-4999-8999-999999999999',
+					name: 'Slide 1',
+					background: '#ffffff',
+					elements: []
+				}
 			],
 			assets: [{ ...draftDocument.assets[0], provenance }]
 		});
@@ -1090,7 +1105,12 @@ async function main(binaries) {
 			);
 			const templateId = fontDraft.result.item.template.id;
 			const sourceVersionId = fontDraft.result.item.version.id;
-			const successor = await attachFor(templateId, sourceVersionId, [previewFor(templateId, sourceVersionId)], 1);
+			const successor = await attachFor(
+				templateId,
+				sourceVersionId,
+				[previewFor(templateId, sourceVersionId)],
+				1
+			);
 			const [refused] = await validateVersion(templateId, successor.id, 2);
 			if (refused.result.reason !== 'invalid_document')
 				throw new Error(JSON.stringify(refused.result));
@@ -1108,7 +1128,12 @@ async function main(binaries) {
 			);
 			const templateId = archivedDraft.result.item.template.id;
 			const sourceVersionId = archivedDraft.result.item.version.id;
-			const successor = await attachFor(templateId, sourceVersionId, [previewFor(templateId, sourceVersionId)], 1);
+			const successor = await attachFor(
+				templateId,
+				sourceVersionId,
+				[previewFor(templateId, sourceVersionId)],
+				1
+			);
 			const [refused] = await validateVersion(templateId, successor.id, 2);
 			if (refused.result.reason !== 'dependency_unavailable')
 				throw new Error(JSON.stringify(refused.result));
@@ -1138,7 +1163,12 @@ async function main(binaries) {
 			);
 			const templateId = liveDraft.result.item.template.id;
 			const sourceVersionId = liveDraft.result.item.version.id;
-			const successor = await attachFor(templateId, sourceVersionId, [previewFor(templateId, sourceVersionId)], 1);
+			const successor = await attachFor(
+				templateId,
+				sourceVersionId,
+				[previewFor(templateId, sourceVersionId)],
+				1
+			);
 
 			const [validated] = await validateVersion(templateId, successor.id, 2);
 			if (!validated.result.ok) throw new Error(JSON.stringify(validated.result));

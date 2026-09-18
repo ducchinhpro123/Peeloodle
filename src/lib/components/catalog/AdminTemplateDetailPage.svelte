@@ -69,6 +69,106 @@
 	/** @type {string | null} */
 	let previewUrl = $state.raw(null);
 
+	// ---- P68 lifecycle: validate, publish, archive ----
+	let lifecycleBusy = $state(false);
+	/** @type {string | null} */
+	let lifecycleError = $state(null);
+	/** @type {string | null} */
+	let lifecycleNotice = $state(null);
+	let archiveOpen = $state(false);
+	let archiveBusy = $state(false);
+	/** @type {string | null} */
+	let archiveError = $state(null);
+
+	/** @param {import('$lib/catalog/repository').CatalogRefusal} reason */
+	function refusalMessage(reason) {
+		if (reason === 'revision_conflict')
+			return 'Another change happened first. Reload the page to see the current state.';
+		if (reason === 'dependency_unavailable')
+			return 'Some artwork in this draft is not published yet. Publish the pinned catalog assets, then validate again.';
+		if (reason === 'invalid_document')
+			return 'The draft did not pass validation. Check that previews are current and every font is bundled, then try again.';
+		if (reason === 'version_not_pending')
+			return 'A newer draft exists. Reload the page and continue from there.';
+		if (reason === 'archived') return 'This template is archived.';
+		if (reason === 'not_found' || reason === 'version_not_found')
+			return 'This template no longer exists.';
+		return 'The operation was refused.';
+	}
+
+	async function validateDraft() {
+		if (!newestVersion || !template) return;
+		lifecycleBusy = true;
+		lifecycleError = null;
+		lifecycleNotice = null;
+		try {
+			const result = await repository.validateTemplateVersion({
+				templateId,
+				versionId: newestVersion.id,
+				expectedRevision: template.revision
+			});
+			if (!result.ok) {
+				lifecycleError = refusalMessage(result.reason);
+				return;
+			}
+			lifecycleNotice = `Version ${result.item.version.versionNumber} is validated.`;
+			attempt += 1;
+		} catch (cause) {
+			lifecycleError = errorText(cause);
+		} finally {
+			lifecycleBusy = false;
+		}
+	}
+
+	async function publishDraft() {
+		if (!newestVersion || !template) return;
+		lifecycleBusy = true;
+		lifecycleError = null;
+		lifecycleNotice = null;
+		try {
+			const result = await repository.publishTemplate(
+				templateId,
+				newestVersion.id,
+				template.revision
+			);
+			if (!result.ok) {
+				lifecycleError = refusalMessage(result.reason);
+				return;
+			}
+			lifecycleNotice = `Published version ${newestVersion.versionNumber}.`;
+			attempt += 1;
+		} catch (cause) {
+			lifecycleError = errorText(cause);
+		} finally {
+			lifecycleBusy = false;
+		}
+	}
+
+	function openArchive() {
+		archiveOpen = true;
+		archiveError = null;
+	}
+
+	async function confirmArchive() {
+		if (!template) return;
+		archiveBusy = true;
+		archiveError = null;
+		try {
+			const result = await repository.archiveTemplate(template.id, template.revision);
+			if (!result.ok) {
+				archiveError = refusalMessage(result.reason);
+				return;
+			}
+			lifecycleNotice = `Archived “${result.item.title}”.`;
+			archiveOpen = false;
+			attempt += 1;
+		} catch (cause) {
+			archiveError = errorText(cause);
+		} finally {
+			archiveBusy = false;
+		}
+	}
+
 	// The cover thumbnail is a short-lived signed URL of the admin-readable
 	// derivative; drafts are not public, so it needs the admin session.
 	$effect(() => {
@@ -409,6 +509,67 @@
 		</section>
 
 		<section class="[display:grid] [gap:var(--space-3)]">
+			<h2 class="[margin:0] [font-size:16px]">Lifecycle</h2>
+			{#if lifecycleNotice}
+				<p role="status" class="[margin:0] [font-weight:700] [color:#007b55]">{lifecycleNotice}</p>
+			{/if}
+			{#if lifecycleError}<p role="alert" class="[margin:0] [font-weight:700]">
+					{lifecycleError}
+				</p>{/if}
+			<div
+				class="[display:flex] [flex-wrap:wrap] [align-items:center] [gap:var(--space-3)] [border-radius:var(--radius-sm)] [padding:var(--space-4)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+			>
+				{#if newestVersion?.validationState === 'validated'}
+					{#if template.publishedVersionId === newestVersion.id}
+						<span
+							class="[border-radius:999px] [padding:2px_10px] [font-size:11px] [font-weight:800] [color:#00694a] [background:#e3f4ea]"
+							>published</span
+						>
+						<p class="[margin:0] [font-size:13px]">
+							Version {newestVersion.versionNumber} is live. A new draft edit will create a newer version;
+							this published one stays immutable.
+						</p>
+					{:else}
+						<p class="[margin:0] [font-size:13px]">
+							Version {newestVersion.versionNumber} is validated and ready to publish.
+						</p>
+						<button
+							type="button"
+							class={buttonPrimary}
+							disabled={lifecycleBusy}
+							onclick={() => void publishDraft()}
+							>{lifecycleBusy ? 'Publishing…' : 'Publish this version'}</button
+						>
+					{/if}
+				{:else if newestVersion?.coverPath}
+					<p class="[margin:0] [font-size:13px]">
+						Version {newestVersion.versionNumber} has previews and can be validated. Validation requires
+						every pinned asset to be published.
+					</p>
+					<button
+						type="button"
+						class={buttonPrimary}
+						disabled={lifecycleBusy}
+						onclick={() => void validateDraft()}
+						>{lifecycleBusy ? 'Validating…' : 'Validate draft'}</button
+					>
+				{:else}
+					<p class="[margin:0] [font-size:13px]">
+						Generate previews for version {newestVersion?.versionNumber ?? '—'} before validating it.
+					</p>
+				{/if}
+				{#if template.state !== 'archived'}
+					<button
+						type="button"
+						class={[button, 'admin-archive-button']}
+						disabled={lifecycleBusy}
+						onclick={openArchive}>Archive template</button
+					>
+				{/if}
+			</div>
+		</section>
+
+		<section class="[display:grid] [gap:var(--space-3)]">
 			<h2 class="[margin:0] [font-size:16px]">Versions</h2>
 			<p class="[margin:0] [font-size:12px] [color:var(--muted)]">
 				Newest first. Version rows are immutable; the draft editor appends a new one.
@@ -512,6 +673,31 @@
 </Modal>
 
 <Modal
+	open={archiveOpen}
+	title="Archive template"
+	description="Archiving removes the template from new discovery. Existing student clones stay valid because they own their copied bytes."
+	onclose={() => {
+		if (!archiveBusy) archiveOpen = false;
+	}}
+>
+	<div class="[display:grid] [gap:var(--space-3)]">
+		<p class="[margin:0]">Archive “{template?.title}”?</p>
+		{#if archiveError}<p role="alert" class="[margin:0] [font-weight:700]">{archiveError}</p>{/if}
+		<div class="[display:flex] [justify-content:flex-end] [gap:var(--space-2)]">
+			<button
+				type="button"
+				class={button}
+				disabled={archiveBusy}
+				onclick={() => (archiveOpen = false)}>Cancel</button
+			>
+			<button type="button" class={buttonPrimary} disabled={archiveBusy} onclick={confirmArchive}
+				>{archiveBusy ? 'Archiving…' : 'Archive template'}</button
+			>
+		</div>
+	</div>
+</Modal>
+
+<Modal
 	open={editorOpen}
 	title="Edit template metadata"
 	description="Title, use case, tags and order are stable metadata; saving uses compare-and-set. Draft document content is edited through “Edit draft”."
@@ -593,6 +779,9 @@
 </Modal>
 
 <style>
+	.admin-archive-button {
+		color: var(--danger);
+	}
 	.admin-cover {
 		width: 240px;
 		max-width: 100%;

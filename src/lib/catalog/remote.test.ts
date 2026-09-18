@@ -754,6 +754,48 @@ describe('supabase catalog template drafts', () => {
 		});
 	});
 
+	it('validates a version through the guarded RPC and parses the successor', async () => {
+		const { calls, client } = fakeClient([
+			{
+				data: {
+					ok: true,
+					item: {
+						template: { ...templateRow, revision: 3 },
+						version: {
+							...templateVersionRow,
+							version_number: 4,
+							validation_state: 'validated',
+							cover_path: 'templates/t/w/cover.png',
+							cover_sha256: 'd'.repeat(64)
+						}
+					}
+				},
+				error: null
+			}
+		]);
+		const result = await catalogUsing(client).validateTemplateVersion({
+			templateId: templateRow.id,
+			versionId: templateVersionRow.id,
+			expectedRevision: 2
+		});
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error('expected the version to validate');
+		expect(result.item.version).toMatchObject({
+			versionNumber: 4,
+			validationState: 'validated',
+			coverPath: 'templates/t/w/cover.png'
+		});
+		expect(calls.at(-1)).toEqual([
+			'rpc',
+			'catalog_admin_validate_template_version',
+			{
+				p_template_id: templateRow.id,
+				p_version_id: templateVersionRow.id,
+				p_expected_revision: 2
+			}
+		]);
+	});
+
 	it('attaches previews through the guarded RPC and parses the successor version', async () => {
 		const previews = [
 			{

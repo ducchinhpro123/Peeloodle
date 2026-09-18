@@ -721,7 +721,7 @@ describe('catalog template drafts in memory', () => {
 				}
 			}
 		],
-		slides: []
+		slides: [] as unknown[]
 	});
 
 	const draftInput = (document: unknown) => ({
@@ -941,6 +941,154 @@ describe('catalog template drafts in memory', () => {
 				saveInput('t0000000-0000-4000-8000-000000000009', draftDocument())
 			)
 		).toMatchObject({ ok: false, reason: 'not_found' });
+	});
+
+	it('validates a previewed draft into a validated immutable successor', async () => {
+		const catalog = seeded();
+		const document = draftDocument();
+		document.slides = [{ id: 'slide-1', name: 'Slide 1', background: '#ffffff', elements: [] }];
+		const created = await catalog.createTemplateDraft(draftInput(document));
+		if (!created.ok) throw new Error(JSON.stringify(created));
+		const templateId = created.item.template.id;
+		const versionId = created.item.version.id;
+
+		// No previews yet: validation refuses and writes nothing.
+		expect(
+			await catalog.validateTemplateVersion({ templateId, versionId, expectedRevision: 1 })
+		).toMatchObject({ ok: false, reason: 'invalid_document' });
+		expect(catalog.templateVersions).toHaveLength(1);
+
+		const previews = [0, 1].map((ordinal) => ({
+			ordinal,
+			path: `templates/${templateId}/${versionId}/preview-${String(ordinal + 1).padStart(2, '0')}.png`,
+			sha256: String(ordinal + 3).repeat(64),
+			bytes: 1024 + ordinal,
+			width: 960,
+			height: 540
+		}));
+		for (const preview of previews)
+			catalog.objects.push({
+				bucket: 'catalog-derivatives',
+				path: preview.path,
+				bytes: preview.bytes,
+				mime: 'image/png'
+			});
+		const attached = await catalog.attachTemplatePreviews({
+			templateId,
+			versionId,
+			expectedRevision: 1,
+			documentSha256: 'e'.repeat(64),
+			coverOrdinal: 1,
+			previews
+		});
+		expect(attached.ok).toBe(true);
+
+		const validated = await catalog.validateTemplateVersion({
+			templateId,
+			versionId: attached.ok ? attached.item.version.id : versionId,
+			expectedRevision: 2
+		});
+		expect(validated.ok).toBe(true);
+		if (!validated.ok) throw new Error(JSON.stringify(validated));
+		expect(validated.item.version).toMatchObject({
+			versionNumber: 3,
+			validationState: 'validated',
+			coverPath: previews[1]!.path,
+			coverSha256: previews[1]!.sha256
+		});
+		expect(validated.item.version.validation).toMatchObject({
+			validated_from: attached.ok ? attached.item.version.id : versionId,
+			checks: { slides: 1, assets: 1, previews: 2, dependencies: 1 }
+		});
+		expect(validated.item.template.revision).toBe(3);
+		expect(
+			catalog.dependencies.filter((row) => row.templateVersionId === validated.item.version.id)
+		).toHaveLength(1);
+	});
+
+	it('blocks validation for an unpublished dependency or an unbundled font', async () => {
+		const catalog = seeded();
+		const document = draftDocument();
+		document.slides = [{ id: 'slide-1', name: 'Slide 1', background: '#ffffff', elements: [] }];
+		const created = await catalog.createTemplateDraft(draftInput(document));
+		if (!created.ok) throw new Error(JSON.stringify(created));
+		const templateId = created.item.template.id;
+		const versionId = created.item.version.id;
+		const preview = {
+			ordinal: 0,
+			path: `templates/${templateId}/${versionId}/preview-01.png`,
+			sha256: '3'.repeat(64),
+			bytes: 1024,
+			width: 960,
+			height: 540
+		};
+		catalog.objects.push({
+			bucket: 'catalog-derivatives',
+			path: preview.path,
+			bytes: preview.bytes,
+			mime: 'image/png'
+		});
+		const attached = await catalog.attachTemplatePreviews({
+			templateId,
+			versionId,
+			expectedRevision: 1,
+			documentSha256: 'e'.repeat(64),
+			coverOrdinal: 0,
+			previews: [preview]
+		});
+		if (!attached.ok) throw new Error(JSON.stringify(attached));
+		const previewedVersionId = attached.item.version.id;
+
+		catalog.assets[0]!.state = 'archived';
+		expect(
+			await catalog.validateTemplateVersion({
+				templateId,
+				versionId: previewedVersionId,
+				expectedRevision: 2
+			})
+		).toMatchObject({
+			ok: false,
+			reason: 'dependency_unavailable',
+			detail: { assetIds: [sourceAssetId] }
+		});
+		catalog.assets[0]!.state = 'published';
+
+		// A font outside the bundled pair is refused even with live media.
+		const fontCatalog = seeded();
+		const fontDocument = draftDocument();
+		fontDocument.slides = [{ id: 'slide-1', name: 'Slide 1', background: '#ffffff', elements: [] }];
+		const fontInput = draftInput(fontDocument);
+		fontInput.fontRequirements = [{ fontId: 'comic-sans' }];
+		const fontDraft = await fontCatalog.createTemplateDraft(fontInput);
+		if (!fontDraft.ok) throw new Error(JSON.stringify(fontDraft));
+		const fontTemplateId = fontDraft.item.template.id;
+		const fontVersionId = fontDraft.item.version.id;
+		const fontPreview = {
+			...preview,
+			path: `templates/${fontTemplateId}/${fontVersionId}/preview-01.png`
+		};
+		fontCatalog.objects.push({
+			bucket: 'catalog-derivatives',
+			path: fontPreview.path,
+			bytes: fontPreview.bytes,
+			mime: 'image/png'
+		});
+		const fontAttached = await fontCatalog.attachTemplatePreviews({
+			templateId: fontTemplateId,
+			versionId: fontVersionId,
+			expectedRevision: 1,
+			documentSha256: 'e'.repeat(64),
+			coverOrdinal: 0,
+			previews: [fontPreview]
+		});
+		if (!fontAttached.ok) throw new Error(JSON.stringify(fontAttached));
+		expect(
+			await fontCatalog.validateTemplateVersion({
+				templateId: fontTemplateId,
+				versionId: fontAttached.item.version.id,
+				expectedRevision: 2
+			})
+		).toMatchObject({ ok: false, reason: 'invalid_document' });
 	});
 
 	it('commits uploaded slide previews as the successor pending version', async () => {

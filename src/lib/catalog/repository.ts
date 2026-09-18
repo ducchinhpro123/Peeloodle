@@ -232,6 +232,13 @@ export type CatalogTemplatePreviewInput = {
 	height: number;
 };
 
+/** One validation event for the newest pending draft version. */
+export type CatalogTemplateValidationInput = {
+	templateId: string;
+	versionId: string;
+	expectedRevision: number;
+};
+
 /**
  * The commit envelope for generated previews. The caller has already uploaded
  * the objects to the private derivative bucket; the server verifies they exist
@@ -417,6 +424,15 @@ export interface CatalogAdminRepository {
 	 */
 	attachTemplatePreviews(
 		input: CatalogTemplatePreviewsInput
+	): Promise<CatalogActionResult<CatalogTemplateDraft>>;
+	/**
+	 * Validates the newest pending version and inserts the validated immutable
+	 * successor. Refused when previews are incomplete, a required font is not
+	 * bundled, the document carries private/signed text, or a pinned asset is no
+	 * longer the published version; a refusal writes nothing.
+	 */
+	validateTemplateVersion(
+		input: CatalogTemplateValidationInput
 	): Promise<CatalogActionResult<CatalogTemplateDraft>>;
 
 	// P54/P55: durable batches and leased jobs. Every method re-checks admin

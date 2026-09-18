@@ -316,6 +316,112 @@ describe('admin template detail page', () => {
 		}
 	});
 
+	it('validates, publishes and archives the newest draft', async () => {
+		const assetId = 'a0000000-0000-4000-8000-0000000000d1';
+		const assetVersionId = 'v0000000-0000-4000-8000-0000000000d1';
+		const sha = 'b'.repeat(64);
+		const cover = {
+			path: 'templates/t0000000-0000-4000-8000-000000000001/w0000000-0000-4000-8000-000000000002/preview-01.png',
+			ordinal: 0,
+			sha256: '1'.repeat(64),
+			bytes: 1024,
+			width: 960,
+			height: 540
+		};
+		const previewed: CatalogTemplateVersion = {
+			...version(),
+			id: 'w0000000-0000-4000-8000-000000000002',
+			versionNumber: 2,
+			document: {
+				schemaVersion: 1,
+				slides: [{ id: 'slide-1', name: 'Slide 1', background: '#ffffff', elements: [] }],
+				assets: [{ id: 'asset-1', blobKey: `catalog/${sha}`, sha256: sha }]
+			},
+			coverPath: cover.path,
+			coverSha256: cover.sha256,
+			slidePreviews: [cover],
+			fontRequirements: [{ fontId: 'be-vietnam-pro' }]
+		};
+		const catalog = new MemoryCatalog(
+			{
+				admins: [ADMIN],
+				templates: [template({ revision: 2 })],
+				templateVersions: [version(), previewed],
+				dependencies: [{ templateVersionId: previewed.id, assetId, assetVersionId }],
+				assets: [
+					{
+						id: assetId,
+						collectionId: null,
+						name: 'Pinned art',
+						description: '',
+						tags: [],
+						kind: 'raster',
+						provenance: {},
+						sortOrder: 1,
+						state: 'published',
+						revision: 2,
+						publishedVersionId: assetVersionId,
+						publishedAt: now,
+						archivedAt: null,
+						createdAt: now,
+						updatedAt: now
+					}
+				]
+			},
+			ADMIN
+		);
+		const page = render(AdminTemplateDetailPage, {
+			templateId: template().id,
+			repository: catalog,
+			listHref,
+			editHref
+		});
+		await waitFor(
+			() => page.container.textContent?.includes('Validate draft'),
+			'the validate action'
+		);
+		buttonByText(page.container, 'Validate draft').click();
+		await waitFor(
+			() => page.container.textContent?.includes('Version 3 is validated.'),
+			'the validated notice'
+		);
+		expect(catalog.templateVersions).toHaveLength(3);
+		expect(catalog.templateVersions[2]).toMatchObject({
+			versionNumber: 3,
+			validationState: 'validated',
+			coverPath: cover.path
+		});
+
+		await waitFor(
+			() => page.container.textContent?.includes('Publish this version'),
+			'the publish action'
+		);
+		buttonByText(page.container, 'Publish this version').click();
+		await waitFor(
+			() => page.container.textContent?.includes('Published version 3.'),
+			'the published notice'
+		);
+		expect(catalog.templates[0]).toMatchObject({
+			state: 'published',
+			publishedVersionId: catalog.templateVersions[2]!.id
+		});
+
+		buttonByText(page.container, 'Archive template').click();
+		const dialog = await waitFor(
+			() =>
+				[...page.container.querySelectorAll('dialog')].find(
+					(row) => row.open && (row.textContent ?? '').includes('Archive “Class presentation”')
+				),
+			'the archive dialog'
+		);
+		buttonByText(dialog, 'Archive template').click();
+		await waitFor(
+			() => page.container.textContent?.includes('Archived “Class presentation”.'),
+			'the archived notice'
+		);
+		expect(catalog.templates[0]!.state).toBe('archived');
+	});
+
 	it('reports a missing template and a template without versions', async () => {
 		const missing = new MemoryCatalog({ admins: [ADMIN] }, ADMIN);
 		const first = render(AdminTemplateDetailPage, {
