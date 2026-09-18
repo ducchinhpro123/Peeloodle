@@ -47,7 +47,9 @@ export class TemplateDraftError extends Error {
 	}
 }
 
-function fontRequirements(document: PresentationDocument): { fontId: string }[] {
+export function collectFontRequirements(
+	document: PresentationDocument
+): { fontId: string }[] {
 	const ids = new Set([document.theme.headingFontId, document.theme.bodyFontId]);
 	for (const slide of document.slides)
 		for (const element of slide.elements)
@@ -241,7 +243,7 @@ export async function saveAsTemplateDraft(
 		document: JSON.parse(json),
 		documentSha256: await sha256Hex(bytes),
 		documentBytes: bytes.length,
-		fontRequirements: fontRequirements(templateDocument)
+		fontRequirements: collectFontRequirements(templateDocument)
 	});
 	if (!result.ok)
 		throw new TemplateDraftError('draft_refused', `Template draft was refused (${result.reason}).`);

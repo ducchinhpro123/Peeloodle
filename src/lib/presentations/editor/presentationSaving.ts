@@ -67,9 +67,15 @@ export function createPresentationSaving(input: {
 	/** Commits text that is still only on screen before a save reads the store. */
 	flushText: () => void;
 	store: PresentationStoreSource;
+	/** Overrides the local-storage failure copy (template mode supplies one). */
+	describeFailure?: (error: unknown) => string;
+	/** The message a revision conflict is reported with. */
+	conflictMessage?: string;
 }) {
 	const { repository, documentId, flushText } = input;
 	const store = input.store;
+	const conflictMessage = input.conflictMessage ?? SAVE_CONFLICT_MESSAGE;
+	const describeFailure = input.describeFailure ?? describeSaveFailure;
 
 	let status: PresentationSaveState = { status: 'clean', message: null };
 	const statusListeners = new Set<() => void>();
@@ -144,11 +150,11 @@ export function createPresentationSaving(input: {
 			if (!stillCurrent()) return 'skipped';
 			const failed = store.getState();
 			if (isPersistenceError(error) && error.code === 'revision_conflict') {
-				failed.markSaveFailed(SAVE_CONFLICT_MESSAGE);
-				publish({ status: 'conflict', message: SAVE_CONFLICT_MESSAGE });
+				failed.markSaveFailed(conflictMessage);
+				publish({ status: 'conflict', message: conflictMessage });
 				return 'conflict';
 			}
-			const message = describeSaveFailure(error);
+			const message = describeFailure(error);
 			failed.markSaveFailed(message);
 			publish({ status: 'failed', message });
 			return 'failed';
@@ -190,15 +196,15 @@ export function createPresentationSaving(input: {
 				return { ok: true as const };
 			} catch (error) {
 				if (isPersistenceError(error) && error.code === 'revision_conflict') {
-					store.getState().markSaveFailed(SAVE_CONFLICT_MESSAGE);
-					publish({ status: 'conflict', message: SAVE_CONFLICT_MESSAGE });
+					store.getState().markSaveFailed(conflictMessage);
+					publish({ status: 'conflict', message: conflictMessage });
 					return {
 						ok: false as const,
 						reason: 'conflict' as const,
-						message: SAVE_CONFLICT_MESSAGE
+						message: conflictMessage
 					};
 				}
-				const message = describeSaveFailure(error);
+				const message = describeFailure(error);
 				store.getState().markSaveFailed(message);
 				publish({ status: 'failed', message });
 				return { ok: false as const, reason: 'failed' as const, message };
@@ -301,7 +307,7 @@ export function createPresentationSaving(input: {
 			try {
 				await repository.savePresentation(copy, media.records);
 			} catch (error) {
-				return { ok: false, message: describeSaveFailure(error) };
+				return { ok: false, message: describeFailure(error) };
 			}
 			return { ok: true, copyId: copy.id };
 		});
@@ -320,7 +326,7 @@ export function createPresentationSaving(input: {
 				publish({ status: 'clean', message: null });
 			}
 		} catch (error) {
-			const message = describeSaveFailure(error);
+			const message = describeFailure(error);
 			store.getState().markSaveFailed(message);
 			publish({ status: 'failed', message });
 			return { ok: false, message };
