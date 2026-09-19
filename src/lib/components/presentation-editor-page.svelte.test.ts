@@ -351,7 +351,6 @@ describe('presentation editor page', () => {
 		const editor = await openEditor();
 		editor.repository.injectWriteFailure();
 		buttonWithText(editor.container, 'Add text').click();
-
 		await waitFor(
 			() => editor.container.textContent?.includes('Save failed'),
 			'the failed autosave to be reported'

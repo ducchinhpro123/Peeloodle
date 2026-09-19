@@ -123,9 +123,10 @@
 		try {
 			const paragraphs = readParagraphsFromDom(host, defaults());
 			// A genuinely empty field keeps the element's style: one empty run with the
-			// same defaults the seed used, rather than an unstyled empty paragraph.
+			// same defaults the seed used, in the model's field order, so re-committing
+			// an untouched box is still a no-op.
 			if (paragraphs.every((paragraph) => paragraph.runs.every((run) => run.text === ''))) {
-				paragraphs[0].runs = [{ ...defaults(), text: '' }];
+				paragraphs[0].runs = [{ text: '', ...defaults() }];
 			}
 			store.getState().updateText(element.id, paragraphs, {
 				historyGroup: textHistoryGroup(element.id)

@@ -21,13 +21,6 @@ test('multiline text remains inside its auto-growing box while typing', async ({
 	await page.getByRole('button', { name: 'Add text', exact: true }).click();
 	const field = page.getByTestId('text-edit-field');
 	await expect(field).toBeFocused();
-	await field.blur();
-	await page
-		.getByRole('complementary', { name: 'Presentation details' })
-		.getByLabel('Text sizing')
-		.selectOption('grow');
-	await page.getByRole('button', { name: 'Edit text' }).click();
-	await expect(field).toBeFocused();
 	await field.fill('Xin chào Việt Nam\nSecond line\nThird line\nFourth line\nFifth line');
 	await expect.poll(() => fieldsFit(page)).toBe(true);
 	await field.blur();
@@ -38,6 +31,39 @@ test('multiline text remains inside its auto-growing box while typing', async ({
 	await expect(page.getByTestId('presentation-canvas')).toHaveAttribute('data-ready', 'true');
 	const reopened = JSON.parse(await readStoredPresentationJson(page, id));
 	expect(reopened.slides[0].elements[0]).toEqual(row.slides[0].elements[0]);
+});
+
+test('heading preset styles survive first typing, clearing and reopening', async ({ page }) => {
+	const id = await openBlankEditor(page);
+	await page.getByRole('button', { name: 'Add heading', exact: true }).click();
+	await expect(page.getByTestId('text-edit-field')).toBeFocused();
+	await page.keyboard.type('My heading');
+	await page.keyboard.press('Escape');
+	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	const row = await storedRow(page, id);
+	const text = row.slides[0].elements[0];
+	expect(text.paragraphs[0].runs[0].size).toBe(56);
+	expect(text.paragraphs[0].runs[0].fontId).toBe(row.theme.headingFontId);
+	await page.reload();
+	await expect(page.getByTestId('presentation-canvas')).toHaveAttribute('data-ready', 'true');
+	expect((await storedRow(page, id)).slides[0].elements[0]).toEqual(text);
+
+	// Clearing the field and typing again keeps the heading size and font.
+	await page
+		.locator('.presentation-layer-item')
+		.first()
+		.locator('.presentation-layer-select')
+		.click();
+	await page.getByRole('button', { name: 'Edit text' }).click();
+	const field = textField(page);
+	await expect(field).toBeFocused();
+	await page.keyboard.press('Control+a');
+	await page.keyboard.press('Backspace');
+	await page.keyboard.type('Again');
+	await page.keyboard.press('Escape');
+	await expect
+		.poll(async () => (await storedRow(page, id)).slides[0].elements[0].paragraphs[0].runs[0])
+		.toMatchObject({ text: 'Again', size: 56, fontId: row.theme.headingFontId });
 });
 
 test('keeps blank lines, an unbroken link and mixed sizes inside the box', async ({ page }) => {

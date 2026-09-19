@@ -19,7 +19,7 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import { isPersistenceError } from '$lib/persistence/repository';
 	import { isPresentationParseError } from '$lib/presentations/model/parse';
-	import { createTextElement } from '$lib/presentations/model/factories';
+	import { createPresetText } from '$lib/presentations/editor/textPresets';
 	import { ensurePresentationFonts } from '$lib/presentations/rendering/fonts';
 	import { createDecodedArtwork } from '$lib/presentations/rendering/decodedArtwork';
 	import {
@@ -365,22 +365,17 @@
 		images = new Map(decoded.images);
 	}
 
-	function addTextBox() {
+	/** @param {import('$lib/presentations/editor/textPresets').TextPreset} [preset] */
+	function addTextBox(preset = 'body') {
 		const state = store.getState();
 		if (!state.document || !activeSlide) return;
-		const textCount = activeSlide.elements.filter((element) => element.kind === 'text').length;
-		const id = state.addElement(
-			createTextElement({
-				name: textCount === 0 ? 'Text' : `Text ${textCount + 1}`,
-				x: 140 + (textCount % 4) * 24,
-				y: 240 + (textCount % 4) * 24,
-				width: 1000,
-				height: 160,
-				paragraphs: [{ runs: [], alignment: 'left', bullet: 'none', bulletLevel: 0 }]
-			})
-		);
+		// A preset box is ordinary editable text: theme fonts/colors, the preset's
+		// size, and automatic growth so the store can fit it as the text changes.
+		textSession.flush();
+		const id = store.getState().addElement(createPresetText(preset, state.document.theme));
 		// Open the editor straight away so the new box can be typed into immediately.
 		if (id) store.getState().startTextEdit(id);
+		else insertError = 'This slide cannot hold another text box. Remove an element first.';
 	}
 
 	function addSlide() {
@@ -774,9 +769,20 @@
 						></select
 					></label
 				>
-				<button type="button" class={button} onclick={addTextBox}
-					><Type size={16} aria-hidden="true" /> Add text</button
-				>
+				<span class="[display:inline-flex] [flex-wrap:wrap] [gap:var(--space-2)]">
+					<button type="button" class={button} onclick={() => addTextBox('heading')}
+						>Add heading</button
+					>
+					<button type="button" class={button} onclick={() => addTextBox('subheading')}
+						>Add subheading</button
+					>
+					<button type="button" class={button} onclick={() => addTextBox('body')}
+						>Add body text</button
+					>
+					<button type="button" class={button} onclick={() => addTextBox()}
+						><Type size={16} aria-hidden="true" /> Add text</button
+					>
+				</span>
 				{#if !templateMode}
 					<button
 						type="button"
