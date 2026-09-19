@@ -41,6 +41,13 @@ checks and known limitations are recorded in `docs/migration-progress.md`.
   a theme; reorder/hide/lock/duplicate/delete elements; add, duplicate, reorder and delete slides;
   undo/redo per gesture; autosave locally with a leave guard, and recover a revision conflict by
   keeping the local copy. A missing or unreadable deck gets an honest state instead of a crash.
+  Insert theme-styled **headings, subheadings and body text**, or one of five offline **built-in
+  layouts** (title, title + body, two columns, section header, image + caption) as a new slide
+  after the current one — the layout dialog previews the real slides, insertion never replaces
+  existing content, and a layout's image area takes a real photo in place through the same
+  persist-first path as Add image. Text boxes can grow automatically with their content (the
+  default for new presets and layouts), stay fixed with an explicit **Shrink text to fit** action,
+  and keep legacy decks at their authored geometry until you choose otherwise.
   Export the deck as a 960×540 pt image-based PDF, an editable PPTX (native text runs, hyperlinks,
   bullets, preset shapes, cropped/flipped/rotated pictures) or a restorable `.stickerlab.zip`
   backup; the editor shows live progress, can cancel between slides, and reports preflight warnings.
