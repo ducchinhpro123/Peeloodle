@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import '$lib/presentations/rendering/presentation-fonts.css';
-import { createShapeElement, createSlide, createTextElement } from '../model/factories';
-import { DEFAULT_THEME } from '../model/factories';
+import {
+	createShapeElement,
+	createSlide,
+	createTextElement,
+	DEFAULT_THEME
+} from '../model/factories';
 import { BUILTIN_LAYOUTS, createBuiltinLayout } from '../templates/builtinLayouts';
 import { growTextToFit } from '../editor/textFit';
 import { ensurePresentationFonts } from './fonts';

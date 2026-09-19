@@ -3,7 +3,7 @@
 	import { button } from '$lib/ui/styles.js';
 	import { layoutTextElement } from '$lib/presentations/rendering/textLayout';
 	import { measureTextWidth } from '$lib/presentations/editor/textMeasure';
-	import { growTextToFit } from '$lib/presentations/editor/textFit';
+	import { growTextToFit, textBoxInsidePage } from '$lib/presentations/editor/textFit';
 
 	/**
 	 * Sizing mode and text-overflow feedback (P27, extended). The layout service
@@ -32,7 +32,13 @@
 	let grownFor = $state(/** @type {string | null} */ (null));
 	/** @type {string} */
 	let fitError = $state('');
-	const capped = $derived(layout.overflow && (element.autoGrow || grownFor === element.id));
+	const pageSize = $derived(store.current.document?.pageSize);
+	// A box that already starts off the slide is never grown, so "reaches the slide
+	// edge" would be the wrong explanation; it gets its own message instead.
+	const offPage = $derived(pageSize !== undefined && !textBoxInsidePage(element, pageSize));
+	const capped = $derived(
+		layout.overflow && !offPage && (element.autoGrow || grownFor === element.id)
+	);
 
 	/** @param {Event} event */
 	function changeSizing(event) {
@@ -90,7 +96,9 @@
 {#if layout.overflow}
 	<div class="presentation-overflow-notice" role="status">
 		<p>Text overflows this box by about {overflowUnits} document units.</p>
-		{#if capped}
+		{#if offPage}
+			<p>This box is outside the slide. Move it back onto the slide to fit its text.</p>
+		{:else if capped}
 			<p>Text reaches the slide edge. Move or widen the box, shrink the text, or shorten it.</p>
 		{:else}
 			<!-- Keeping focus in the text field stops the blur from ending the session

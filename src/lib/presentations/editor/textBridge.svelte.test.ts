@@ -203,6 +203,28 @@ describe('text bridge', () => {
 		]);
 	});
 
+	it('round-trips composed IME text as ordinary run content', () => {
+		// What a Vietnamese IME leaves in the DOM after compositionend: plain text
+		// inside the styled run. The bridge must read it back with its style intact.
+		const host = document.createElement('div');
+		host.innerHTML = paragraphsToHtml(
+			[
+				{
+					alignment: 'left',
+					bullet: 'none',
+					bulletLevel: 0,
+					runs: [{ text: '', fontId: 'be-vietnam-pro', size: 28, color: '#08152f' }]
+				}
+			],
+			{ lineHeight: 1.3 }
+		);
+		const span = host.querySelector('span')!;
+		span.textContent = 'Xin chào Việt Nam';
+		expect(readParagraphsFromDom(host, defaults)[0]!.runs).toEqual([
+			{ text: 'Xin chào Việt Nam', fontId: 'be-vietnam-pro', size: 28, color: '#08152f' }
+		]);
+	});
+
 	it('normalizes non-breaking spaces and collapses markup whitespace', () => {
 		const paragraphs = htmlToParagraphs('<p>a&nbsp;b</p>\n<p>\n  spaced   out\n</p>', defaults);
 		expect(paragraphs[0]!.runs[0]!.text).toBe('a b');

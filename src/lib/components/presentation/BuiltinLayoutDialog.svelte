@@ -4,6 +4,10 @@
 	import { button } from '$lib/ui/styles.js';
 	import { ensurePresentationFonts } from '$lib/presentations/rendering/fonts';
 	import {
+		PRESENTATION_PAGE_HEIGHT,
+		PRESENTATION_PAGE_WIDTH
+	} from '$lib/presentations/model/types';
+	import {
 		BUILTIN_LAYOUTS,
 		createBuiltinLayout
 	} from '$lib/presentations/templates/builtinLayouts';
@@ -54,7 +58,7 @@
 				if (generation !== epoch) return;
 				const raster = await rasterizeSlidePage({
 					slide: item.slide,
-					pageSize: { width: 1280, height: 720 },
+					pageSize: { width: PRESENTATION_PAGE_WIDTH, height: PRESENTATION_PAGE_HEIGHT },
 					images: new Map(),
 					width: 320,
 					height: 180
@@ -84,7 +88,7 @@
 >
 	<div class="layout-grid">
 		{#each BUILTIN_LAYOUTS as item (item.id)}
-			<button type="button" class="layout-card" onclick={() => insert(item.id)}>
+			<button type="button" class="layout-card" {disabled} onclick={() => insert(item.id)}>
 				{#if previews[item.id]}
 					<img src={previews[item.id]} alt="" width="320" height="180" />
 				{:else}
