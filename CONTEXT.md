@@ -271,17 +271,13 @@ Adjust panel is later editor work.
 
 ## Verification (exact commands and results)
 
-**Newest (2026-09-19, milestone 7 P76–P81):** `npm run check` 0 errors/0 warnings, `npm run lint`
-clean, `npm run build` clean (endpoint compiled, `sharp` externalized, no private strings in the
-client bundle), `npm run test:unit -- --run` **84 files / 720 tests**, `npm run test:catalog-sql`
-**87 checks**, `npx playwright test` **70 passed + 3 gated skips**, `npm run test:e2e:cloud` **6
-journeys**, `npm run test:catalog-live` **16/16 live checks** (10 isolation + 6 P79 upload
-abuse/recovery) against the dedicated test project. The P76/P77 route audits pass at
-1440×900/1024×768/390×844 and found two real long-name overflow bugs, both fixed
-(`proofs/p76-p77-route-audits.md`); the P78 failure matrix and its two added gap tests are in
-`proofs/p78-failure-matrix.md`. P08's hosted preview run is the one remaining milestone-0 item
-(the Vercel setup is the owner's step; `scripts/verify-preview-processing.mjs` is ready). Browser
-suites need `TMPDIR` off the small `/tmp` tmpfs when it is full. Details in the newest checkpoint.
+**Newest (2026-09-19, presentation editing):** `npm run check` 0 errors/0 warnings, `npm run lint`
+clean, `npm run build` clean, `npm run test:unit -- --run` **87 files / 760 tests**,
+`npx playwright test` **77 passed + 3 gated skips**. The owner-approved presentation-editing work
+(text fitting/presets/layouts) is implemented and reviewed; evidence in
+`proofs/presentation-editing-acceptance.md` and the newest checkpoint in
+`docs/migration-progress.md`. Earlier on the same day, milestone 7 (P76–P81) closed with the route
+audits, failure matrix, P79 live checks (16/16) and release documentation.
 
 The rendering checkpoint ports four upstream test files (**24 tests**) and adds one real-Chromium
 pixel test. The full suite passes **35 files / 270 tests**. The current browser runner prints a known
@@ -498,6 +494,9 @@ scripts/verify-catalog.mjs` **16/16**. `P44_EVIDENCE=1` / `P45_EVIDENCE=1` add t
   verified** (schema/RLS/RPCs, repositories, `/admin/{collections,assets,uploads}`, leased upload
   jobs, server-side validation, the student catalog panel, template authoring and the shipped
   decks, the P76/P77 route audits, the P78 failure matrix and the P79 live abuse checks). The
+  owner-approved **presentation-editing work (text fitting, presets, built-in layouts) is also
+  implemented and reviewed** — see the newest checkpoint and
+  `proofs/presentation-editing-acceptance.md`. The
   shipped decks are seeded only in dry-run form. P53/P79 live checks are closed against the
   dedicated test project `wkmivbdheoynxaqolzdr` (16/16 plus a revocation cycle). **P08 remains
   open** pending the owner's Vercel preview setup (wizard + verifier ready), and **P82/P83 need

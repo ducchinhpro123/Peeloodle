@@ -147,6 +147,48 @@ SvelteKit port, losing neither the React application nor the server-side materia
   `post-git-graft-20260915T105133Z.tar.gz`, sha256
   `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
 
+## Presentation editing checkpoint — text fitting, presets and built-in layouts (2026-09-19)
+
+**Scope:** the owner-approved presentation-editing work (`docs/superpowers/specs/2026-09-19-presentation-editing-design.md`,
+plan `docs/superpowers/plans/2026-09-19-presentation-editing.md`, Tasks 1–7). Not a slides-plan
+milestone row; it extends the editor that P20–P45 built.
+
+**What landed** (commits `f144a93`, `4ecc4d5`, `607f3ce`, `9a775d5`, `2870af2`, `f261e73`, `df288c7`,
+`b1e60d5`):
+
+- Optional `TextElement.autoGrow?: boolean` (schema stays 1; absent = fixed, so legacy decks and
+  shipped/catalog templates are never reflowed or re-saved on load).
+- `src/lib/presentations/editor/textFit.ts`: pure `growTextToFit` (rotated page bounds, capped at
+  the slide edge), `shrinkTextToFit` (explicit, proportional, `min(12, size)` floor, null when
+  unreadable), `textBoxInsidePage`.
+- The store fits changed auto-growing text inside the same command transaction (two validation
+  passes before history/state mutation); `updateText` routes through `updateElement`; sizing/text
+  patches are refused on locked elements; `shrinkText` is one explicit undo entry; the store takes
+  an injectable `measureText`.
+- Layout corrections: repeated hard newlines preserved, authored small text no longer floored at
+  18 units.
+- Editing DOM: styled empty runs survive (zero-width placeholder; the reader strips it), paragraph
+  blocks carry the paragraph-wide max size, the field rotates with the element, paragraphs never
+  flex-shrink.
+- Inspector: `Text sizing` select, explicit `Shrink text to fit` with its refusal, capped
+  `Grow box to fit`, and an off-page message that does not pretend growth is possible.
+- Presets: `Add heading` (56) / `Add subheading` (36, muted) / `Add body text` (28), theme fonts and
+  colors, `autoGrow: true`, empty styled run; `Add text` stays the body alias.
+- Five built-in layouts in `src/lib/presentations/templates/builtinLayouts.ts`, inserted after the
+  active slide as one asset-free undoable command (never publishing a template draft); the
+  `Add layout` dialog previews the real slides with the shared rasterizer and keeps insertion
+  working when a preview fails.
+- Rectangle image areas become real images in place through the existing persist-first atomic
+  replacement path (`Add image here`), with the same id and geometry; uploads stay hidden in
+  template mode.
+
+**Verification:** `npm run check` 0/0, `npm run lint` clean, `npm run build` clean,
+`npm run test:unit -- --run` **87 files / 760 tests**, `npx playwright test` **77 passed + 3 gated
+skips**. Evidence and the independent review triage: `proofs/presentation-editing-acceptance.md`
+(layout-card screenshot, reader PPTX + headless LibreOffice PDF: 2 pages, 960×540 pt, native text).
+The review's actionable findings were fixed (page constants, disabled cards, off-page message,
+double import, IME test, committed reader PDF); the accepted judgement calls are recorded there.
+
 ## Milestone 7 checkpoint — route audits, failure matrix, live abuse checks, release docs (2026-09-19, P76–P81)
 
 **Result:** the slides plan's release-quality milestone is complete through P81. P08 (hosted
