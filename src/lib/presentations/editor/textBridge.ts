@@ -108,21 +108,30 @@ export function paragraphsToHtml(
 					? ''
 					: `<span ${BRIDGE_ATTR.marker}="true" contenteditable="false" style="user-select:none;display:inline-block;width:${BULLET_HANGING * scale}px">${markerText}</span>`;
 			const runs = paragraph.runs
-				.map(
-					(run) =>
-						`<span ${runStyleAttributes(run)} style="${runCss(run, scale)}">${escapeHtml(run.text).replace(/\n/g, '<br>')}</span>`
-				)
+				.map((run) => {
+					const text = escapeHtml(run.text).replace(/\n/g, '<br>');
+					// A styled empty run needs a line box of its own without inventing
+					// content: a zero-width placeholder keeps the run's metrics, and the
+					// reader strips it, so an untouched paragraph stays empty.
+					const inner = text || (paragraph.runs.length === 1 ? '\u200b' : '');
+					return `<span ${runStyleAttributes(run)} style="${runCss(run, scale)}">${inner}</span>`;
+				})
 				.join('');
 			// An empty paragraph needs a placeholder break to be a real editing line;
 			// the reader normalizes a lone placeholder back to no runs.
-			const content = paragraph.runs.every((run) => run.text === '') ? '<br>' : runs;
+			const content = runs || '<br>';
+			// Paragraph-wide line metrics: the layout service sizes every line of a
+			// paragraph from its largest run, so the editing DOM must not fall back to
+			// the first run's size.
+			const paragraphSize = paragraph.runs.reduce((max, run) => Math.max(max, run.size), 0);
+			const sizeStyle = paragraphSize ? `font-size:${paragraphSize * scale}px;` : '';
 			// Hanging indent mirrors the layout service: first line starts at the marker
 			// x, wrapping and the text itself align to the paragraph indent.
 			const indentStyle =
 				indent > 0
 					? `padding-left:${indent * scale}px;text-indent:-${BULLET_HANGING * scale}px;`
 					: '';
-			return `<p ${BRIDGE_ATTR.paragraph}="${index}" ${BRIDGE_ATTR.align}="${paragraph.alignment}"${bulletAttr} style="margin:0;text-align:${paragraph.alignment};${indentStyle}${options.lineHeight ? `line-height:${options.lineHeight};` : ''}">${marker}${content}</p>`;
+			return `<p ${BRIDGE_ATTR.paragraph}="${index}" ${BRIDGE_ATTR.align}="${paragraph.alignment}"${bulletAttr} style="margin:0;text-align:${paragraph.alignment};${sizeStyle}${indentStyle}${options.lineHeight ? `line-height:${options.lineHeight};` : ''}">${marker}${content}</p>`;
 		})
 		.join('');
 }

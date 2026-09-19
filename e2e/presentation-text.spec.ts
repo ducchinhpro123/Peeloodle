@@ -269,7 +269,12 @@ test('applies paragraph formatting and links, and reports text overflow', async 
 	await endSession(page);
 
 	// The layout service reports the overflow and offers the one-click fix; the
-	// element really grows and the notice goes away.
+	// element really grows and the notice goes away. New text now grows
+	// automatically, so this manual workflow explicitly chooses a fixed box first.
+	await page
+		.getByRole('complementary', { name: 'Presentation details' })
+		.getByLabel('Text sizing')
+		.selectOption('fixed');
 	await startEditing(page);
 	await page.keyboard.press('Control+a');
 	await page.keyboard.type('a'.repeat(600));

@@ -121,7 +121,13 @@
 	function commit(host = field) {
 		if (!host) return;
 		try {
-			store.getState().updateText(element.id, readParagraphsFromDom(host, defaults()), {
+			const paragraphs = readParagraphsFromDom(host, defaults());
+			// A genuinely empty field keeps the element's style: one empty run with the
+			// same defaults the seed used, rather than an unstyled empty paragraph.
+			if (paragraphs.every((paragraph) => paragraph.runs.every((run) => run.text === ''))) {
+				paragraphs[0].runs = [{ ...defaults(), text: '' }];
+			}
+			store.getState().updateText(element.id, paragraphs, {
 				historyGroup: textHistoryGroup(element.id)
 			});
 			commitError = null;
@@ -396,6 +402,7 @@
 		style:height="{element.height}px"
 		style:padding="{element.padding}px"
 		style:line-height={element.lineHeight}
+		style:transform="rotate({element.rotation}deg)"
 		style:justify-content={verticalAlignment}
 		style:font-family={fontStackFor(defaults().fontId)}
 		style:font-size="{defaults().size}px"
@@ -470,6 +477,13 @@
 		outline-offset: 6px;
 		pointer-events: auto;
 		caret-color: var(--mint);
+		/* The field carries the element rotation; the layer above carries scale/offset. */
+		transform-origin: 0 0;
+	}
+	/* Paragraph blocks must never flex-shrink away from their measured height. */
+	.presentation-text-editor :global(p) {
+		flex-shrink: 0;
+		min-width: 0;
 	}
 	.presentation-text-editor:focus-visible {
 		outline: 2px dashed var(--mint);

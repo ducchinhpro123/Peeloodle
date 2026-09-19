@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import {
 	BRIDGE_ATTR,
 	htmlToParagraphs,
@@ -147,6 +148,59 @@ describe('text bridge', () => {
 			'after'
 		]);
 		expect(read[1]!.runs).toEqual([]);
+	});
+
+	it('keeps an empty heading run styled in the editing DOM', () => {
+		const paragraphs = [
+			{
+				alignment: 'left' as const,
+				bullet: 'none' as const,
+				bulletLevel: 0 as const,
+				runs: [{ text: '', fontId: 'spectral', size: 56, color: '#123456' }]
+			}
+		];
+		const host = document.createElement('div');
+		host.innerHTML = paragraphsToHtml(paragraphs, { lineHeight: 1.3 });
+		expect(host.querySelector('[data-size="56"]')).not.toBeNull();
+		expect(host.querySelector('p')?.style.fontSize).toBe('56px');
+		// Untouched: reading back must not invent text (no stray newline run).
+		expect(readParagraphsFromDom(host, defaults)[0]!.runs).toEqual([]);
+	});
+
+	it('keeps a heading run style through a real first keystroke', async () => {
+		const host = document.createElement('div');
+		host.contentEditable = 'true';
+		host.tabIndex = 0;
+		document.body.append(host);
+		host.innerHTML = paragraphsToHtml(
+			[
+				{
+					alignment: 'left',
+					bullet: 'none',
+					bulletLevel: 0,
+					runs: [{ text: '', fontId: 'spectral', size: 56, color: '#123456' }]
+				}
+			],
+			{ lineHeight: 1.3 }
+		);
+		host.focus();
+		const selection = window.getSelection()!;
+		const range = document.createRange();
+		range.selectNodeContents(host.lastElementChild ?? host);
+		range.collapse(false);
+		selection.removeAllRanges();
+		selection.addRange(range);
+		await userEvent.keyboard('A');
+		const read = readParagraphsFromDom(host, defaults);
+		host.remove();
+		expect(read).toEqual([
+			{
+				runs: [{ text: 'A', fontId: 'spectral', size: 56, color: '#123456' }],
+				alignment: 'left',
+				bullet: 'none',
+				bulletLevel: 0
+			}
+		]);
 	});
 
 	it('normalizes non-breaking spaces and collapses markup whitespace', () => {
