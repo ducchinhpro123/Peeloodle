@@ -13,10 +13,11 @@ import { cssFontFor, type FontSpec } from '../rendering/textLayout';
 let measureContext: CanvasRenderingContext2D | null | undefined;
 
 export function measureTextWidth(text: string, spec: FontSpec): number {
-	// jsdom has no 2D context; the estimate keeps the overflow path testable and
-	// never runs in a browser, where the real canvas measure is used.
-	if (typeof document === 'undefined' || import.meta.env.MODE === 'test')
-		return text.length * spec.size * 0.55;
+	// Node has no 2D context; the estimate keeps the overflow path testable. The
+	// client test project runs a real browser and must measure real fonts, so the
+	// only fallback is a missing DOM - deterministic Node command tests inject
+	// their own `measureText` instead.
+	if (typeof document === 'undefined') return text.length * spec.size * 0.55;
 	if (measureContext === undefined)
 		measureContext = document.createElement('canvas').getContext('2d');
 	if (!measureContext) return text.length * spec.size * 0.55;

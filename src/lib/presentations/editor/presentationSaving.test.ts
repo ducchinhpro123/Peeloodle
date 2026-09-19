@@ -5,7 +5,7 @@ import {
 	type SavePresentationOptions
 } from '../persistence/repository';
 import type { PresentationDocument } from '../model/types';
-import { createPresentationDocument } from '../model/factories';
+import { createPresentationDocument, createTextElement } from '../model/factories';
 import { FIXTURE_IMAGE_SHA256, fixtureImagePng } from '../model/fixtures/fixture';
 import type { PreparedPresentationImage } from './insertImageAsset';
 import { createPresentationStore } from './store.svelte';
@@ -246,5 +246,35 @@ describe('presentation saving coordinator', () => {
 		});
 		expect(outcome).toMatchObject({ ok: false, reason: 'failed' });
 		expect(JSON.stringify(presentationStore.getState().document)).toBe(before);
+	});
+
+	it('persists an auto-grown height and reloads it cleanly', async () => {
+		const repository = new RecordingRepository();
+		const saving = await open(repository);
+		const document = structuredClone(presentationStore.getState().document!);
+		const text = createTextElement({
+			id: 'grow',
+			autoGrow: true,
+			width: 200,
+			height: 40,
+			text: 'Hello'
+		});
+		document.slides[0]!.elements = [text];
+		presentationStore.getState().loadDocument(document, { saved: true });
+		const paragraphs = structuredClone(text.paragraphs);
+		paragraphs[0]!.runs[0]!.text = 'Many words across multiple lines '.repeat(3);
+		presentationStore.getState().updateText(text.id, paragraphs, { historyGroup: 'text:grow' });
+		presentationStore.getState().endHistoryGroup();
+		const grown = presentationStore.getState().document!.slides[0]!.elements[0]!;
+		expect(grown.height).toBeGreaterThan(40);
+
+		expect(await saving.save()).toBe('saved');
+		const stored = await repository.getPresentation(PRESENTATION_ID);
+		expect(stored.slides[0]!.elements[0]).toMatchObject({ height: grown.height, autoGrow: true });
+
+		const fresh = createPresentationStore();
+		fresh.getState().loadDocument(stored, { saved: true });
+		expect(fresh.getState().dirty).toBe(false);
+		expect(fresh.getState().document!.slides[0]!.elements[0]).toEqual(grown);
 	});
 });

@@ -1021,4 +1021,141 @@ describe('slide insertion planning', () => {
 		}));
 		expect(planSlideInsertion(full, [incoming], [])).toBeNull();
 	});
+
+	it('groups typing and automatic geometry into one undo entry', () => {
+		const store = createPresentationStore({
+			measureText: (text, spec) => (text.length * spec.size) / 2
+		});
+		const document = createPresentationDocument();
+		const text = createTextElement({
+			id: 'grow',
+			autoGrow: true,
+			x: 80,
+			y: 80,
+			width: 200,
+			height: 40,
+			text: 'Hello'
+		});
+		document.slides[0]!.elements = [text];
+		store.getState().loadDocument(document);
+		const paragraphs = structuredClone(text.paragraphs);
+		paragraphs[0]!.runs[0]!.text = 'Many words across multiple lines '.repeat(3);
+		store.getState().updateText(text.id, paragraphs, { historyGroup: 'text:grow' });
+		const grown = store.getState().document!.slides[0]!.elements[0]!;
+		expect(grown.height).toBeGreaterThan(40);
+		expect(store.getState().past).toHaveLength(1);
+		store.getState().endHistoryGroup();
+		store.getState().undo();
+		expect(store.getState().document!.slides[0]!.elements[0]).toEqual(text);
+		store.getState().redo();
+		expect(store.getState().document!.slides[0]!.elements[0]).toEqual(grown);
+	});
+
+	it('does not reflow legacy text on load or on unrelated edits', () => {
+		const store = createPresentationStore();
+		const document = createPresentationDocument();
+		const text = createTextElement({ text: 'Overflow '.repeat(100), height: 20 });
+		document.slides[0]!.elements = [text];
+		store.getState().loadDocument(document);
+		expect(store.getState().dirty).toBe(false);
+		store.getState().renameSlide(document.slides[0]!.id, 'Renamed');
+		expect(store.getState().document!.slides[0]!.elements[0]).toEqual(text);
+	});
+
+	it('fits width, formatting, line-height and padding changes in the same command', () => {
+		const store = createPresentationStore({
+			measureText: (text, spec) => (text.length * spec.size) / 2
+		});
+		const document = createPresentationDocument();
+		const text = createTextElement({
+			id: 'grow',
+			autoGrow: true,
+			width: 600,
+			height: 40,
+			text: 'note'
+		});
+		document.slides[0]!.elements = [text];
+		store.getState().loadDocument(document);
+		const history = store.getState().past.length;
+
+		store.getState().updateElement('grow', { width: 120 });
+		const afterWidth = store.getState().document!.slides[0]!.elements[0]!;
+		expect(afterWidth.height).toBeGreaterThan(40);
+		expect(store.getState().past).toHaveLength(history + 1);
+
+		const edited = structuredClone(text.paragraphs);
+		edited[0]!.runs[0]!.size = 56;
+		store.getState().updateElement('grow', { paragraphs: edited });
+		const afterSize = store.getState().document!.slides[0]!.elements[0]!;
+		expect(afterSize.height).toBeGreaterThan(afterWidth.height);
+		expect(store.getState().past).toHaveLength(history + 2);
+
+		store.getState().updateElement('grow', { lineHeight: 2 });
+		const afterLineHeight = store.getState().document!.slides[0]!.elements[0]!;
+		expect(afterLineHeight.height).toBeGreaterThan(afterSize.height);
+		expect(store.getState().past).toHaveLength(history + 3);
+
+		store.getState().updateElement('grow', { padding: 24 });
+		expect(store.getState().document!.slides[0]!.elements[0]!.height).toBeGreaterThan(
+			afterLineHeight.height
+		);
+		expect(store.getState().past).toHaveLength(history + 4);
+	});
+
+	it('leaves fixed and locked text untouched by fitting', () => {
+		const store = createPresentationStore({
+			measureText: (text, spec) => (text.length * spec.size) / 2
+		});
+		const document = createPresentationDocument();
+		const fixed = createTextElement({ id: 'fixed', width: 120, height: 40, text: 'Hello' });
+		const explicit = createTextElement({
+			id: 'explicit',
+			autoGrow: false,
+			width: 120,
+			height: 40,
+			text: 'Hello'
+		});
+		const locked = createTextElement({
+			id: 'locked',
+			autoGrow: true,
+			locked: true,
+			width: 120,
+			height: 40,
+			text: 'Hello'
+		});
+		document.slides[0]!.elements = [fixed, explicit, locked];
+		store.getState().loadDocument(document);
+
+		store.getState().updateElement('fixed', { width: 80 });
+		store.getState().updateElement('explicit', { width: 80 });
+		expect(store.getState().document!.slides[0]!.elements[0]!.height).toBe(40);
+		expect(store.getState().document!.slides[0]!.elements[1]!.height).toBe(40);
+
+		store.getState().updateElement('locked', { width: 80 });
+		expect(store.getState().document!.slides[0]!.elements[2]).toEqual(locked);
+		expect(store.getState().shrinkText('locked')).toBe(false);
+		expect(store.getState().document!.slides[0]!.elements[2]).toEqual(locked);
+	});
+
+	it('rejects an invalid sizing patch before changing document or history', () => {
+		const store = createPresentationStore({
+			measureText: (text, spec) => (text.length * spec.size) / 2
+		});
+		const document = createPresentationDocument();
+		const text = createTextElement({
+			id: 'grow',
+			autoGrow: true,
+			width: 200,
+			height: 40,
+			text: 'Hello'
+		});
+		document.slides[0]!.elements = [text];
+		store.getState().loadDocument(document);
+		store.getState().updateElement('grow', { width: 120 });
+		const before = store.getState().document;
+		const history = store.getState().past;
+		expect(() => store.getState().updateElement('grow', { width: NaN })).toThrow();
+		expect(store.getState().document).toBe(before);
+		expect(store.getState().past).toBe(history);
+	});
 });

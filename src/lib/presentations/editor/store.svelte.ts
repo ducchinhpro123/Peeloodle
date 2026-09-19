@@ -9,12 +9,15 @@
  */
 
 import { PRESENTATION_LIMITS } from '../model/limits';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { serializePresentationDocument } from '../model/parse';
 import { createImageElement, createSlide, nextSlideName } from '../model/factories';
 import { recordHistory, stepBack, stepForward, withRevision, type HistoryEntry } from './history';
 import { fitImageWithinSlide, type PreparedPresentationImage } from './insertImageAsset';
 import { normalizeTransform, type TransformGeometry } from './transformGeometry';
+import { measureTextWidth } from './textMeasure';
+import { growTextToFit, shrinkTextToFit } from './textFit';
+import type { MeasureText } from '../rendering/textLayout';
 import type { AlignmentGuide } from './alignmentGuides';
 import type {
 	Element,
@@ -126,6 +129,8 @@ export type PresentationStoreState = {
 		paragraphs: TextParagraph[],
 		options?: { historyGroup?: string }
 	): void;
+	/** Explicit shrink-to-fit; false means unavailable, locked or unreadable. */
+	shrinkText(elementId: string): boolean;
 	setTheme(theme: Theme, options?: { historyGroup?: string }): void;
 
 	endHistoryGroup(): void;
@@ -477,7 +482,14 @@ export function planSlideInsertion(
 	};
 }
 
-export function createPresentationStore(): PresentationStore {
+export function createPresentationStore(
+	options: { measureText?: MeasureText } = {}
+): PresentationStore {
+	const measure = options.measureText ?? measureTextWidth;
+
+	/** Sizing/text patches refused on a locked element; lock toggling is its own command. */
+	const lockedPatchKeys = ['paragraphs', 'width', 'height', 'padding', 'lineHeight', 'autoGrow'];
+
 	return createStore((set, get) => {
 		/** Validates, bumps the revision and records one undo entry. Updaters return
 		 * `false` for a no-op so redo history and the revision are left untouched. */
@@ -490,7 +502,34 @@ export function createPresentationStore(): PresentationStore {
 			const draft = structuredClone(current);
 			const changed = updater(draft);
 			if (changed === false) return false;
-			const next = serializePresentationDocument(withRevision(current, draft));
+			// First validation pass: the command's own change must be valid before
+			// automatic fitting is allowed to touch it.
+			let next = serializePresentationDocument(withRevision(current, draft));
+			const previous = new SvelteMap(
+				current.slides.flatMap((slide) => slide.elements).map((element) => [element.id, element])
+			);
+			let fitted = false;
+			for (const slide of next.slides) {
+				slide.elements = slide.elements.map((element) => {
+					if (element.kind !== 'text' || !element.autoGrow || element.locked) return element;
+					const old = previous.get(element.id);
+					const signature = (value: typeof element) =>
+						JSON.stringify([
+							value.paragraphs,
+							value.width,
+							value.height,
+							value.padding,
+							value.lineHeight,
+							value.autoGrow
+						]);
+					if (old?.kind === 'text' && signature(old) === signature(element)) return element;
+					const result = growTextToFit(element, next.pageSize, measure);
+					if (result !== element) fitted = true;
+					return result;
+				});
+			}
+			// Second validation pass: fitted geometry is published only when valid.
+			if (fitted) next = serializePresentationDocument(next);
 			const recorded = recordHistory(
 				{ past: get().past, future: [], lastHistoryGroup: get().lastHistoryGroup },
 				current,
@@ -1020,6 +1059,11 @@ export function createPresentationStore(): PresentationStore {
 						.flatMap((slide) => slide.elements)
 						.find((candidate) => candidate.id === elementId);
 					if (!element) return false;
+					if (
+						element.locked &&
+						lockedPatchKeys.some((key) => Object.prototype.hasOwnProperty.call(patch, key))
+					)
+						return false;
 					const target = element as unknown as Record<string, unknown>;
 					let changed = false;
 					for (const [key, value] of Object.entries(patch)) {
@@ -1099,15 +1143,24 @@ export function createPresentationStore(): PresentationStore {
 			},
 
 			updateText(elementId, paragraphs, options) {
-				commit((draft) => {
-					const element = draft.slides
-						.flatMap((slide) => slide.elements)
-						.find((candidate) => candidate.id === elementId);
-					if (element?.kind !== 'text') return false;
-					if (JSON.stringify(element.paragraphs) === JSON.stringify(paragraphs)) return false;
-					element.paragraphs = structuredClone(paragraphs);
-					return true;
-				}, options);
+				const element = get()
+					.document?.slides.flatMap((slide) => slide.elements)
+					.find((candidate) => candidate.id === elementId);
+				if (element?.kind !== 'text' || element.locked) return;
+				get().updateElement(elementId, { paragraphs }, options);
+			},
+
+			shrinkText(elementId) {
+				const element = get()
+					.document?.slides.flatMap((slide) => slide.elements)
+					.find((candidate) => candidate.id === elementId);
+				if (element?.kind !== 'text' || element.locked) return false;
+				const fitted = shrinkTextToFit(element, measure);
+				if (!fitted) return false;
+				get().endHistoryGroup();
+				get().updateElement(elementId, { paragraphs: fitted.paragraphs, autoGrow: false });
+				get().endHistoryGroup();
+				return true;
 			},
 
 			setTheme(theme, options) {
