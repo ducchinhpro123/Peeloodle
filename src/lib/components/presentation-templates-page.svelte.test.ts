@@ -8,6 +8,8 @@ import { render } from 'vitest-browser-svelte';
 import '$lib/presentations/rendering/presentation-fonts.css';
 import PresentationTemplatesPage from './PresentationTemplatesPage.svelte';
 import { MemoryCatalog } from '$lib/catalog/memory';
+import { CatalogError } from '$lib/catalog/repository';
+import type { CatalogRepository } from '$lib/catalog/repository';
 import { createMemoryPresentationRepository } from '$lib/presentations/persistence/repository';
 import { sha256Hex } from '$lib/hash';
 import { fixtureImagePng } from '$lib/presentations/model/fixtures/fixture';
@@ -252,5 +254,26 @@ describe('presentation templates page', () => {
 			'the unconfigured state'
 		);
 		expect(unconfiguredText).toBe(true);
+	});
+
+	// P78: a catalog outage must read as an outage, never as "no templates".
+	it('reports a catalog outage instead of an empty library', async () => {
+		const presentations = createMemoryPresentationRepository();
+		const down = {
+			listTemplates: async () => {
+				throw new CatalogError('unavailable', 'network down');
+			}
+		} as unknown as CatalogRepository;
+		const page = render(PresentationTemplatesPage, {
+			catalogRepository: down,
+			presentationRepository: presentations,
+			onused: () => {}
+		});
+		const outage = await waitFor(
+			() => page.container.textContent?.includes('could not be reached'),
+			'the outage message'
+		);
+		expect(outage).toBe(true);
+		expect(page.container.textContent).not.toContain('No deck templates are published yet.');
 	});
 });

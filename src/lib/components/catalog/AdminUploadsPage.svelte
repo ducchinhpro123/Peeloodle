@@ -388,9 +388,12 @@
 			bucket; validation happens on the server and a file that fails is reported per file.
 		</p>
 		<div class="[display:flex] [flex-wrap:wrap] [align-items:center] [gap:var(--space-3)]">
-			<label class="[display:grid] [gap:4px] [font-size:13px]">
+			<label class="[display:grid] [min-width:0] [gap:4px] [font-size:13px]">
 				Collection
-				<select bind:value={collectionId} class="[border-radius:var(--radius-sm)] [padding:8px]">
+				<select
+					bind:value={collectionId}
+					class="[max-width:100%] [min-width:0] [border-radius:var(--radius-sm)] [padding:8px]"
+				>
 					<option value="">Ungrouped</option>
 					{#each collections as collection (collection.id)}
 						<option value={collection.id}>{collection.name}</option>

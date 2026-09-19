@@ -422,13 +422,17 @@
 		>
 			<div class="[display:flex] [flex-wrap:wrap] [align-items:flex-start] [gap:var(--space-3)]">
 				<div class="[min-width:0] [flex:1_1_20rem]">
-					<h1 class="[margin:0] [font-size:22px]">{template.title}</h1>
-					<p class="[margin:2px_0_0] [font-size:12px] [color:var(--muted)]">
+					<h1 class="[margin:0] [font-size:22px] [overflow-wrap:anywhere]">{template.title}</h1>
+					<p
+						class="[margin:2px_0_0] [font-size:12px] [overflow-wrap:anywhere] [color:var(--muted)]"
+					>
 						{template.useCase}
 						{#if template.tags.length}· tags: {template.tags.join(', ')}{/if}
 						· order {template.sortOrder}
 					</p>
-					{#if template.description}<p class="[margin:6px_0_0]">{template.description}</p>{/if}
+					{#if template.description}<p class="[margin:6px_0_0] [overflow-wrap:anywhere]">
+							{template.description}
+						</p>{/if}
 					<p class="[margin:6px_0_0] [font-size:12px] [color:var(--muted)]">
 						created {date(template.createdAt)} · updated {date(template.updatedAt)}
 					</p>

@@ -3,7 +3,9 @@
 **Date:** 2026-09-19 (run 2026-09-18 23:2x–23:3x UTC)
 **Plan row:** P53 — run live catalog isolation checks with anonymous, ordinary and admin
 clients in a test environment.
-**Result:** **10/10 live checks pass** on a real, dedicated Supabase project, plus an
+**Result:** **16/16 live checks pass** on a real, dedicated Supabase project — the 10 original
+isolation checks plus 6 upload abuse/recovery checks added for P79 (malformed batches, mismatched
+sources, single-claim leases, lease expiry reclaim, claim races, malformed reports) — plus an
 operator-driven role-revocation cycle (grant → admin RPC succeeds → revoke → denied).
 `scripts/verify-catalog.mjs` was run with the project's publishable key and real signed-in
 accounts; service-role/secret credentials were used only to provision the two test accounts and
@@ -76,7 +78,26 @@ node --env-file=.env.catalog-test scripts/verify-catalog.mjs
 | a published derivative is fetchable through a signed URL (user and anonymous) | ok     |
 | archive removes the collection from ordinary reading                          | ok     |
 
-**10 checks passed.**
+P79 additions (run 2026-09-19, same project and command):
+
+| Abuse / recovery check (live, over HTTPS)                                                                                        | Result |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| an upload batch with a malformed file is refused whole (bad mime, oversize, path traversal, one bad file among good, empty list) | ok     |
+| a source whose bytes contradict the batch cannot be claimed                                                                      | ok     |
+| a leased job is claimed once and refuses every other token                                                                       | ok     |
+| an expired lease is reclaimed without duplicating work                                                                           | ok     |
+| parallel claims never hand one job to two workers                                                                                | ok     |
+| source objects never sign for ordinary clients                                                                                   | ok     |
+
+The “leased job” check also covers the surrounding capability semantics: a wrong lease token
+cannot fail the job (`lease_lost`), the lease token never appears in the admin status payload, a
+malformed completion report is refused (`invalid_report`) **without** creating a
+`catalog_asset_versions` row, and failing with the true token followed by `retry` returns the job
+to `queued` without touching the stored source. The existing denied-RPC check now also attempts
+`catalog_admin_create_upload_batch` and `catalog_admin_claim_upload_job` as ordinary and anonymous
+clients.
+
+**16 checks passed.**
 
 ### Role revocation (operator SQL around a fresh sign-in each time)
 
@@ -98,7 +119,9 @@ node --env-file=.env.catalog-test scripts/verify-catalog.mjs
 
 - **P08** (native processing packaging in an authorized preview environment) is a separate,
   still-open milestone-0 item; the processing endpoint is not deployed for this test project, so
-  the verifier seeds the published asset by operator SQL instead of the upload/processing path.
-- The **app UI** was not exercised against this project; P53 is a backend isolation check.
+  the verifier seeds the published asset by operator SQL instead of the upload/processing path and
+  exercises completion-report validation directly. Byte-level malformed-image rejection is covered
+  by the Node processing tests and the SQL harness, not by this live run.
+- The **app UI** was not exercised against this project; P53/P79 are backend checks.
 - The project is dedicated test infrastructure. The publishable key is public by design; the secret
   key and account passwords live only in gitignored local files and are not recorded here.

@@ -338,13 +338,17 @@
 					class="admin-collection [display:flex] [flex-wrap:wrap] [align-items:center] [gap:var(--space-3)] [border-radius:var(--radius-sm)] [padding:var(--space-4)] [background:var(--surface)] [border:1px_solid_var(--line)]"
 				>
 					<div class="admin-collection-main [min-width:12rem] [flex:1_1_16rem]">
-						<h2 class="[margin:0] [font-size:16px]">{row.name}</h2>
-						<p class="[margin:2px_0_0] [font-size:12px] [color:var(--muted)]">
+						<h2 class="[margin:0] [font-size:16px] [overflow-wrap:anywhere]">{row.name}</h2>
+						<p
+							class="[margin:2px_0_0] [font-size:12px] [overflow-wrap:anywhere] [color:var(--muted)]"
+						>
 							{#if row.tags.length}tags: {row.tags.join(', ')} ·
 							{/if}order {row.sortOrder} · revision
 							{row.revision} · updated {date(row.updatedAt)}
 						</p>
-						{#if row.description}<p class="[margin:4px_0_0]">{row.description}</p>{/if}
+						{#if row.description}<p class="[margin:4px_0_0] [overflow-wrap:anywhere]">
+								{row.description}
+							</p>{/if}
 					</div>
 					<span
 						class="admin-state [border-radius:999px] [padding:2px_10px] [font-size:11px] [font-weight:800]"

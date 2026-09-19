@@ -69,20 +69,37 @@ checks and known limitations are recorded in `docs/migration-progress.md`.
   view). It downloads the derivative into the deck _before_ the insertion is committed, so a failed
   or offline download leaves the document untouched, and the saved deck records the catalog item and
   version it came from rather than a URL.
+- **Deck templates** (`/presentation-templates`): the published class, research-defense and
+  club-pitch decks are seeded from one source of truth (`npm run seed:templates`, drafts only;
+  previews, validation and publication stay explicit admin actions). The browser filters by use
+  case, previews every slide, and “Use template” clones all slides and artwork into an independent
+  local deck in one atomic step — a failed download leaves no half-created presentation. A
+  template's slide layouts can also be inserted into an existing deck at a chosen position; the
+  template and every clone stay independent. Catalog administrators author templates from the
+  shared editor (`/admin/templates`): save a presentation as a draft, edit metadata and slides in
+  the one editor implementation, generate cover/slide previews from immutable snapshots, and
+  validate/publish/archive through guarded RPCs; publication is refused while a dependency is
+  missing or archived.
 
 ## Not implemented yet (do not expect these to work)
 
 - Automatic background removal (no model/provider is configured; the UI says so).
 - JPEG/WebP export for stickers. Cloud-only pack views (shared packs, cloud export history) stay
   honest placeholders: packs are private or local, never shared.
-- Live cloud verification against a deployed backend: the cloud journeys run against a synthetic
-  in-process backend, so the deployed RLS policies and Storage rules are unverified here. The same
-  applies to the catalog: `npm run test:catalog-live` is the three-session isolation check for a
-  dedicated test project and has never been run (no project or credentials).
-- **Template authoring** is not built yet (the only catalog surface the design still defers).
+- Live cloud verification against the **deployed production** backend: the cloud journeys run
+  against a synthetic in-process backend, and the catalog's live isolation/abuse checks run against
+  a dedicated test project (`proofs/p53-live-catalog-isolation.md`), not against production
+  StickerLab. Deployed production RLS/Storage rules therefore remain unverified here.
 - **Serverless hosts**: asset validation runs in `POST /api/catalog/process`. On a purely static
   deployment that endpoint does not exist, so uploads can be stored but never validated (and the
-  screens say so); a server or serverless deploy is required to publish catalog media.
+  screens say so); a server or serverless deploy is required to publish catalog media. Packaging
+  that endpoint on a hosted serverless runtime is P08, pending an authorized preview run.
+- **Presentation readers**: the PPTX/PDF exports have been round-tripped through LibreOffice
+  Impress (25/25 checks) and opened in OnlyOffice Desktop Editors; PowerPoint, Google Slides and
+  Keynote are untested, and OnlyOffice interactive editing is not automated (reader-window
+  screenshots only). See `proofs/p44-p45-readers-and-limits.md`.
+- **Decoded-bitmap memory** at the top of the P45 budget (190–200 MiB) is not measured: the budget
+  probes use pixel-light PNGs padded to size.
 
 ## Development
 
@@ -96,17 +113,18 @@ npm run preview      # serve the production build
 
 ## Checks and tests
 
-| Command                      | What it runs                                                                               |
-| ---------------------------- | ------------------------------------------------------------------------------------------ |
-| `npm run check`              | `svelte-kit sync` + `svelte-check` (types, Svelte a11y/compile diagnostics)                |
-| `npm run lint`               | Prettier check + ESLint                                                                    |
-| `npm run format`             | Prettier write                                                                             |
-| `npm run test:unit -- --run` | Vitest (node project for modules, headless Chromium for `*.svelte.test.ts`)                |
-| `npx playwright test`        | End-to-end journeys against `npm run build && npm run preview` (`e2e/*.spec.ts`)           |
-| `npm run test:e2e`           | `playwright install` + `npx playwright test`                                               |
-| `npm run test:e2e:cloud`     | Optional-cloud journeys against a synthetic in-process Supabase backend                    |
-| `npm run test:catalog-sql`   | Catalog migrations + RLS/RPC/upload-lifecycle checks against a throwaway local PostgreSQL  |
-| `npm run test:catalog-live`  | Live catalog isolation check — requires a dedicated Supabase test project (never run here) |
+| Command                      | What it runs                                                                                                                                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run check`              | `svelte-kit sync` + `svelte-check` (types, Svelte a11y/compile diagnostics)                                                                                                                                        |
+| `npm run lint`               | Prettier check + ESLint                                                                                                                                                                                            |
+| `npm run format`             | Prettier write                                                                                                                                                                                                     |
+| `npm run test:unit -- --run` | Vitest (node project for modules, headless Chromium for `*.svelte.test.ts`)                                                                                                                                        |
+| `npx playwright test`        | End-to-end journeys against `npm run build && npm run preview` (`e2e/*.spec.ts`)                                                                                                                                   |
+| `npm run test:e2e`           | `playwright install` + `npx playwright test`                                                                                                                                                                       |
+| `npm run test:e2e:cloud`     | Optional-cloud journeys against a synthetic in-process Supabase backend                                                                                                                                            |
+| `npm run test:catalog-sql`   | Catalog migrations + RLS/RPC/upload-lifecycle checks against a throwaway local PostgreSQL                                                                                                                          |
+| `npm run test:catalog-live`  | Live isolation + upload abuse/recovery checks against a dedicated Supabase test project (`node --env-file=.env.catalog-test scripts/verify-catalog.mjs`; 16/16 recorded in `proofs/p53-live-catalog-isolation.md`) |
+| `npm run seed:templates`     | Seeds the three shipped deck templates as drafts into a configured catalog (add `-- --dry-run` to print hashes and sizes without network)                                                                          |
 
 `npx playwright test` uses an already-installed Chromium when one is cached; `npm run test:e2e`
 downloads browsers first. The Playwright web server builds and previews the production output.
@@ -126,6 +144,37 @@ VITE_AUTH_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:4173,https://yo
 Only a publishable (or legacy anon) key is accepted; a service-role key must never reach the browser.
 `npm run test:e2e:cloud` builds with synthetic public values and answers every auth/REST/Storage
 request in-process, so no project or credentials are needed for that suite.
+
+## Compatibility
+
+| Area                 | Verified                                                                                                                                      | Not verified                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Browser              | Headless Chromium 153 (Vitest browser tests and Playwright e2e); the editor is laptop/desktop-first                                           | Firefox, Safari/WebKit, mobile browsers, real-device touch input             |
+| Viewports            | 1440×900, 1024×768, 390×844, including the honest phone note (`proofs/p76-p77-route-audits.md`)                                               | Other sizes                                                                  |
+| Presentation readers | LibreOffice Impress 25/25 round-trip checks; OnlyOffice Desktop Editors 9.4 opens the exports                                                 | PowerPoint, Google Slides, Keynote; OnlyOffice interactive editing           |
+| Hosting              | Local production build + preview; static hosting keeps uploads stored but unvalidated                                                         | Hosted serverless packaging of `/api/catalog/process` (P08 preview pending)  |
+| Measured limits      | 20 MiB sources, 100 files per batch, 4096px derivatives, 64 KiB processing request body, 190 MiB export budget (accept 265 ms / refuse 64 ms) | Decoded-bitmap memory at the top of the budget (probes are pixel-light PNGs) |
+
+## Catalog setup (migrations, admin, server env)
+
+The catalog's tables, policies, private buckets and guarded RPCs live in `supabase/migrations/`;
+`supabase/README.md` is the operator runbook (migration order, admin bootstrap and recovery SQL,
+publication rules, the validation endpoint, seeding and live verification).
+
+- **Migrations**: `supabase link --project-ref <ref>` then `supabase db push --linked` applies them in
+  order; the catalog SQL harness rehearses the same migrations against a throwaway local PostgreSQL.
+- **Admin bootstrap**: an operator inserts the signed-in user's id into `public.catalog_admins`
+  (statement in `supabase/README.md`). Nothing in the app can grant membership, and every admin RPC
+  re-checks it server-side.
+- **Server env**: `POST /api/catalog/process` reads the same public values at build time
+  (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_AUTH_ALLOWED_ORIGINS` — the deployment
+  origin must be listed exactly). It never reads a service-role key: every Supabase call uses the
+  signed-in administrator's own token, so row policies apply unchanged.
+- **Seeding**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_ADMIN_ACCESS_TOKEN` with
+  `npm run seed:templates` creates the three shipped template drafts; previews, validation and
+  publication stay explicit `/admin/templates` actions.
+- **Live verification**: `npm run test:catalog-live` (with `--env-file` values) is the isolation and
+  upload-abuse check for a dedicated test project; never point it at production.
 
 ## Local-first data
 

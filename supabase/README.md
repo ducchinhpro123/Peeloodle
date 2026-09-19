@@ -120,10 +120,14 @@ The production project (`StickerLab`, `ckmeozlmyvhjrzliwllz`) must never be used
   `peeloodle-catalog-user@example.com` (ordinary). Both have confirmed emails; the admin membership
   row is bootstrapped by operator SQL (`insert into public.catalog_admins (user_id) values (…)`), as
   above. Passwords live only in the gitignored `.env.catalog-test`, never in the repository.
-- Run: `node --env-file=.env.catalog-test scripts/verify-catalog.mjs` — 10 checks covering the admin
-  predicate, denied admin RPCs, denied direct inserts and bucket writes, hidden membership/jobs/
-  journal, published-only reads, draft→publish visibility, the one-conflict publish race, signed
-  derivative reads as an ordinary and an anonymous client, and archive revocation.
+- Run: `node --env-file=.env.catalog-test scripts/verify-catalog.mjs` — 16 checks covering the admin
+  predicate, denied admin RPCs (including the upload batch/claim RPCs), denied direct inserts and
+  bucket writes, hidden membership/jobs/journal, published-only reads, draft→publish visibility, the
+  one-conflict publish race, signed derivative reads as an ordinary and an anonymous client, archive
+  revocation, and the P79 upload abuse/recovery set: whole-batch refusal of malformed files,
+  unclaimable sources whose bytes contradict the batch, single-claim leases with wrong-token
+  refusal, lease-expiry reclaim, parallel claim races that never double-claim, malformed completion
+  reports that create no version, and source objects that never sign for ordinary clients.
 - Role revocation is an operator cycle: `insert` the ordinary account into `catalog_admins`, verify
   its admin RPCs succeed, `delete` the row, and verify `catalog_is_admin()` is `false` and the RPC
   is denied `42501` on a fresh sign-in. The full evidence is in

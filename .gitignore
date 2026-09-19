@@ -37,4 +37,5 @@ project.inlang/cache/
 __pycache__/
 .pi/
 .worktrees/
+.tmp/
 supabase/.temp/

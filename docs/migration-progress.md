@@ -1,7 +1,13 @@
 # Peeloodle React → Svelte migration progress
 
-Last verified: 2026-09-19, **P53's live catalog isolation check closed against a dedicated Supabase
-test project** — 10/10 live checks plus a grant→revoke cycle, and on top of
+Last verified: 2026-09-19, **Milestone 7 of the slides plan is done through P81** — the P76/P77
+route audits at 1440×900/1024×768/390×844 (two real long-name overflow defects found and fixed),
+the P78 persistence/backup/export failure matrix with its two added gap tests, the P79 live
+catalog abuse/recovery checks (now **16/16** against the dedicated test project, on top of P53's
+isolation checks), the P80 README/compatibility/setup documentation and the P81 final
+check/lint/build/artifact inspection. **Open:** P08 (hosted preview packaging; the owner's Vercel
+setup is the blocker — wizard and verifier scripts are ready) and P82/P83 (three real student
+sessions, then follow-up fixes). This sits on
 **Milestone 6 of the slides plan complete (P65–P75) and the P44/P45
 reader/limit evidence closed** — save-as-template
 drafts, the admin template screens with shared-editor draft versions, previews bound to the draft
@@ -141,7 +147,92 @@ SvelteKit port, losing neither the React application nor the server-side materia
   `post-git-graft-20260915T105133Z.tar.gz`, sha256
   `4c377f511613a79d743f2a96b5261356e962168841aaf26f46456fa1a04275df`.
 
-## P53 checkpoint — live catalog isolation against a dedicated Supabase project (2026-09-19)
+## Milestone 7 checkpoint — route audits, failure matrix, live abuse checks, release docs (2026-09-19, P76–P81)
+
+**Result:** the slides plan's release-quality milestone is complete through P81. P08 (hosted
+preview packaging) and P82/P83 (three real students, then prioritisation) remain open.
+
+### Route audits (P76/P77)
+
+- `e2e/p76-student-route-audit.spec.ts` walks `/`, `/presentations`, the editor and
+  `/presentation-templates` at 1440×900, 1024×768 and 390×844. Every route measures
+  `documentElement.scrollWidth === clientWidth`; the editor asserts canvas/Add text/Export/Save are
+  visible, and at 390 the `.presentation-mobile-note` copy is asserted **not** to promise sync,
+  cross-device access or full editing. `P76_EVIDENCE=1` writes 12 screenshots and
+  `proofs/out/p76-student-routes-report.json`.
+- `src/lib/components/catalog/admin-route-audit.svelte.test.ts` renders the collections, assets,
+  templates and template-detail screens at the same three viewports with schema-maximum metadata
+  (200-char names, 10 000-char descriptions, 50 long tags), a failed upload job created through the
+  real job lifecycle, and the archive dialog (fits the viewport, scrolls, keeps focus, closes with
+  Escape). The audit loads `src/app.css` because component tests otherwise render unstyled.
+- **Two real defects found and fixed:** a 200-character unbroken collection name made the document
+  3 242 px wide (missing `overflow-wrap:anywhere` on the collections heading/metadata/description
+  and the templates/detail headings), and a collection `<select>` grew to its longest option
+  (1 505 px) on the uploads and assets screens (`min-width:0` + `max-width:100%`). The audit now
+  asserts the computed properties so neither can regress silently.
+- Evidence: `proofs/p76-p77-route-audits.md`.
+
+### Failure matrix and old sticker journeys (P78)
+
+- Matrix → test mapping is in `proofs/p78-failure-matrix.md`: quota (`editor-flow.svelte.test.ts`,
+  `e2e/editor.spec.ts`), missing media (`mediaPolicy.test.ts`, `renderDocument.test.ts`), missing
+  font (**new** `fonts.svelte.test.ts`), catalog outage (`remote.test.ts`,
+  `admin-collections-page.svelte.test.ts`, **new** outage test in
+  `presentation-templates-page.svelte.test.ts`, `runJob.test.ts`), stale tab (`idb.test.ts`,
+  `repository.test.ts`, `e2e/cloud.spec.ts`), restore corruption (`idb.test.ts`,
+  `repository.test.ts`), export cancellation (`exportController.test.ts`), and the sticker-era
+  journeys (`e2e/editor.spec.ts`, `e2e/masks.spec.ts`).
+- One flake was observed and resolved: the first full e2e run failed
+  `presentation-offline.spec.ts:287` at a `Saved locally` assertion; the spec passed 3/3 in
+  isolation and the full suite passed cleanly on re-run.
+
+### Live catalog abuse/recovery (P79)
+
+- `scripts/verify-catalog.mjs` now runs **16 checks**: the 10 P53 isolation checks plus malformed
+  batch refusal (bad MIME, oversize, path traversal, one bad file among good, empty list),
+  mismatched-source unclaimability, single-claim leases (wrong token refused, lease token absent
+  from the status payload, malformed completion refused without a version row), lease-expiry
+  reclaim, parallel claim races (never double-claim), and source signing denial for ordinary
+  clients. `proofs/p53-live-catalog-isolation.md` records the run.
+
+### Release documentation and artifacts (P80/P81)
+
+- `README.md`: deck-template authoring/browsing and catalog setup sections (migrations, admin
+  bootstrap, server env, seeding, live verification), a compatibility matrix (browser, viewports,
+  readers, hosting, measured limits) and corrected “Not implemented yet” gaps; `supabase/README.md`
+  documents the 16-check live run.
+- Final build inspection: `POST /api/catalog/process` compiles to
+  `.svelte-kit/output/server/entries/endpoints/api/catalog/process/_server.js`, imports `sharp` as an
+  external, and the client bundle contains no service-role/admin strings; client JS+CSS is 2.3 MB.
+  A local preview returns 401 `unauthenticated` without a token and 503 `unconfigured` with a token
+  and no cloud env — a static host would 404 instead.
+
+### Verification at this checkpoint
+
+| Command                                                        | Result                               |
+| -------------------------------------------------------------- | ------------------------------------ |
+| `npm run check`                                                | 0 errors / 0 warnings                |
+| `npm run lint`                                                 | clean (Prettier + ESLint)            |
+| `npm run build`                                                | exit 0; artifacts inspected as above |
+| `npm run test:unit -- --run`                                   | **84 files / 720 tests passed**      |
+| `npx playwright test`                                          | **70 passed, 3 gated skips**         |
+| `npm run test:e2e:cloud`                                       | **6 passed**                         |
+| `npm run test:catalog-sql`                                     | **87 checks passed**                 |
+| `node --env-file=.env.catalog-test scripts/verify-catalog.mjs` | **16/16 live checks**                |
+
+### Open after this checkpoint
+
+- **P08** — the hosted preview run is ready (`scripts/p08-vercel-preview-wizard.sh` provisions the
+  Vercel preview against the test project; `scripts/verify-preview-processing.mjs` runs the
+  direct-to-Storage → one-job invocation flow and records the limits). It needs the owner's Vercel
+  login/link step; nothing is deployed yet.
+- **P82/P83** — three university students must create, reopen and export a real presentation
+  unaided; P83 then fixes blocking findings and prioritises the next milestone from that evidence.
+- P34 (desktop/tablet Playwright evidence deferred at the owner's request) and the recorded reader
+  residuals (PowerPoint/Google Slides/Keynote untested, OnlyOffice interactive editing not
+  automated, decoded-bitmap memory at the top of the P45 budget unmeasured).
+
+## P53/P79 checkpoint — live catalog isolation and upload abuse against a dedicated Supabase project (2026-09-19)
 
 Scope: the last open catalog item, verified against a real backend instead of the local harness or a
 synthetic server. The owner provisioned a free-plan test project via the Supabase CLI;
@@ -156,11 +247,16 @@ synthetic server. The owner provisioned a free-plan test project via the Supabas
   seeded (derivative uploaded to `catalog-derivatives`, then published by operator SQL) so the
   signed-URL check can run. Secret/service credentials were used only for that provisioning, never
   to act as a user.
-- `node --env-file=.env.catalog-test scripts/verify-catalog.mjs` reports **10/10**: the admin
-  predicate for all three clients; denied admin RPCs; denied direct catalog inserts; denied bucket
-  writes; invisible membership/jobs/journal; published-only ordinary reads; draft invisible until
-  published; a publish race resolving to exactly one `revision_conflict`; a signed derivative read
-  by the ordinary and anonymous clients; and archive revocation.
+- `node --env-file=.env.catalog-test scripts/verify-catalog.mjs` reports **16/16** (10 isolation +
+  6 P79 upload abuse/recovery): the admin
+  predicate for all three clients; denied admin RPCs (including the upload batch/claim RPCs);
+  denied direct catalog inserts; denied bucket writes; invisible membership/jobs/journal;
+  published-only ordinary reads; draft invisible until published; a publish race resolving to
+  exactly one `revision_conflict`; a signed derivative read by the ordinary and anonymous clients;
+  archive revocation; malformed batches refused whole; mismatched sources unclaimable;
+  single-claim leases with wrong-token refusal and no lease-token leak; lease-expiry reclaim;
+  parallel claim races that never double-claim; malformed completion reports creating no version;
+  and source signing denial for ordinary clients.
 - **Role revocation** was exercised live around fresh sign-ins: no membership → `is_admin=false`,
   admin RPC denied `42501`; after operator grant → `is_admin=true`, create and archive succeed;
   after operator delete → denied again. The verifier grew two checks (denied direct inserts and

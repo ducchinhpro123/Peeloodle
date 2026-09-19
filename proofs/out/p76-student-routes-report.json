@@ -1,0 +1,125 @@
+{
+	"generatedAt": "2026-09-19T00:34:33.761Z",
+	"browser": "chromium Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+	"viewports": [
+		{
+			"name": "desktop",
+			"width": 1440,
+			"height": 900
+		},
+		{
+			"name": "tablet",
+			"width": 1024,
+			"height": 768
+		},
+		{
+			"name": "phone",
+			"width": 390,
+			"height": 844
+		}
+	],
+	"audits": [
+		{
+			"route": "/",
+			"viewport": "desktop",
+			"width": 1440,
+			"scrollWidth": 1440,
+			"clientWidth": 1440,
+			"actions": []
+		},
+		{
+			"route": "/presentations",
+			"viewport": "desktop",
+			"width": 1440,
+			"scrollWidth": 1440,
+			"clientWidth": 1440,
+			"actions": ["create or open a presentation"]
+		},
+		{
+			"route": "/presentations/<id>",
+			"viewport": "desktop",
+			"width": 1440,
+			"scrollWidth": 1440,
+			"clientWidth": 1440,
+			"actions": ["add text", "export", "save"]
+		},
+		{
+			"route": "/presentation-templates",
+			"viewport": "desktop",
+			"width": 1440,
+			"scrollWidth": 1440,
+			"clientWidth": 1440,
+			"actions": ["unconfigured message"]
+		},
+		{
+			"route": "/",
+			"viewport": "tablet",
+			"width": 1024,
+			"scrollWidth": 1024,
+			"clientWidth": 1024,
+			"actions": []
+		},
+		{
+			"route": "/presentations",
+			"viewport": "tablet",
+			"width": 1024,
+			"scrollWidth": 1024,
+			"clientWidth": 1024,
+			"actions": ["create or open a presentation"]
+		},
+		{
+			"route": "/presentations/<id>",
+			"viewport": "tablet",
+			"width": 1024,
+			"scrollWidth": 1024,
+			"clientWidth": 1024,
+			"actions": ["add text", "export", "save"]
+		},
+		{
+			"route": "/presentation-templates",
+			"viewport": "tablet",
+			"width": 1024,
+			"scrollWidth": 1024,
+			"clientWidth": 1024,
+			"actions": ["unconfigured message"]
+		},
+		{
+			"route": "/",
+			"viewport": "phone",
+			"width": 390,
+			"scrollWidth": 390,
+			"clientWidth": 390,
+			"actions": []
+		},
+		{
+			"route": "/presentations",
+			"viewport": "phone",
+			"width": 390,
+			"scrollWidth": 390,
+			"clientWidth": 390,
+			"actions": ["create or open a presentation"]
+		},
+		{
+			"route": "/presentations/<id>",
+			"viewport": "phone",
+			"width": 390,
+			"scrollWidth": 390,
+			"clientWidth": 390,
+			"actions": ["add text", "export", "save"],
+			"honestPhoneCopy": true
+		},
+		{
+			"route": "/presentation-templates",
+			"viewport": "phone",
+			"width": 390,
+			"scrollWidth": 390,
+			"clientWidth": 390,
+			"actions": ["unconfigured message"]
+		}
+	],
+	"notes": [
+		"Containment is documentElement.scrollWidth ≤ clientWidth + 1 at each viewport.",
+		"The phone note is asserted to avoid sync, cross-device and full-editing promises.",
+		"Screenshots are viewport-sized captures of each audited route."
+	]
+}

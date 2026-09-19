@@ -271,13 +271,17 @@ Adjust panel is later editor work.
 
 ## Verification (exact commands and results)
 
-**Newest (2026-09-16, milestone 4):** `npm run check` 0 errors/0 warnings, `npm run lint` clean,
-`npm run test:unit -- --run` **64 files / 563 tests**, `npm run test:catalog-sql` **35 checks**,
-`npx playwright test` **68 journeys**, `npm run test:e2e:cloud` **6 journeys**. The live catalog
-check (`npm run test:catalog-live`) was **not run** — no test project, credentials or Supabase CLI
-on this machine. The dashboard's phone-width overflow was found by the cloud suite's 390px
-assertion and fixed (`minmax(0, 1fr)` on `.split`). Browser suites need `TMPDIR` off the small
-`/tmp` tmpfs when it is full. Details in the newest checkpoint.
+**Newest (2026-09-19, milestone 7 P76–P81):** `npm run check` 0 errors/0 warnings, `npm run lint`
+clean, `npm run build` clean (endpoint compiled, `sharp` externalized, no private strings in the
+client bundle), `npm run test:unit -- --run` **84 files / 720 tests**, `npm run test:catalog-sql`
+**87 checks**, `npx playwright test` **70 passed + 3 gated skips**, `npm run test:e2e:cloud` **6
+journeys**, `npm run test:catalog-live` **16/16 live checks** (10 isolation + 6 P79 upload
+abuse/recovery) against the dedicated test project. The P76/P77 route audits pass at
+1440×900/1024×768/390×844 and found two real long-name overflow bugs, both fixed
+(`proofs/p76-p77-route-audits.md`); the P78 failure matrix and its two added gap tests are in
+`proofs/p78-failure-matrix.md`. P08's hosted preview run is the one remaining milestone-0 item
+(the Vercel setup is the owner's step; `scripts/verify-preview-processing.mjs` is ready). Browser
+suites need `TMPDIR` off the small `/tmp` tmpfs when it is full. Details in the newest checkpoint.
 
 The rendering checkpoint ports four upstream test files (**24 tests**) and adds one real-Chromium
 pixel test. The full suite passes **35 files / 270 tests**. The current browser runner prints a known
@@ -338,21 +342,19 @@ harness with direct tools should re-run the autofixer if that evidence form is r
 
 ## Gaps and residuals
 
-- **Catalog (milestone 5) residuals:** the student catalog panel and the snapshot-before-insert step
-  (P62, P63) are **not implemented**, so nothing in the editor reads the public catalog yet; the
-  end-to-end journey (P64) therefore has no journey test. Uploads report progress per file **stage**,
-  not bytes (storage-js has no progress event; a synthetic counter would be a lie). Validation needs a
+- **Catalog residuals after milestone 6:** uploads report progress per file **stage**, not bytes
+  (storage-js has no progress event; a synthetic counter would be a lie). Validation needs a
   **server deployment** — on a static host `/api/catalog/process` does not exist and the screens say
-  so rather than pretending a file was processed. The SVG policy rejects text elements by design.
-- **Catalog (milestone 4): P53's live isolation check is closed** against the dedicated free-plan
-  project `wkmivbdheoynxaqolzdr` (`proofs/p53-live-catalog-isolation.md`): 10/10 live checks plus a
-  grant→revoke cycle, with the committed migrations applied and test accounts provisioned. Re-run
-  with `node --env-file=.env.catalog-test scripts/verify-catalog.mjs`; the secret/service key is
-  never used to act as a user. The admin console covers collections only;
-  asset upload/review and template authoring are milestones 5–6 of
-  `docs/slides-implementation-plan.md`. Search is sanitized `ILIKE` with a keyset cursor, not
-  full-text. Archive is the terminal state (no delete); no background processing worker exists, so
-  `catalog_upload_jobs` is bookkeeping the UI does not yet drive.
+  so rather than pretending a file was processed; **P08's hosted packaging run is pending the
+  owner's Vercel preview setup** (`scripts/p08-vercel-preview-wizard.sh` +
+  `scripts/verify-preview-processing.mjs`). The SVG policy rejects text elements by design. Search
+  is sanitized `ILIKE` with a keyset cursor, not full-text. Archive is the terminal state (no
+  delete); the leased job rows are driven by the processing endpoint, with no background worker.
+- **Catalog live verification is closed for the test project** `wkmivbdheoynxaqolzdr`
+  (`proofs/p53-live-catalog-isolation.md`): **16/16** live checks (10 isolation + P79 upload
+  abuse/recovery) plus a grant→revoke cycle, with the committed migrations applied and test accounts
+  provisioned. Re-run with `node --env-file=.env.catalog-test scripts/verify-catalog.mjs`; the
+  secret/service key is never used to act as a user. Production StickerLab remains untouched.
 - **Cloud is optional and synthetically verified.** The Private/Local labels follow the workspace
   context; without public configuration the app stays local-only. The cloud journeys answer every
   auth/REST/Storage request in-process, so the **deployed** RLS policies and Storage rules are
@@ -423,10 +425,13 @@ harness with direct tools should re-run the autofixer if that evidence form is r
    **Milestone 6 (P65–P75) is implemented**: save-as-template drafts, the admin template screens and
    template-mode editing, preview generation bound to the draft hash, validation/publication/archive,
    the student browse/clone/layout-insert surfaces, and the three shipped decks (`shippedTemplates.js`
-   with `npm run seed:templates` and the whole-journey test). The decks have not been seeded against a
-   live project or published; the **live** isolation check (P53) is closed against the dedicated
-   test project `wkmivbdheoynxaqolzdr` (`proofs/p53-live-catalog-isolation.md`). Reuse the
-   download-then-insert shape for any future remote media: never
+   with `npm run seed:templates` and the whole-journey test). **Milestone 7 is done through P81**:
+   P76/P77 route audits (with the two long-name overflow fixes), P78 failure matrix, P79 live
+   abuse/recovery checks (16/16), P80 README/setup/compatibility documentation, P81 final
+   check/lint/build/artifact inspection. **Open:** P08's hosted preview verification (owner sets up
+   the Vercel preview; the wizard and verifier scripts are ready) and P82/P83 (three real students,
+   then fixes and prioritisation — not agent work). The decks have not been seeded against a live
+   project or published. Reuse the download-then-insert shape for any future remote media: never
    commit an insertion before the bytes are local.
 6. Keep README + `docs/migration-progress.md` honest at each checkpoint; never claim a slice the code
    does not implement.
@@ -474,28 +479,29 @@ harness with direct tools should re-run the autofixer if that evidence form is r
   and `peeloodle-history-20260915T102807Z.bundle` (the full React history, taken before the graft).
   `main` carries the Svelte tree now, so Git is the restore point; take a fresh archive only before
   genuinely risky, hard-to-reverse work.
-- Last verification: 2026-09-18, **milestone 6 complete (P65–P75), P44/P45 closed** — `npm run check`
-  0/0, `npm run lint` clean, `npm run build` clean, `npm run test:unit -- --run` **82 files / 715
-  tests**, `npm run test:catalog-sql` **87 checks**, `npx playwright test` **68 journeys**,
-  `npm run test:e2e:cloud` **6 journeys**; `P44_EVIDENCE=1` / `P45_EVIDENCE=1` add the external-reader
-  round trip and the capacity probes (see `proofs/p44-p45-readers-and-limits.md`, Svelte closure).
-  Earlier (2026-09-16): milestone 5 complete with 71 files / 629 tests and 52 SQL checks. The processing route is covered by request-shape tests and
-  by the Node processing tests over real generated bytes; the _deployed_ decode path can only be
-  exercised where a server runs. The live catalog verifier (`npm run test:catalog-live`) is written and documented
-  but **was never run**: there is no Supabase test project, no credentials and no Supabase CLI here,
-  so live RLS/Storage remains unverified. Browser suites need `TMPDIR` pointed off `/tmp` while that
-  tmpfs is full, otherwise Chromium aborts and every `.svelte.test.ts` "fails to fetch dynamically
-  imported module" (misleading symptom, not a code failure). Re-run the relevant set after any
-  change, and run `svelte-autofixer` on every touched component/module (direct MCP tools when the
-  harness exposes them; otherwise the server's stdio JSON-RPC transport, noted honestly).
+- Last verification: 2026-09-19, **milestone 7 done through P81, P79 live checks 16/16** — `npm run
+check` 0/0, `npm run lint` clean, `npm run build` clean, `npm run test:unit -- --run` **84 files /
+  720 tests**, `npm run test:catalog-sql` **87 checks**, `npx playwright test` **70 passed + 3 gated
+  skips**, `npm run test:e2e:cloud` **6 journeys**, `node --env-file=.env.catalog-test
+scripts/verify-catalog.mjs` **16/16**. `P44_EVIDENCE=1` / `P45_EVIDENCE=1` add the external-reader
+  round trip and the capacity probes (see `proofs/p44-p45-readers-and-limits.md`). One full e2e run
+  had a `presentation-offline.spec.ts` flake that passed 3/3 in isolation and in the clean re-run
+  (recorded in `proofs/p78-failure-matrix.md`). The live catalog verifier runs against the dedicated
+  test project `wkmivbdheoynxaqolzdr`; production StickerLab is never used. Browser suites need
+  `TMPDIR` pointed off `/tmp` while that tmpfs is full, otherwise Chromium aborts and every
+  `.svelte.test.ts` "fails to fetch dynamically imported module" (misleading symptom, not a code
+  failure). Re-run the relevant set after any change, and run `svelte-autofixer` on every touched
+  component/module (direct MCP tools when the harness exposes them; otherwise the server's stdio
+  JSON-RPC transport, noted honestly).
 - Where the work stopped: slices 1–4 are complete as written, the slice-5 leftovers (reduced
-  motion, keyboard-only flows) have journeys, and **catalog milestones 4 and 5 are implemented**
-  (schema/RLS/RPCs, repositories, `/admin/{collections,assets,uploads}`, leased upload jobs,
-  server-side validation, the student catalog panel with download-before-insert, and the end-to-end
-  upload → publish → insert → export journey). **Milestone 6 (template authoring) is implemented**
-  through P75; the shipped decks are seeded only in dry-run form. P53's live catalog isolation is
-  closed against the dedicated test project `wkmivbdheoynxaqolzdr` (10/10 checks plus a revocation
-  cycle).
+  motion, keyboard-only flows) have journeys, and **catalog milestones 4–7 are implemented and
+  verified** (schema/RLS/RPCs, repositories, `/admin/{collections,assets,uploads}`, leased upload
+  jobs, server-side validation, the student catalog panel, template authoring and the shipped
+  decks, the P76/P77 route audits, the P78 failure matrix and the P79 live abuse checks). The
+  shipped decks are seeded only in dry-run form. P53/P79 live checks are closed against the
+  dedicated test project `wkmivbdheoynxaqolzdr` (16/16 plus a revocation cycle). **P08 remains
+  open** pending the owner's Vercel preview setup (wizard + verifier ready), and **P82/P83 need
+  three real students**.
   Read the milestone-4 and milestone-5 checkpoints in `docs/migration-progress.md` before touching the
   catalog: the migrations are ordered and the policies/RPCs enforce the invariants (published-only
   reads, no write grants, CAS revisions, immutability triggers), so the client must stay read-only and

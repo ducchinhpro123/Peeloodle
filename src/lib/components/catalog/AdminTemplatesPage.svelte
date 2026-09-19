@@ -192,7 +192,7 @@
 						class="admin-template-main [min-width:12rem] [flex:1_1_18rem] [color:inherit] [text-decoration:none]"
 						href={detailHref(row.id)}
 					>
-						<h2 class="[margin:0] [font-size:16px]">{row.title}</h2>
+						<h2 class="[margin:0] [font-size:16px] [overflow-wrap:anywhere]">{row.title}</h2>
 						<p class="[margin:2px_0_0] [font-size:12px] [color:var(--muted)]">
 							{row.useCase}
 							{#if row.tags.length}· tags: {row.tags.join(', ')}{/if}
