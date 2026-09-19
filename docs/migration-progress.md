@@ -183,7 +183,7 @@ milestone row; it extends the editor that P20–P45 built.
   template mode.
 
 **Verification:** `npm run check` 0/0, `npm run lint` clean, `npm run build` clean,
-`npm run test:unit -- --run` **87 files / 760 tests**, `npx playwright test` **77 passed + 3 gated
+`npm run test:unit -- --run` **87 files / 761 tests**, `npx playwright test` **77 passed + 3 gated
 skips**. Evidence and the independent review triage: `proofs/presentation-editing-acceptance.md`
 (layout-card screenshot, reader PPTX + headless LibreOffice PDF: 2 pages, 960×540 pt, native text).
 The review's actionable findings were fixed (page constants, disabled cards, off-page message,

@@ -272,7 +272,7 @@ Adjust panel is later editor work.
 ## Verification (exact commands and results)
 
 **Newest (2026-09-19, presentation editing):** `npm run check` 0 errors/0 warnings, `npm run lint`
-clean, `npm run build` clean, `npm run test:unit -- --run` **87 files / 760 tests**,
+clean, `npm run build` clean, `npm run test:unit -- --run` **87 files / 761 tests**,
 `npx playwright test` **77 passed + 3 gated skips**. The owner-approved presentation-editing work
 (text fitting/presets/layouts) is implemented and reviewed; evidence in
 `proofs/presentation-editing-acceptance.md` and the newest checkpoint in
