@@ -89,6 +89,7 @@ type TextElementInput = ElementBaseInput & {
 	padding?: number;
 	lineHeight?: number;
 	verticalAlign?: TextElement['verticalAlign'];
+	autoGrow?: boolean;
 };
 
 type ShapeElementInput = ElementBaseInput & {
@@ -147,7 +148,9 @@ export function createTextElement(input: TextElementInput = {}): TextElement {
 					],
 		padding: input.padding ?? 12,
 		lineHeight: input.lineHeight ?? 1.3,
-		verticalAlign: input.verticalAlign ?? 'top'
+		verticalAlign: input.verticalAlign ?? 'top',
+		// Absence stays absent: existing fixtures and templates remain fixed.
+		...(input.autoGrow === undefined ? {} : { autoGrow: input.autoGrow })
 	};
 }
 

@@ -200,7 +200,8 @@ function countGaps(runs: LayoutRun[]): number {
 }
 
 function maxRunSize(paragraph: TextParagraph, fallback: number): number {
-	return paragraph.runs.reduce((max, run) => Math.max(max, run.size), fallback);
+	if (paragraph.runs.length === 0) return fallback;
+	return paragraph.runs.reduce((max, run) => Math.max(max, run.size), 0);
 }
 
 /**
@@ -217,7 +218,7 @@ export function tokenizeParagraph(
 	for (const run of paragraph.runs) {
 		if (!isKnownFontId(run.fontId)) missingFontIds?.add(run.fontId);
 		const spec = fontSpecFor(run);
-		const parts = run.text.split(/(\n|\s+)/);
+		const parts = run.text.split(/(\n|[^\S\n]+)/);
 		let previousWasSpace = true;
 		for (const part of parts) {
 			if (!part) continue;

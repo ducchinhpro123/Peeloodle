@@ -69,6 +69,13 @@ export type TextElement = ElementBase & {
 	/** Multiplier of font size. */
 	lineHeight: number;
 	verticalAlign: 'top' | 'middle' | 'bottom';
+	/**
+	 * Optional sizing intent. `true` lets the editor grow the box height to fit
+	 * its content inside the originating command; absent means fixed/manual,
+	 * which preserves decks authored before this field existed and keeps shipped
+	 * or catalog templates at their authored geometry.
+	 */
+	autoGrow?: boolean;
 };
 
 export type NormalizedCrop = { x: number; y: number; width: number; height: number };

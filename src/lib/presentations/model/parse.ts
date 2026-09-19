@@ -318,7 +318,7 @@ function parseElement(value: unknown, label: string, assetIds: Set<string>): Ele
 
 type ElementBaseValues = Omit<
 	TextElement,
-	'kind' | 'paragraphs' | 'padding' | 'lineHeight' | 'verticalAlign'
+	'kind' | 'paragraphs' | 'padding' | 'lineHeight' | 'verticalAlign' | 'autoGrow'
 >;
 
 function parseTextElement(
@@ -342,7 +342,11 @@ function parseTextElement(
 		paragraphs,
 		padding: requiredRange(value.padding, `${label}.padding`, 0, 500),
 		lineHeight,
-		verticalAlign
+		verticalAlign,
+		// null, strings, numbers and objects are invalid, not false.
+		...(value.autoGrow === undefined
+			? {}
+			: { autoGrow: requiredBoolean(value.autoGrow, `${label}.autoGrow`) })
 	};
 }
 

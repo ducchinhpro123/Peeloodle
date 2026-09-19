@@ -40,6 +40,18 @@ describe('presentation text layout', () => {
 		expect(result.lines[2]!.runs).toEqual([]);
 	});
 
+	it('preserves repeated explicit newlines', () => {
+		const result = layoutParagraphs([paragraph('one \n\ntwo')], { ...base, width: 400 });
+		expect(result.lines.map((line) => line.text)).toEqual(['one', '', 'two']);
+	});
+
+	it('does not impose an 18-unit floor on authored small text', () => {
+		const p = paragraph('small');
+		p.runs[0]!.size = 12;
+		const result = layoutParagraphs([p], { ...base, width: 400 });
+		expect(result.contentHeight).toBeCloseTo(14.4);
+	});
+
 	it('hangs bullet text and indents nested levels', () => {
 		const result = layoutParagraphs(
 			[

@@ -31,6 +31,26 @@ describe('presentation parser', () => {
 		expect(parsePresentationDocument(JSON.stringify(fixture))).toEqual(fixture);
 	});
 
+	it('preserves optional sizing intent without migrating old documents', () => {
+		const document = createPresentationDocument();
+		const legacy = createTextElement({ text: 'Old deck' });
+		document.slides[0]!.elements = [legacy];
+		const old = parsePresentationDocument(document);
+		expect(old.slides[0]!.elements[0]).not.toHaveProperty('autoGrow');
+		Object.assign(legacy, { autoGrow: true });
+		expect(parsePresentationDocument(document).slides[0]!.elements[0]).toHaveProperty(
+			'autoGrow',
+			true
+		);
+		Object.assign(legacy, { autoGrow: false });
+		expect(parsePresentationDocument(document).slides[0]!.elements[0]).toHaveProperty(
+			'autoGrow',
+			false
+		);
+		Object.assign(legacy, { autoGrow: 'yes' });
+		expect(() => parsePresentationDocument(document)).toThrow(/autoGrow/);
+	});
+
 	it('serializes only validated serializable data', () => {
 		const withExtra = {
 			...validDocument(),
