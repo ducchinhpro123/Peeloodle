@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryPresentationRepository } from '$lib/presentations/persistence/repository';
 import { createExportSnapshot, collectExportWarnings, referencedAssets } from './snapshot';
+import { growTextToFit, shrinkTextToFit } from '../editor/textFit';
 import {
 	createImageElement,
 	createPresentationDocument,
@@ -198,5 +199,60 @@ describe('export snapshot preflight', () => {
 		document.slides[0]!.elements.push(createImageElement({ assetId: 'used' }));
 
 		expect(referencedAssets(document).map((entry) => entry.id)).toEqual(['used']);
+	});
+
+	it('keeps the overflow warning honest at the page edge', () => {
+		const measure = (text: string, font: { size: number }) => (text.length * font.size) / 2;
+		const document = createPresentationDocument({ id: 'edge' });
+
+		// Fitted, in-page text has nothing to warn about.
+		const fitted = shrinkTextToFit(
+			createTextElement({
+				name: 'Fitted',
+				width: 600,
+				height: 120,
+				text: 'One two three four five six',
+				size: 56
+			}),
+			measure
+		)!;
+		document.slides[0]!.elements = [fitted];
+		expect(collectExportWarnings(document, measure).some((w) => w.code === 'text-overflow')).toBe(
+			false
+		);
+
+		// Growth capped at the page edge keeps the warning: the text is still cut off.
+		const capped = growTextToFit(
+			createTextElement({
+				name: 'Capped',
+				x: 80,
+				y: 660,
+				width: 200,
+				height: 40,
+				text: 'Long text '.repeat(50),
+				autoGrow: true
+			}),
+			{ width: 1280, height: 720 },
+			measure
+		);
+		document.slides[0]!.elements = [capped];
+		const warnings = collectExportWarnings(document, measure);
+		expect(warnings.some((warning) => warning.code === 'text-overflow')).toBe(true);
+		expect(warnings.find((warning) => warning.code === 'text-overflow')?.message).toContain(
+			'“Capped”'
+		);
+
+		// An explicit shrink refusal leaves the document byte-for-byte equal.
+		const stubborn = createTextElement({
+			name: 'Stubborn',
+			width: 220,
+			height: 1,
+			padding: 8,
+			text: 'One two three four five six',
+			size: 56
+		});
+		const before = structuredClone(stubborn);
+		expect(shrinkTextToFit(stubborn, measure)).toBeNull();
+		expect(stubborn).toEqual(before);
 	});
 });

@@ -1,5 +1,8 @@
+import { mkdir } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { openBlankEditor, readStoredPresentationJson } from './presentations';
+
+const evidence = process.env.LAYOUT_EVIDENCE === '1';
 
 const panel = (page: Page) => page.getByRole('complementary', { name: 'Presentation details' });
 const textField = (page: Page) => page.getByTestId('text-edit-field');
@@ -201,6 +204,12 @@ test('the layout dialog traps focus, restores it and stays reachable at phone wi
 	await opener.click();
 	const dialog = page.getByRole('dialog', { name: 'Add a slide layout' });
 	await expect(dialog).toBeVisible();
+	// The cards are previewed with the real rasterizer, not decorative mockups.
+	await expect(dialog.locator('img').first()).toBeVisible({ timeout: 15_000 });
+	if (evidence) {
+		await mkdir('proofs/out', { recursive: true });
+		await dialog.screenshot({ path: 'proofs/out/presentation-editing-layout-cards.png' });
+	}
 	await page.keyboard.press('Escape');
 	await expect(dialog).not.toBeVisible();
 	await expect(opener).toBeFocused();

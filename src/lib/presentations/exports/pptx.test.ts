@@ -9,6 +9,8 @@ import {
 	createSlide,
 	createTextElement
 } from '../model/factories';
+import { growTextToFit, shrinkTextToFit } from '../editor/textFit';
+import { BUILTIN_LAYOUTS, createBuiltinLayout } from '../templates/builtinLayouts';
 import { unitsToInches } from '../model/geometry';
 import { fixtureImagePng } from '../model/fixtures/fixture';
 import type { PresentationExportSnapshot } from './snapshot';
@@ -412,5 +414,83 @@ describe('editable PPTX export', () => {
 
 	it('encodes bytes as base64 for a data URL', () => {
 		expect(bytesToBase64(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBe('iVBORw==');
+	});
+
+	it('exports resolved text geometry and sizes rather than fitting again', async () => {
+		const document = createPresentationDocument();
+		const measure = (text: string, font: { size: number }) => (text.length * font.size) / 2;
+		const source = createTextElement({
+			name: 'Fitted heading',
+			x: 80,
+			y: 80,
+			width: 300,
+			height: 100,
+			text: 'Heading across several lines',
+			size: 56
+		});
+		const fitted = shrinkTextToFit(source, measure)!;
+		expect(fitted).not.toBeNull();
+		document.slides[0]!.elements = [fitted];
+		const before = structuredClone(document);
+
+		const bytes = await buildPresentationPptx(snapshotOf(document, new Map()));
+		const xml = strFromU8(unzipSync(bytes)['ppt/slides/slide1.xml']!);
+		expect(xml).toContain(`cx="${Math.round(fitted.width * 9525)}"`);
+		expect(xml).toContain(`cy="${Math.round(fitted.height * 9525)}"`);
+		expect(xml).toContain(`sz="${Math.round(fitted.paragraphs[0]!.runs[0]!.size * 75)}"`);
+		expect(xml).toContain('<a:t>Heading across several lines</a:t>');
+		expect(document).toEqual(before);
+	});
+
+	it('exports an auto-grown height without fitting again', async () => {
+		const measure = (text: string, font: { size: number }) => (text.length * font.size) / 2;
+		const source = createTextElement({
+			name: 'Grown body',
+			width: 300,
+			height: 60,
+			text: 'Long text '.repeat(20),
+			autoGrow: true
+		});
+		const grown = growTextToFit(source, { width: 1280, height: 720 }, measure);
+		expect(grown.height).toBeGreaterThan(source.height);
+		const document = createPresentationDocument();
+		document.slides[0]!.elements = [grown];
+
+		const bytes = await buildPresentationPptx(snapshotOf(document, new Map()));
+		const xml = strFromU8(unzipSync(bytes)['ppt/slides/slide1.xml']!);
+		expect(xml).toContain(`cy="${Math.round(grown.height * 9525)}"`);
+		expect(xml).toContain(`sz="${Math.round(grown.paragraphs[0]!.runs[0]!.size * 75)}"`);
+	});
+
+	it('exports every built-in layout with native editable text', async () => {
+		for (const layout of BUILTIN_LAYOUTS) {
+			const document = createPresentationDocument();
+			document.slides = [createBuiltinLayout(layout.id, document.theme)];
+			const bytes = await buildPresentationPptx(snapshotOf(document, new Map()));
+			const xml = strFromU8(unzipSync(bytes)['ppt/slides/slide1.xml']!);
+			const textElements = document.slides[0]!.elements.filter(
+				(element) => element.kind === 'text'
+			);
+			expect(xml.match(/<a:t>/g) ?? []).toHaveLength(textElements.length);
+			for (const element of textElements) {
+				if (element.kind !== 'text') continue;
+				expect(xml).toContain(`sz="${Math.round(element.paragraphs[0]!.runs[0]!.size * 75)}"`);
+			}
+		}
+	});
+
+	it('writes a representative layout deck for reader checks under evidence mode', async () => {
+		const document = createPresentationDocument();
+		document.slides = [
+			createBuiltinLayout('title-body', document.theme),
+			createBuiltinLayout('image-caption', document.theme)
+		];
+		const bytes = await buildPresentationPptx(snapshotOf(document, new Map()));
+		expect(bytes.length).toBeGreaterThan(1_000);
+		if (process.env.PPTX_LAYOUT_EVIDENCE === '1') {
+			const { mkdir, writeFile } = await import('node:fs/promises');
+			await mkdir('proofs/out', { recursive: true });
+			await writeFile('proofs/out/presentation-editing-layouts.pptx', bytes);
+		}
 	});
 });

@@ -162,8 +162,9 @@ test('undoes and redoes through the toolbar and keyboard without stealing text-f
 	await expect(page.locator('.presentation-layer-item')).toHaveCount(1);
 
 	// Ending the session commits exactly what the field showed — the undone text,
-	// not the text that was typed.
-	const fieldText = (await field.textContent())?.trim() ?? '';
+	// not the text that was typed. The zero-width placeholder an empty styled run
+	// carries is stripped here because the bridge strips it on read-back.
+	const fieldText = ((await field.textContent()) ?? '').replace(/\u200b/g, '').trim();
 	expect(fieldText).not.toBe('Xin chào');
 	await page.keyboard.press('Escape');
 	await expect(field).toHaveCount(0);
