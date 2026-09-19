@@ -12,6 +12,7 @@ const presentationStore = createPresentationStore();
 import {
 	createPresentationDocument,
 	createShapeElement,
+	createSlide,
 	createTextElement
 } from '../model/factories';
 import { PRESENTATION_LIMITS } from '../model/limits';
@@ -1157,5 +1158,60 @@ describe('slide insertion planning', () => {
 		expect(() => store.getState().updateElement('grow', { width: NaN })).toThrow();
 		expect(store.getState().document).toBe(before);
 		expect(store.getState().past).toBe(history);
+	});
+
+	it('inserts one asset-free layout after the active slide as one undo entry', () => {
+		const document = reset();
+		const first = document.slides[0]!.id;
+		const incoming = createSlide({ name: 'Layout' });
+		incoming.elements = [createTextElement({ text: 'Heading' })];
+		const before = structuredClone(state().document);
+		const id = state().insertSlide(incoming);
+		expect(state().document!.slides.map((slide) => slide.id)).toEqual([first, id]);
+		expect(state().view.activeSlideId).toBe(id);
+		expect(state().past).toHaveLength(1);
+		expect(state().dirty).toBe(true);
+		state().undo();
+		expect(state().document!.slides).toEqual(before!.slides);
+		state().redo();
+		expect(state().document!.slides[1]).toEqual(incoming);
+	});
+
+	it('inserts after a requested slide instead of the active one', () => {
+		const document = reset();
+		document.slides.push({ ...structuredClone(document.slides[0]!), id: 'second-slide' });
+		presentationStore.getState().loadDocument(document, { saved: true });
+		state().selectSlide('second-slide');
+		const incoming = createSlide({ name: 'Between' });
+		const id = state().insertSlide(incoming, document.slides[0]!.id);
+		expect(state().document!.slides.map((slide) => slide.id)).toEqual([
+			document.slides[0]!.id,
+			id,
+			'second-slide'
+		]);
+	});
+
+	it('refuses a slide insertion at the cap without changing document or history', () => {
+		const document = reset();
+		document.slides = Array.from({ length: PRESENTATION_LIMITS.maxSlides }, (_, index) => ({
+			...structuredClone(document.slides[0]!),
+			id: `slide-${index}`
+		}));
+		presentationStore.getState().loadDocument(document, { saved: true });
+		const before = state().document;
+		const history = state().past;
+		expect(state().insertSlide(createSlide({ name: 'Overflow' }))).toBeNull();
+		expect(state().document).toBe(before);
+		expect(state().past).toBe(history);
+	});
+
+	it('throws on invalid slide data before changing document or history', () => {
+		const document = reset();
+		const before = state().document;
+		const history = state().past;
+		const duplicate = createSlide({ id: document.slides[0]!.id });
+		expect(() => state().insertSlide(duplicate)).toThrow();
+		expect(state().document).toBe(before);
+		expect(state().past).toBe(history);
 	});
 });

@@ -78,6 +78,12 @@ export type PresentationStoreState = {
 	commitTransform(elementId: string, geometry: TransformGeometry): void;
 
 	addSlide(afterSlideId?: string): string | null;
+	/**
+	 * Inserts one already-built slide after the anchor (or the active slide) and
+	 * makes it active, as one undo entry. Null means no document or a cap refusal;
+	 * invalid model data throws before anything is mutated.
+	 */
+	insertSlide(slide: Slide, afterSlideId?: string): string | null;
 	duplicateSlide(slideId: string): string | null;
 	renameSlide(slideId: string, name: string): void;
 	reorderSlide(slideId: string, targetIndex: number): void;
@@ -835,6 +841,32 @@ export function createPresentationStore(
 						activeSlideId: slide.id,
 						selectedElementIds: [],
 						editingElementId: null
+					}
+				});
+				return slide.id;
+			},
+
+			insertSlide(slide, afterSlideId) {
+				const document = get().document;
+				if (!document) return null;
+				if (slideInsertionRefusal(document, [slide], [])) return null;
+				const anchor = afterSlideId ?? get().view.activeSlideId;
+				commit((draft) => {
+					const index = draft.slides.findIndex((candidate) => candidate.id === anchor);
+					draft.slides.splice(
+						index < 0 ? draft.slides.length : index + 1,
+						0,
+						structuredClone(slide)
+					);
+				});
+				set({
+					view: {
+						...get().view,
+						activeSlideId: slide.id,
+						selectedElementIds: [],
+						editingElementId: null,
+						transformPreview: null,
+						guides: []
 					}
 				});
 				return slide.id;
