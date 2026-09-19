@@ -157,8 +157,8 @@ test('autosaves typed text and keeps it across a reload', async ({ page }) => {
 	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
 	const reloaded = await readStoredPresentation(page, id);
 	expect(reloaded?.elements.filter((element) => element.kind === 'text')).toHaveLength(1);
-	await selectFromElementList(page, 'Text');
-	await page.getByRole('button', { name: 'Edit text: Text' }).click();
+	await selectFromElementList(page, 'Body text');
+	await page.getByRole('button', { name: 'Edit text: Body text' }).click();
 	await expect(page.getByTestId('text-edit-field')).toContainText('Typed on the real build');
 });
 

@@ -104,6 +104,14 @@
 	<TextOverflowNotice {element} {store} />
 {:else if element.kind === 'shape'}
 	<ShapeStyleInspector {element} {store} />
+	{#if onreplaceimage && (element.shape === 'rectangle' || element.shape === 'rounded-rectangle')}
+		<button
+			type="button"
+			class="{button} [margin-top:var(--space-3)]"
+			disabled={element.locked}
+			onclick={() => onreplaceimage?.(element.id)}>Add image here</button
+		>
+	{/if}
 {:else if element.kind === 'image'}
 	<ImageAdjustInspector {element} {store} onreplace={onreplaceimage} />
 {/if}

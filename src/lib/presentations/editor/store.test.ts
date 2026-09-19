@@ -919,16 +919,45 @@ describe('presentation image insertion', () => {
 		expect(replaced?.kind === 'image' && replaced.assetId).toBe(replacement.asset.id);
 	});
 
-	it('refuses to replace anything that is not a selected image', () => {
+	it('refuses to replace anything that is not an image or a rectangular area', () => {
 		const text = createTextElement({ id: 'not-an-image' });
+		const ellipse = createShapeElement({ id: 'ellipse', shape: 'ellipse' });
 		state().addElement(text);
+		state().addElement(ellipse);
 		const document = state().document!;
 		const history = state().past.length;
 		expect(imageReplaceRefusal(document, preparedImage(), 'not-an-image')).not.toBeNull();
 		expect(imageReplaceRefusal(document, preparedImage(), 'missing')).not.toBeNull();
+		expect(imageReplaceRefusal(document, preparedImage(), 'ellipse')).not.toBeNull();
 		expect(persistedReplace('not-an-image', preparedImage())).toBe(false);
 		expect(persistedReplace('missing', preparedImage())).toBe(false);
+		expect(persistedReplace('ellipse', preparedImage())).toBe(false);
 		expect(state().past).toHaveLength(history);
+	});
+
+	it('fills a rectangle with a real image and keeps its geometry', () => {
+		const document = createPresentationDocument();
+		const rectangle = createShapeElement({ x: 160, y: 64, width: 960, height: 480 });
+		document.slides[0]!.elements = [rectangle];
+		const image = preparedImage('a'.repeat(64));
+		const plan = planImageReplacement(document, rectangle.id, image);
+		expect(plan?.document.slides[0]!.elements[0]).toMatchObject({
+			id: rectangle.id,
+			kind: 'image',
+			x: 160,
+			y: 64,
+			width: 960,
+			height: 480,
+			rotation: rectangle.rotation,
+			opacity: rectangle.opacity,
+			crop: coverCrop(image, rectangle)
+		});
+		rectangle.locked = true;
+		expect(planImageReplacement(document, rectangle.id, image)).toBeNull();
+		expect(imageReplaceRefusal(document, image, rectangle.id)).not.toBeNull();
+		rectangle.locked = false;
+		rectangle.shape = 'ellipse';
+		expect(planImageReplacement(document, rectangle.id, image)).toBeNull();
 	});
 
 	it('plans an insert without mutating the document or the store', () => {

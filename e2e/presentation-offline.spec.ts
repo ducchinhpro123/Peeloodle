@@ -176,11 +176,11 @@ test('a prepared session keeps editing, saving and first-use exports after the n
 	// 4 — edit and autosave with no connection.
 	await session
 		.locator('.presentation-layer-item')
-		.filter({ hasText: 'Text' })
+		.filter({ hasText: 'Body text' })
 		.first()
 		.locator('.presentation-layer-select')
 		.click();
-	await session.getByRole('button', { name: 'Edit text: Text' }).click();
+	await session.getByRole('button', { name: 'Edit text: Body text' }).click();
 	await expect(session.getByTestId('text-edit-field')).toContainText(TEXT);
 	await session.getByTestId('text-edit-field').press('End');
 	await session.keyboard.type(' và sửa khi mất mạng');

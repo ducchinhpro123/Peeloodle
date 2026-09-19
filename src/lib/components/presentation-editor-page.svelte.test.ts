@@ -956,6 +956,29 @@ describe('presentation editor page in template mode', () => {
 		await editor.unmount();
 	});
 
+	it('keeps a local layout insertion out of the draft until Save version', async () => {
+		const editor = await openTemplateEditor();
+		const versionsBefore = editor.catalog.templateVersions.length;
+		buttonWithText(editor.container, 'Add layout').click();
+		const dialog = await waitFor(
+			() => editor.container.querySelector('dialog[open]'),
+			'the layout dialog'
+		);
+		buttonWithText(dialog as HTMLElement, 'Section header').click();
+		await waitFor(() => editor.store.getState().document!.slides.length === 2, 'the new slide');
+		// No autosave in template mode: the draft is untouched until the explicit save.
+		expect(editor.catalog.templateVersions).toHaveLength(versionsBefore);
+
+		buttonWithText(editor.container, 'Save version').click();
+		await waitFor(
+			() => editor.catalog.templateVersions.length === versionsBefore + 1,
+			'a new draft version'
+		);
+		const savedVersion = editor.catalog.templateVersions.at(-1)!;
+		expect((savedVersion.document as PresentationDocument).slides).toHaveLength(2);
+		await editor.unmount();
+	});
+
 	it('keeps the work on a conflict and replaces only on an explicit second save', async () => {
 		const editor = await openTemplateEditor();
 		buttonWithText(editor.container, 'Add text').click();

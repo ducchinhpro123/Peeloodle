@@ -271,7 +271,7 @@ test('keeps the visual centre through the numeric rotation field and a rotate-ha
 	const id = decodeURIComponent(page.url().split('/').pop()!);
 	await page.reload();
 	await expect(canvasHost(page)).toBeVisible();
-	await selectFromElementList(page, 'Text');
+	await selectFromElementList(page, 'Body text');
 	await expect(canvasHost(page)).toHaveAttribute('data-selected-element', /.+/);
 	const reopened = await readGeometry(page);
 	expect(Math.abs(reopened.rotation - turned.rotation)).toBeLessThanOrEqual(1);
@@ -373,7 +373,7 @@ test('selects every visible element kind and leaves a locked element alone', asy
 		return readGeometry(page);
 	})();
 	const text = await (async () => {
-		await selectFromElementList(page, 'Text');
+		await selectFromElementList(page, 'Body text');
 		return readGeometry(page);
 	})();
 

@@ -5,7 +5,11 @@ import {
 	type SavePresentationOptions
 } from '../persistence/repository';
 import type { PresentationDocument } from '../model/types';
-import { createPresentationDocument, createTextElement } from '../model/factories';
+import {
+	createPresentationDocument,
+	createShapeElement,
+	createTextElement
+} from '../model/factories';
 import { FIXTURE_IMAGE_SHA256, fixtureImagePng } from '../model/fixtures/fixture';
 import type { PreparedPresentationImage } from './insertImageAsset';
 import { createPresentationStore } from './store.svelte';
@@ -246,6 +250,30 @@ describe('presentation saving coordinator', () => {
 		});
 		expect(outcome).toMatchObject({ ok: false, reason: 'failed' });
 		expect(JSON.stringify(presentationStore.getState().document)).toBe(before);
+	});
+
+	it('leaves a replaced rectangle untouched when the write fails', async () => {
+		const repository = new RecordingRepository();
+		const saving = await open(repository);
+		const document = structuredClone(presentationStore.getState().document!);
+		const rectangle = createShapeElement({
+			id: 'image-area',
+			x: 160,
+			y: 64,
+			width: 960,
+			height: 480
+		});
+		document.slides[0]!.elements = [rectangle];
+		presentationStore.getState().loadDocument(document, { saved: true });
+		repository.injectWriteFailure();
+		const before = JSON.stringify(presentationStore.getState().document);
+
+		const outcome = await saving.persistReplace('image-area', preparedImage('replace-fail'));
+
+		expect(outcome).toMatchObject({ ok: false, reason: 'failed' });
+		expect(JSON.stringify(presentationStore.getState().document)).toBe(before);
+		expect(presentationStore.getState().document!.slides[0]!.elements[0]!.kind).toBe('shape');
+		expect(await repository.hasMedia('replace-fail')).toBe(false);
 	});
 
 	it('persists an auto-grown height and reloads it cleanly', async () => {

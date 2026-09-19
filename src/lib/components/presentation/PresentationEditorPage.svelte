@@ -20,6 +20,8 @@
 	import { isPersistenceError } from '$lib/persistence/repository';
 	import { isPresentationParseError } from '$lib/presentations/model/parse';
 	import { createPresetText } from '$lib/presentations/editor/textPresets';
+	import { createBuiltinLayout } from '$lib/presentations/templates/builtinLayouts';
+	import BuiltinLayoutDialog from './BuiltinLayoutDialog.svelte';
 	import { ensurePresentationFonts } from '$lib/presentations/rendering/fonts';
 	import { createDecodedArtwork } from '$lib/presentations/rendering/decodedArtwork';
 	import {
@@ -376,6 +378,23 @@
 		// Open the editor straight away so the new box can be typed into immediately.
 		if (id) store.getState().startTextEdit(id);
 		else insertError = 'This slide cannot hold another text box. Remove an element first.';
+	}
+
+	/** @param {import('$lib/presentations/templates/builtinLayouts').BuiltinLayoutId} layoutId */
+	function addBuiltinLayout(layoutId) {
+		textSession.flush();
+		store.getState().endTextEdit();
+		store.getState().endHistoryGroup();
+		const current = store.getState().document;
+		if (!current) return { ok: false, message: 'Open a presentation before adding a layout.' };
+		const slide = createBuiltinLayout(layoutId, current.theme);
+		const id = store.getState().insertSlide(slide);
+		if (!id)
+			return { ok: false, message: 'This presentation has reached its slide or element limit.' };
+		// In template mode the existing saver still requires an explicit Save, so a
+		// local layout insertion never publishes a draft version by itself.
+		focusSlideId = id;
+		return { ok: true };
 	}
 
 	function addSlide() {
@@ -929,6 +948,11 @@
 						title="Add slide"
 						onclick={addSlide}><Plus size={16} aria-hidden="true" /><span>Add slide</span></button
 					>
+					<BuiltinLayoutDialog
+						theme={presentation.theme}
+						disabled={inserting}
+						oninsert={addBuiltinLayout}
+					/>
 					<button
 						type="button"
 						class={button}

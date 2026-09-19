@@ -21,9 +21,11 @@ import type { MeasureText } from '../rendering/textLayout';
 import type { AlignmentGuide } from './alignmentGuides';
 import type {
 	Element,
+	ImageElement,
 	NormalizedCrop,
 	PresentationAsset,
 	PresentationDocument,
+	ShapeElement,
 	Slide,
 	TextParagraph,
 	Theme
@@ -353,6 +355,13 @@ export function coverCrop(
 	return { x: 0, y: (1 - height) / 2, width: 1, height };
 }
 
+/** Elements an image can fill in place: an image, or an unlocked rectangular area. */
+function replaceableArea(element: Element | undefined): element is ImageElement | ShapeElement {
+	if (!element || element.locked) return false;
+	if (element.kind === 'image') return true;
+	return element.kind === 'shape' && ['rectangle', 'rounded-rectangle'].includes(element.shape);
+}
+
 /** Why a replacement would be refused: the same asset cap and byte budget as an insert. */
 export function imageReplaceRefusal(
 	document: PresentationDocument,
@@ -362,7 +371,13 @@ export function imageReplaceRefusal(
 	const element = document.slides
 		.flatMap((slide) => slide.elements)
 		.find((candidate) => candidate.id === elementId);
-	if (!element || element.kind !== 'image')
+	if (element?.locked) {
+		return {
+			reason: 'no-image',
+			message: 'Unlock this element before replacing its artwork.'
+		};
+	}
+	if (!replaceableArea(element))
 		return { reason: 'no-image', message: 'Select an image before replacing it.' };
 	const knownAsset = document.assets.some((asset) => asset.id === image.asset.id);
 	if (!knownAsset && document.assets.length >= PRESENTATION_LIMITS.maxAssets) {
@@ -387,7 +402,9 @@ export function imageReplaceRefusal(
 /**
  * Builds the next document for a replacement: the element keeps its id,
  * placement, rotation, opacity and flips; only the asset, alt text and a fresh
- * centered cover crop change. Crop stays non-destructive document data.
+ * centered cover crop change. Crop stays non-destructive document data. A
+ * rectangular shape area becomes a real image element at identical geometry;
+ * the same id survives so selection, history, and any raced replay still match.
  */
 export function planImageReplacement(
 	document: PresentationDocument,
@@ -395,15 +412,31 @@ export function planImageReplacement(
 	image: PreparedPresentationImage
 ): ImageReplacePlan | null {
 	const draft = structuredClone(document);
-	const target = draft.slides
-		.flatMap((slide) => slide.elements)
-		.find((candidate) => candidate.id === elementId);
-	if (!target || target.kind !== 'image') return null;
+	const slide = draft.slides.find((candidate) =>
+		candidate.elements.some((element) => element.id === elementId)
+	);
+	const index = slide?.elements.findIndex((element) => element.id === elementId) ?? -1;
+	const target = index === -1 ? undefined : slide!.elements[index];
+	if (!replaceableArea(target)) return null;
 	const knownAsset = draft.assets.some((asset) => asset.id === image.asset.id);
 	if (!knownAsset) draft.assets.push(structuredClone(image.asset));
-	target.assetId = image.asset.id;
-	target.alt = image.asset.provenance.label;
-	target.crop = coverCrop(image, target);
+	const replacement = createImageElement({
+		id: target.id,
+		name: target.name,
+		x: target.x,
+		y: target.y,
+		width: target.width,
+		height: target.height,
+		rotation: target.rotation,
+		opacity: target.opacity,
+		visible: target.visible,
+		locked: false,
+		assetId: image.asset.id,
+		alt: image.asset.provenance.label,
+		crop: coverCrop(image, target),
+		...(target.kind === 'image' ? { flipX: target.flipX, flipY: target.flipY } : {})
+	});
+	slide!.elements[index] = replacement;
 	return {
 		document: serializePresentationDocument(withRevision(document, draft)),
 		elementId
