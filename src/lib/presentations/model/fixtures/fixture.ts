@@ -36,11 +36,11 @@ export function fixtureImagePng(): Uint8Array {
 	});
 }
 
-/** SHA-256 of `fixtureImagePng()`, asserted in fixture.test.ts. */
+/** SHA-256 of `fixtureImagePng()`. */
 export const FIXTURE_IMAGE_SHA256 =
 	'c407a0727ad50b0530208e17052eafe2f7eb7a658bb1a9d6bbea5c1e1619c58e';
 
-/** Size of `fixtureImagePng()`, asserted in fixture.test.ts. Encoded once, not per document. */
+/** Size of `fixtureImagePng()`. Encoded once, not per document. */
 export const FIXTURE_IMAGE_BYTE_LENGTH = fixtureImagePng().length;
 
 const FIXTURE_CREATED_AT = '2026-09-10T08:00:00.000Z';

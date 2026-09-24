@@ -4,8 +4,7 @@
  * Document units are 1/96 inch (CSS px at 100% zoom), matching the architecture
  * contract: a 1280×720 document is 13⅓×7½ inches (standard 16:9 PowerPoint) and
  * 960×540 points. Font sizes are stored in document units and convert to points
- * with the same ratio. Conversions are centralized here and tested in
- * geometry.test.ts.
+ * with the same ratio. Conversions are centralized here.
  */
 
 import { PRESENTATION_PAGE_HEIGHT, PRESENTATION_PAGE_WIDTH } from './types';

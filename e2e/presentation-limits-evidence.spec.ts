@@ -500,7 +500,7 @@ test.describe('P45 capacity evidence', () => {
 				notes: [
 					'Each slide carries one text element at the per-element text ceiling (200 paragraphs × 20 runs), which is what gives the JSON its bulk.',
 					'The save is a real command (a new rectangle) written through the autosave coordinator; "Saved locally" is the app’s own confirmation.',
-					'The parser’s over-limit rejection is covered by src/lib/presentations/model/parse.test.ts; this probe measures capacity, not the rule.'
+					'This probe measures capacity; it does not exercise rejection of over-limit documents.'
 				]
 			},
 			page,
