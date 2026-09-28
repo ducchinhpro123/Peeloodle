@@ -196,6 +196,32 @@ test('moves in document units at two zoom levels and commits one history entry p
 		.toBeCloseTo(afterSecond.x, 0);
 });
 
+test('shows full slide centrelines while snapping a dragged box and clears them on release', async ({
+	page
+}, testInfo) => {
+	await page.setViewportSize({ width: 1280, height: 768 });
+	const start = await boxedText(page, 100, 100);
+	const view = await canvasView(page);
+	const from = at(view, start.x + start.width / 2, start.y + start.height / 2);
+	const target = at(view, 640, 360);
+	await page.mouse.move(from.x, from.y);
+	await page.mouse.down();
+	await page.mouse.move(target.x, target.y, { steps: 5 });
+	const vertical = page.getByTestId('presentation-guide-x');
+	const horizontal = page.getByTestId('presentation-guide-y');
+	await expect(vertical).toBeVisible();
+	await expect(horizontal).toBeVisible();
+	const [v, h] = await Promise.all([vertical.boundingBox(), horizontal.boundingBox()]);
+	expect(v!.width).toBeGreaterThanOrEqual(1);
+	expect(v!.height).toBeGreaterThan(300);
+	expect(h!.width).toBeGreaterThan(500);
+	expect(h!.height).toBeGreaterThanOrEqual(1);
+	await page.screenshot({ path: testInfo.outputPath('slide-alignment-guides.png') });
+	await page.mouse.up();
+	await expect(vertical).toHaveCount(0);
+	await expect(horizontal).toHaveCount(0);
+});
+
 test('resizes from the south-east handle keeping the origin, and the frame keeps agreeing', async ({
 	page
 }) => {
@@ -236,6 +262,144 @@ test('resizes from the south-east handle keeping the origin, and the frame keeps
 	const afterFrame = await frameBox(page);
 	expect(Math.abs(afterFrame.width - resized.width * view.scale)).toBeLessThanOrEqual(1.5);
 	expect(Math.abs(afterFrame.height - resized.height * view.scale)).toBeLessThanOrEqual(1.5);
+});
+
+test('resizing a text box changes its frame without stretching the painted letters', async ({
+	page
+}, testInfo) => {
+	await page.setViewportSize({ width: 1280, height: 768 });
+	await boxedText(page);
+	await page.getByRole('button', { name: /^Edit text/ }).click();
+	await page.getByTestId('text-edit-field').fill('this is good');
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('text-edit-field')).not.toBeVisible();
+	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Fit slide to window' }).click();
+	const view = await canvasView(page);
+	const start = await readGeometry(page);
+
+	// Measure the actual dark glyph pixels in the scene canvas, not the selection
+	// outline or the stored font size. A group-scale preview stretches this ink.
+	const inkBounds = () =>
+		page.evaluate(
+			({ origin, scale, x, y }) => {
+				const canvas = (window as any).Konva.stages[0].getLayers()[0].getCanvas()._canvas;
+				const context = canvas.getContext('2d')!;
+				const host = document.querySelector('[data-testid="presentation-canvas"]')!;
+				const rect = host.getBoundingClientRect();
+				const ratio = canvas.width / rect.width;
+				const left = Math.round((origin.x - rect.x + x * scale) * ratio);
+				const top = Math.round((origin.y - rect.y + y * scale) * ratio);
+				const { data, width, height } = context.getImageData(left, top, 300, 110);
+				let minX = width,
+					maxX = -1,
+					minY = height,
+					maxY = -1;
+				for (let py = 0; py < height; py++)
+					for (let px = 0; px < width; px++) {
+						const index = (py * width + px) * 4;
+						if (
+							data[index + 3] < 200 ||
+							data[index] > 100 ||
+							data[index + 1] > 100 ||
+							data[index + 2] > 140
+						)
+							continue;
+						minX = Math.min(minX, px);
+						maxX = Math.max(maxX, px);
+						minY = Math.min(minY, py);
+						maxY = Math.max(maxY, py);
+					}
+				return { width: maxX - minX + 1, height: maxY - minY + 1 };
+			},
+			{ origin: view.origin, scale: view.scale, x: start.x, y: start.y }
+		);
+
+	const before = await inkBounds();
+	expect(before.width).toBeGreaterThan(30);
+	expect(before.height).toBeGreaterThan(10);
+	const handle = (await page.getByTestId('presentation-handle-se').boundingBox())!;
+	const from = centreOfBox(handle);
+	await page.mouse.move(from.x, from.y);
+	await page.mouse.down();
+	await page.mouse.move(from.x + 90 * view.scale, from.y + 90 * view.scale, { steps: 5 });
+	const during = await inkBounds();
+	await page
+		.getByTestId('presentation-canvas')
+		.screenshot({ path: testInfo.outputPath('text-resize-preview.png') });
+	expect(during.width).toBeGreaterThanOrEqual(before.width - 3);
+	expect(during.width).toBeLessThanOrEqual(before.width + 3);
+	expect(during.height).toBeGreaterThanOrEqual(before.height - 3);
+	expect(during.height).toBeLessThanOrEqual(before.height + 3);
+	await page.mouse.up();
+	const resized = await readGeometry(page);
+	expect(resized.width).toBeGreaterThan(start.width);
+	expect(resized.height).toBeGreaterThan(start.height);
+	await expect.poll(inkBounds).toEqual(before);
+});
+
+test('clicking a selected text box then pressing Delete removes it, but editing text does not', async ({
+	page
+}, testInfo) => {
+	const id = await openBlankEditor(page);
+	await page.getByRole('button', { name: 'Add text' }).click();
+	await page.getByTestId('text-edit-field').fill('this is good');
+	await page.keyboard.press('Backspace');
+	await expect(page.getByTestId('text-edit-field')).toContainText('this is goo');
+	await page.keyboard.press('Escape');
+	const geometry = await readGeometry(page);
+	const view = await canvasView(page);
+	await waitForHittable(page, geometry);
+	await clickAt(page, at(view, geometry.x + geometry.width / 2, geometry.y + geometry.height / 2));
+	await expect(canvasHost(page)).toHaveAttribute('data-selected-element', /.+/);
+	await page.keyboard.press('Delete');
+	await expect(canvasHost(page)).toHaveAttribute('data-selected-element', '');
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(0);
+	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect.poll(async () => (await readStoredPresentation(page, id))?.elements.length).toBe(0);
+	await page.screenshot({ path: testInfo.outputPath('text-deleted.png') });
+
+	await page.getByRole('button', { name: 'Undo' }).click();
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(1);
+	await waitForHittable(page, geometry);
+	await clickAt(
+		page,
+		at(await canvasView(page), geometry.x + geometry.width / 2, geometry.y + geometry.height / 2)
+	);
+	await page.keyboard.press('Backspace');
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(0);
+});
+
+test('canvas shortcuts duplicate the selected element and Escape clears selection', async ({
+	page
+}, testInfo) => {
+	const id = await openBlankEditor(page);
+	await addShape(page, 'rectangle');
+	const original = await readGeometry(page);
+	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await clickAt(
+		page,
+		at(await canvasView(page), original.x + original.width / 2, original.y + original.height / 2)
+	);
+	await page.keyboard.press('Control+d');
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(2);
+	const copyId = await canvasHost(page).getAttribute('data-selected-element');
+	expect(copyId).toBeTruthy();
+	await expect.poll(async () => (await readStoredPresentation(page, id))?.elements.length).toBe(2);
+	const copy = (await readStoredPresentation(page, id))?.elements.find(
+		(element) => element.id === copyId
+	);
+	expect(copy).toMatchObject({ x: original.x + 24, y: original.y + 24 });
+	await page
+		.getByTestId('presentation-canvas')
+		.screenshot({ path: testInfo.outputPath('canvas-duplicated.png') });
+
+	await page.keyboard.press('Escape');
+	await expect(canvasHost(page)).toHaveAttribute('data-selected-element', '');
+	await page.keyboard.press('Control+d');
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(2);
+	await page.getByRole('button', { name: 'Undo' }).click();
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(1);
 });
 
 test('keeps the visual centre through the numeric rotation field and a rotate-handle turn', async ({

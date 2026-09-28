@@ -1,6 +1,6 @@
 <script>
 	import { Konva } from '$lib/presentations/rendering/konvaText';
-	import { renderSlide } from '$lib/presentations/rendering/renderSlide';
+	import { renderSlide, renderText } from '$lib/presentations/rendering/renderSlide';
 	import {
 		clampPresentationZoom,
 		presentationViewport
@@ -177,16 +177,36 @@
 		const node = /** @type {Konva.Group | undefined} */ (konvaLayer.findOne(`#${id}`));
 		if (element && node) {
 			const geometry = elementGeometry(element, preview ?? null);
-			node.setAttrs({
-				x: geometry.x,
-				y: geometry.y,
-				rotation: geometry.rotation,
-				// Preview only: the group is scaled so the drag tracks the pointer. The
-				// stored element keeps its own size and is re-rendered from it.
-				scaleX: geometry.width / element.width,
-				scaleY: geometry.height / element.height
-			});
-			konvaLayer.batchDraw();
+			if (element.kind === 'text') {
+				// A text box resize changes wrapping space, never glyph size. Replace only
+				// this group when its painted dimensions differ, using the same renderer
+				// as the committed slide. Moving/rotating keeps the existing glyphs.
+				const hitArea = /** @type {Konva.Rect | undefined} */ (node.getChildren()[0]);
+				if (hitArea?.width() !== geometry.width || hitArea.height() !== geometry.height) {
+					const parent = node.getParent();
+					const index = node.zIndex();
+					const replacement = renderText({ ...element, ...geometry }, true);
+					node.destroy();
+					parent?.add(replacement);
+					replacement.zIndex(index);
+					konvaLayer.batchDraw();
+				} else {
+					node.position({ x: geometry.x, y: geometry.y });
+					node.rotation(geometry.rotation);
+					konvaLayer.batchDraw();
+				}
+			} else {
+				node.setAttrs({
+					x: geometry.x,
+					y: geometry.y,
+					rotation: geometry.rotation,
+					// Shapes and images track the pointer by scaling their group until
+					// the document redraws them at their committed dimensions.
+					scaleX: geometry.width / element.width,
+					scaleY: geometry.height / element.height
+				});
+				konvaLayer.batchDraw();
+			}
 		}
 		previewedNodeId = preview?.elementId ?? null;
 	});
@@ -340,7 +360,14 @@
 			const others = slide.elements
 				.filter((element) => element.id !== gesture.elementId && element.visible)
 				.map((element) => elementGeometry(element, null));
-			const snapped = snapToAlignment(current, others, state.document.pageSize);
+			// Keep the magnetic distance roughly constant on screen at any zoom.
+			const scale = presentationViewport(
+				size,
+				state.document.pageSize,
+				state.view.zoom,
+				state.view.pan
+			).scale;
+			const snapped = snapToAlignment(current, others, state.document.pageSize, 8 / scale);
 			current = { ...current, x: snapped.x, y: snapped.y };
 			nextGuides = snapped.guides;
 		}
@@ -404,6 +431,7 @@
 		if (event.button !== 0) return;
 		const element = elementAtPointer(event.clientX, event.clientY);
 		if (element) {
+			hostEl?.focus();
 			store.getState().selectElements([element.id]);
 			// A locked element stays selectable so its properties are reachable,
 			// but no gesture may move, resize, or rotate it.
@@ -446,7 +474,11 @@
 		if (event.deltaY === 0) return;
 		event.preventDefault();
 		const current = store.getState().view.zoom;
-		store.getState().setZoom(clampPresentationZoom(current * (event.deltaY < 0 ? 1.1 : 0.9)));
+		// Wheel events vary from tiny trackpad pixels to full mouse notches. Scale
+		// with their magnitude instead of applying 10% for every event.
+		const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 120 : 1);
+		const step = Math.max(-120, Math.min(120, pixels));
+		store.getState().setZoom(clampPresentationZoom(current * Math.exp(-step * 0.0008)));
 	}
 
 	/** @type {import('svelte/attachments').Attachment<HTMLDivElement>} */
@@ -638,8 +670,15 @@
 	.presentation-guide {
 		position: absolute;
 		z-index: 3;
-		background: var(--icon-pink);
+		background: var(--icon-purple);
+		box-shadow: 0 0 0 1px #ffffffaa;
 		pointer-events: none;
+	}
+	.presentation-guide.is-x {
+		width: 1px;
+	}
+	.presentation-guide.is-y {
+		height: 1px;
 	}
 	.presentation-canvas-panel {
 		position: relative;

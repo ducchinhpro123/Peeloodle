@@ -47,7 +47,9 @@ test('a clean editor follows a shell nav link immediately', async ({ page }) => 
 	await expect(page.getByText(/could not be saved/i)).toHaveCount(0);
 });
 
-test('the browser Back button writes the pending edit before it leaves', async ({ page }) => {
+test('the browser Back button writes the pending edit before it leaves', async ({
+	page
+}, testInfo) => {
 	const presentationId = await openBlankEditor(page);
 
 	await page.getByRole('button', { name: 'Add text' }).click();
@@ -61,6 +63,17 @@ test('the browser Back button writes the pending edit before it leaves', async (
 	await expect(page).toHaveURL('/presentations');
 	const stored = await readStoredPresentation(page, presentationId);
 	expect(stored?.text).toContain('Back must not lose this');
+	await page.screenshot({ path: testInfo.outputPath('saved-after-browser-back.png') });
+
+	// Back must retain real browser history, not replace it with a new push.
+	await page.goForward();
+	await expect(page).toHaveURL(new RegExp(`/presentations/${presentationId}$`));
+	await expect(page.getByTestId('presentation-canvas')).toHaveAttribute('data-ready', 'true');
+	await expect
+		.poll(async () => (await readStoredPresentation(page, presentationId))?.text)
+		.toContain('Back must not lose this');
+	await page.goBack();
+	await expect(page).toHaveURL('/presentations');
 });
 
 test('a clean exit navigates back to the library without being blocked', async ({ page }) => {

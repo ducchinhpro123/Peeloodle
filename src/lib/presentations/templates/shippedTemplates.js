@@ -9,6 +9,11 @@
  * placeholders — never a promise of native chart or data editing.
  */
 
+import {
+	buildCompanyProfileTemplate,
+	loadCompanyProfileArtwork
+} from './companyProfileTemplate.js';
+
 export const SAMPLE_NOTE = 'Sample content — replace with your own.';
 
 /** @type {{ width: 1280, height: 720 }} */
@@ -1161,7 +1166,7 @@ export const SHIPPED_TEMPLATES = [
 		title: 'Research defense',
 		useCase: 'research-defense',
 		description:
-			'An eight-slide defense deck: problem, research question, method, results image area, discussion, limitations, references and Q&A.',
+			'A nine-slide defense deck: title, problem, research question, method, results image area, discussion, limitations, references and Q&A.',
 		tags: ['research', 'defense'],
 		sortOrder: 2,
 		build: researchDefense
@@ -1175,6 +1180,17 @@ export const SHIPPED_TEMPLATES = [
 		tags: ['club', 'pitch'],
 		sortOrder: 3,
 		build: clubPitch
+	},
+	{
+		key: 'company-profile',
+		title: 'Red & white company profile',
+		useCase: 'company-profile',
+		description:
+			'Adapted from your 15-slide PowerPoint. Text is editable; geometric artwork, photos and charts are flattened into locked image layers. Fonts are approximated.',
+		tags: ['business', 'company-profile'],
+		sortOrder: 4,
+		build: buildCompanyProfileTemplate,
+		loadArtwork: loadCompanyProfileArtwork
 	}
 ];
 

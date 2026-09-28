@@ -17,6 +17,7 @@
 	import AppShell from '$lib/components/AppShell.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import PresentationThumb from '$lib/components/PresentationThumb.svelte';
+	import PresentationStarterGallery from '$lib/components/PresentationStarterGallery.svelte';
 	import { blobToArrayBuffer } from '$lib/blob';
 	import { createPresentationDocument } from '$lib/presentations/model/factories';
 	import { PRESENTATION_LIMITS } from '$lib/presentations/model/limits';
@@ -249,6 +250,8 @@
 			</div>
 		</section>
 
+		<PresentationStarterGallery {repository} {onopen} onblank={createBlank} {creatingBlank} />
+
 		<div class="presentation-library-controls">
 			<div>
 				<p
@@ -320,27 +323,37 @@
 				<p role="status">Loading local presentations…</p>
 			</section>
 		{:else if items.length === 0}
-			<section class="card presentation-library-state presentation-library-empty">
-				<div
-					class="presentation-empty-art [position:relative] [min-height:210px]"
-					aria-hidden="true"
-				>
-					<span class="presentation-empty-slide"><i></i><b>YOUR<br />STORY</b><i></i></span><span
-						class="presentation-empty-spark">✦</span
-					>
+			<section class="presentation-library-empty" aria-labelledby="presentation-empty-title">
+				<div class="presentation-empty-art" aria-hidden="true">
+					<div class="presentation-empty-slide">
+						<span class="presentation-empty-slide-label">YOUR FIRST SLIDE</span>
+						<span class="presentation-empty-slide-title">Big ideas<br />start small.</span>
+						<span class="presentation-empty-slide-line"></span>
+					</div>
+					<img
+						class="presentation-empty-cat"
+						src={asset('/art/presentation-stickers/cat-presenter.png')}
+						alt=""
+						width="728"
+						height="1014"
+					/>
+					<span class="presentation-empty-tape"></span>
+					<span class="presentation-empty-spark">✳</span>
 				</div>
 				<div class="presentation-empty-copy">
-					<p class="presentation-empty-kicker">A fresh canvas is waiting</p>
-					<h2>No presentations yet</h2>
-					<p>
-						Create a blank presentation and shape it one idea at a time. Templates arrive in a later
-						increment; use <strong>Restore backup</strong> to bring back a downloaded .stickerlab.zip.
+					<p class="presentation-empty-kicker">A little space for a big idea</p>
+					<h2 id="presentation-empty-title">No presentations yet</h2>
+					<p class="presentation-empty-description">
+						Start with a blank slide. Add your words, images, and a little personality as you go.
 					</p>
 					<button class={buttonPrimary} onclick={createBlank} disabled={creatingBlank}
 						><FilePlus2 size={18} />{creatingBlank
 							? 'Creating…'
 							: 'Create your first presentation'}</button
 					>
+					<p class="presentation-empty-restore">
+						Already have a .stickerlab.zip? Use <strong>Restore backup</strong> above.
+					</p>
 				</div>
 			</section>
 		{:else if visibleItems.length === 0}
@@ -715,96 +728,141 @@
 		gap: var(--space-3);
 	}
 	.presentation-library-empty {
-		grid-template-columns: minmax(210px, 330px) minmax(280px, 520px);
-		place-content: center;
-		justify-items: stretch;
-		gap: var(--space-7);
+		display: grid;
+		grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+		min-height: 410px;
 		overflow: hidden;
-		text-align: left;
+		border: 1px solid #e4ebe3;
+		border-radius: var(--radius);
+		background: var(--surface-warm);
+	}
+	.presentation-empty-art {
+		position: relative;
+		min-height: 410px;
+		overflow: hidden;
+		background: #dff2e9;
+		isolation: isolate;
+	}
+	.presentation-empty-art::before {
+		position: absolute;
+		top: -115px;
+		left: -100px;
+		width: 350px;
+		height: 350px;
+		border: 1px solid #b5decf;
+		border-radius: 50%;
+		box-shadow:
+			0 0 0 65px #ffffff35,
+			0 0 0 130px #ffffff25;
+		content: '';
 	}
 	.presentation-empty-slide {
 		position: absolute;
-		display: grid;
-		inset: 10% 6% 5%;
-		aspect-ratio: 16 / 9;
-		place-content: center;
-		overflow: hidden;
-		border: 9px solid var(--surface);
-		background: linear-gradient(145deg, var(--lav), #fff7d1);
-		box-shadow: var(--shadow-hover);
+		top: 15%;
+		left: 11%;
+		display: flex;
+		width: 73%;
+		aspect-ratio: 16 / 10;
+		flex-direction: column;
+		align-items: flex-start;
+		justify-content: center;
+		gap: 20px;
+		padding: clamp(20px, 3.2cqw, 48px);
+		border: 9px solid white;
+		background: #fff3cd;
+		box-shadow: 0 20px 32px #245c4830;
+		transform: rotate(-7deg);
+	}
+	.presentation-empty-slide-label {
+		color: var(--scrapbook-green);
+		font-size: 10px;
+		font-weight: 800;
+		letter-spacing: 0.13em;
+	}
+	.presentation-empty-slide-title {
 		color: var(--ink);
-		text-align: center;
-		transform: rotate(-5deg);
-	}
-	.presentation-empty-slide::before {
-		position: absolute;
-		top: -18%;
-		right: -6%;
-		width: 43%;
-		height: 68%;
-		border-radius: 50%;
-		background: var(--mint);
-		opacity: 0.85;
-		content: '';
-	}
-	.presentation-empty-slide::after {
-		position: absolute;
-		bottom: -24%;
-		left: -3%;
-		width: 65%;
-		height: 53%;
-		background: var(--blush);
-		transform: rotate(8deg);
-		content: '';
-	}
-	.presentation-empty-slide b {
-		position: relative;
-		z-index: 1;
 		font:
-			400 clamp(25px, 3cqw, 40px)/0.9 Chewy,
+			400 clamp(23px, 3.25cqw, 48px)/0.98 Chewy,
 			cursive;
 	}
-	.presentation-empty-slide i {
-		position: absolute;
-		z-index: 1;
-		width: 22%;
-		height: 9px;
-		background: var(--scrapbook-yellow);
-		transform: rotate(-8deg);
-	}
-	.presentation-empty-slide i:first-child {
-		top: 18%;
-		left: 10%;
-	}
-	.presentation-empty-slide i:last-child {
-		right: 10%;
-		bottom: 16%;
+	.presentation-empty-slide-line {
+		width: 38%;
+		height: 8px;
 		background: var(--mint);
+		transform: rotate(-3deg);
+	}
+	.presentation-empty-cat {
+		position: absolute;
+		z-index: 2;
+		right: 2%;
+		bottom: -16%;
+		width: min(52%, 285px);
+		height: auto;
+		filter: drop-shadow(0 12px 10px #245c4826);
+		transform: rotate(8deg);
+	}
+	.presentation-empty-tape {
+		position: absolute;
+		z-index: 3;
+		top: 9%;
+		left: 34%;
+		width: 85px;
+		height: 26px;
+		background: #f4a9b4c9;
+		transform: rotate(-5deg);
 	}
 	.presentation-empty-spark {
 		position: absolute;
-		z-index: 2;
-		top: 0;
-		right: 0;
-		color: #e5ad00;
-		font-size: 42px;
-		transform: rotate(12deg);
+		top: 12%;
+		right: 8%;
+		color: #db9f00;
+		font-size: 46px;
+		line-height: 1;
 	}
 	.presentation-empty-copy {
-		display: grid;
-		align-content: center;
-		justify-items: start;
-		gap: var(--space-3);
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		justify-content: center;
+		padding: clamp(32px, 5cqw, 76px);
 	}
-	.presentation-empty-copy > p {
-		max-width: 52ch;
+	.presentation-empty-copy h2 {
+		margin: 18px 0 14px;
+		color: var(--ink);
+		font:
+			700 clamp(32px, 3.7cqw, 52px)/1.04 Fredoka,
+			sans-serif;
+		letter-spacing: -0.045em;
+		text-wrap: balance;
 	}
 	.presentation-empty-kicker {
-		padding: 5px 9px;
-		background: var(--scrapbook-yellow);
-		color: var(--scrapbook-green) !important;
-		font-family: Chewy, cursive;
-		transform: rotate(-2deg);
+		margin: 0;
+		color: var(--scrapbook-green);
+		font-size: 12px;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+	.presentation-empty-description {
+		max-width: 35ch;
+		margin: 0 0 25px;
+		color: #43576c;
+		font-size: clamp(15px, 1.35cqw, 18px);
+		line-height: 1.6;
+	}
+	.presentation-empty-copy .button {
+		min-height: 50px;
+		padding-inline: 22px;
+	}
+	.presentation-empty-restore {
+		max-width: 42ch;
+		margin: 24px 0 0;
+		color: var(--muted);
+		font-size: 12px;
+		line-height: 1.55;
+	}
+	.presentation-empty-restore strong {
+		color: var(--scrapbook-green);
 	}
 	:global(.presentation-library-no-results > svg) {
 		width: 58px;
@@ -1099,14 +1157,37 @@
 		}
 		.presentation-library-empty {
 			grid-template-columns: 1fr;
-			gap: var(--space-4);
-			text-align: center;
 		}
 		.presentation-empty-art {
-			min-height: 180px;
+			min-height: 250px;
+		}
+		.presentation-empty-slide {
+			top: 12%;
+			left: 10%;
+			width: min(68%, 320px);
+			gap: 10px;
+			padding: 22px;
+			border-width: 6px;
+		}
+		.presentation-empty-slide-title {
+			font-size: clamp(24px, 7cqw, 36px);
+		}
+		.presentation-empty-cat {
+			right: 10%;
+			bottom: -22%;
+			width: min(40%, 170px);
 		}
 		.presentation-empty-copy {
-			justify-items: center;
+			padding: 32px 26px 36px;
+		}
+		.presentation-empty-copy h2 {
+			margin: 14px 0 10px;
+		}
+		.presentation-empty-description {
+			margin-bottom: 22px;
+		}
+		.presentation-empty-restore {
+			margin-top: 20px;
 		}
 		.presentation-grid {
 			grid-template-columns: 1fr;

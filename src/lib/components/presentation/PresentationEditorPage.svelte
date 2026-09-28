@@ -22,6 +22,7 @@
 	import { createPresetText } from '$lib/presentations/editor/textPresets';
 	import { createBuiltinLayout } from '$lib/presentations/templates/builtinLayouts';
 	import BuiltinLayoutDialog from './BuiltinLayoutDialog.svelte';
+	import SlideRailPreview from './SlideRailPreview.svelte';
 	import { ensurePresentationFonts } from '$lib/presentations/rendering/fonts';
 	import { createDecodedArtwork } from '$lib/presentations/rendering/decodedArtwork';
 	import {
@@ -679,11 +680,37 @@
 		if (event.defaultPrevented) return;
 		const target = event.target;
 		if (target instanceof HTMLElement && target.closest(SHORTCUT_EXEMPT)) return;
+		if (
+			(event.key === 'Delete' || event.key === 'Backspace') &&
+			!event.metaKey &&
+			!event.ctrlKey &&
+			!event.altKey &&
+			!event.shiftKey
+		) {
+			const state = store.getState();
+			const id = state.view.selectedElementIds[0];
+			if (!id || state.view.editingElementId) return;
+			event.preventDefault();
+			state.removeElement(id);
+			return;
+		}
+		if (event.key === 'Escape' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+			const state = store.getState();
+			if (state.view.selectedElementIds.length === 0) return;
+			event.preventDefault();
+			state.selectElements([]);
+			return;
+		}
 		if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
 		const key = event.key.toLowerCase();
+		const state = store.getState();
+		if (key === 'd' && !event.shiftKey && state.view.selectedElementIds[0]) {
+			event.preventDefault();
+			state.duplicateElement(state.view.selectedElementIds[0]);
+			return;
+		}
 		if (key !== 'z' && key !== 'y') return;
 		event.preventDefault();
-		const state = store.getState();
 		// Ctrl/Cmd+Shift+Z and Ctrl+Y both redo; plain Ctrl/Cmd+Z undoes.
 		if (key === 'y' || event.shiftKey) state.redo();
 		else state.undo();
@@ -745,14 +772,22 @@
 {:else}
 	<div class="presentation-editor">
 		<header class="presentation-editor-bar">
-			<a class={buttonIcon} aria-label="Back to presentations" href={backhref} onclick={leave}
-				><ArrowLeft size={19} /></a
-			>
-			<div class="presentation-editor-title">
-				<p>{templateMode ? 'Template draft' : 'Presentation'}</p>
-				<h1 title={presentation.title}>{presentation.title}</h1>
+			<div class="presentation-editor-heading">
+				<a class={buttonIcon} aria-label="Back to presentations" href={backhref} onclick={leave}
+					><ArrowLeft size={19} /></a
+				>
+				<div class="presentation-editor-title">
+					<p>{templateMode ? 'Template draft' : 'Presentation'}</p>
+					<h1 title={presentation.title}>{presentation.title}</h1>
+				</div>
+				<p class="presentation-local-status" role="status" title={saveState.message ?? undefined}>
+					{editorNote ?? saveStatus}
+				</p>
+				<button type="button" class={button} onclick={requestSave}
+					><Save size={16} aria-hidden="true" /> {templateMode ? 'Save version' : 'Save'}</button
+				>
 			</div>
-			<div class="presentation-editor-actions">
+			<div class="presentation-editor-actions" role="group" aria-label="Presentation tools">
 				<button
 					type="button"
 					class={buttonIcon}
@@ -769,6 +804,15 @@
 					disabled={!canRedo}
 					onclick={() => store.getState().redo()}><Redo2 size={17} aria-hidden="true" /></button
 				>
+				{#if !templateMode}
+					<ExportDialog
+						{exportState}
+						offline={offline.snapshot}
+						reloadSafety={{ unsavedWork: editorState.dirty, saveFailed: saveReported }}
+						onexport={(format) => void exportController.exportDeck(format)}
+						oncancel={() => exportController.cancel()}
+					/>
+				{/if}
 				<label class="presentation-add-shape"
 					><span class="sr-only">Add shape</span><select
 						aria-label="Add shape"
@@ -788,7 +832,7 @@
 						></select
 					></label
 				>
-				<span class="[display:inline-flex] [flex-wrap:wrap] [gap:var(--space-2)]">
+				<span class="presentation-add-text">
 					<button type="button" class={button} onclick={() => addTextBox('heading')}
 						>Add heading</button
 					>
@@ -879,18 +923,6 @@
 					bind:this={themeOpener}
 					onclick={() => (themeOpen = true)}>Theme</button
 				>
-				{#if !templateMode}
-					<ExportDialog
-						{exportState}
-						offline={offline.snapshot}
-						reloadSafety={{ unsavedWork: editorState.dirty, saveFailed: saveReported }}
-						onexport={(format) => void exportController.exportDeck(format)}
-						oncancel={() => exportController.cancel()}
-					/>
-				{/if}
-				<button type="button" class={button} onclick={requestSave}
-					><Save size={16} aria-hidden="true" /> {templateMode ? 'Save version' : 'Save'}</button
-				>
 				{#if saveState.status === 'conflict' && templateMode}
 					<button
 						type="button"
@@ -916,10 +948,13 @@
 						onclick={() => void exportController.exportDeck('backup')}>Download backup</button
 					>
 				{/if}
-				<p class="presentation-local-status" role="status" title={saveState.message ?? undefined}>
-					{editorNote ?? saveStatus}
-				</p>
 			</div>
+			{#if saveReported || editorNote}<p
+					class="presentation-editor-feedback"
+					role={saveReported ? 'alert' : 'status'}
+				>
+					{editorNote ?? saveState.message ?? saveStatus}
+				</p>{/if}
 		</header>
 		{#if editorState.view.editingElementId}<TextFormatToolbar session={textSession} />{/if}
 		{#if insertError}<p class="asset-error" role="alert">{insertError}</p>{/if}
@@ -973,7 +1008,7 @@
 								onclick={() => store.getState().selectSlide(slide.id)}
 								{@attach registerSlideButton(slide.id)}
 							>
-								<span aria-hidden="true">{index + 1}</span>
+								<SlideRailPreview {slide} pageSize={presentation.pageSize} {images} />
 								<b>{slide.name}</b>
 							</button>
 							<div
@@ -1066,9 +1101,9 @@
 					/>
 				{/if}
 				<p class="muted [color:var(--muted)]">
-					Drag an element on the slide to move it, use a corner handle to resize, and the round
-					handle to rotate. These values are the same document units — type one to place an element
-					exactly.
+					Drag an element to move it. Use a corner handle to resize and the round handle to rotate.
+					Delete removes it, Ctrl+D duplicates it, and Escape clears the selection. Type a value
+					above for exact placement.
 				</p>
 			</aside>
 		</div>
@@ -1146,53 +1181,52 @@
 		flex-direction: column;
 		background: #f2f6f5;
 	}
-	/* The source's `44px minmax(0, 1fr) auto` grid lets the action row's own
- * content eat the title column, so at tablet and laptop widths the deck's name
- * collapses to nothing (the source's own journey fails that assertion at
- * 1024px). A wrapping flex bar keeps the title visible: the actions drop onto
- * their own line as soon as they would leave the title less than its basis.
- *
- * The actions take that second line unconditionally below 1421px. Whether they
- * fit beside the title otherwise depends on the current selection ("Edit text"
- * only exists for a text selection), and a bar that grows and shrinks that way
- * shifts the canvas under the pointer whenever the selection or the autosave
- * status changes. The widest action row (every tool plus "Edit text" and an
- * "Unsaved changes" status) needs about 1414px including the title's basis, so
- * above 1420px it always fits on one line and the natural wrapping is stable
- * there too. */
+	/* Keep the deck title and Save fixed. Tools have their own single scrollable
+	 * row so selecting an element or changing the save status never shifts the slide. */
 	.presentation-editor-bar {
 		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3) var(--space-4);
+		min-width: 0;
+		flex-direction: column;
 		border-bottom: 1px solid var(--line);
 		background: var(--surface);
 	}
+	.presentation-editor-heading {
+		display: flex;
+		min-width: 0;
+		min-height: 52px;
+		align-items: center;
+		gap: var(--space-3);
+		padding: 5px var(--space-4);
+	}
+	.presentation-editor-heading > .button {
+		flex: none;
+	}
 	.presentation-editor-actions {
 		display: flex;
-		flex: 1 1 auto;
-		flex-wrap: wrap;
+		min-width: 0;
+		width: 100%;
 		align-items: center;
-		justify-content: flex-end;
+		gap: var(--space-2);
+		overflow-x: auto;
+		overflow-y: hidden;
+		padding: 5px var(--space-4) 8px;
+		border-top: 1px solid var(--line);
+		scrollbar-width: thin;
+	}
+	.presentation-editor-actions > :global(*) {
+		flex: none;
+	}
+	.presentation-editor-actions :global(.button) {
+		white-space: nowrap;
+	}
+	.presentation-add-text {
+		display: inline-flex;
+		flex: none;
 		gap: var(--space-2);
 	}
 	.presentation-editor-title {
-		flex: 1 1 14ch;
+		flex: 1 1 auto;
 		min-width: 0;
-	}
-	@media (max-width: 1420px) {
-		.presentation-editor-actions {
-			flex-basis: 100%;
-		}
-		/* The status shares that line only while it happens to fit, and "Saved
-	 * locally" and "Unsaved changes" are different widths: the row then gains or
-	 * loses a line on every autosave and moves the canvas. Its own line keeps the
-	 * buttons where they are; a long refusal message still wraps in full. */
-		.presentation-local-status {
-			flex-basis: 100%;
-			text-align: right;
-		}
 	}
 	.presentation-editor-title p {
 		margin: 0;
@@ -1216,10 +1250,23 @@
 		white-space: nowrap;
 	}
 	.presentation-local-status {
+		flex: 0 1 30ch;
+		min-width: 0;
 		margin: 0;
+		overflow: hidden;
 		color: #007b55;
 		font-size: 12px;
 		font-weight: 800;
+		text-align: right;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.presentation-editor-feedback {
+		margin: 0;
+		padding: 8px var(--space-4);
+		background: var(--warning-bg);
+		color: var(--warning-ink);
+		font-size: 12px;
 	}
 	.presentation-add-shape select {
 		min-height: 36px;
@@ -1300,15 +1347,7 @@
 		outline: 2px solid var(--mint);
 		outline-offset: 2px;
 	}
-	.presentation-slide-card span {
-		display: grid;
-		aspect-ratio: 16 / 9;
-		place-items: center;
-		border-radius: 6px;
-		background: #fff;
-		color: var(--muted);
-		font-size: 12px;
-	}
+
 	.presentation-slide-card b {
 		overflow: hidden;
 		font-size: 12px;
@@ -1353,12 +1392,6 @@
 		margin-top: var(--space-5);
 		font-size: 12px;
 	}
-	.presentation-guide.is-x {
-		width: 1px;
-	}
-	.presentation-guide.is-y {
-		height: 1px;
-	}
 	@media (max-width: 1150px) {
 		.presentation-workspace {
 			grid-template-columns: 148px minmax(0, 1fr);
@@ -1370,6 +1403,21 @@
 	@media (max-width: 720px) {
 		.presentation-editor {
 			min-height: calc(100dvh - var(--header-height));
+		}
+		.presentation-editor-heading {
+			gap: var(--space-2);
+			padding-inline: var(--space-3);
+		}
+		.presentation-editor-heading > .button {
+			min-height: 40px;
+			padding-inline: var(--space-2);
+		}
+		.presentation-local-status {
+			flex-basis: 7ch;
+			font-size: 10px;
+		}
+		.presentation-editor-actions {
+			padding-inline: var(--space-3);
 		}
 		.presentation-editor-title h1 {
 			display: -webkit-box;

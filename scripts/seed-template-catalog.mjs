@@ -1,4 +1,4 @@
-// Seed the three shipped presentation templates (P72–P74) as catalog drafts.
+// Seed the three asset-free shipped presentation templates (P72–P74) as catalog drafts.
 //
 // The documents themselves live in
 // `src/lib/presentations/templates/shippedTemplates.js`, the same module the app
@@ -36,6 +36,15 @@ if (!dryRun && (!url || !key || !token)) {
 }
 
 for (const template of SHIPPED_TEMPLATES) {
+	// The local company-profile adaptation ships raster artwork. Hosted catalog
+	// drafts require pinned catalog-asset versions, not local upload provenance;
+	// seeding this document would create an unpublishable or broken draft.
+	if (template.loadArtwork) {
+		process.stdout.write(
+			`${template.key}: local artwork template — skipped (requires catalog assets)\n`
+		);
+		continue;
+	}
 	const document = template.build();
 	const json = JSON.stringify(document);
 	const bytes = Buffer.byteLength(json);

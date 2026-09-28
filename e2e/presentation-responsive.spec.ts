@@ -45,6 +45,35 @@ test('keeps a long saved title usable at the tablet editor width', async ({ page
 	await expect.poll(() => noHorizontalOverflow(page)).toBe(true);
 });
 
+test('keeps a compact editor bar while selecting text at laptop and tablet widths', async ({
+	page
+}, testInfo) => {
+	for (const width of [1440, 1024]) {
+		await page.setViewportSize({ width, height: 900 });
+		await openBlankEditor(page);
+		const bar = page.locator('.presentation-editor-bar');
+		const heightBefore = (await bar.boundingBox())!.height;
+		expect(heightBefore).toBeLessThanOrEqual(120);
+		await page.getByRole('button', { name: 'Add text', exact: true }).click();
+		await page.keyboard.type('A readable slide');
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('button', { name: 'Edit text' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
+		const heightAfter = (await bar.boundingBox())!.height;
+		expect(heightAfter).toBeLessThanOrEqual(120);
+		expect(Math.abs(heightAfter - heightBefore)).toBeLessThanOrEqual(2);
+		await page.screenshot({ path: testInfo.outputPath(`compact-editor-${width}.png`) });
+		// Less-used actions remain reachable beyond the visible edge of the tool strip.
+		await page.getByRole('button', { name: 'Theme', exact: true }).click();
+		await expect(page.getByRole('dialog', { name: 'Presentation theme' })).toBeVisible();
+		await page.keyboard.press('Escape');
+		await page.getByRole('button', { name: 'Export', exact: true }).click();
+		await expect(page.getByRole('dialog', { name: 'Export presentation' })).toBeVisible();
+		await page.keyboard.press('Escape');
+	}
+});
+
 test('keeps the library and the authoring preview contained on a phone', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto('/presentations');

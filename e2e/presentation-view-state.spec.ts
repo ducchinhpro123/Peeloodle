@@ -86,6 +86,27 @@ test('paints the slide and keeps zoom, pan and slide changes view-only', async (
 	expect(await readStoredPresentationJson(page, id)).toBe(before);
 });
 
+test('wheel zoom responds gradually to small scrolls and still handles a full wheel notch', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 1280, height: 768 });
+	const id = await openBlankEditor(page);
+	const before = await readStoredPresentationJson(page, id);
+	const host = canvasHost(page);
+	await host.hover();
+	await page.mouse.wheel(0, -2);
+	await expect
+		.poll(async () => Number(await host.getAttribute('data-view-zoom')))
+		.toBeGreaterThan(1);
+	expect(Number(await host.getAttribute('data-view-zoom'))).toBeLessThan(1.02);
+	await page.mouse.wheel(0, -120);
+	await expect
+		.poll(async () => Number(await host.getAttribute('data-view-zoom')))
+		.toBeGreaterThan(1.02);
+	expect(Number(await host.getAttribute('data-view-zoom'))).toBeLessThan(1.2);
+	expect(await readStoredPresentationJson(page, id)).toBe(before);
+});
+
 test('the fit control returns the view to 100% without touching the document', async ({ page }) => {
 	await page.setViewportSize({ width: 1280, height: 768 });
 	const id = await openBlankEditor(page);

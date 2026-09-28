@@ -78,9 +78,19 @@ function elementGroup(element: Element, listening: boolean): Konva.Group {
 		y: element.y,
 		rotation: element.rotation,
 		opacity: element.opacity,
-		// Every visible kind answers hit tests (selection and P24 transforms); the
-		// thumbnails and exports render with `listening` off and stay inert.
-		listening
+		// A full-page locked artwork layer is the slide's paper, not a hit
+		// target: text remains selectable and empty areas still pan/deselect.
+		// Other visible elements answer hit tests; exports stay inert.
+		listening:
+			listening &&
+			!(
+				element.kind === 'image' &&
+				element.locked &&
+				element.x === 0 &&
+				element.y === 0 &&
+				element.width === 1280 &&
+				element.height === 720
+			)
 	});
 }
 
@@ -146,6 +156,7 @@ function renderImage(
 	const sourceWidth = source.width;
 	const sourceHeight = source.height;
 	const group = elementGroup(element, listening);
+	const hit = group.listening();
 	group.add(
 		new KonvaRuntime.Image({
 			image: source,
@@ -161,13 +172,14 @@ function renderImage(
 				width: element.crop.width * sourceWidth,
 				height: element.crop.height * sourceHeight
 			},
-			listening
+			listening: hit
 		})
 	);
 	return group;
 }
 
-function renderText(element: TextElement, listening: boolean): Konva.Group {
+/** Rebuilds a text box at its current dimensions for live resize previews. */
+export function renderText(element: TextElement, listening: boolean): Konva.Group {
 	const group = elementGroup(element, listening);
 	if (listening) {
 		// Painted glyphs alone would leave an empty (or cleared) box with no hit area,

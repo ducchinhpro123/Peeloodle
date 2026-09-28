@@ -64,16 +64,31 @@
 	beforeNavigate(async (navigation) => {
 		if (bypass || !leaveguard?.hasUnsavedWork()) return;
 		// Cancel first: the save is asynchronous, and the editor must not be torn
-		// down while it is still writing. On success the same URL is re-entered.
+		// down while it is still writing. SvelteKit counteracts a cancelled Back/
+		// Forward navigation with a second popstate; wait for that restoration before
+		// following the original history delta, or a racing goto can be undone by it.
+		const restored =
+			navigation.type === 'popstate'
+				? new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }))
+				: null;
 		navigation.cancel();
 		const target = navigation.to?.url;
 		const guard = leaveguard;
 		if (!target || !guard) return;
 		if (await guard.saveBeforeLeave()) {
-			bypass = true;
-			await goto(target.pathname + target.search + target.hash);
-			bypass = false;
+			if (navigation.type === 'popstate') {
+				await restored;
+				history.go(navigation.delta);
+			} else {
+				bypass = true;
+				try {
+					await goto(target.pathname + target.search + target.hash);
+				} finally {
+					bypass = false;
+				}
+			}
 		} else {
+			await restored;
 			guard.reportFailure();
 		}
 	});
