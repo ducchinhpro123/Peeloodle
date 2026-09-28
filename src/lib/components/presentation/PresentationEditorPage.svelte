@@ -1,10 +1,9 @@
 <script>
 	import { button, buttonIcon, buttonPrimary } from '$lib/ui/styles.js';
 	import {
-		ArrowDown,
 		ArrowLeft,
-		ArrowUp,
 		Copy,
+		GripVertical,
 		ImagePlus,
 		MonitorUp,
 		PenLine,
@@ -184,6 +183,15 @@
 	let themeOpen = $state(false);
 	/** @type {string | null} */
 	let focusSlideId = $state(null);
+	/** @type {{ id: string, pointerId: number, x: number, y: number } | null} */
+	let slideDrag = null;
+	/** @type {string | null} */
+	let draggingSlideId = $state(null);
+	/** @type {string | null} */
+	let dropSlideId = $state(null);
+	/** @type {'before' | 'after' | null} */
+	let dropPosition = $state(null);
+	let suppressSlideClick = false;
 	/** @type {Map<string, HTMLButtonElement>} */
 	// Slide buttons are addressed imperatively by the focus effect below and never
 	// read from the template, so they stay out of the reactive graph.
@@ -416,6 +424,91 @@
 	 */
 	function moveSlide(slideId, targetIndex) {
 		store.getState().reorderSlide(slideId, targetIndex);
+	}
+
+	/** @param {string} id @param {PointerEvent} event */
+	function startSlideDrag(id, event) {
+		if (
+			event.button !== 0 ||
+			(event.pointerType === 'touch' &&
+				/** @type {HTMLElement} */ (event.currentTarget).classList.contains(
+					'presentation-slide-card'
+				))
+		)
+			return;
+		event.preventDefault();
+		slideDrag = { id, pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+		/** @type {HTMLButtonElement} */ (event.currentTarget).setPointerCapture(event.pointerId);
+	}
+
+	/** @param {PointerEvent} event */
+	function moveSlideDrag(event) {
+		const drag = slideDrag;
+		if (!drag || drag.pointerId !== event.pointerId) return;
+		if (!draggingSlideId && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6) return;
+		draggingSlideId = drag.id;
+		// Pointer capture keeps events on the source even above another card.
+		// Use the pointer's geometry rather than elementFromPoint's captured hit.
+		const target = [...document.querySelectorAll('.presentation-slide-card')].find((card) => {
+			const rect = card.getBoundingClientRect();
+			return (
+				event.clientX >= rect.left &&
+				event.clientX <= rect.right &&
+				event.clientY >= rect.top &&
+				event.clientY <= rect.bottom
+			);
+		});
+		const id = target?.getAttribute('data-slide-id');
+		if (!target || !id || id === drag.id) {
+			dropSlideId = null;
+			dropPosition = null;
+			return;
+		}
+		const rect = target.getBoundingClientRect();
+		const horizontal = window.matchMedia('(max-width: 720px)').matches;
+		dropSlideId = id;
+		dropPosition = horizontal
+			? event.clientX < rect.left + rect.width / 2
+				? 'before'
+				: 'after'
+			: event.clientY < rect.top + rect.height / 2
+				? 'before'
+				: 'after';
+	}
+
+	/** @param {PointerEvent} event @param {boolean} commit */
+	function finishSlideDrag(event, commit) {
+		const drag = slideDrag;
+		if (!drag || drag.pointerId !== event.pointerId) return;
+		if (draggingSlideId) {
+			suppressSlideClick = true;
+			setTimeout(() => (suppressSlideClick = false), 0);
+			if (commit && dropSlideId && dropPosition) {
+				const slides = store.getState().document?.slides ?? [];
+				const source = slides.findIndex((item) => item.id === drag.id);
+				const target = slides.findIndex((item) => item.id === dropSlideId);
+				if (source !== -1 && target !== -1) {
+					const index = target + (dropPosition === 'after' ? 1 : 0) - (source < target ? 1 : 0);
+					moveSlide(drag.id, index);
+				}
+			}
+		}
+		slideDrag = null;
+		draggingSlideId = null;
+		dropSlideId = null;
+		dropPosition = null;
+	}
+
+	/** @param {string} id @param {KeyboardEvent} event */
+	function slideKeyDown(id, event) {
+		if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+		const slides = store.getState().document?.slides ?? [];
+		const index = slides.findIndex((slide) => slide.id === id);
+		const next = index + (event.key === 'ArrowUp' ? -1 : 1);
+		if (index < 0 || next < 0 || next >= slides.length) return;
+		event.preventDefault();
+		moveSlide(id, next);
+		focusSlideId = id;
 	}
 
 	/** @param {string} slideId */
@@ -973,6 +1066,11 @@
 				aria-label="Slides"
 			>
 				<p>Slides</p>
+				<p class="slide-order-hint">Drag · Alt+↑/↓</p>
+				<span id="slide-order-hint" class="sr-only"
+					>Drag to reorder. On touchscreens, use the handle at the top left of a slide. Or focus the
+					slide and press Alt plus the up or down arrow key.</span
+				>
 				<div
 					class="presentation-slide-rail-actions [margin-bottom:var(--space-3)] [display:grid] [gap:var(--space-2)]"
 				>
@@ -999,49 +1097,52 @@
 				</div>
 				<div class="presentation-slide-list">
 					{#each presentation.slides as slide, index (slide.id)}
-						<div class="presentation-slide-item [display:grid] [min-width:0] [gap:var(--space-1)]">
+						<div
+							class="presentation-slide-item [min-width:0]"
+							class:is-dragging={draggingSlideId === slide.id}
+						>
 							<button
 								type="button"
 								class="presentation-slide-card"
+								data-slide-id={slide.id}
+								data-drop-position={dropSlideId === slide.id ? dropPosition : undefined}
 								aria-current={slide.id === activeSlide?.id ? 'true' : undefined}
 								aria-label="Show slide {index + 1}: {slide.name}"
-								onclick={() => store.getState().selectSlide(slide.id)}
+								aria-describedby="slide-order-hint"
+								ondragstart={(event) => event.preventDefault()}
+								onpointerdown={(event) => startSlideDrag(slide.id, event)}
+								onpointermove={moveSlideDrag}
+								onpointerup={(event) => finishSlideDrag(event, true)}
+								onpointercancel={(event) => finishSlideDrag(event, false)}
+								onkeydown={(event) => slideKeyDown(slide.id, event)}
+								onclick={() => {
+									if (!suppressSlideClick) store.getState().selectSlide(slide.id);
+								}}
 								{@attach registerSlideButton(slide.id)}
 							>
 								<SlideRailPreview {slide} pageSize={presentation.pageSize} {images} />
 								<b>{slide.name}</b>
 							</button>
-							<div
-								class="presentation-slide-item-actions [display:grid] [grid-template-columns:repeat(3,_minmax(0,_1fr))] [gap:var(--space-1)]"
+							<button
+								type="button"
+								class="presentation-slide-grip"
+								aria-label="Drag slide {index + 1} to reorder"
+								aria-describedby="slide-order-hint"
+								onpointerdown={(event) => startSlideDrag(slide.id, event)}
+								onpointermove={moveSlideDrag}
+								onpointerup={(event) => finishSlideDrag(event, true)}
+								onpointercancel={(event) => finishSlideDrag(event, false)}
+								><GripVertical size={16} aria-hidden="true" /></button
 							>
-								<button
-									type="button"
-									class={[button, 'presentation-slide-action']}
-									aria-label="Move slide {index + 1} up"
-									title="Move slide {index + 1} up"
-									disabled={index === 0}
-									onclick={() => moveSlide(slide.id, index - 1)}
-									><ArrowUp size={15} aria-hidden="true" /></button
-								>
-								<button
-									type="button"
-									class={[button, 'presentation-slide-action']}
-									aria-label="Move slide {index + 1} down"
-									title="Move slide {index + 1} down"
-									disabled={index === presentation.slides.length - 1}
-									onclick={() => moveSlide(slide.id, index + 1)}
-									><ArrowDown size={15} aria-hidden="true" /></button
-								>
-								<button
-									type="button"
-									class={[button, 'presentation-slide-action presentation-slide-delete']}
-									aria-label="Delete slide {index + 1}"
-									title="Delete slide {index + 1}"
-									disabled={presentation.slides.length <= 1}
-									onclick={() => deleteSlide(slide.id)}
-									><Trash2 size={15} aria-hidden="true" /></button
-								>
-							</div>
+							<button
+								type="button"
+								class="presentation-slide-delete"
+								aria-label="Delete slide {index + 1}"
+								title="Delete slide {index + 1}"
+								disabled={presentation.slides.length <= 1}
+								onclick={() => deleteSlide(slide.id)}
+								><Trash2 size={16} aria-hidden="true" /></button
+							>
 						</div>
 					{/each}
 				</div>
@@ -1306,6 +1407,12 @@
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 	}
+	.presentation-slide-rail > .slide-order-hint {
+		font-weight: 500;
+		letter-spacing: 0;
+		line-height: 1.4;
+		text-transform: none;
+	}
 	.presentation-inspector > p:not(.muted) {
 		margin: 0 0 var(--space-3);
 		color: var(--muted);
@@ -1325,6 +1432,12 @@
 		display: grid;
 		gap: var(--space-3);
 	}
+	.presentation-slide-item {
+		position: relative;
+	}
+	.presentation-slide-item.is-dragging {
+		opacity: 0.6;
+	}
 	.presentation-slide-card {
 		display: grid;
 		width: 100%;
@@ -1335,6 +1448,17 @@
 		background: var(--surface);
 		color: var(--ink);
 		text-align: left;
+		cursor: grab;
+		touch-action: pan-x pan-y;
+	}
+	.presentation-slide-card:active {
+		cursor: grabbing;
+	}
+	.presentation-slide-card[data-drop-position='before'] {
+		box-shadow: 0 -4px 0 var(--mint);
+	}
+	.presentation-slide-card[data-drop-position='after'] {
+		box-shadow: 0 4px 0 var(--mint);
 	}
 	.presentation-slide-card:hover {
 		border-color: var(--mint);
@@ -1354,19 +1478,75 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.presentation-slide-action {
-		min-width: 0;
-		min-height: 32px;
-		padding: 6px 2px;
+	.presentation-slide-grip {
+		position: absolute;
+		top: 5px;
+		left: 5px;
+		display: grid;
+		width: 32px;
+		height: 32px;
+		place-items: center;
+		border: 1px solid var(--line);
 		border-radius: 8px;
+		background: var(--surface);
+		color: var(--muted);
+		box-shadow: var(--shadow);
+		cursor: grab;
+		touch-action: none;
+		opacity: 0;
+		transition: opacity 150ms ease;
+	}
+	.presentation-slide-item:hover .presentation-slide-grip,
+	.presentation-slide-item:focus-within .presentation-slide-grip {
+		opacity: 1;
+	}
+	.presentation-slide-grip:focus-visible {
+		opacity: 1;
+		outline: 2px solid var(--mint);
+		outline-offset: 2px;
 	}
 	.presentation-slide-delete {
+		position: absolute;
+		top: 5px;
+		right: 5px;
+		display: grid;
+		width: 32px;
+		height: 32px;
+		place-items: center;
+		border: 1px solid var(--danger-line);
+		border-radius: 8px;
+		background: var(--surface);
 		color: var(--danger);
+		box-shadow: var(--shadow);
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity 150ms ease;
+	}
+	.presentation-slide-item:hover .presentation-slide-delete,
+	.presentation-slide-item:focus-within .presentation-slide-delete {
+		opacity: 1;
+	}
+	.presentation-slide-delete:focus-visible {
+		opacity: 1;
+		outline: 2px solid var(--mint);
+		outline-offset: 2px;
 	}
 	.presentation-slide-delete:hover:not(:disabled) {
-		border-color: var(--danger-line);
 		background: var(--danger-tint);
 		color: var(--danger-strong);
+	}
+	.presentation-slide-delete:disabled {
+		cursor: not-allowed;
+	}
+	.presentation-slide-item:hover .presentation-slide-delete:disabled,
+	.presentation-slide-item:focus-within .presentation-slide-delete:disabled {
+		opacity: 0.5;
+	}
+	@media (hover: none) {
+		.presentation-slide-grip,
+		.presentation-slide-card[aria-current] ~ .presentation-slide-delete {
+			opacity: 1;
+		}
 	}
 	.presentation-inspector dl {
 		display: grid;
@@ -1466,6 +1646,15 @@
 		}
 		.presentation-slide-item {
 			flex: 0 0 144px;
+		}
+		.presentation-slide-grip {
+			opacity: 1;
+		}
+		.presentation-slide-card[data-drop-position='before'] {
+			box-shadow: -4px 0 0 var(--mint);
+		}
+		.presentation-slide-card[data-drop-position='after'] {
+			box-shadow: 4px 0 0 var(--mint);
 		}
 	}
 </style>

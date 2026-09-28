@@ -31,7 +31,7 @@ const elementIdsIn = async (page: Page, id: string, index: number) =>
 
 test('adds, duplicates, reorders, and deletes slides through the accessible rail', async ({
 	page
-}) => {
+}, testInfo) => {
 	await page.setViewportSize({ width: 1280, height: 768 });
 	const id = await openBlankEditor(page);
 
@@ -75,8 +75,17 @@ test('adds, duplicates, reorders, and deletes slides through the accessible rail
 	const added = (await row(page, id)).slides[2];
 	expect(added.elements).toHaveLength(0);
 
-	// Reorder: moving slide 3 up is one rail action, and the stored order follows.
-	await rail(page, 'Move slide 3 up').click();
+	// Reorder by dragging a thumbnail before another; the stored order follows.
+	const third = rail(page, 'Show slide 3: Slide 3');
+	const second = rail(page, 'Show slide 2: Slide 1 copy');
+	const from = (await third.boundingBox())!;
+	const to = (await second.boundingBox())!;
+	await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(to.x + to.width / 2, to.y + to.height / 4, { steps: 8 });
+	await expect(second).toHaveAttribute('data-drop-position', 'before');
+	await page.mouse.up();
+	await expect(rail(page, 'Move slide 3 up')).toHaveCount(0);
 	const movedOrder = [sourceSlideId, added.id, copy.id];
 	await expect.poll(() => slideIds(page, id)).toEqual(movedOrder);
 	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({ timeout: 10_000 });
@@ -103,21 +112,90 @@ test('adds, duplicates, reorders, and deletes slides through the accessible rail
 	// Deleting the active slide hands focus to the slide that took its place, not to
 	// the first slide.
 	await rail(page, 'Show slide 2: Slide 3').click();
-	await rail(page, 'Delete slide 2').click();
+	const deleteSecond = rail(page, 'Delete slide 2');
+	await page.getByRole('button', { name: 'Save', exact: true }).focus();
+	await page.mouse.move(400, 110);
+	await expect(deleteSecond).toHaveCSS('opacity', '0');
+	await rail(page, 'Show slide 2: Slide 3').hover();
+	await expect(deleteSecond).toHaveCSS('opacity', '1');
+	await page.screenshot({ path: testInfo.outputPath('slide-rail-hover-delete.png') });
+	const cardBounds = (await rail(page, 'Show slide 2: Slide 3').boundingBox())!;
+	const deleteBounds = (await deleteSecond.boundingBox())!;
+	expect(deleteBounds.x).toBeGreaterThan(cardBounds.x + cardBounds.width / 2);
+	expect(deleteBounds.y).toBeLessThan(cardBounds.y + cardBounds.height / 2);
+	await deleteSecond.click();
 	await expect(rail(page, 'Show slide 2: Slide 1 copy')).toBeFocused();
 	await expect(rail(page, 'Show slide 2: Slide 1 copy')).toHaveAttribute('aria-current', 'true');
 	await expect.poll(() => slideIds(page, id)).toEqual([sourceSlideId, copy.id]);
 
 	// Deleting the active survivor leaves one reachable slide, and every impossible
 	// action on it is disabled.
+	await rail(page, 'Show slide 2: Slide 1 copy').focus();
+	await expect(rail(page, 'Delete slide 2')).toHaveCSS('opacity', '1');
 	await rail(page, 'Delete slide 2').click();
 	await expect(rail(page, 'Show slide 1: Slide 1')).toBeFocused();
 	await expect(rail(page, 'Show slide 1: Slide 1')).toHaveAttribute('aria-current', 'true');
-	await expect(rail(page, 'Move slide 1 up')).toBeDisabled();
-	await expect(rail(page, 'Move slide 1 down')).toBeDisabled();
+	await expect(rail(page, 'Move slide 1 up')).toHaveCount(0);
+	await expect(rail(page, 'Move slide 1 down')).toHaveCount(0);
 	await expect(rail(page, 'Delete slide 1')).toBeDisabled();
 	await expect.poll(() => elementIdsIn(page, id, 0)).toEqual(sourceElementIds);
 	await expect.poll(async () => (await row(page, id)).slides.length).toBe(1);
+});
+
+test('reorders with the keyboard while leaving the slide selected', async ({ page }) => {
+	const id = await openBlankEditor(page);
+	await rail(page, 'Add slide').click();
+	await rail(page, 'Add slide').click();
+	await expect.poll(() => slideIds(page, id)).toHaveLength(3);
+	const initial = await slideIds(page, id);
+	const third = rail(page, 'Show slide 3: Slide 3');
+	await third.focus();
+	await third.press('Alt+ArrowUp');
+	await expect.poll(() => slideIds(page, id)).toEqual([initial[0], initial[2], initial[1]]);
+	await expect(rail(page, 'Show slide 2: Slide 3')).toBeFocused();
+	await rail(page, 'Show slide 2: Slide 3').press('Alt+ArrowDown');
+	await expect.poll(() => slideIds(page, id)).toEqual(initial);
+	await expect(rail(page, 'Show slide 3: Slide 3')).toHaveAttribute('aria-current', 'true');
+});
+
+test.describe('phone slide rail', () => {
+	test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+	test('reorders slides across a horizontal phone rail with a touch drag', async ({ page }) => {
+		const id = await openBlankEditor(page);
+		await rail(page, 'Add slide').click();
+		await rail(page, 'Add slide').click();
+		await expect.poll(() => slideIds(page, id)).toHaveLength(3);
+		const initial = await slideIds(page, id);
+		const first = rail(page, 'Show slide 1: Slide 1');
+		const second = rail(page, 'Show slide 2: Slide 2');
+		await first.scrollIntoViewIfNeeded();
+		await second.scrollIntoViewIfNeeded();
+		const grip = rail(page, 'Drag slide 1 to reorder');
+		await expect(grip).toHaveCSS('opacity', '1');
+		const from = (await grip.boundingBox())!;
+		const to = (await second.boundingBox())!;
+		const startX = from.x + from.width / 2;
+		const startY = from.y + from.height / 2;
+		const endX = to.x + to.width * 0.75;
+		const cdp = await page.context().newCDPSession(page);
+		await cdp.send('Input.dispatchTouchEvent', {
+			type: 'touchStart',
+			touchPoints: [{ x: startX, y: startY }]
+		});
+		for (let step = 1; step <= 8; step++) {
+			await cdp.send('Input.dispatchTouchEvent', {
+				type: 'touchMove',
+				touchPoints: [{ x: startX + ((endX - startX) * step) / 8, y: startY }]
+			});
+		}
+		await expect(second).toHaveAttribute('data-drop-position', 'after');
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+		await expect.poll(() => slideIds(page, id)).toEqual([initial[1], initial[0], initial[2]]);
+		const newFirst = (await rail(page, 'Show slide 1: Slide 2').boundingBox())!;
+		await page.touchscreen.tap(newFirst.x + newFirst.width / 2, newFirst.y + newFirst.height / 2);
+		await expect(rail(page, 'Show slide 1: Slide 2')).toHaveAttribute('aria-current', 'true');
+	});
 });
 
 test('undoes and redoes through the toolbar and keyboard without stealing text-field undo', async ({
