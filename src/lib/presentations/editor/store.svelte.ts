@@ -99,6 +99,8 @@ export type PresentationStoreState = {
 	addElement(element: Element): string | null;
 	/** Clones an element with a fresh id, offset, and selected. One undo entry. */
 	duplicateElement(elementId: string): string | null;
+	/** Pastes a snapshot on the active slide, reusing document-local artwork. One undo entry. */
+	pasteElement(element: Element, offset: number): string | null;
 	/** The refusal an insert would hit, resolved before anything is mutated. */
 	checkImageInsert(
 		image: PreparedPresentationImage,
@@ -1029,6 +1031,47 @@ export function createPresentationStore(
 					target.elements.splice(index + 1, 0, copy);
 					return true;
 				});
+				set({ view: { ...get().view, selectedElementIds: [copy.id], editingElementId: null } });
+				return copy.id;
+			},
+
+			pasteElement(element, offset) {
+				const document = get().document;
+				const slide = activeSlide();
+				if (!document || !slide || slide.elements.length >= PRESENTATION_LIMITS.maxElementsPerSlide)
+					return null;
+				if (
+					document.slides.reduce((total, item) => total + item.elements.length, 0) >=
+					PRESENTATION_LIMITS.maxElements
+				)
+					return null;
+				if (
+					element.kind === 'image' &&
+					!document.assets.some((asset) => asset.id === element.assetId)
+				)
+					return null;
+				const copy = cloneElementWithNewId(element);
+				copy.name = `${element.name} copy`.slice(0, 200);
+				copy.locked = false;
+				copy.visible = true;
+				const axis = (position: number, length: number, pageLength: number) => {
+					if (!offset) return position;
+					const max = pageLength - length;
+					if (position + offset <= max) return position + offset;
+					if (position - offset >= 0) return position - offset;
+					return position;
+				};
+				copy.x = axis(element.x, element.width, document.pageSize.width);
+				copy.y = axis(element.y, element.height, document.pageSize.height);
+				if (
+					!commit((draft) => {
+						const target = draft.slides.find((candidate) => candidate.id === slide.id);
+						if (!target) return false;
+						target.elements.push(copy);
+						return true;
+					})
+				)
+					return null;
 				set({ view: { ...get().view, selectedElementIds: [copy.id], editingElementId: null } });
 				return copy.id;
 			},

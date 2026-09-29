@@ -3,6 +3,7 @@
 	import {
 		ArrowLeft,
 		Copy,
+		ClipboardPaste,
 		GripVertical,
 		ImagePlus,
 		MonitorUp,
@@ -181,6 +182,8 @@
 	let themeOpener = $state(null);
 	let propertiesOpen = $state(false);
 	let themeOpen = $state(false);
+	/** @type {{ documentId: string, slideId: string, element: import('$lib/presentations/model/types').Element, pastesBySlide: Record<string, number> } | null} */
+	let copiedElement = $state.raw(null);
 	/** @type {string | null} */
 	let focusSlideId = $state(null);
 	/** @type {{ id: string, pointerId: number, x: number, y: number } | null} */
@@ -416,6 +419,45 @@
 		if (!activeId) return;
 		const id = store.getState().duplicateSlide(activeId);
 		if (id) focusSlideId = id;
+	}
+
+	function copySelectedElement() {
+		textSession.flush();
+		const state = store.getState();
+		const slide = state.document?.slides.find((item) => item.id === state.view.activeSlideId);
+		const element = slide?.elements.find((item) => item.id === state.view.selectedElementIds[0]);
+		if (!state.document || !slide || !element || state.view.editingElementId) return;
+		copiedElement = {
+			documentId: state.document.id,
+			slideId: slide.id,
+			element: structuredClone(element),
+			pastesBySlide: {}
+		};
+	}
+
+	function pasteCopiedElement() {
+		const clipboard = copiedElement;
+		const state = store.getState();
+		if (!clipboard || !state.document || clipboard.documentId !== state.document.id) return;
+		const slideId = state.view.activeSlideId;
+		if (!slideId || state.view.editingElementId) return;
+		const previousPastes = clipboard.pastesBySlide[slideId] ?? 0;
+		const offset = 24 * (previousPastes + (slideId === clipboard.slideId ? 1 : 0));
+		try {
+			const id = state.pasteElement(clipboard.element, offset);
+			if (!id) {
+				insertError =
+					'The element could not be pasted. Check the slide capacity and that its artwork is still in this deck.';
+				return;
+			}
+			insertError = null;
+			copiedElement = {
+				...clipboard,
+				pastesBySlide: { ...clipboard.pastesBySlide, [slideId]: previousPastes + 1 }
+			};
+		} catch {
+			insertError = 'The element could not be pasted into this slide.';
+		}
 	}
 
 	/**
@@ -797,6 +839,26 @@
 		if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
 		const key = event.key.toLowerCase();
 		const state = store.getState();
+		if (
+			key === 'c' &&
+			!event.shiftKey &&
+			state.view.selectedElementIds[0] &&
+			!state.view.editingElementId
+		) {
+			event.preventDefault();
+			copySelectedElement();
+			return;
+		}
+		if (
+			key === 'v' &&
+			!event.shiftKey &&
+			copiedElement?.documentId === state.document?.id &&
+			!state.view.editingElementId
+		) {
+			event.preventDefault();
+			pasteCopiedElement();
+			return;
+		}
 		if (key === 'd' && !event.shiftKey && state.view.selectedElementIds[0]) {
 			event.preventDefault();
 			state.duplicateElement(state.view.selectedElementIds[0]);
@@ -896,6 +958,24 @@
 					title="Redo (Ctrl+Shift+Z)"
 					disabled={!canRedo}
 					onclick={() => store.getState().redo()}><Redo2 size={17} aria-hidden="true" /></button
+				>
+				<button
+					type="button"
+					class={button}
+					aria-label="Copy element"
+					title="Copy element (Ctrl+C)"
+					disabled={!selectedElement || !!editorState.view.editingElementId}
+					onclick={copySelectedElement}><Copy size={16} aria-hidden="true" /> Copy</button
+				>
+				<button
+					type="button"
+					class={button}
+					aria-label="Paste element"
+					title="Paste element (Ctrl+V)"
+					disabled={!copiedElement ||
+						copiedElement.documentId !== presentation.id ||
+						!!editorState.view.editingElementId}
+					onclick={pasteCopiedElement}><ClipboardPaste size={16} aria-hidden="true" /> Paste</button
 				>
 				{#if !templateMode}
 					<ExportDialog
