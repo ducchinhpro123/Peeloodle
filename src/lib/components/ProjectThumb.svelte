@@ -6,7 +6,7 @@
 	 */
 	import { acquireProjectThumbnail } from '#lib/editor/projectThumbnails.js';
 
-	/** @type {{ project: import('#lib/domain/domain').ProjectDocument, repository: import('$lib/persistence/repository').StickerLabRepository }} */
+	/** @type {{ project: import('#lib/domain/domain.js').ProjectDocument, repository: import('#lib/persistence/repository.js').StickerLabRepository }} */
 	let { project, repository } = $props();
 
 	let url = $state(/** @type {string | null} */ (null));

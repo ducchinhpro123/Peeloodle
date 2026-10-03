@@ -10,5 +10,9 @@
 </script>
 
 <AppShell editor pathname={page.url.pathname} search={page.url.search}>
-	<CreateRedirect {intent} onnavigate={(href) => goto(resolve(href), { replaceState: false })} />
+	<CreateRedirect
+		{intent}
+		onnavigate={(href) =>
+			goto(resolve(/** @type {`editor/${string}`} */ (href.slice(1))), { replace: false })}
+	/>
 </AppShell>

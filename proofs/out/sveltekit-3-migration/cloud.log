@@ -1,0 +1,21 @@
+[WebServer] [PLUGIN_TIMINGS] Plugin hooks ran for 3.0s of this 3.2s build (94%).
+[WebServer] The slowest hooks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+[WebServer]   - vite-plugin-svelte:compile transform (47%, 1.5s, 1782 calls)
+[WebServer] Additional hook time came from the hooks below and from hooks under 1s.
+[WebServer] 2 hooks are listed without a time. Their calls overlapped, so the time inside one call includes work from other calls. To find their cost, profile the build with `node --cpu-prof`:
+[WebServer]   - vite-plugin-sveltekit-guard resolveId (17202 calls)
+[WebServer]   - @tailwindcss/vite:generate:build transform (55 calls)
+[WebServer] See https://rolldown.rs/reference/InputOptions.checks#plugintimings for more details.
+[WebServer] 
+[WebServer] Could not detect a supported production environment. See https://svelte.dev/docs/kit/adapters to learn how to configure your app to run on the platform of your choosing
+
+Running 6 tests using 1 worker
+
+  ✓  1 e2e/cloud.spec.ts:380:1 › signs in, saves stickers and a pack to the private workspace, and reopens them in a second browser (7.1s)
+  ✓  2 e2e/cloud.spec.ts:490:1 › a stale second-device save becomes a conflict copy instead of overwriting the winner (3.6s)
+  ✓  3 e2e/cloud.spec.ts:545:1 › guest work is offered for import, copied into the account, and its originals are kept (3.1s)
+  ✓  4 e2e/cloud.spec.ts:603:2 › the account dialog and an invalid callback stay usable at 1440 (601ms)
+  ✓  5 e2e/cloud.spec.ts:603:2 › the account dialog and an invalid callback stay usable at 1024 (554ms)
+  ✓  6 e2e/cloud.spec.ts:603:2 › the account dialog and an invalid callback stay usable at 390 (535ms)
+
+  6 passed (25.1s)

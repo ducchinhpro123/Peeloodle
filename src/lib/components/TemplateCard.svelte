@@ -43,7 +43,9 @@
 			{#if template.previewImage}
 				<img
 					class="template-preview-image [height:100%] [min-height:0] [width:100%] [object-fit:contain]"
-					src={asset(template.previewImage)}
+					src={asset(
+						/** @type {import('$app/types').AssetPath} */ (template.previewImage.replace(/^\//, ''))
+					)}
 					alt=""
 					loading="lazy"
 				/>
@@ -81,7 +83,11 @@
 				{#if template.previewImage}
 					<img
 						class="template-preview-image [height:100%] [min-height:0] [width:100%] [object-fit:contain]"
-						src={asset(template.previewImage)}
+						src={asset(
+							/** @type {import('$app/types').AssetPath} */ (
+								template.previewImage.replace(/^\//, '')
+							)
+						)}
 						alt={template.title}
 					/>
 				{:else}

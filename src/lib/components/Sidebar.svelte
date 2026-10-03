@@ -31,9 +31,8 @@
 
 	let currentIntent = $derived(parseToolIntent(new URLSearchParams(search).get('tool')));
 
-	function followIntent(
-		/** @type {import('#lib/editor/toolIntent.js').ToolIntent} */ (intent)
-	) {
+	/** @param {import('#lib/editor/toolIntent.js').ToolIntent} intent */
+	function followIntent(intent) {
 		onnavigate?.();
 		if (!shouldReuseCurrentToolRoute(appPathname, search, intent)) return;
 		requestToolIntent(intent);

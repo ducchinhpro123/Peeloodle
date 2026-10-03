@@ -1,0 +1,24 @@
+e2e/editor.spec.ts 347ms (unchanged)
+package.json 6ms (unchanged)
+src/hooks.server.js 10ms
+src/lib/assets/assetLoader.ts 14ms (unchanged)
+src/lib/cloud/workspace.svelte.ts 29ms (unchanged)
+src/lib/components/AssetTray.svelte 113ms
+src/lib/components/EditorWorkspace.svelte 147ms
+src/lib/components/KonvaArtboard.svelte 92ms (unchanged)
+src/lib/components/PacksPage.svelte 218ms (unchanged)
+src/lib/components/ProjectThumb.svelte 13ms (unchanged)
+src/lib/components/Sidebar.svelte 31ms (unchanged)
+src/lib/components/TemplateCard.svelte 26ms
+src/lib/components/presentation/PresentationEditorPage.svelte 241ms (unchanged)
+src/lib/components/presentation/SlideRailPreview.svelte 11ms (unchanged)
+src/lib/editor/toolIntent.ts 25ms
+src/lib/packs/packActions.ts 13ms (unchanged)
+src/lib/presentations/offlineModules.ts 5ms (unchanged)
+src/routes/admin/+page.svelte 4ms (unchanged)
+src/routes/api/catalog/process/+server.js 10ms (unchanged)
+src/routes/auth/callback/+page.svelte 16ms (unchanged)
+src/routes/create/+page.svelte 9ms
+src/routes/editor/[projectId]/+page.svelte 15ms (unchanged)
+src/routes/my-stickers/+page.svelte 18ms (unchanged)
+src/routes/templates/+page.svelte 10ms (unchanged)

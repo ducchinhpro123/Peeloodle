@@ -157,7 +157,7 @@ export class CloudWorkspace {
 							!window.location.pathname.startsWith('/auth/') &&
 							!window.location.pathname.startsWith('/editor/')
 						)
-							void goto('/my-stickers', { replaceState: true });
+							void goto('/my-stickers', { replace: true });
 						void cloud?.refresh();
 					})
 					.catch(() => {

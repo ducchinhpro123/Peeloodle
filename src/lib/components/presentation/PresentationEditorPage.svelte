@@ -651,7 +651,7 @@
 	 * Shared by insertion and replacement so neither path can report success for
 	 * a half-written change.
 	 * @param {() => Promise<import('#lib/presentations/editor/insertImageAsset.js').PreparedPresentationImage>} prepare
-	 * @param {(prepared: import('#lib/presentations/editor/insertImageAsset').PreparedPresentationImage) => Promise<import('$lib/presentations/editor/presentationSaving').PersistInsertOutcome>} write
+	 * @param {(prepared: import('#lib/presentations/editor/insertImageAsset.js').PreparedPresentationImage) => Promise<import('#lib/presentations/editor/presentationSaving.js').PersistInsertOutcome>} write
 	 * @param {string} fallback
 	 */
 	async function runImageWrite(prepare, write, fallback) {
@@ -1044,7 +1044,7 @@
 						value=""
 						onchange={(event) => {
 							const kind =
-								/** @type {import('#lib/presentations/editor/shapeTools').ShapeInsertKind | ''} */ (
+								/** @type {import('#lib/presentations/editor/shapeTools.js').ShapeInsertKind | ''} */ (
 									event.currentTarget.value
 								);
 							event.currentTarget.value = '';

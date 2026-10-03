@@ -47,7 +47,7 @@
 			sessionStorage.removeItem('stickerlab-auth-return');
 			// Guest IDs are intentionally not opened in an account before explicit import.
 			await goto(destination.startsWith('/editor/') ? '/my-stickers' : destination, {
-				replaceState: true
+				replace: true
 			});
 		} catch (cause) {
 			error = cause instanceof Error ? cause.message : 'Sign-in failed. Request a new link.';

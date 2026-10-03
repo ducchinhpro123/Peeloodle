@@ -84,7 +84,7 @@
 	let addStickerOpen = $state(false);
 	let noticeOpen = $state(false);
 	let packQuery = $state('');
-	let packSort = $state(/** @type {import('#lib/packs/packActions').PackSort} */ ('recent'));
+	let packSort = $state(/** @type {import('#lib/packs/packActions.js').PackSort} */ ('recent'));
 	let exportingZip = $state(false);
 	let busy = $state(false);
 	let error = $state(/** @type {string | null} */ (null));

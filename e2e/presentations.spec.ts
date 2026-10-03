@@ -242,6 +242,7 @@ test('a newer stored revision becomes a conflict that keeps the local copy', asy
 	await page.getByRole('link', { name: `Open ${copy!.title}` }).click();
 	await expect(page.getByTestId('presentation-canvas')).toBeVisible();
 	await page.getByRole('button', { name: 'Add text' }).click();
+	await expect(page.getByTestId('text-edit-field')).toBeFocused();
 	await page.keyboard.type('More work in the recovered copy');
 	await page.keyboard.press('Escape');
 	await page.getByRole('button', { name: 'Save', exact: true }).click();

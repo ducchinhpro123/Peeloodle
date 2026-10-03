@@ -18,11 +18,10 @@ export const PRESENTATION_OFFLINE_MODULES = [
 /**
  * The routes above are only half of it in SvelteKit: each route also has its own
  * generated node chunk that the client router imports on navigation, and importing a
- * component never fetches it. `preloadCode` on a concrete pathname is what pulls a
- * route's node chunk in, so these paths are warmed alongside the module list. Any
- * concrete id matches the editor's dynamic segment; nothing navigates here.
+ * component never fetches it. `preloadCode` on a route ID is what pulls a
+ * route's node chunk in, so these paths are warmed alongside the module list. Nothing navigates here.
  */
 export const PRESENTATION_OFFLINE_ROUTES = [
 	'/presentations',
-	'/presentations/offline-session'
+	'/presentations/[presentationId]'
 ] as const;

@@ -988,6 +988,8 @@ test.describe('sticker vertical slice', () => {
 			await expect(page.locator('.rail').first()).toContainText('Pet Bestie');
 			await expect(page.locator('.pills button[aria-pressed="true"]')).toHaveText('All Templates');
 			await search.fill('');
+			// Search changes navigate asynchronously. Wait for the full catalog before clicking.
+			await expect(page.locator('.rail').first().locator('.template-card')).toHaveCount(12);
 
 			// The preview dialog and its actions stay reachable at every width.
 			await page

@@ -23,7 +23,7 @@ export async function ingestImageFile(
 export async function ingestBundledImage(src: string): Promise<AssetRecord> {
 	// Fetch through the base-aware `asset()` so a subdirectory deployment finds the
 	// file; the provenance below keeps the canonical source path.
-	const response = await fetch(asset(src));
+	const response = await fetch(asset(src.replace(/^\//, '') as import('$app/types').AssetPath));
 	if (!response.ok) throw new Error('Bundled artwork is unavailable');
 	const blob = await response.blob();
 	const record = await ingestImageFile(

@@ -23,7 +23,7 @@
 
 	/** @param {ReturnType<typeof packViewFromParams>} next */
 	function selectView(next) {
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		const params = packViewParams(next);
 		// Replacing the query through `searchParams` (it is live on the URL) keeps the
 		// source's "the patch *is* the new query" semantics: selecting All Packs clears
@@ -33,7 +33,7 @@
 		// A client-side navigation that keeps the caret and scroll position (only the
 		// query changes) and, unlike the source's controlled input, still pushes a
 		// history entry so Back returns to the previous view.
-		void goto(url, { keepFocus: true, noScroll: true });
+		void goto(url, { reset: false });
 	}
 </script>
 

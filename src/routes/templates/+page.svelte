@@ -19,14 +19,14 @@
 
 	/** @param {string} value */
 	function updateQuery(value) {
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		if (value) url.searchParams.set('q', value);
 		else url.searchParams.delete('q');
 		// A client-side navigation that replaces the history entry. `replaceState` from
 		// `$app/navigation` would rewrite the address bar but leave `page.url` at its
 		// previous value, so the filtered rails would never see the new query;
-		// `keepFocus` keeps the caret in the search field while typing.
-		void goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+		// `reset: false` keeps the caret in the search field while typing.
+		void goto(url, { replace: true, reset: false });
 	}
 </script>
 

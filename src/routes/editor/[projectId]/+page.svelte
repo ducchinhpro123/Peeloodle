@@ -16,6 +16,6 @@
 	<EditorWorkspace
 		projectId={params.projectId}
 		{intent}
-		onnavigate={(href) => goto(resolve(href))}
+		onnavigate={(href) => goto(resolve(/** @type {`editor/${string}`} */ (href.slice(1))))}
 	/>
 </AppShell>

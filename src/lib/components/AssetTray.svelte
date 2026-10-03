@@ -171,7 +171,13 @@
 						disabled={adding === entry.src}
 						onclick={() => onaddsample(entry.src, entry.name)}
 					>
-						<img alt="" src={asset(entry.src)} loading="lazy" />
+						<img
+							alt=""
+							src={asset(
+								/** @type {import('$app/types').AssetPath} */ (entry.src.replace(/^\//, ''))
+							)}
+							loading="lazy"
+						/>
 						<span>{adding === entry.src ? 'Adding…' : entry.name}</span>
 					</button>
 				{/each}

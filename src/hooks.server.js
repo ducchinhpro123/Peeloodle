@@ -10,12 +10,13 @@ import { paraglideMiddleware } from '#lib/paraglide/server.js';
  */
 export const handle = ({ event, resolve }) =>
 	paraglideMiddleware(event.request, ({ request, locale }) => {
-		event.request = request;
-
-		return resolve(event, {
-			transformPageChunk: ({ html }) =>
-				html
-					.replace('%paraglide.lang%', locale)
-					.replace('%paraglide.dir%', getTextDirection(locale))
-		});
+		return resolve(
+			{ ...event, request },
+			{
+				transformPageChunk: ({ html }) =>
+					html
+						.replace('%paraglide.lang%', locale)
+						.replace('%paraglide.dir%', getTextDirection(locale))
+			}
+		);
 	});

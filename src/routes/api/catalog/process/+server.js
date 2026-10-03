@@ -12,7 +12,7 @@
  * exists here. Without a server deployment this route does not exist, and the
  * dashboard says so instead of pretending a file was validated.
  */
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { parseCloudConfig } from '#lib/cloud/config.js';
 import { SupabaseCatalog } from '#lib/catalog/remote.js';
 import { runProcessingJob } from '#lib/catalog/processing/runJob.js';
@@ -40,26 +40,26 @@ function publicConfig(origin) {
 export const POST = async ({ request, url }) => {
 	const body = await request.text();
 	if (body.length > MAX_REQUEST_BYTES)
-		return json({ ok: false, reason: 'request_too_large' }, { status: 413 });
+		return Response.json({ ok: false, reason: 'request_too_large' }, { status: 413 });
 
 	/** @type {unknown} */
 	let parsed;
 	try {
 		parsed = JSON.parse(body);
 	} catch {
-		return json({ ok: false, reason: 'invalid_request' }, { status: 400 });
+		return Response.json({ ok: false, reason: 'invalid_request' }, { status: 400 });
 	}
 	const candidate = /** @type {{ jobId?: unknown } | null} */ (parsed);
 	const jobId = typeof candidate?.jobId === 'string' ? candidate.jobId : null;
 	if (!jobId || !/^[0-9a-f-]{36}$/i.test(jobId))
-		return json({ ok: false, reason: 'invalid_request' }, { status: 400 });
+		return Response.json({ ok: false, reason: 'invalid_request' }, { status: 400 });
 
 	const authorization = request.headers.get('authorization') ?? '';
 	if (!authorization.startsWith('Bearer ') || authorization.length < 20)
-		return json({ ok: false, reason: 'unauthenticated' }, { status: 401 });
+		return Response.json({ ok: false, reason: 'unauthenticated' }, { status: 401 });
 
 	const config = publicConfig(url.origin);
-	if (!config) return json({ ok: false, reason: 'unconfigured' }, { status: 503 });
+	if (!config) return Response.json({ ok: false, reason: 'unconfigured' }, { status: 503 });
 
 	const { createClient } = await import('@supabase/supabase-js');
 	const client = createClient(config.url, config.key, {
@@ -80,7 +80,7 @@ export const POST = async ({ request, url }) => {
 			},
 			jobId
 		);
-		return json(outcome, { status: outcome.status === 'refused' ? 409 : 200 });
+		return Response.json(outcome, { status: outcome.status === 'refused' ? 409 : 200 });
 	} catch (caught) {
 		// A thrown adapter error is a transport or permission problem, not a
 		// processing verdict: keep the message but do not claim anything changed.

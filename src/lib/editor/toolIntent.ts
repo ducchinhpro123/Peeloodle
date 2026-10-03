@@ -85,7 +85,10 @@ const APP_LOCAL_ROUTES =
  * @param pathname raw `page.url.pathname`, or an already app-local pathname
  * @param configuredBase the configured base; callers keep the `$app/paths` default
  */
-export function appLocalPathname(pathname: string, configuredBase: string = resolve): string {
+export function appLocalPathname(
+	pathname: string,
+	configuredBase: string = resolve('/').replace(/\/$/, '')
+): string {
 	if (!configuredBase) return pathname;
 	if (pathname === configuredBase) return '/';
 	if (!pathname.startsWith(`${configuredBase}/`)) return pathname;
@@ -131,7 +134,12 @@ export function toolIntentPath(pathname: string): '/create' | `/editor/${string}
  * `resolve()` adds the configured base back.
  */
 export function toolIntentHref(intent: ToolIntent, pathname: string): string {
-	return `${resolve(toolIntentPath(pathname))}?${TOOL_INTENT_PARAM}=${intent}`;
+	const path = toolIntentPath(pathname);
+	const href =
+		path === '/create'
+			? resolve('/create')
+			: resolve(`/editor/[projectId]`, { projectId: path.slice('/editor/'.length) });
+	return `${href}?${TOOL_INTENT_PARAM}=${intent}`;
 }
 
 export function editorPathWithIntent(

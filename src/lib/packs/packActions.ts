@@ -29,7 +29,7 @@ const VIEW_PARAM: Record<PackView, string | null> = {
 };
 
 /** Unknown or absent view parameters fall back to All Packs. */
-export function packViewFromParams(params: URLSearchParams): PackView {
+export function packViewFromParams(params: Pick<URLSearchParams, 'get'>): PackView {
 	const value = params.get('view');
 	return PACK_VIEWS.find((view) => VIEW_PARAM[view] === value) ?? 'All Packs';
 }

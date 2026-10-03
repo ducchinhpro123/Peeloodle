@@ -214,10 +214,10 @@
 		void doc?.id;
 		/** @type {import('#lib/editor/toolIntent.js').ToolIntentUi} */
 		const ui = {
-			setInspectorTab: (/** @type {string} */ (tab)) => inspectorTab = tab,
-			setAssetTab: (/** @type {string} */ (tab)) => assetTab = tab,
-			setExportOpen: (/** @type {boolean} */ (open)) => exportOpen = open,
-			setRailFocus: (/** @type {any} */ (focus)) => railFocus = focus
+			setInspectorTab: (tab) => (inspectorTab = tab),
+			setAssetTab: (tab) => (assetTab = tab),
+			setExportOpen: (open) => (exportOpen = open),
+			setRailFocus: (focus) => (railFocus = focus)
 		};
 		applyToolIntent(activeIntent, ui, editor);
 		const unsubscribe = subscribeToolIntent((requested) => applyToolIntent(requested, ui, editor));
@@ -225,7 +225,7 @@
 	});
 
 	$effect(() => {
-		const sync = () => canvasFullscreen = globalThis.document.fullscreenElement === stage;
+		const sync = () => (canvasFullscreen = globalThis.document.fullscreenElement === stage);
 		globalThis.document.addEventListener('fullscreenchange', sync);
 		return () => globalThis.document.removeEventListener('fullscreenchange', sync);
 	});
@@ -238,13 +238,13 @@
 	const workspace = getCloudWorkspace();
 	let saveLabel = $derived(
 		maskBusy && editor.saveStatus !== 'save-failed'
-		? 'Mask edit pending'
-		: workspace.cloud && !editor.dirty && editor.saveStatus === 'saved-locally'
-			? workspace.cloudStatus.state === 'synced'
-				? 'Saved to cloud'
-				: workspace.cloudStatus.state === 'syncing'
-					? 'Saved locally · syncing'
-					: 'Saved locally · cloud pending'
+			? 'Mask edit pending'
+			: workspace.cloud && !editor.dirty && editor.saveStatus === 'saved-locally'
+				? workspace.cloudStatus.state === 'synced'
+					? 'Saved to cloud'
+					: workspace.cloudStatus.state === 'syncing'
+						? 'Saved locally · syncing'
+						: 'Saved locally · cloud pending'
 				: saveStatusLabel(editor.saveStatus, editor.dirty)
 	);
 
@@ -283,7 +283,9 @@
 			return;
 		}
 		replacing = true;
-		void ingestIntoCurrentProject(() => ingestImageFile(file), undefined, layerId).finally(() => replacing = false);
+		void ingestIntoCurrentProject(() => ingestImageFile(file), undefined, layerId).finally(
+			() => (replacing = false)
+		);
 	}
 
 	/**
@@ -335,7 +337,10 @@
 
 	function openExport() {
 		if (globalThis.document.fullscreenElement === stage) {
-			void globalThis.document.exitFullscreen().then(() => exportOpen = true, () => exportOpen = true);
+			void globalThis.document.exitFullscreen().then(
+				() => (exportOpen = true),
+				() => (exportOpen = true)
+			);
 
 			return;
 		}

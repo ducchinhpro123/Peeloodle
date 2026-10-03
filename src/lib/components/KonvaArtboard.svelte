@@ -496,7 +496,7 @@
 	 *
 	 * @param {Konva.Node} node
 	 * @param {string} layerId
-	 * @param {import('#lib/domain/domain').Layer['kind']} kind
+	 * @param {import('#lib/domain/domain.js').Layer['kind']} kind
 	 */
 	function bindHandlers(node, layerId, kind) {
 		node.off('.app');
