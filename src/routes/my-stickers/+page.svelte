@@ -12,9 +12,9 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import PacksPage from '$lib/components/PacksPage.svelte';
-	import { getAppContext } from '$lib/app/context';
-	import { packViewFromParams, packViewParams } from '$lib/packs/packActions';
+	import PacksPage from '#lib/components/PacksPage.svelte';
+	import { getAppContext } from '#lib/app/context.js';
+	import { packViewFromParams, packViewParams } from '#lib/packs/packActions.js';
 
 	const { repository } = getAppContext();
 
@@ -45,5 +45,5 @@
 	{view}
 	{requestedPackId}
 	onselectview={selectView}
-	onopen={(projectId) => goto(resolve(`/editor/${projectId}`))}
+	onopen={(projectId) => goto(resolve(`editor/${projectId}`))}
 />

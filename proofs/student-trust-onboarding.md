@@ -21,12 +21,12 @@ The working tree includes earlier cleanup work. Base commit: `9175794240ee5937eb
 
 These are results from the completed runs, not new executions during report preparation.
 
-| Check | Recorded result |
-| --- | --- |
-| `npm run check` | 0 errors, 0 warnings |
-| Default production-build Playwright suite | 91 passed, 3 skipped; 94 tests, one worker, 4.4 minutes |
-| Isolated corrected offline journey repeat | 12 passed, 52.0 seconds |
-| ESLint log | No diagnostic output retained; an empty log alone does not prove its exit status |
+| Check                                     | Recorded result                                                                  |
+| ----------------------------------------- | -------------------------------------------------------------------------------- |
+| `npm run check`                           | 0 errors, 0 warnings                                                             |
+| Default production-build Playwright suite | 91 passed, 3 skipped; 94 tests, one worker, 4.4 minutes                          |
+| Isolated corrected offline journey repeat | 12 passed, 52.0 seconds                                                          |
+| ESLint log                                | No diagnostic output retained; an empty log alone does not prove its exit status |
 
 The three skipped tests are opt-in P45 capacity probes: media-budget refusal, the 200-element slide ceiling, and the near-8 MiB document JSON ceiling. The default result does not claim these probes ran. Cloud tests are excluded from the default configuration; synthetic cloud checks do not establish a live backend result.
 

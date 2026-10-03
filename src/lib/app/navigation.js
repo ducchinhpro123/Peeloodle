@@ -29,20 +29,21 @@ import { Home, ImagePlus, LayoutGrid, LayoutTemplate, Plus, Presentation } from 
  */
 export function shellHref(link) {
 	if (link === '/') return resolve('/');
-	if (link === '/create') return resolve('/create');
-	if (link === '/create?tool=erase') return resolve('/create?tool=erase');
-	if (link === '/create?tool=text') return resolve('/create?tool=text');
-	if (link === '/create?tool=effects') return resolve('/create?tool=effects');
-	if (link === '/create?tool=export') return resolve('/create?tool=export');
-	if (link === '/templates') return resolve('/templates');
-	if (link === '/presentation-templates') return resolve('/presentation-templates');
-	if (link === '/presentations') return resolve('/presentations');
-	if (link === '/presentations?task=class') return resolve('/presentations?task=class');
+	if (link === '/create') return resolve('create');
+	if (link === '/create?tool=erase') return resolve('create?tool=erase');
+	if (link === '/create?tool=text') return resolve('create?tool=text');
+	if (link === '/create?tool=effects') return resolve('create?tool=effects');
+	if (link === '/create?tool=export') return resolve('create?tool=export');
+	if (link === '/templates') return resolve('templates');
+	if (link === '/presentation-templates') return resolve('presentation-templates');
+	if (link === '/presentations') return resolve('presentations');
+	if (link === '/presentations?task=class') return resolve('presentations?task=class');
 	if (link === '/presentations?task=research-defense')
-		return resolve('/presentations?task=research-defense');
-	if (link === '/presentations?task=club-pitch') return resolve('/presentations?task=club-pitch');
-	if (link === '/my-stickers') return resolve('/my-stickers');
-	return resolve('/my-stickers#local-stickers');
+		return resolve('presentations?task=research-defense');
+	if (link === '/presentations?task=club-pitch') return resolve('presentations?task=club-pitch');
+	if (link === '/my-stickers') return resolve('my-stickers');
+
+	return resolve('my-stickers#local-stickers');
 }
 
 /** @typedef {{ to: ShellLink, label: string, icon?: typeof Home, active: (pathname: string, search: string) => boolean }} NavigationItem */
@@ -53,9 +54,24 @@ const inEditor = (/** @type {string} */ pathname) =>
 
 /** @type {NavigationItem[]} */
 export const primaryNavigation = [
-	{ to: '/', label: 'Home', active: (pathname, search) => pathname === '/' && !view(search) },
-	{ to: '/create', label: 'Create', active: (pathname) => inEditor(pathname) },
-	{ to: '/templates', label: 'Templates', active: (pathname) => pathname === '/templates' },
+	{
+		to: '/',
+		label: 'Home',
+		active: (pathname, search) => pathname === '/' && !view(search)
+	},
+
+	{
+		to: '/create',
+		label: 'Create',
+		active: (pathname) => inEditor(pathname)
+	},
+
+	{
+		to: '/templates',
+		label: 'Templates',
+		active: (pathname) => pathname === '/templates'
+	},
+
 	{
 		to: '/presentation-templates',
 		label: 'Deck Templates',
@@ -71,8 +87,20 @@ export const primaryNavigation = [
 
 /** @type {NavigationItem[]} */
 export const sidebarNavigation = [
-	{ to: '/', label: 'Dashboard', icon: Home, active: (pathname) => pathname === '/' },
-	{ to: '/create', label: 'Create Sticker', icon: Plus, active: (pathname) => inEditor(pathname) },
+	{
+		to: '/',
+		label: 'Dashboard',
+		icon: Home,
+		active: (pathname) => pathname === '/'
+	},
+
+	{
+		to: '/create',
+		label: 'Create Sticker',
+		icon: Plus,
+		active: (pathname) => inEditor(pathname)
+	},
+
 	{
 		to: '/presentations',
 		label: 'Presentations',

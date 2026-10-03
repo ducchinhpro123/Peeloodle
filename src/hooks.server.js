@@ -1,12 +1,12 @@
-import { getTextDirection } from '$lib/paraglide/runtime';
-import { paraglideMiddleware } from '$lib/paraglide/server';
+import { getTextDirection } from '#lib/paraglide/runtime.js';
+import { paraglideMiddleware } from '#lib/paraglide/server.js';
 
 /**
  * The generated scaffold wired Better Auth + Drizzle into `handle`; this local-first
  * slice does not use them, and loading them made every production request fail with a
  * "Drizzle schema mismatch" 500. Only the Paraglide locale passthrough remains.
  *
- * @type {import('@sveltejs/kit').Handle}
+ * @type {import('@sveltejs/kit/hooks').Handle}
  */
 export const handle = ({ event, resolve }) =>
 	paraglideMiddleware(event.request, ({ request, locale }) => {

@@ -7,8 +7,8 @@
  * version.
  */
 import sharp from 'sharp';
-import { sha256Hex as hashBytes } from '$lib/hash';
-import { looksLikeSvgMarkup, sniffImageFormat } from '$lib/imageFormat';
+import { sha256Hex as hashBytes } from '#lib/hash.js';
+import { looksLikeSvgMarkup, sniffImageFormat } from '#lib/imageFormat.js';
 import { ProcessingError } from './errors';
 import { PROCESSING_LIMITS } from './limits';
 import { normalizeRaster } from './raster';

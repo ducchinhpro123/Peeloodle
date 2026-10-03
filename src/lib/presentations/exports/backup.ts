@@ -10,9 +10,9 @@
  */
 
 import { unzipSync, zipSync } from 'fflate';
-import { sha256Hex, type HashFn } from '$lib/hash';
-import { inspectImageBytes } from '$lib/imageFormat';
-import { decodeImageBitmap } from '$lib/imageDecode';
+import { sha256Hex, type HashFn } from '#lib/hash.js';
+import { inspectImageBytes } from '#lib/imageFormat.js';
+import { decodeImageBitmap } from '#lib/imageDecode.js';
 import type { PresentationAsset, PresentationDocument } from '../model/types';
 
 export const BACKUP_FORMAT = 'stickerlab-presentation-backup';

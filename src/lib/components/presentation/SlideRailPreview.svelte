@@ -1,7 +1,7 @@
 <script>
-	import { rasterizeSlidePage } from '$lib/presentations/rendering/rasterizeSlide';
+	import { rasterizeSlidePage } from '#lib/presentations/rendering/rasterizeSlide.js';
 
-	/** @type {{ slide: import('$lib/presentations/model/types').Slide, pageSize: import('$lib/presentations/model/types').PresentationDocument['pageSize'], images: import('$lib/presentations/rendering/renderSlide').PresentationImageSources }} */
+	/** @type {{ slide: import('#lib/presentations/model/types').Slide, pageSize: import('$lib/presentations/model/types').PresentationDocument['pageSize'], images: import('$lib/presentations/rendering/renderSlide').PresentationImageSources }} */
 	let { slide, pageSize, images } = $props();
 	let visible = $state(false);
 	/** @type {string | null} */

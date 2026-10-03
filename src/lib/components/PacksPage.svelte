@@ -1,5 +1,5 @@
 <script>
-	import { button, buttonDanger, buttonPrimary } from '$lib/ui/styles.js';
+	import { button, buttonDanger, buttonPrimary } from '#lib/ui/styles.js';
 	/**
 	 * Port of `src/features/packs/PacksPage.tsx` (React main `54eae61c`): the real
 	 * `/my-stickers` library — saved-sticker packs with search/sort, the five source
@@ -35,10 +35,10 @@
 	import LocalProjectList from './LocalProjectList.svelte';
 	import ProjectThumb from './ProjectThumb.svelte';
 	import TemplateRail from './TemplateRail.svelte';
-	import { shellHref } from '$lib/app/navigation';
-	import { getCloudWorkspace } from '$lib/cloud/workspace.svelte';
-	import { downloadBlob } from '$lib/exports/download';
-	import { getFavoriteTemplateIds, templateData } from '$lib/editor/templates';
+	import { shellHref } from '#lib/app/navigation.js';
+	import { getCloudWorkspace } from '#lib/cloud/workspace.svelte.js';
+	import { downloadBlob } from '#lib/exports/download.js';
+	import { getFavoriteTemplateIds, templateData } from '#lib/editor/templates.js';
 	import {
 		PACK_VIEWS,
 		buildPackRecord,
@@ -46,12 +46,12 @@
 		reorderProjectInPack,
 		setProjectInPack,
 		visiblePacks
-	} from '$lib/packs/packActions';
-	/** @typedef {import('$lib/domain/domain').PackRecord} PackRecord */
+	} from '#lib/packs/packActions.js';
+	/** @typedef {import('#lib/domain/domain.js').PackRecord} PackRecord */
 
 	/**
 	 * @type {{
-	 *   repository: import('$lib/persistence/repository').StickerLabRepository,
+	 *   repository: import('#lib/persistence/repository.js').StickerLabRepository,
 	 *   pathname?: string,
 	 *   search?: string,
 	 *   hash?: string,
@@ -73,7 +73,7 @@
 	} = $props();
 
 	let packs = $state(/** @type {PackRecord[]} */ ([]));
-	let projects = $state(/** @type {import('$lib/domain/domain').ProjectDocument[]} */ ([]));
+	let projects = $state(/** @type {import('#lib/domain/domain.js').ProjectDocument[]} */ ([]));
 	let selectedPackId = $state(/** @type {string | null} */ (null));
 	let detailClosed = $state(false);
 	let createOpen = $state(false);
@@ -84,7 +84,7 @@
 	let addStickerOpen = $state(false);
 	let noticeOpen = $state(false);
 	let packQuery = $state('');
-	let packSort = $state(/** @type {import('$lib/packs/packActions').PackSort} */ ('recent'));
+	let packSort = $state(/** @type {import('#lib/packs/packActions').PackSort} */ ('recent'));
 	let exportingZip = $state(false);
 	let busy = $state(false);
 	let error = $state(/** @type {string | null} */ (null));
@@ -246,7 +246,7 @@
 		exportingZip = true;
 		try {
 			// Lazy like the source (`await import('@/features/exports/zipExport')`).
-			const { exportPackZip } = await import('$lib/exports/zipExport');
+			const { exportPackZip } = await import('#lib/exports/zipExport.js');
 			const zipBlob = await exportPackZip(pack, repository);
 			const safe = pack.title.replace(/[^\w.-]+/g, '_').toLowerCase() || 'pack';
 			if (live) downloadBlob(zipBlob, `${safe}.zip`);
@@ -257,7 +257,7 @@
 
 	/** @param {PackRecord} pack */
 	function previews(pack) {
-		/** @type {import('$lib/domain/domain').ProjectDocument[]} */
+		/** @type {import('#lib/domain/domain.js').ProjectDocument[]} */
 		const found = [];
 		for (const projectId of pack.projectIds) {
 			const project = projectById.get(projectId);
@@ -348,7 +348,7 @@
 				<select
 					value={packSort}
 					onchange={(event) =>
-						(packSort = /** @type {import('$lib/packs/packActions').PackSort} */ (
+						(packSort = /** @type {import('#lib/packs/packActions.js').PackSort} */ (
 							event.currentTarget.value
 						))}
 					aria-label="Sort packs"

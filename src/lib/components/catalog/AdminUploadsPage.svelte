@@ -1,9 +1,9 @@
 <script>
 	import { Upload, RefreshCw, RotateCcw, X, Check, Trash2 } from 'lucide-svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
+	import Modal from '#lib/components/Modal.svelte';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	import { SvelteMap } from 'svelte/reactivity';
-	import { isCatalogError } from '$lib/catalog/repository';
+	import { isCatalogError } from '#lib/catalog/repository.js';
 
 	/**
 	 * Bulk upload queue (P58) with abandoned-upload cleanup (P61).
@@ -18,7 +18,7 @@
 	 * architecture's initial concurrency limit.
 	 *
 	 * @type {{
-	 *   repository: import('$lib/catalog/repository').CatalogAdminRepository,
+	 *   repository: import('#lib/catalog/repository.js').CatalogAdminRepository,
 	 *   onNotice?: (message: string) => void
 	 * }}
 	 */
@@ -28,9 +28,9 @@
 	const MAX_PARALLEL = 2;
 	const MAX_BYTES = 15 * 1024 * 1024;
 
-	/** @type {import('$lib/catalog/types').CatalogUploadStatus | null} */
+	/** @type {import('#lib/catalog/types.js').CatalogUploadStatus | null} */
 	let status = $state.raw(null);
-	/** @type {{ items: import('$lib/catalog/types').CatalogUploadBatchSummary[], nextCursor: string | null }} */
+	/** @type {{ items: import('#lib/catalog/types.js').CatalogUploadBatchSummary[], nextCursor: string | null }} */
 	let batches = $state.raw({ items: [], nextCursor: null });
 	/** @type {'loading' | 'ready' | 'error'} */
 	let listStatus = $state('loading');
@@ -45,7 +45,7 @@
 	let files = $state.raw([]);
 	/** @type {string} */
 	let collectionId = $state('');
-	/** @type {import('$lib/catalog/types').CatalogCollection[]} */
+	/** @type {import('#lib/catalog/types.js').CatalogCollection[]} */
 	let collections = $state.raw([]);
 	/** @type {SvelteMap<string, string>} */
 	const uploadState = new SvelteMap();
@@ -54,7 +54,7 @@
 	let busy = $state(false);
 	let running = $state(false);
 
-	/** @type {import('$lib/catalog/types').CatalogOrphanMedia | null} */
+	/** @type {import('#lib/catalog/types.js').CatalogOrphanMedia | null} */
 	let orphans = $state.raw(null);
 	let cleanupBusy = $state(false);
 
@@ -171,7 +171,7 @@
 	 * at that file: later files are left untouched so a retry does not restart the
 	 * uploads that already succeeded.
 	 *
-	 * @param {import('$lib/catalog/types').CatalogUploadStatus} batchStatus
+	 * @param {import('#lib/catalog/types.js').CatalogUploadStatus} batchStatus
 	 * @param {File[]} selected
 	 */
 	async function uploadSources(batchStatus, selected) {
@@ -222,7 +222,7 @@
 					})
 				);
 				const refused =
-					/** @type {import('$lib/catalog/processing/runJob').ProcessingOutcome | undefined} */ (
+					/** @type {import('#lib/catalog/processing/runJob.js').ProcessingOutcome | undefined} */ (
 						outcomes.find((outcome) => outcome.status === 'refused')
 					);
 				if (refused && refused.status === 'refused') {
@@ -347,7 +347,7 @@
 		}
 	}
 
-	/** @param {import('$lib/catalog/types').CatalogUploadJobStatus} job */
+	/** @param {import('#lib/catalog/types.js').CatalogUploadJobStatus} job */
 	function jobLabel(job) {
 		const local = uploadState.get(job.id);
 		if (job.stage === 'ready') return 'Ready to review';

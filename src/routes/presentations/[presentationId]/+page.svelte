@@ -2,10 +2,10 @@
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import AppShell from '$lib/components/AppShell.svelte';
-	import PresentationEditorPage from '$lib/components/presentation/PresentationEditorPage.svelte';
-	import { getAppContext } from '$lib/app/context';
-	import { getCatalogRepository } from '$lib/catalog/client';
+	import AppShell from '#lib/components/AppShell.svelte';
+	import PresentationEditorPage from '#lib/components/presentation/PresentationEditorPage.svelte';
+	import { getAppContext } from '#lib/app/context.js';
+	import { getCatalogRepository } from '#lib/catalog/client.js';
 
 	/** @type {import('./$types').PageProps} */
 	let { params } = $props();
@@ -30,14 +30,14 @@
 	 * The optional catalog read path (P62). Without cloud configuration there is no
 	 * repository and the editor simply has no catalog button; when it is configured,
 	 * the picker still shows only published items.
-	 * @type {import('$lib/catalog/remote').SupabaseCatalog | null}
+	 * @type {import('#lib/catalog/remote.js').SupabaseCatalog | null}
 	 */
 	let catalogRepository = $state.raw(null);
 	/**
 	 * The admin write path (P65), separate from the public read path: the editor
 	 * only offers “Save as template” when the account is actually an
 	 * administrator. The backend RPC re-checks membership; this is only messaging.
-	 * @type {import('$lib/catalog/repository').CatalogAdminRepository | null}
+	 * @type {import('#lib/catalog/repository.js').CatalogAdminRepository | null}
 	 */
 	let catalogAdminRepository = $state.raw(null);
 
@@ -62,6 +62,7 @@
 	});
 
 	beforeNavigate(async (navigation) => {
+		if (navigation.shallow) return;
 		if (bypass || !leaveguard?.hasUnsavedWork()) return;
 		// Cancel first: the save is asynchronous, and the editor must not be torn
 		// down while it is still writing. SvelteKit counteracts a cancelled Back/
@@ -105,8 +106,8 @@
 			{catalogRepository}
 			{catalogAdminRepository}
 			store={presentationStore}
-			backhref={resolve('/presentations')}
-			onback={() => goto(resolve('/presentations'))}
+			backhref={resolve('presentations')}
+			onback={() => goto(resolve('presentations'))}
 			bind:leaveguard
 		/>
 	{/key}

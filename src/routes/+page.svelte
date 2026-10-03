@@ -2,8 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { getAppContext } from '$lib/app/context';
-	import DashboardPage from '$lib/components/DashboardPage.svelte';
+	import { getAppContext } from '#lib/app/context.js';
+	import DashboardPage from '#lib/components/DashboardPage.svelte';
 
 	const { repository, presentationRepository } = getAppContext();
 </script>
@@ -13,5 +13,5 @@
 	{presentationRepository}
 	pathname={page.url.pathname}
 	search={page.url.search}
-	onopen={(projectId) => goto(resolve(`/editor/${projectId}`))}
+	onopen={(projectId) => goto(resolve(`editor/${projectId}`))}
 />

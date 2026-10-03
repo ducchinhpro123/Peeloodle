@@ -1,16 +1,16 @@
 <script>
-	import { button, buttonDanger, buttonIcon } from '$lib/ui/styles.js';
+	import { button, buttonDanger, buttonIcon } from '#lib/ui/styles.js';
 	import { resolve } from '$app/paths';
 	import { ImagePlus, Trash2 } from 'lucide-svelte';
 	import ProjectThumb from './ProjectThumb.svelte';
 	import Modal from './Modal.svelte';
-	import { shellHref } from '$lib/app/navigation';
-	import { getCloudWorkspace } from '$lib/cloud/workspace.svelte';
-	import { removeProject } from '$lib/editor/removeProject';
+	import { shellHref } from '#lib/app/navigation.js';
+	import { getCloudWorkspace } from '#lib/cloud/workspace.svelte.js';
+	import { removeProject } from '#lib/editor/removeProject.js';
 
 	/**
 	 * @type {{
-	 *   repository: import('$lib/persistence/repository').StickerLabRepository,
+	 *   repository: import('#lib/persistence/repository.js').StickerLabRepository,
 	 *   emptyTitle?: string,
 	 *   emptyDetail?: string,
 	 *   limit?: number,
@@ -25,15 +25,15 @@
 		refreshToken = 0
 	} = $props();
 
-	/** @type {import('$lib/domain/domain').ProjectDocument[] | null} */
+	/** @type {import('#lib/domain/domain.js').ProjectDocument[] | null} */
 	let projects = $state(null);
-	/** @type {import('$lib/domain/domain').ProjectDocument | null} */
+	/** @type {import('#lib/domain/domain.js').ProjectDocument | null} */
 	let pending = $state(null);
 	let busy = $state(false);
 	let error = $state(/** @type {string | null} */ (null));
 	let opener = $state(/** @type {HTMLButtonElement | undefined} */ (undefined));
 
-	/** @type {import('$lib/domain/domain').ProjectDocument[]} */
+	/** @type {import('#lib/domain/domain.js').ProjectDocument[]} */
 	let visible = $derived(limit ? (projects ?? []).slice(0, limit) : (projects ?? []));
 
 	const workspace = getCloudWorkspace();
@@ -84,7 +84,7 @@
 			<article class="project-card">
 				<a
 					class="project-card-link [display:grid] [min-width:0] [gap:6px] [color:inherit] [text-decoration:none]"
-					href={resolve(`/editor/${project.id}`)}
+					href={resolve(`editor/${project.id}`)}
 				>
 					<ProjectThumb {project} {repository} />
 					<b>{project.title}</b>

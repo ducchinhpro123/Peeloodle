@@ -2,13 +2,13 @@
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import AppShell from '$lib/components/AppShell.svelte';
-	import AdminGuard from '$lib/components/catalog/AdminGuard.svelte';
-	import PresentationEditorPage from '$lib/components/presentation/PresentationEditorPage.svelte';
-	import { getAppContext } from '$lib/app/context';
-	import { getCatalogRepository } from '$lib/catalog/client';
-	import { getCloudWorkspace } from '$lib/cloud/workspace.svelte';
-	import { TemplateDraftRepository } from '$lib/presentations/templates/templateDraftRepository';
+	import AppShell from '#lib/components/AppShell.svelte';
+	import AdminGuard from '#lib/components/catalog/AdminGuard.svelte';
+	import PresentationEditorPage from '#lib/components/presentation/PresentationEditorPage.svelte';
+	import { getAppContext } from '#lib/app/context.js';
+	import { getCatalogRepository } from '#lib/catalog/client.js';
+	import { getCloudWorkspace } from '#lib/cloud/workspace.svelte.js';
+	import { TemplateDraftRepository } from '#lib/presentations/templates/templateDraftRepository.js';
 
 	/**
 	 * `/admin/templates/<id>/edit` — the shared presentation editor in template
@@ -23,7 +23,7 @@
 	const { presentationStore } = getAppContext();
 	const workspace = getCloudWorkspace();
 
-	/** @type {import('$lib/catalog/remote').SupabaseCatalog | null} */
+	/** @type {import('#lib/catalog/remote.js').SupabaseCatalog | null} */
 	let repository = $state.raw(null);
 	/** Remounts the editor to reload a newer server draft after a conflict. */
 	let reloadKey = $state(0);
@@ -64,9 +64,9 @@
 	 * } | null}
 	 */
 	let leaveguard = $state(null);
-	let bypass = false;
 
-	const listHref = resolve('/admin/templates');
+	let bypass = false;
+	const listHref = resolve('admin/templates');
 	const backhref = $derived(`${listHref}/${encodeURIComponent(params.templateId)}`);
 
 	function reloadDraft() {
@@ -75,6 +75,7 @@
 	}
 
 	beforeNavigate(async (navigation) => {
+		if (navigation.shallow) return;
 		if (bypass || !leaveguard?.hasUnsavedWork()) return;
 		// Cancel first: the save is asynchronous, and the editor must not be torn
 		// down while it is still writing. On success the same URL is re-entered.

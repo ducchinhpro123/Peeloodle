@@ -14,14 +14,14 @@
  * the store holds until a save persists it.
  */
 
-import { blobToArrayBuffer } from '$lib/blob';
-import { sha256Hex } from '$lib/hash';
+import { blobToArrayBuffer } from '#lib/blob.js';
+import { sha256Hex } from '#lib/hash.js';
 import type { PresentationMediaRecord } from '../persistence/repository';
 import {
 	UploadValidationError,
 	validateUpload,
 	type ValidatedUpload
-} from '$lib/assets/validateUpload';
+} from '#lib/assets/validateUpload.js';
 import type { PresentationAsset } from '../model/types';
 
 export type PreparedPresentationImage = {

@@ -9,7 +9,7 @@
  * layout from a large template does not fetch the whole deck.
  */
 
-import type { CatalogRepository } from '$lib/catalog/repository';
+import type { CatalogRepository } from '#lib/catalog/repository.js';
 import { clonePresentationDocumentWithNewIds } from '../model/factories';
 import { parsePresentationDocument } from '../model/parse';
 import { DerivativeError, downloadCatalogDerivative } from './catalogDerivative';

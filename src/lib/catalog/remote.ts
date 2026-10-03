@@ -13,7 +13,7 @@
  * guard already ran (the server re-checks membership regardless).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, Json } from '$lib/cloud/database';
+import type { Database, Json } from '#lib/cloud/database.js';
 import {
 	CatalogError,
 	CATALOG_MAX_PAGE_SIZE,

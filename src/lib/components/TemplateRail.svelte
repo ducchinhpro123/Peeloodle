@@ -1,17 +1,17 @@
 <script>
 	import TemplateCard from './TemplateCard.svelte';
-	import { shellHref } from '$lib/app/navigation';
+	import { shellHref } from '#lib/app/navigation.js';
 	import {
 		instantiateTemplate,
 		getFavoriteTemplateIds,
 		templateData,
 		toggleFavoriteTemplateId
-	} from '$lib/editor/templates';
-	/** @typedef {import('$lib/domain/domain').Template} Template */
+	} from '#lib/editor/templates.js';
+	/** @typedef {import('#lib/domain/domain.js').Template} Template */
 
 	/**
 	 * @type {{
-	 *   repository: import('$lib/persistence/repository').StickerLabRepository,
+	 *   repository: import('#lib/persistence/repository.js').StickerLabRepository,
 	 *   onopen: (projectId: string) => void,
 	 *   title: string,
 	 *   items?: Template[],

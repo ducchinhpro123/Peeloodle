@@ -6,9 +6,9 @@
  * collections, and they are unit-testable on their own.
  */
 
-import { serializeProjectDocument } from '$lib/persistence/repository';
-import type { AssetRecord } from '$lib/persistence/repository';
-import type { Layer, ProjectDocument } from '$lib/domain/domain';
+import { serializeProjectDocument } from '#lib/persistence/repository.js';
+import type { AssetRecord } from '#lib/persistence/repository.js';
+import type { Layer, ProjectDocument } from '#lib/domain/domain.js';
 
 export function cloneDocument(document: ProjectDocument): ProjectDocument {
 	return serializeProjectDocument(document);

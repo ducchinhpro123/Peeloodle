@@ -11,7 +11,7 @@
  */
 
 import { NOTHING_UNSAVED, reloadInstruction, type ReloadSafety } from '../offlineReadiness';
-import { downloadBlob } from '$lib/exports/download';
+import { downloadBlob } from '#lib/exports/download.js';
 import {
 	backupDocumentFingerprint,
 	rememberBackupDownload,

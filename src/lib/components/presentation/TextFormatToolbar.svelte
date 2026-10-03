@@ -1,5 +1,5 @@
 <script>
-	import { button, buttonIcon } from '$lib/ui/styles.js';
+	import { button, buttonIcon } from '#lib/ui/styles.js';
 	import {
 		AlignCenter,
 		AlignJustify,
@@ -14,13 +14,13 @@
 		List,
 		ListOrdered
 	} from 'lucide-svelte';
-	import { PRESENTATION_FONT_FAMILIES } from '$lib/presentations/rendering/fonts';
+	import { PRESENTATION_FONT_FAMILIES } from '#lib/presentations/rendering/fonts.js';
 
 	/**
 	 * `svelte2tsx` infers a `$state.raw(null)` variable from its initialiser, so the
 	 * precise type has to be asserted on the argument rather than declared above.
-	 * @typedef {import('$lib/presentations/editor/textFormat').TextFormatState} TextFormatState
-	 * @typedef {import('$lib/presentations/editor/textFormat').ParagraphFormatState} ParagraphFormatState
+	 * @typedef {import('#lib/presentations/editor/textFormat.js').TextFormatState} TextFormatState
+	 * @typedef {import('#lib/presentations/editor/textFormat.js').ParagraphFormatState} ParagraphFormatState
 	 */
 
 	/**
@@ -31,7 +31,7 @@
 	 * restores the cached selection for them.
 	 *
 	 * @type {{
-	 *   session: import('$lib/presentations/editor/textEditSession.svelte').TextEditSession
+	 *   session: import('#lib/presentations/editor/textEditSession.svelte.js').TextEditSession
 	 * }}
 	 */
 	let { session } = $props();
@@ -80,7 +80,7 @@
 		refresh();
 	});
 
-	/** @param {import('$lib/presentations/editor/textFormat').RunStylePatch} patch */
+	/** @param {import('#lib/presentations/editor/textFormat.js').RunStylePatch} patch */
 	function apply(patch) {
 		const active = session.format();
 		if (!active) return;
@@ -88,7 +88,7 @@
 		refresh();
 	}
 
-	/** @param {import('$lib/presentations/editor/textFormat').ParagraphStylePatch} patch */
+	/** @param {import('#lib/presentations/editor/textFormat.js').ParagraphStylePatch} patch */
 	function applyParagraph(patch) {
 		const active = session.format();
 		if (!active) return;

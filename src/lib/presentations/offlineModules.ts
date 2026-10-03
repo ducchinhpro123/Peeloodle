@@ -9,9 +9,9 @@
 import { EXPORT_BUILDER_LOADERS } from './exports/loaders';
 
 export const PRESENTATION_OFFLINE_MODULES = [
-	() => import('$lib/components/PresentationsPage.svelte'),
-	() => import('$lib/components/presentation/PresentationEditorPage.svelte'),
-	() => import('$lib/components/presentation/PresentationCanvas.svelte'),
+	() => import('#lib/components/PresentationsPage.svelte'),
+	() => import('#lib/components/presentation/PresentationEditorPage.svelte'),
+	() => import('#lib/components/presentation/PresentationCanvas.svelte'),
 	...EXPORT_BUILDER_LOADERS
 ] as const;
 

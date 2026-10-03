@@ -1,5 +1,5 @@
 <script>
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	/**
 	 * The account control: a header button, the sign-in workspace dialog, the
 	 * guest-import consent and the cloud status (ported from the source `Account.tsx`).
@@ -11,10 +11,10 @@
 	import { ChevronDown } from 'lucide-svelte';
 	import Modal from './Modal.svelte';
 	import { page } from '$app/state';
-	import { shellHref } from '$lib/app/navigation';
-	import { getAuthClient, safeReturnPath } from '$lib/cloud/config';
-	import { getCloudWorkspace } from '$lib/cloud/workspace.svelte';
-	import { getLocalRepository } from '$lib/persistence/repository';
+	import { shellHref } from '#lib/app/navigation.js';
+	import { getAuthClient, safeReturnPath } from '#lib/cloud/config.js';
+	import { getCloudWorkspace } from '#lib/cloud/workspace.svelte.js';
+	import { getLocalRepository } from '#lib/persistence/repository.js';
 
 	let { header = false } = $props();
 	const workspace = getCloudWorkspace();

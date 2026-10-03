@@ -1,5 +1,5 @@
 <script>
-	import { button } from '$lib/ui/styles.js';
+	import { button } from '#lib/ui/styles.js';
 	import { asset } from '$app/paths';
 	/**
 	 * Bottom asset tray: uploads, sticker catalog with search, and text presets.
@@ -7,10 +7,10 @@
 	 * artwork come from the source unchanged.
 	 */
 	import { Search, Upload } from 'lucide-svelte';
-	import { STICKER_CATALOG, TEXT_PRESETS } from '$lib/editor/catalog';
-	import { cssFontFamily } from '$lib/fonts';
-	/** @typedef {import('$lib/editor/editorState.svelte').EditorState} EditorState */
-	/** @typedef {import('$lib/editor/editorState.svelte').TextStyle} TextStyle */
+	import { STICKER_CATALOG, TEXT_PRESETS } from '#lib/editor/catalog.js';
+	import { cssFontFamily } from '#lib/fonts.js';
+	/** @typedef {import('#lib/editor/editorState.svelte.js').EditorState} EditorState */
+	/** @typedef {import('#lib/editor/editorState.svelte.js').TextStyle} TextStyle */
 
 	/**
 	 * @type {{
@@ -37,8 +37,8 @@
 
 	/** @type {HTMLInputElement | undefined} */
 	let fileInput;
-	let query = $state('');
 
+	let query = $state('');
 	let imageLayers = $derived(
 		(editor.document?.layers ?? []).filter((layer) => layer.kind === 'image')
 	);
@@ -124,9 +124,9 @@
 				disabled={adding === '/samples/cat-in-console.png'}
 				onclick={() => onaddsample('/samples/cat-in-console.png', 'Cat in console')}
 			>
-				<img alt="" src={asset('/samples/cat-in-console.png')} loading="lazy" /><span
-					>Cat in console</span
-				>
+				<img alt="" src={asset('samples/cat-in-console.png')} loading="lazy" />
+
+				<span>Cat in console</span>
 			</button>
 			<button
 				type="button"
@@ -135,9 +135,9 @@
 				disabled={adding === '/samples/solenodon.png'}
 				onclick={() => onaddsample('/samples/solenodon.png', 'Cuban solenodon')}
 			>
-				<img alt="" src={asset('/samples/solenodon.png')} loading="lazy" /><span
-					>Cuban solenodon</span
-				>
+				<img alt="" src={asset('samples/solenodon.png')} loading="lazy" />
+
+				<span>Cuban solenodon</span>
 			</button>
 		</div>
 	{:else if tab === 'stickers'}

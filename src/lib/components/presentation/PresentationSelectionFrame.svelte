@@ -1,5 +1,5 @@
 <script>
-	import { transformFrameInView } from '$lib/presentations/editor/transformGeometry';
+	import { transformFrameInView } from '#lib/presentations/editor/transformGeometry.js';
 
 	/**
 	 * The selected element's frame and manipulation handles. They are plain DOM
@@ -8,12 +8,12 @@
 	 * Nothing here reads or writes the document.
 	 *
 	 * @type {{
-	 *   geometry: import('$lib/presentations/editor/transformGeometry').TransformGeometry,
-	 *   viewport: import('$lib/presentations/editor/viewGeometry').PresentationViewport,
+	 *   geometry: import('#lib/presentations/editor/transformGeometry.js').TransformGeometry,
+	 *   viewport: import('#lib/presentations/editor/viewGeometry.js').PresentationViewport,
 	 *   locked: boolean,
 	 *   ongesturestart: (
 	 *     kind: 'resize' | 'rotate',
-	 *     handle: import('$lib/presentations/editor/transformGeometry').ResizeHandle | null,
+	 *     handle: import('#lib/presentations/editor/transformGeometry.js').ResizeHandle | null,
 	 *     event: PointerEvent
 	 *   ) => void
 	 * }}

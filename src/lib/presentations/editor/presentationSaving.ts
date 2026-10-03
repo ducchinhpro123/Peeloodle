@@ -21,7 +21,7 @@
  * already stores it (a content-addressed asset inserted or restored before).
  */
 
-import { isPersistenceError } from '$lib/persistence/repository';
+import { isPersistenceError } from '#lib/persistence/repository.js';
 import type { PresentationMediaRecord, PresentationRepository } from '../persistence/repository';
 import { clonePresentationDocumentWithNewIds } from '../model/factories';
 import { PRESENTATION_LIMITS } from '../model/limits';

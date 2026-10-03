@@ -12,9 +12,9 @@
  * or mislabelled object is refused instead of becoming an unreadable layer.
  */
 
-import { blobToArrayBuffer } from '$lib/blob';
-import { sha256Hex } from '$lib/hash';
-import { UploadValidationError, validateUpload } from '$lib/assets/validateUpload';
+import { blobToArrayBuffer } from '#lib/blob.js';
+import { sha256Hex } from '#lib/hash.js';
+import { UploadValidationError, validateUpload } from '#lib/assets/validateUpload.js';
 import type { PresentationMediaRecord } from '../persistence/repository';
 import type { PresentationAsset } from '../model/types';
 import type { PreparedPresentationImage } from './insertImageAsset';

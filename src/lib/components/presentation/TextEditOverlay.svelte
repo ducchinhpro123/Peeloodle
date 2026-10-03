@@ -1,7 +1,7 @@
 <script>
 	import { untrack } from 'svelte';
-	import { fontStackFor } from '$lib/presentations/rendering/fonts';
-	import { safeLink } from '$lib/presentations/model/links';
+	import { fontStackFor } from '#lib/presentations/rendering/fonts.js';
+	import { safeLink } from '#lib/presentations/model/links.js';
 	import {
 		BRIDGE_ATTR,
 		htmlToParagraphs,
@@ -9,7 +9,7 @@
 		paragraphsToPlainText,
 		plainTextToParagraphs,
 		readParagraphsFromDom
-	} from '$lib/presentations/editor/textBridge';
+	} from '#lib/presentations/editor/textBridge.js';
 	import {
 		applyParagraphStyleToSelection,
 		applyRunStyleToSelection,
@@ -20,11 +20,11 @@
 		placeCaretAtParagraphOffset,
 		readParagraphStyle,
 		readSelectionStyle
-	} from '$lib/presentations/editor/textFormat';
+	} from '#lib/presentations/editor/textFormat.js';
 	import {
 		bridgeDefaultsFor,
 		textHistoryGroup
-	} from '$lib/presentations/editor/textEditSession.svelte';
+	} from '#lib/presentations/editor/textEditSession.svelte.js';
 
 	/**
 	 * DOM editor for one text element (P17). The paragraph/run model stays
@@ -34,13 +34,13 @@
 	 * zooming never re-seeds the field or moves the caret.
 	 *
 	 * @type {{
-	 *   element: import('$lib/presentations/model/types').TextElement,
+	 *   element: import('#lib/presentations/model/types.js').TextElement,
 	 *   scale: number,
 	 *   offsetX: number,
 	 *   offsetY: number,
-	 *   theme: import('$lib/presentations/model/types').Theme,
-	 *   session: import('$lib/presentations/editor/textEditSession.svelte').TextEditSession,
-	 *   store: import('$lib/presentations/editor/store.svelte').PresentationStore
+	 *   theme: import('#lib/presentations/model/types.js').Theme,
+	 *   session: import('#lib/presentations/editor/textEditSession.svelte.js').TextEditSession,
+	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore
 	 * }}
 	 */
 	let { element, scale, offsetX, offsetY, theme, session, store } = $props();

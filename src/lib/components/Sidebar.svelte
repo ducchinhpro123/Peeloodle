@@ -1,7 +1,7 @@
 <script>
 	import { asset } from '$app/paths';
 	import { ChevronRight, Scissors, Sparkles, Type, Upload } from 'lucide-svelte';
-	import { shellHref, sidebarNavigation } from '$lib/app/navigation';
+	import { shellHref, sidebarNavigation } from '#lib/app/navigation.js';
 	import {
 		appLocalPathname,
 		isUnmodifiedPrimaryClick,
@@ -9,7 +9,7 @@
 		requestToolIntent,
 		shouldReuseCurrentToolRoute,
 		toolIntentHref
-	} from '$lib/editor/toolIntent';
+	} from '#lib/editor/toolIntent.js';
 
 	/** @type {{ pathname?: string, search?: string, mobile?: boolean, onnavigate?: () => void }} */
 	let { pathname = '/', search = '', mobile = false, onnavigate = undefined } = $props();
@@ -31,7 +31,9 @@
 
 	let currentIntent = $derived(parseToolIntent(new URLSearchParams(search).get('tool')));
 
-	function followIntent(/** @type {import('$lib/editor/toolIntent').ToolIntent} */ intent) {
+	function followIntent(
+		/** @type {import('#lib/editor/toolIntent.js').ToolIntent} */ (intent)
+	) {
 		onnavigate?.();
 		if (!shouldReuseCurrentToolRoute(appPathname, search, intent)) return;
 		requestToolIntent(intent);
@@ -85,7 +87,8 @@
 	</div>
 	{#if !mobile}
 		<section class="card studio-note">
-			<img src={asset('/art/stickers/04-winking-smiley.webp')} alt="" width="64" height="64" />
+			<img src={asset('art/stickers/04-winking-smiley.webp')} alt="" width="64" height="64" />
+
 			<b>Good ideas stick.</b>
 			<p>Create. Customize.<br />Share. Repeat.</p>
 			<a href={shellHref('/create')}>Make something fun <ChevronRight size={14} /></a>

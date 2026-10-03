@@ -9,7 +9,7 @@
  * `duplicatePresentation`/`deletePresentation`.
  */
 
-import { isPersistenceError } from '$lib/persistence/document';
+import { isPersistenceError } from '#lib/persistence/document.js';
 import type { PresentationDocument } from '../model/types';
 
 export const RENAME_EMPTY_TITLE_MESSAGE = 'Enter a name for this presentation before saving.';

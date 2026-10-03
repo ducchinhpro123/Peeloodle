@@ -15,13 +15,13 @@
  * rather than switching to a repository that cannot see it.
  */
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { goto } from '$app/navigation';
 import { createContext } from 'svelte';
 import type { Session } from '@supabase/supabase-js';
 import { getAuthClient, readCloudConfig } from './config';
-import { getLocalRepository, type StickerLabRepository } from '$lib/persistence/repository';
-import type { CloudRepository, CloudStatus } from '$lib/persistence/cloud';
+import { getLocalRepository, type StickerLabRepository } from '#lib/persistence/repository.js';
+import type { CloudRepository, CloudStatus } from '#lib/persistence/cloud.js';
 import type { Database } from './database';
 
 /** Pages with no cloud use the same shape, so consumers need no branch. */
@@ -113,8 +113,8 @@ export class CloudWorkspace {
 						let cloud: CloudRepository | null = null;
 						if (session && config) {
 							const [{ CloudRepository }, { SupabaseRemote }, supabase] = await Promise.all([
-								import('$lib/persistence/cloud'),
-								import('$lib/persistence/cloudRemote'),
+								import('#lib/persistence/cloud.js'),
+								import('#lib/persistence/cloudRemote.js'),
 								import('@supabase/supabase-js')
 							]);
 							if (!live || request !== this.#sequence) return;

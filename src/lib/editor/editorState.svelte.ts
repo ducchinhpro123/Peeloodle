@@ -12,8 +12,8 @@
  * context, so a draft survives navigation between `/create` and the editor.
  */
 
-import { createProjectDocument } from '$lib/persistence/repository';
-import type { AssetRecord, MaskRecord } from '$lib/persistence/repository';
+import { createProjectDocument } from '#lib/persistence/repository.js';
+import type { AssetRecord, MaskRecord } from '#lib/persistence/repository.js';
 import type {
 	ImageFilters,
 	Layer,
@@ -21,8 +21,8 @@ import type {
 	ProjectDocument,
 	TextLayer,
 	Transform
-} from '$lib/domain/domain';
-import { fitImageToArtboard } from '$lib/assets/assetLoader';
+} from '#lib/domain/domain.js';
+import { fitImageToArtboard } from '#lib/assets/assetLoader.js';
 import type { MaskStroke } from './maskStroke';
 import {
 	assetsFor,

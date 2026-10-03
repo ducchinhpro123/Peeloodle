@@ -18,7 +18,7 @@
  * inline, which is a different policy and stays with the backup module.
  */
 
-import { decodeImageBitmap } from '$lib/imageDecode';
+import { decodeImageBitmap } from '#lib/imageDecode.js';
 import type { PresentationImageSource, PresentationImageSources } from './renderSlide';
 
 /** The bytes of one image, structurally compatible with `PresentationMediaRecord`. */

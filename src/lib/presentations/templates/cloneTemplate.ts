@@ -8,7 +8,7 @@
  * two clones (and the source) share no mutable state.
  */
 
-import type { CatalogRepository } from '$lib/catalog/repository';
+import type { CatalogRepository } from '#lib/catalog/repository.js';
 import { DerivativeError, downloadCatalogDerivative } from './catalogDerivative';
 import { clonePresentationDocumentWithNewIds } from '../model/factories';
 import { parsePresentationDocument } from '../model/parse';

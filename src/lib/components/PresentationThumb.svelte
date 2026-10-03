@@ -3,13 +3,13 @@
 		acquirePresentationThumbnail,
 		presentationThumbnailKey,
 		releasePresentationThumbnail
-	} from '$lib/presentations/library/presentationThumbnails';
+	} from '#lib/presentations/library/presentationThumbnails.js';
 
 	/** @type {{
-	 *   repository: import('$lib/presentations/persistence/repository').PresentationRepository,
+	 *   repository: import('#lib/presentations/persistence/repository.js').PresentationRepository,
 	 *   documentId: string,
 	 *   revision: number,
-	 *   source?: import('$lib/presentations/library/presentationThumbnails').PresentationThumbnailSource
+	 *   source?: import('#lib/presentations/library/presentationThumbnails.js').PresentationThumbnailSource
 	 * }} */
 	let { repository, documentId, revision, source = undefined } = $props();
 

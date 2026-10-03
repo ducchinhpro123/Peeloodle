@@ -1,7 +1,7 @@
 <script>
 	import { resolve } from '$app/paths';
-	import AdminTemplateDetailPage from '$lib/components/catalog/AdminTemplateDetailPage.svelte';
-	import { getCatalogRepository } from '$lib/catalog/client';
+	import AdminTemplateDetailPage from '#lib/components/catalog/AdminTemplateDetailPage.svelte';
+	import { getCatalogRepository } from '#lib/catalog/client.js';
 
 	/**
 	 * `/admin/templates/<id>` — one template's metadata and immutable version
@@ -10,7 +10,7 @@
 	/** @type {import('./$types').PageProps} */
 	let { params } = $props();
 
-	/** @type {import('$lib/catalog/repository').CatalogAdminRepository | null} */
+	/** @type {import('#lib/catalog/repository.js').CatalogAdminRepository | null} */
 	let repository = $state.raw(null);
 	/** @type {string | null} */
 	let error = $state(null);
@@ -32,7 +32,7 @@
 		};
 	});
 
-	const listHref = resolve('/admin/templates');
+	const listHref = resolve('admin/templates');
 	const editHref = $derived(`${listHref}/${encodeURIComponent(params.templateId)}/edit`);
 </script>
 

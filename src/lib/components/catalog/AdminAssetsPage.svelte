@@ -1,8 +1,8 @@
 <script>
 	import { Archive, Search, Send, ImageOff } from 'lucide-svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
-	import { isCatalogError } from '$lib/catalog/repository';
+	import Modal from '#lib/components/Modal.svelte';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
+	import { isCatalogError } from '#lib/catalog/repository.js';
 
 	/**
 	 * Asset grid and inspector (P59) with publication and archiving (P60).
@@ -13,13 +13,13 @@
 	 * failing silently. Previews are signed URLs for the stored derivative, so a
 	 * draft preview never leaves the private bucket.
 	 *
-	 * @type {{ repository: import('$lib/catalog/repository').CatalogAdminRepository }}
+	 * @type {{ repository: import('#lib/catalog/repository.js').CatalogAdminRepository }}
 	 */
 	let { repository } = $props();
 
 	const PAGE_SIZE = 12;
 
-	/** @type {import('$lib/catalog/types').CatalogAsset[]} */
+	/** @type {import('#lib/catalog/types.js').CatalogAsset[]} */
 	let rows = $state.raw([]);
 	/** @type {string | null} */
 	let nextCursor = $state.raw(null);
@@ -37,10 +37,10 @@
 	/** @type {string | null} */
 	let error = $state(null);
 
-	/** @type {import('$lib/catalog/types').CatalogCollection[]} */
+	/** @type {import('#lib/catalog/types.js').CatalogCollection[]} */
 	let collections = $state.raw([]);
 
-	/** @type {import('$lib/catalog/types').CatalogAsset | null} */
+	/** @type {import('#lib/catalog/types.js').CatalogAsset | null} */
 	let selected = $state.raw(null);
 	/**
 	 * The revision a save or publish is expected to replace. It follows the
@@ -48,7 +48,7 @@
 	 * second save really does replace the other edit instead of conflicting again.
 	 */
 	let expectedRevision = $state(0);
-	/** @type {import('$lib/catalog/types').CatalogAssetVersion | null} */
+	/** @type {import('#lib/catalog/types.js').CatalogAssetVersion | null} */
 	let version = $state.raw(null);
 	/** @type {string | null} */
 	let previewUrl = $state.raw(null);
@@ -57,10 +57,10 @@
 	let saving = $state(false);
 	/** @type {string | null} */
 	let formError = $state(null);
-	/** @type {import('$lib/catalog/types').CatalogAsset | null} */
+	/** @type {import('#lib/catalog/types.js').CatalogAsset | null} */
 	let conflict = $state.raw(null);
 	let publishing = $state(false);
-	/** @type {import('$lib/catalog/types').CatalogAsset | null} */
+	/** @type {import('#lib/catalog/types.js').CatalogAsset | null} */
 	let archiveTarget = $state.raw(null);
 	let archiveBusy = $state(false);
 	/** @type {string | null} */
@@ -77,7 +77,7 @@
 		return 'The request failed. Please retry.';
 	}
 
-	/** @param {import('$lib/catalog/repository').CatalogRefusal} reason */
+	/** @param {import('#lib/catalog/repository.js').CatalogRefusal} reason */
 	function refusalText(reason) {
 		if (reason === 'not_found') return 'This asset no longer exists.';
 		if (reason === 'archived') return 'This asset is archived and cannot be changed.';
@@ -147,7 +147,7 @@
 		};
 	});
 
-	/** @param {import('$lib/catalog/types').CatalogAsset} asset */
+	/** @param {import('#lib/catalog/types.js').CatalogAsset} asset */
 	async function inspect(asset) {
 		selected = asset;
 		expectedRevision = asset.revision;

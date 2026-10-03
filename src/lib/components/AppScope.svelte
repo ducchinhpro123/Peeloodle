@@ -7,14 +7,14 @@
 	 * Mirrors the source provider's `<div key={epoch}>{children}</div>` remount.
 	 */
 	import { untrack } from 'svelte';
-	import { setAppContext } from '$lib/app/context';
-	import { getCloudWorkspace } from '$lib/cloud/workspace.svelte';
+	import { setAppContext } from '#lib/app/context.js';
+	import { getCloudWorkspace } from '#lib/cloud/workspace.svelte.js';
 
 	/** @type {{
-	 *   editor: import('$lib/editor/editorState.svelte').EditorState,
-	 *   saving: import('$lib/editor/draftSaving').DraftSaving,
-	 *   presentationRepository: import('$lib/presentations/persistence/repository').PresentationRepository,
-	 *   presentationStore: import('$lib/presentations/editor/store.svelte').PresentationStore,
+	 *   editor: import('#lib/editor/editorState.svelte.js').EditorState,
+	 *   saving: import('#lib/editor/draftSaving.js').DraftSaving,
+	 *   presentationRepository: import('#lib/presentations/persistence/repository.js').PresentationRepository,
+	 *   presentationStore: import('#lib/presentations/editor/store.svelte.js').PresentationStore,
 	 *   children: import('svelte').Snippet,
 	 * }} */
 	let { editor, saving, presentationRepository, presentationStore, children } = $props();

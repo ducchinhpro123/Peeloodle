@@ -1,7 +1,7 @@
 <script>
 	import { Search, Presentation } from 'lucide-svelte';
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
-	import { isCatalogError } from '$lib/catalog/repository';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
+	import { isCatalogError } from '#lib/catalog/repository.js';
 
 	/**
 	 * Admin template list (P66): paged search plus use-case and status filters,
@@ -9,7 +9,7 @@
 	 * draft editing and (P68) the lifecycle; this screen only points there.
 	 *
 	 * @type {{
-	 *   repository: import('$lib/catalog/repository').CatalogAdminRepository,
+	 *   repository: import('#lib/catalog/repository.js').CatalogAdminRepository,
 	 *   detailHref: (id: string) => string,
 	 *   presentationsHref: string
 	 * }}
@@ -20,7 +20,7 @@
 	const USE_CASES = ['class', 'research-defense', 'club-pitch'];
 	const STATES = ['draft', 'published', 'archived'];
 
-	/** @type {import('$lib/catalog/types').CatalogTemplate[]} */
+	/** @type {import('#lib/catalog/types.js').CatalogTemplate[]} */
 	let rows = $state.raw([]);
 	/** @type {string | null} */
 	let nextCursor = $state.raw(null);

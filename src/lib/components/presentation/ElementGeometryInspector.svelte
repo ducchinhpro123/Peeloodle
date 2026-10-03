@@ -1,7 +1,7 @@
 <script>
-	import { button } from '$lib/ui/styles.js';
-	import { alignToSlide } from '$lib/presentations/editor/alignmentGuides';
-	import { elementGeometry, withRotation } from '$lib/presentations/editor/transformGeometry';
+	import { button } from '#lib/ui/styles.js';
+	import { alignToSlide } from '#lib/presentations/editor/alignmentGuides.js';
+	import { elementGeometry, withRotation } from '#lib/presentations/editor/transformGeometry.js';
 	import GeometryField from './GeometryField.svelte';
 	import TextOverflowNotice from './TextOverflowNotice.svelte';
 	import ShapeStyleInspector from './ShapeStyleInspector.svelte';
@@ -15,8 +15,8 @@
 	 * would refuse them.
 	 *
 	 * @type {{
-	 *   element: import('$lib/presentations/model/types').Element,
-	 *   store: import('$lib/presentations/editor/store.svelte').PresentationStore,
+	 *   element: import('#lib/presentations/model/types.js').Element,
+	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore,
 	 *   onreplaceimage?: (elementId: string) => void
 	 * }}
 	 */
@@ -30,7 +30,7 @@
 		{ key: 'height', label: 'Height', step: 1 },
 		{ key: 'rotation', label: 'Rotation', step: 0.1 }
 	];
-	/** @type {Array<{ key: import('$lib/presentations/editor/alignmentGuides').SlideAlignment, label: string }>} */
+	/** @type {Array<{ key: import('#lib/presentations/editor/alignmentGuides.js').SlideAlignment, label: string }>} */
 	const ALIGN_ACTIONS = [
 		{ key: 'left', label: 'Left' },
 		{ key: 'center-horizontal', label: 'Center' },
@@ -56,7 +56,7 @@
 			);
 	}
 
-	/** @param {import('$lib/presentations/editor/alignmentGuides').SlideAlignment} alignment */
+	/** @param {import('#lib/presentations/editor/alignmentGuides.js').SlideAlignment} alignment */
 	function align(alignment) {
 		if (!pageSize) return;
 		const state = store.getState();

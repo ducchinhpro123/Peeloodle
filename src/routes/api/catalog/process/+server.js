@@ -13,10 +13,10 @@
  * dashboard says so instead of pretending a file was validated.
  */
 import { error, json } from '@sveltejs/kit';
-import { parseCloudConfig } from '$lib/cloud/config';
-import { SupabaseCatalog } from '$lib/catalog/remote';
-import { runProcessingJob } from '$lib/catalog/processing/runJob';
-import { processAssetBytes } from '$lib/catalog/processing/index';
+import { parseCloudConfig } from '#lib/cloud/config.js';
+import { SupabaseCatalog } from '#lib/catalog/remote.js';
+import { runProcessingJob } from '#lib/catalog/processing/runJob.js';
+import { processAssetBytes } from '#lib/catalog/processing/index.js';
 
 const MAX_REQUEST_BYTES = 64 * 1024;
 

@@ -19,10 +19,10 @@
  * the newer version.
  */
 
-import { sha256Hex } from '$lib/hash';
-import { PersistenceError, isPersistenceError } from '$lib/persistence/repository';
-import type { CatalogAdminRepository } from '$lib/catalog/repository';
-import type { CatalogTemplate, CatalogTemplateVersion } from '$lib/catalog/types';
+import { sha256Hex } from '#lib/hash.js';
+import { PersistenceError, isPersistenceError } from '#lib/persistence/repository.js';
+import type { CatalogAdminRepository } from '#lib/catalog/repository.js';
+import type { CatalogTemplate, CatalogTemplateVersion } from '#lib/catalog/types.js';
 import { parsePresentationDocument, presentationDocumentToJson } from '../model/parse';
 import type { PresentationAsset, PresentationDocument } from '../model/types';
 import type {

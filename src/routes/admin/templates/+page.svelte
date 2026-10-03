@@ -1,14 +1,14 @@
 <script>
 	import { resolve } from '$app/paths';
-	import AdminTemplatesPage from '$lib/components/catalog/AdminTemplatesPage.svelte';
-	import { getCatalogRepository } from '$lib/catalog/client';
+	import AdminTemplatesPage from '#lib/components/catalog/AdminTemplatesPage.svelte';
+	import { getCatalogRepository } from '#lib/catalog/client.js';
 
 	/**
 	 * `/admin/templates` — the template administration list (P66). The gate in the
 	 * admin layout has already confirmed membership; this route supplies the
 	 * repository and the base-aware detail link.
 	 */
-	/** @type {import('$lib/catalog/repository').CatalogAdminRepository | null} */
+	/** @type {import('#lib/catalog/repository.js').CatalogAdminRepository | null} */
 	let repository = $state.raw(null);
 	/** @type {string | null} */
 	let error = $state(null);
@@ -32,7 +32,7 @@
 
 	/** @param {string} id */
 	function detailHref(id) {
-		return `${resolve('/admin/templates')}/${encodeURIComponent(id)}`;
+		return `${resolve('admin/templates')}/${encodeURIComponent(id)}`;
 	}
 </script>
 
@@ -41,7 +41,7 @@
 {#if error}
 	<p role="alert">{error}</p>
 {:else if repository}
-	<AdminTemplatesPage {repository} {detailHref} presentationsHref={resolve('/presentations')} />
+	<AdminTemplatesPage {repository} {detailHref} presentationsHref={resolve('presentations')} />
 {:else}
 	<p role="status">Loading templates…</p>
 {/if}

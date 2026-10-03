@@ -1,5 +1,5 @@
 <script>
-	import { button, buttonIcon } from '$lib/ui/styles.js';
+	import { button, buttonIcon } from '#lib/ui/styles.js';
 	import { FlipHorizontal2, FlipVertical2, RefreshCw } from 'lucide-svelte';
 
 	/**
@@ -10,8 +10,8 @@
 	 * crop changes are grouped under one history entry per editing session.
 	 *
 	 * @type {{
-	 *   element: import('$lib/presentations/model/types').ImageElement,
-	 *   store: import('$lib/presentations/editor/store.svelte').PresentationStore,
+	 *   element: import('#lib/presentations/model/types.js').ImageElement,
+	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore,
 	 *   onreplace?: (elementId: string) => void
 	 * }}
 	 */
@@ -21,7 +21,7 @@
 	/** @param {number} value */
 	const asPercent = (value) => Math.round(value * 1000) / 10;
 
-	/** @param {Partial<import('$lib/presentations/model/types').ImageElement>} update */
+	/** @param {Partial<import('#lib/presentations/model/types.js').ImageElement>} update */
 	function patch(update) {
 		store
 			.getState()

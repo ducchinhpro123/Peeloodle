@@ -1,6 +1,6 @@
 <script>
-	import { button } from '$lib/ui/styles.js';
-	import Modal from '$lib/components/Modal.svelte';
+	import { button } from '#lib/ui/styles.js';
+	import Modal from '#lib/components/Modal.svelte';
 
 	/**
 	 * Saved-sticker picker for the presentation editor (P33). Lists the real local
@@ -8,7 +8,7 @@
 	 * empty or unreadable library says so instead of rendering dead controls.
 	 *
 	 * @type {{
-	 *   repository: import('$lib/persistence/repository').StickerLabRepository,
+	 *   repository: import('#lib/persistence/repository.js').StickerLabRepository,
 	 *   disabled?: boolean,
 	 *   onpick: (projectId: string) => void
 	 * }}
@@ -16,7 +16,7 @@
 	let { repository, disabled = false, onpick } = $props();
 
 	let open = $state(false);
-	/** @type {import('$lib/domain/domain').ProjectDocument[] | null} */
+	/** @type {import('#lib/domain/domain.js').ProjectDocument[] | null} */
 	let projects = $state.raw(null);
 	let error = $state(false);
 	/** @type {HTMLButtonElement | null} */

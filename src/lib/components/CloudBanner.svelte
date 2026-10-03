@@ -1,12 +1,12 @@
 <script>
-	import { button } from '$lib/ui/styles.js';
+	import { button } from '#lib/ui/styles.js';
 	/**
 	 * The signed-in cloud status line (ported from the source `CloudBanner`).
 	 * Rendered inside the shell's main area; hidden entirely for guests, so a
 	 * local-only session never sees cloud chrome.
 	 */
-	import { shellHref } from '$lib/app/navigation';
-	import { getCloudWorkspace } from '$lib/cloud/workspace.svelte';
+	import { shellHref } from '#lib/app/navigation.js';
+	import { getCloudWorkspace } from '#lib/cloud/workspace.svelte.js';
 
 	const workspace = getCloudWorkspace();
 	const cloud = $derived(workspace.cloud);

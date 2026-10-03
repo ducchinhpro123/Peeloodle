@@ -8,7 +8,7 @@
 	 * fetched only when the image is inserted.
 	 *
 	 * @type {{
-	 *   repository: import('$lib/catalog/repository').CatalogRepository,
+	 *   repository: import('#lib/catalog/repository.js').CatalogRepository,
 	 *   path: string,
 	 *   alt: string
 	 * }}

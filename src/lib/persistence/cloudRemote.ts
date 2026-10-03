@@ -11,10 +11,10 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, Json } from '$lib/cloud/database';
-import { blobBytes } from '$lib/blob';
-import { sha256Hex } from '$lib/hash';
-import type { ProjectDocument } from '$lib/domain/domain';
+import type { Database, Json } from '#lib/cloud/database.js';
+import { blobBytes } from '#lib/blob.js';
+import { sha256Hex } from '#lib/hash.js';
+import type { ProjectDocument } from '#lib/domain/domain.js';
 import type { AssetRecord, MaskRecord } from './repository';
 import { parseAsset, parsePackRecord, parseProjectDocument } from './repository';
 import type {
@@ -25,7 +25,7 @@ import type {
 	ResourceKind,
 	SyncEntry
 } from './syncTypes';
-import { validateUpload } from '$lib/assets/validateUpload';
+import { validateUpload } from '#lib/assets/validateUpload.js';
 
 const BUCKET = 'stickerlab-private';
 

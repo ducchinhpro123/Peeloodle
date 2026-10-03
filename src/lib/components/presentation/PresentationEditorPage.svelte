@@ -1,5 +1,5 @@
 <script>
-	import { button, buttonIcon, buttonPrimary } from '$lib/ui/styles.js';
+	import { button, buttonIcon, buttonPrimary } from '#lib/ui/styles.js';
 	import {
 		ArrowLeft,
 		Copy,
@@ -17,29 +17,29 @@
 		Type,
 		Undo2
 	} from 'lucide-svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import { isPersistenceError } from '$lib/persistence/repository';
-	import { isPresentationParseError } from '$lib/presentations/model/parse';
-	import { createPresetText } from '$lib/presentations/editor/textPresets';
-	import { createBuiltinLayout } from '$lib/presentations/templates/builtinLayouts';
+	import Modal from '#lib/components/Modal.svelte';
+	import { isPersistenceError } from '#lib/persistence/repository.js';
+	import { isPresentationParseError } from '#lib/presentations/model/parse.js';
+	import { createPresetText } from '#lib/presentations/editor/textPresets.js';
+	import { createBuiltinLayout } from '#lib/presentations/templates/builtinLayouts.js';
 	import BuiltinLayoutDialog from './BuiltinLayoutDialog.svelte';
 	import SlideRailPreview from './SlideRailPreview.svelte';
-	import { ensurePresentationFonts } from '$lib/presentations/rendering/fonts';
-	import { createDecodedArtwork } from '$lib/presentations/rendering/decodedArtwork';
+	import { ensurePresentationFonts } from '#lib/presentations/rendering/fonts.js';
+	import { createDecodedArtwork } from '#lib/presentations/rendering/decodedArtwork.js';
 	import {
 		preparePresentationImage,
 		PrepareImageError
-	} from '$lib/presentations/editor/insertImageAsset';
-	import { prepareStickerSnapshot } from '$lib/presentations/editor/insertStickerSnapshot';
-	import { createSlideShape } from '$lib/presentations/editor/shapeTools';
-	import { createPresentationSaving } from '$lib/presentations/editor/presentationSaving';
-	import { createPresentationExport } from '$lib/presentations/editor/exportController';
+	} from '#lib/presentations/editor/insertImageAsset.js';
+	import { prepareStickerSnapshot } from '#lib/presentations/editor/insertStickerSnapshot.js';
+	import { createSlideShape } from '#lib/presentations/editor/shapeTools.js';
+	import { createPresentationSaving } from '#lib/presentations/editor/presentationSaving.js';
+	import { createPresentationExport } from '#lib/presentations/editor/exportController.js';
 	import {
 		backupDocumentFingerprint,
 		readBackupDownloadReceipt
-	} from '$lib/presentations/editor/backupReceipt';
-	import { usePresentationOfflineReadiness } from '$lib/presentations/presentationOffline.svelte';
-	import { createTextEditSession } from '$lib/presentations/editor/textEditSession.svelte';
+	} from '#lib/presentations/editor/backupReceipt.js';
+	import { usePresentationOfflineReadiness } from '#lib/presentations/presentationOffline.svelte.js';
+	import { createTextEditSession } from '#lib/presentations/editor/textEditSession.svelte.js';
 	import ElementLayerList from './ElementLayerList.svelte';
 	import ElementGeometryInspector from './ElementGeometryInspector.svelte';
 	import TextFormatToolbar from './TextFormatToolbar.svelte';
@@ -49,21 +49,21 @@
 	import {
 		prepareCatalogAsset,
 		CatalogInsertError
-	} from '$lib/presentations/editor/insertCatalogAsset';
+	} from '#lib/presentations/editor/insertCatalogAsset.js';
 	import ExportDialog from './ExportDialog.svelte';
 	import SaveAsTemplateDialog from './SaveAsTemplateDialog.svelte';
-	import { saveAsTemplateDraft } from '$lib/presentations/templates/saveAsTemplateDraft';
+	import { saveAsTemplateDraft } from '#lib/presentations/templates/saveAsTemplateDraft.js';
 	import {
 		describeTemplateSaveFailure,
 		TEMPLATE_SAVE_CONFLICT_MESSAGE
-	} from '$lib/presentations/templates/templateDraftRepository';
-	import { loadTemplateLayout } from '$lib/presentations/templates/templateLayout';
+	} from '#lib/presentations/templates/templateDraftRepository.js';
+	import { loadTemplateLayout } from '#lib/presentations/templates/templateLayout.js';
 	import InsertTemplateDialog from './InsertTemplateDialog.svelte';
 
 	/**
 	 * @typedef {(
 	 *   kind: 'move' | 'resize' | 'rotate',
-	 *   handle: import('$lib/presentations/editor/transformGeometry').ResizeHandle | null,
+	 *   handle: import('#lib/presentations/editor/transformGeometry.js').ResizeHandle | null,
 	 *   event: PointerEvent
 	 * ) => void} GestureStarter
 	 */
@@ -73,11 +73,11 @@
 
 	/** @type {{
 	 *   presentationId: string,
-	 *   repository: import('$lib/presentations/persistence/repository').PresentationRepository,
-	 *   stickerRepository?: import('$lib/persistence/repository').StickerLabRepository | null,
-	 *   catalogRepository?: import('$lib/catalog/repository').CatalogRepository | null,
-	 *   catalogAdminRepository?: import('$lib/catalog/repository').CatalogAdminRepository | null,
-	 *   store: import('$lib/presentations/editor/store.svelte').PresentationStore,
+	 *   repository: import('#lib/presentations/persistence/repository.js').PresentationRepository,
+	 *   stickerRepository?: import('#lib/persistence/repository.js').StickerLabRepository | null,
+	 *   catalogRepository?: import('#lib/catalog/repository.js').CatalogRepository | null,
+	 *   catalogAdminRepository?: import('#lib/catalog/repository.js').CatalogAdminRepository | null,
+	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore,
 	 *   backhref: string,
 	 *   onback: () => void | Promise<void>,
 	 *   mode?: 'local' | 'template',
@@ -150,7 +150,7 @@
 	});
 	let exportState = $state.raw(exportController.getState());
 	let backupReceipt = $state.raw(
-		/** @type {import('$lib/presentations/editor/backupReceipt').BackupDownloadReceipt | null} */ (
+		/** @type {import('#lib/presentations/editor/backupReceipt.js').BackupDownloadReceipt | null} */ (
 			null
 		)
 	);
@@ -168,7 +168,7 @@
 	/** @type {Error | null} */
 	let loadFailure = $state(null);
 	let attempt = $state(0);
-	/** @type {import('$lib/presentations/rendering/renderSlide').PresentationImageSources} */
+	/** @type {import('#lib/presentations/rendering/renderSlide.js').PresentationImageSources} */
 	let images = $state.raw(new Map());
 	/**
 	 * Konva's Node entry hard-requires the native `canvas` package, so the slide
@@ -178,7 +178,7 @@
 	 * @type {typeof import('./PresentationCanvas.svelte').default | null}
 	 */
 	let PresentationCanvas = $state(null);
-	/** @type {import('$lib/presentations/rendering/decodedArtwork').DecodedArtwork | null} */
+	/** @type {import('#lib/presentations/rendering/decodedArtwork.js').DecodedArtwork | null} */
 	let decodedArtwork = null;
 	/** @type {string | null} */
 	let insertError = $state(null);
@@ -196,7 +196,7 @@
 	let themeOpener = $state(null);
 	let propertiesOpen = $state(false);
 	let themeOpen = $state(false);
-	/** @type {{ documentId: string, slideId: string, element: import('$lib/presentations/model/types').Element, pastesBySlide: Record<string, number> } | null} */
+	/** @type {{ documentId: string, slideId: string, element: import('#lib/presentations/model/types.js').Element, pastesBySlide: Record<string, number> } | null} */
 	let copiedElement = $state.raw(null);
 	/** @type {string | null} */
 	let focusSlideId = $state(null);
@@ -346,7 +346,7 @@
 
 	/**
 	 * Decodes one document's artwork; the caller owns disposal of the result.
-	 * @param {import('$lib/presentations/model/types').PresentationDocument} loaded
+	 * @param {import('#lib/presentations/model/types.js').PresentationDocument} loaded
 	 */
 	async function decodeDocumentMedia(loaded) {
 		const media = await Promise.all(loaded.assets.map((asset) => repository.getMedia(asset.id)));
@@ -431,7 +431,7 @@
 		images = new Map(decoded.images);
 	}
 
-	/** @param {import('$lib/presentations/editor/textPresets').TextPreset} [preset] */
+	/** @param {import('#lib/presentations/editor/textPresets.js').TextPreset} [preset] */
 	function addTextBox(preset = 'body') {
 		const state = store.getState();
 		if (!state.document || !activeSlide) return;
@@ -444,7 +444,7 @@
 		else insertError = 'This slide cannot hold another text box. Remove an element first.';
 	}
 
-	/** @param {import('$lib/presentations/templates/builtinLayouts').BuiltinLayoutId} layoutId */
+	/** @param {import('#lib/presentations/templates/builtinLayouts.js').BuiltinLayoutId} layoutId */
 	function addBuiltinLayout(layoutId) {
 		textSession.flush();
 		store.getState().endTextEdit();
@@ -634,7 +634,7 @@
 		};
 	}
 
-	/** @param {import('$lib/presentations/editor/shapeTools').ShapeInsertKind} kind */
+	/** @param {import('#lib/presentations/editor/shapeTools.js').ShapeInsertKind} kind */
 	function addShape(kind) {
 		const state = store.getState();
 		if (!state.document || !kind) return;
@@ -650,8 +650,8 @@
 	 * bytes in one transaction, and only then does the editor show the artwork.
 	 * Shared by insertion and replacement so neither path can report success for
 	 * a half-written change.
-	 * @param {() => Promise<import('$lib/presentations/editor/insertImageAsset').PreparedPresentationImage>} prepare
-	 * @param {(prepared: import('$lib/presentations/editor/insertImageAsset').PreparedPresentationImage) => Promise<import('$lib/presentations/editor/presentationSaving').PersistInsertOutcome>} write
+	 * @param {() => Promise<import('#lib/presentations/editor/insertImageAsset.js').PreparedPresentationImage>} prepare
+	 * @param {(prepared: import('#lib/presentations/editor/insertImageAsset').PreparedPresentationImage) => Promise<import('$lib/presentations/editor/presentationSaving').PersistInsertOutcome>} write
 	 * @param {string} fallback
 	 */
 	async function runImageWrite(prepare, write, fallback) {
@@ -729,7 +729,7 @@
 	 * Copies a published catalog image: the bytes are downloaded and validated
 	 * *before* the document is written (P63), so a failed download leaves the deck
 	 * untouched and the stored copy no longer depends on the catalog.
-	 * @param {import('$lib/presentations/editor/insertCatalogAsset').CatalogInsertSource} source
+	 * @param {import('#lib/presentations/editor/insertCatalogAsset.js').CatalogInsertSource} source
 	 */
 	function addCatalogImage(source) {
 		return runImageWrite(
@@ -775,7 +775,7 @@
 	 * Captures one snapshot for the template draft: pending text is flushed first,
 	 * then the service runs against the flushed document. The local save path is
 	 * untouched — the local deck is a read-only source for the copy.
-	 * @param {{ metadata: import('$lib/catalog/repository').CatalogTemplateInput, collectionId: string | null }} input
+	 * @param {{ metadata: import('#lib/catalog/repository.js').CatalogTemplateInput, collectionId: string | null }} input
 	 */
 	async function saveAsTemplate(input) {
 		if (!catalogAdminRepository) return;
@@ -1044,7 +1044,7 @@
 						value=""
 						onchange={(event) => {
 							const kind =
-								/** @type {import('$lib/presentations/editor/shapeTools').ShapeInsertKind | ''} */ (
+								/** @type {import('#lib/presentations/editor/shapeTools').ShapeInsertKind | ''} */ (
 									event.currentTarget.value
 								);
 							event.currentTarget.value = '';

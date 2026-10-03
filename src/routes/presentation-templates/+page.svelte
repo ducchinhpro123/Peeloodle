@@ -2,10 +2,10 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import AppShell from '$lib/components/AppShell.svelte';
-	import PresentationTemplatesPage from '$lib/components/PresentationTemplatesPage.svelte';
-	import { getAppContext } from '$lib/app/context';
-	import { getCatalogRepository } from '$lib/catalog/client';
+	import AppShell from '#lib/components/AppShell.svelte';
+	import PresentationTemplatesPage from '#lib/components/PresentationTemplatesPage.svelte';
+	import { getAppContext } from '#lib/app/context.js';
+	import { getCatalogRepository } from '#lib/catalog/client.js';
 
 	/**
 	 * `/presentation-templates` — the public deck-template browser (P69/P70). The
@@ -13,7 +13,7 @@
 	 * that templates need the catalog and local presentation work is unaffected.
 	 */
 	const { presentationRepository } = getAppContext();
-	/** @type {import('$lib/catalog/remote').SupabaseCatalog | null} */
+	/** @type {import('#lib/catalog/remote.js').SupabaseCatalog | null} */
 	let catalogRepository = $state.raw(null);
 
 	$effect(() => {

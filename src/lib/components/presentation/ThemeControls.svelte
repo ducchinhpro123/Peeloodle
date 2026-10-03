@@ -1,5 +1,5 @@
 <script>
-	import { PRESENTATION_FONT_FAMILIES } from '$lib/presentations/rendering/fonts';
+	import { PRESENTATION_FONT_FAMILIES } from '#lib/presentations/rendering/fonts.js';
 
 	/**
 	 * Document theme controls (P32). The theme is the default for new slides and
@@ -7,8 +7,8 @@
 	 * exactly as they are. Each editing session groups into one undo entry.
 	 *
 	 * @type {{
-	 *   theme: import('$lib/presentations/model/types').Theme,
-	 *   onchange: (theme: import('$lib/presentations/model/types').Theme) => void,
+	 *   theme: import('#lib/presentations/model/types.js').Theme,
+	 *   onchange: (theme: import('#lib/presentations/model/types.js').Theme) => void,
 	 *   onendgroup: () => void
 	 * }}
 	 */
@@ -20,7 +20,7 @@
 		{ key: 'background', label: 'Background' }
 	];
 
-	/** @param {Partial<import('$lib/presentations/model/types').Theme> & { colors?: Record<string, string> }} patch */
+	/** @param {Partial<import('#lib/presentations/model/types.js').Theme> & { colors?: Record<string, string> }} patch */
 	function update(patch) {
 		onchange({
 			...theme,

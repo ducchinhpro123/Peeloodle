@@ -1,5 +1,5 @@
 <script>
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	import { asset } from '$app/paths';
 	/**
 	 * The editor route's chrome, ported from the source `EditorPage.tsx`
@@ -40,19 +40,19 @@
 	import AssetTray from './AssetTray.svelte';
 	import ExportDialog from './ExportDialog.svelte';
 	import Modal from './Modal.svelte';
-	import { getAppContext } from '$lib/app/context';
+	import { getAppContext } from '#lib/app/context.js';
 	import {
 		AssetObjectUrlCache,
 		ingestBundledImage,
 		ingestImageFile
-	} from '$lib/assets/assetLoader';
-	import { UploadValidationError } from '$lib/assets/validateUpload';
-	import { isPersistenceError, loadProjectBundle } from '$lib/persistence/repository';
-	import { getCloudWorkspace } from '$lib/cloud/workspace.svelte';
-	import { saveStatusLabel } from '$lib/editor/editorState.svelte';
-	import { applyToolIntent, subscribeToolIntent, toolEmptyCopy } from '$lib/editor/toolIntent';
-	/** @typedef {import('$lib/persistence/repository').AssetRecord} AssetRecord */
-	/** @typedef {import('$lib/editor/toolIntent').ToolIntent} ToolIntent */
+	} from '#lib/assets/assetLoader.js';
+	import { UploadValidationError } from '#lib/assets/validateUpload.js';
+	import { isPersistenceError, loadProjectBundle } from '#lib/persistence/repository.js';
+	import { getCloudWorkspace } from '#lib/cloud/workspace.svelte.js';
+	import { saveStatusLabel } from '#lib/editor/editorState.svelte.js';
+	import { applyToolIntent, subscribeToolIntent, toolEmptyCopy } from '#lib/editor/toolIntent.js';
+	/** @typedef {import('#lib/persistence/repository.js').AssetRecord} AssetRecord */
+	/** @typedef {import('#lib/editor/toolIntent.js').ToolIntent} ToolIntent */
 
 	/**
 	 * @type {{
@@ -212,12 +212,12 @@
 	$effect(() => {
 		const activeIntent = intent;
 		void doc?.id;
-		/** @type {import('$lib/editor/toolIntent').ToolIntentUi} */
+		/** @type {import('#lib/editor/toolIntent.js').ToolIntentUi} */
 		const ui = {
-			setInspectorTab: (/** @type {string} */ tab) => (inspectorTab = tab),
-			setAssetTab: (/** @type {string} */ tab) => (assetTab = tab),
-			setExportOpen: (/** @type {boolean} */ open) => (exportOpen = open),
-			setRailFocus: (/** @type {any} */ focus) => (railFocus = focus)
+			setInspectorTab: (/** @type {string} */ (tab)) => inspectorTab = tab,
+			setAssetTab: (/** @type {string} */ (tab)) => assetTab = tab,
+			setExportOpen: (/** @type {boolean} */ (open)) => exportOpen = open,
+			setRailFocus: (/** @type {any} */ (focus)) => railFocus = focus
 		};
 		applyToolIntent(activeIntent, ui, editor);
 		const unsubscribe = subscribeToolIntent((requested) => applyToolIntent(requested, ui, editor));
@@ -225,7 +225,7 @@
 	});
 
 	$effect(() => {
-		const sync = () => (canvasFullscreen = globalThis.document.fullscreenElement === stage);
+		const sync = () => canvasFullscreen = globalThis.document.fullscreenElement === stage;
 		globalThis.document.addEventListener('fullscreenchange', sync);
 		return () => globalThis.document.removeEventListener('fullscreenchange', sync);
 	});
@@ -238,13 +238,13 @@
 	const workspace = getCloudWorkspace();
 	let saveLabel = $derived(
 		maskBusy && editor.saveStatus !== 'save-failed'
-			? 'Mask edit pending'
-			: workspace.cloud && !editor.dirty && editor.saveStatus === 'saved-locally'
-				? workspace.cloudStatus.state === 'synced'
-					? 'Saved to cloud'
-					: workspace.cloudStatus.state === 'syncing'
-						? 'Saved locally · syncing'
-						: 'Saved locally · cloud pending'
+		? 'Mask edit pending'
+		: workspace.cloud && !editor.dirty && editor.saveStatus === 'saved-locally'
+			? workspace.cloudStatus.state === 'synced'
+				? 'Saved to cloud'
+				: workspace.cloudStatus.state === 'syncing'
+					? 'Saved locally · syncing'
+					: 'Saved locally · cloud pending'
 				: saveStatusLabel(editor.saveStatus, editor.dirty)
 	);
 
@@ -283,9 +283,7 @@
 			return;
 		}
 		replacing = true;
-		void ingestIntoCurrentProject(() => ingestImageFile(file), undefined, layerId).finally(
-			() => (replacing = false)
-		);
+		void ingestIntoCurrentProject(() => ingestImageFile(file), undefined, layerId).finally(() => replacing = false);
 	}
 
 	/**
@@ -337,10 +335,8 @@
 
 	function openExport() {
 		if (globalThis.document.fullscreenElement === stage) {
-			void globalThis.document.exitFullscreen().then(
-				() => (exportOpen = true),
-				() => (exportOpen = true)
-			);
+			void globalThis.document.exitFullscreen().then(() => exportOpen = true, () => exportOpen = true);
+
 			return;
 		}
 		exportOpen = true;
@@ -419,7 +415,7 @@
 	<section class="empty [margin-top:20px] [min-height:250px]" style="margin-top: 24px">
 		<h1>Sticker not found</h1>
 		<p>{editor.loadError}</p>
-		<a class={buttonPrimary} href={resolve('/create')}>Create a sticker</a>
+		<a class={buttonPrimary} href={resolve('create')}>Create a sticker</a>
 	</section>
 {:else if !doc || editor.loading || (projectId && doc.id !== projectId)}
 	<p class="muted" style="padding: 24px">Opening sticker…</p>
@@ -479,7 +475,8 @@
 					class="tool-mascot [display:grid] [grid-template-columns:44px_1fr] [align-items:center] [gap:8px] [padding:0_6px_4px]"
 					aria-hidden="true"
 				>
-					<img src={asset('/art/stickers/04-winking-smiley.webp')} alt="" width="52" height="52" />
+					<img src={asset('art/stickers/04-winking-smiley.webp')} alt="" width="52" height="52" />
+
 					<p>Good stickers make a brighter day!</p>
 				</div>
 			</div>
@@ -550,23 +547,27 @@
 						aria-pressed={canvasFullscreen}
 						aria-label={canvasFullscreen ? 'Exit full screen' : 'Enter full screen'}
 						onclick={toggleFullscreen}
-						>{#if canvasFullscreen}<Minimize2 size={16} />{:else}<Maximize2
-								size={16}
-							/>{/if}</button
 					>
-				</div>
-				<div class="editor-actions [display:flex] [flex:none] [gap:8px]">
-					<button type="button" class={button} onclick={() => void saving.save(repository)}>
-						<CloudUpload size={16} />Save to My Stickers
+						{#if canvasFullscreen}
+							<Minimize2 size={16} />
+						{:else}
+							<Maximize2 size={16} />
+						{/if}
 					</button>
+				</div>
+
+				<div class="editor-actions [display:flex] [flex:none] [gap:8px]">
+					<button type="button" class={button} onclick={() => void saving.save(repository)}
+						><CloudUpload size={16} />Save to My Stickers</button
+					>
+
 					<button
 						type="button"
 						class={buttonPrimary}
 						aria-label="Export and share"
-						onclick={openExport}
+						onclick={openExport}><Download size={16} />Export & Share</button
 					>
-						<Download size={16} />Export &amp; Share
-					</button>
+
 					<button
 						type="button"
 						class={[button, 'properties-toggle']}
@@ -582,7 +583,7 @@
 						{#if doc.layers.length === 0}
 							<div class="editor-welcome">
 								<img
-									src={asset('/art/stickers/04-winking-smiley.webp')}
+									src={asset('art/stickers/04-winking-smiley.webp')}
 									alt=""
 									width="72"
 									height="72"

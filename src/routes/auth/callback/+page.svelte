@@ -1,5 +1,5 @@
 <script>
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	/**
 	 * `/auth/callback` — finishes a PKCE email sign-in (ported from the source
 	 * `AuthCallback`). The route shows its own state instead of the milestone error
@@ -11,9 +11,9 @@
 	 */
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import AccountDialog from '$lib/components/AccountDialog.svelte';
-	import { getAuthClient, safeReturnPath } from '$lib/cloud/config';
-	import { shellHref } from '$lib/app/navigation';
+	import AccountDialog from '#lib/components/AccountDialog.svelte';
+	import { getAuthClient, safeReturnPath } from '#lib/cloud/config.js';
+	import { shellHref } from '#lib/app/navigation.js';
 
 	let busy = $state(false);
 	let error = $state(/** @type {string | null} */ (null));

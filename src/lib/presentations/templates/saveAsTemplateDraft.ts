@@ -11,16 +11,16 @@
  * `missing_media`, `dependency_mismatch`, `upload_failed` and `draft_refused`
  * map one-to-one to the dialog's failure messages.
  */
-import { sha256Hex } from '$lib/hash';
-import type { CatalogAdminRepository, CatalogTemplateInput } from '$lib/catalog/repository';
-import type { CatalogTemplateDraft, CatalogAssetVersion } from '$lib/catalog/types';
-import { clonePresentationDocumentWithNewIds } from '$lib/presentations/model/factories';
-import { presentationDocumentToJson } from '$lib/presentations/model/parse';
-import type { PresentationAsset, PresentationDocument } from '$lib/presentations/model/types';
+import { sha256Hex } from '#lib/hash.js';
+import type { CatalogAdminRepository, CatalogTemplateInput } from '#lib/catalog/repository.js';
+import type { CatalogTemplateDraft, CatalogAssetVersion } from '#lib/catalog/types.js';
+import { clonePresentationDocumentWithNewIds } from '#lib/presentations/model/factories.js';
+import { presentationDocumentToJson } from '#lib/presentations/model/parse.js';
+import type { PresentationAsset, PresentationDocument } from '#lib/presentations/model/types.js';
 import type {
 	PresentationMediaRecord,
 	PresentationRepository
-} from '$lib/presentations/persistence/repository';
+} from '#lib/presentations/persistence/repository.js';
 
 export type SaveAsTemplateDraftInput = {
 	sourceDocument: PresentationDocument;

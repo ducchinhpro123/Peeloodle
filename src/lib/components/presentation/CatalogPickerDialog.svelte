@@ -1,9 +1,9 @@
 <script>
 	import { Search, Library } from 'lucide-svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import { button } from '$lib/ui/styles.js';
+	import Modal from '#lib/components/Modal.svelte';
+	import { button } from '#lib/ui/styles.js';
 	import { SvelteMap } from 'svelte/reactivity';
-	import { isCatalogError } from '$lib/catalog/repository';
+	import { isCatalogError } from '#lib/catalog/repository.js';
 	import CatalogAssetPreview from './CatalogAssetPreview.svelte';
 
 	/**
@@ -18,9 +18,9 @@
 	 * Every item is a button, so Tab/Enter inserts without a pointer.
 	 *
 	 * @type {{
-	 *   repository: import('$lib/catalog/repository').CatalogRepository | null,
+	 *   repository: import('#lib/catalog/repository.js').CatalogRepository | null,
 	 *   disabled?: boolean,
-	 *   oninsert: (source: import('$lib/presentations/editor/insertCatalogAsset').CatalogInsertSource) => void
+	 *   oninsert: (source: import('#lib/presentations/editor/insertCatalogAsset.js').CatalogInsertSource) => void
 	 * }}
 	 */
 	let { repository, disabled = false, oninsert } = $props();
@@ -28,9 +28,9 @@
 	const PAGE_SIZE = 12;
 
 	let open = $state(false);
-	/** @type {import('$lib/catalog/types').CatalogCollection[]} */
+	/** @type {import('#lib/catalog/types.js').CatalogCollection[]} */
 	let collections = $state.raw([]);
-	/** @type {import('$lib/catalog/types').CatalogAsset[]} */
+	/** @type {import('#lib/catalog/types.js').CatalogAsset[]} */
 	let assets = $state.raw([]);
 	/** @type {string | null} */
 	let nextCursor = $state.raw(null);
@@ -50,7 +50,7 @@
 	const catalog = $derived(repository);
 	// SvelteMap, not a plain Map: mutations of a plain Map inside `$state` are not
 	// tracked, so the tiles would never learn that their version arrived.
-	/** @type {SvelteMap<string, import('$lib/catalog/types').CatalogAssetVersion>} */
+	/** @type {SvelteMap<string, import('#lib/catalog/types.js').CatalogAssetVersion>} */
 	const versions = new SvelteMap();
 	let versionsLoading = $state(false);
 
@@ -161,7 +161,7 @@
 		};
 	});
 
-	/** @param {import('$lib/catalog/types').CatalogAsset} asset */
+	/** @param {import('#lib/catalog/types.js').CatalogAsset} asset */
 	function insert(asset) {
 		const version = versions.get(asset.id);
 		if (!version) {

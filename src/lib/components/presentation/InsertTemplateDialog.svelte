@@ -1,9 +1,9 @@
 <script>
 	import { SvelteSet } from 'svelte/reactivity';
-	import Modal from '$lib/components/Modal.svelte';
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
-	import { isCatalogError } from '$lib/catalog/repository';
-	import { parsePresentationDocument } from '$lib/presentations/model/parse';
+	import Modal from '#lib/components/Modal.svelte';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
+	import { isCatalogError } from '#lib/catalog/repository.js';
+	import { parsePresentationDocument } from '#lib/presentations/model/parse.js';
 
 	/**
 	 * Layout insertion picker (P71): lists published templates, shows the slides
@@ -11,7 +11,7 @@
 	 * which downloads, persists and adopts them as one undoable insertion.
 	 *
 	 * @type {{
-	 *   repository: import('$lib/catalog/repository').CatalogRepository,
+	 *   repository: import('#lib/catalog/repository.js').CatalogRepository,
 	 *   disabled?: boolean,
 	 *   oninsert: (templateId: string, slideOrdinals: number[]) => Promise<{ ok: boolean, message?: string }>
 	 * }}
@@ -21,7 +21,7 @@
 	let open = $state(false);
 	let loading = $state(false);
 	let inserting = $state(false);
-	/** @type {import('$lib/catalog/types').CatalogTemplate[]} */
+	/** @type {import('#lib/catalog/types.js').CatalogTemplate[]} */
 	let templates = $state.raw([]);
 	/** @type {string} */
 	let templateId = $state('');

@@ -1,5 +1,5 @@
 <script>
-	import { buttonPrimary } from '$lib/ui/styles.js';
+	import { buttonPrimary } from '#lib/ui/styles.js';
 	/**
 	 * `/create` is a redirect surface, as in the source: flush pending work first,
 	 * keep an already-open reusable draft, otherwise mint one draft id and hand off
@@ -8,14 +8,14 @@
 	 */
 	import { ChevronLeft, ImagePlus, Upload } from 'lucide-svelte';
 	import ProjectThumb from './ProjectThumb.svelte';
-	import { getAppContext } from '$lib/app/context';
+	import { getAppContext } from '#lib/app/context.js';
 	import {
 		editorPathWithIntent,
 		isReusableOpenDocument,
 		TOOL_INTENT_LABELS
-	} from '$lib/editor/toolIntent';
-	/** @typedef {import('$lib/domain/domain').ProjectDocument} ProjectDocument */
-	/** @typedef {import('$lib/editor/toolIntent').ToolIntent} ToolIntent */
+	} from '#lib/editor/toolIntent.js';
+	/** @typedef {import('#lib/domain/domain.js').ProjectDocument} ProjectDocument */
+	/** @typedef {import('#lib/editor/toolIntent.js').ToolIntent} ToolIntent */
 
 	/** @type {{ intent: ToolIntent | null, onnavigate: (href: `/editor/${string}`) => void }} */
 	let { intent, onnavigate } = $props();

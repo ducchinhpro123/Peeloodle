@@ -1,7 +1,7 @@
 <script>
-	import { buttonPrimary } from '$lib/ui/styles.js';
+	import { buttonPrimary } from '#lib/ui/styles.js';
 	import { page } from '$app/state';
-	import { shellHref } from '$lib/app/navigation';
+	import { shellHref } from '#lib/app/navigation.js';
 
 	let status = $derived(page.status);
 	let detail = $derived(page.error?.message ?? '');

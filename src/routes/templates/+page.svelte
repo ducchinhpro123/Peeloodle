@@ -10,8 +10,8 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import TemplatesPage from '$lib/components/TemplatesPage.svelte';
-	import { getAppContext } from '$lib/app/context';
+	import TemplatesPage from '#lib/components/TemplatesPage.svelte';
+	import { getAppContext } from '#lib/app/context.js';
 
 	const { repository } = getAppContext();
 
@@ -36,5 +36,5 @@
 	search={page.url.search}
 	{query}
 	onquery={updateQuery}
-	onopen={(projectId) => goto(resolve(`/editor/${projectId}`))}
+	onopen={(projectId) => goto(resolve(`editor/${projectId}`))}
 />

@@ -1,5 +1,5 @@
 <script>
-	import { button } from '$lib/ui/styles.js';
+	import { button } from '#lib/ui/styles.js';
 	/**
 	 * Transparent PNG export dialog, ported from the source `ExportDialog`.
 	 * Export waits for the mask stroke, re-checks the open document, renders with
@@ -8,11 +8,11 @@
 	 */
 	import { Download } from 'lucide-svelte';
 	import Modal from './Modal.svelte';
-	import { downloadBlob } from '$lib/exports/download';
-	import { renderDocument } from '$lib/exports/renderDocument';
-	/** @typedef {import('$lib/exports/renderDocument').ExportSize} ExportSize */
-	/** @typedef {import('$lib/editor/editorState.svelte').EditorState} EditorState */
-	/** @typedef {import('$lib/domain/domain').ProjectDocument} ProjectDocument */
+	import { downloadBlob } from '#lib/exports/download.js';
+	import { renderDocument } from '#lib/exports/renderDocument.js';
+	/** @typedef {import('#lib/exports/renderDocument.js').ExportSize} ExportSize */
+	/** @typedef {import('#lib/editor/editorState.svelte.js').EditorState} EditorState */
+	/** @typedef {import('#lib/domain/domain.js').ProjectDocument} ProjectDocument */
 
 	/** @type {{ editor: EditorState, document: ProjectDocument, open: boolean, onopenchange: (open: boolean) => void }} */
 	let { editor, document, open, onopenchange } = $props();

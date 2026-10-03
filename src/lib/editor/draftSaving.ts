@@ -19,7 +19,10 @@
  * was actually persisted.
  */
 
-import { serializeProjectDocument, type StickerLabRepository } from '$lib/persistence/repository';
+import {
+	serializeProjectDocument,
+	type StickerLabRepository
+} from '#lib/persistence/repository.js';
 import type { EditorState } from './editorState.svelte';
 
 export type SaveOutcome =

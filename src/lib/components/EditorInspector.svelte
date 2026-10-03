@@ -1,5 +1,5 @@
 <script>
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	/**
 	 * Sticker Properties panel, ported from the source `Inspector` in
 	 * `src/features/editor/EditorPage.tsx`. Tabs keep the source contract
@@ -23,8 +23,8 @@
 	} from 'lucide-svelte';
 	import Slider from './Slider.svelte';
 	import ColorField from './ColorField.svelte';
-	import { TEXT_FONTS, cssFontFamily } from '$lib/fonts';
-	/** @typedef {import('$lib/editor/editorState.svelte').EditorState} EditorState */
+	import { TEXT_FONTS, cssFontFamily } from '#lib/fonts.js';
+	/** @typedef {import('#lib/editor/editorState.svelte.js').EditorState} EditorState */
 
 	/**
 	 * @type {{
@@ -175,7 +175,7 @@
 	</div>
 </aside>
 
-{#snippet TextPanel(/** @type {import('$lib/domain/domain').TextLayer} */ text)}
+{#snippet TextPanel(/** @type {import('#lib/domain/domain.js').TextLayer} */ text)}
 	<div class="inspector-fields">
 		<h3>Text layer</h3>
 		<label>
@@ -236,7 +236,7 @@
 	</div>
 {/snippet}
 
-{#snippet ImagePanel(/** @type {import('$lib/domain/domain').ImageLayer} */ image)}
+{#snippet ImagePanel(/** @type {import('#lib/domain/domain.js').ImageLayer} */ image)}
 	{@const outline = image.outline ?? { enabled: false, color: '#ffffff', width: 12 }}
 	<div class="inspector-fields">
 		<label class="inspector-toggle [font-weight:700]">
@@ -347,7 +347,7 @@
 	</div>
 {/snippet}
 
-{#snippet EffectsPanel(/** @type {import('$lib/domain/domain').ImageLayer} */ image)}
+{#snippet EffectsPanel(/** @type {import('#lib/domain/domain.js').ImageLayer} */ image)}
 	{@const filters = image.filters ?? { brightness: 0, contrast: 0, saturation: 0, grayscale: 0 }}
 	<div class="inspector-fields">
 		<h3>Filters &amp; Effects</h3>
@@ -377,7 +377,7 @@
 	</div>
 {/snippet}
 
-{#snippet PositionPanel(/** @type {import('$lib/domain/domain').Layer} */ layer)}
+{#snippet PositionPanel(/** @type {import('#lib/domain/domain.js').Layer} */ layer)}
 	{@const transform = layer.transform}
 	<div class="inspector-fields">
 		<div class="button-row">

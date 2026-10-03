@@ -13,8 +13,8 @@ import {
 	loadProjectBundle,
 	type AssetRecord,
 	type StickerLabRepository
-} from '$lib/persistence/repository';
-import type { ProjectDocument } from '$lib/domain/domain';
+} from '#lib/persistence/repository.js';
+import type { ProjectDocument } from '#lib/domain/domain.js';
 
 export type StickerSnapshotRenderer = (
 	document: ProjectDocument,
@@ -25,7 +25,7 @@ export type StickerSnapshotRenderer = (
 const renderStickerArtwork: StickerSnapshotRenderer = async (document, assets, masks) => {
 	// The compositor is only needed once a sticker is actually placed, so it loads
 	// on demand instead of riding in the editor page's chunk.
-	const { renderDocument } = await import('$lib/exports/renderDocument');
+	const { renderDocument } = await import('#lib/exports/renderDocument.js');
 	return renderDocument(document, assets, { size: 1024, bounds: 'artwork', masks });
 };
 

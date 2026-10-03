@@ -1,12 +1,12 @@
 <script>
-	import AdminCollectionsPage from '$lib/components/catalog/AdminCollectionsPage.svelte';
-	import { getCatalogRepository } from '$lib/catalog/client';
+	import AdminCollectionsPage from '#lib/components/catalog/AdminCollectionsPage.svelte';
+	import { getCatalogRepository } from '#lib/catalog/client.js';
 
 	/**
 	 * `/admin/collections` — the collections screen (P52). The gate in the admin
 	 * layout has already confirmed membership; this route supplies the repository.
 	 */
-	/** @type {import('$lib/catalog/repository').CatalogAdminRepository | null} */
+	/** @type {import('#lib/catalog/repository.js').CatalogAdminRepository | null} */
 	let repository = $state.raw(null);
 	/** @type {string | null} */
 	let error = $state(null);

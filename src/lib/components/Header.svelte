@@ -1,11 +1,11 @@
 <script>
-	import { buttonIconLarge } from '$lib/ui/styles.js';
+	import { buttonIconLarge } from '#lib/ui/styles.js';
 	import { asset } from '$app/paths';
 	import { Menu } from 'lucide-svelte';
 	import Modal from './Modal.svelte';
 	import Sidebar from './Sidebar.svelte';
 	import AccountDialog from './AccountDialog.svelte';
-	import { primaryNavigation, shellHref } from '$lib/app/navigation';
+	import { primaryNavigation, shellHref } from '#lib/app/navigation.js';
 
 	/** @type {{ pathname?: string, search?: string }} */
 	let { pathname = '/', search = '' } = $props();
@@ -18,12 +18,11 @@
 		type="button"
 		class={[buttonIconLarge, 'mobile-only']}
 		aria-label="Open navigation"
-		onclick={() => (mobileNavOpen = true)}
+		onclick={() => (mobileNavOpen = true)}><Menu size={20} /></button
 	>
-		<Menu size={20} />
-	</button>
+
 	<a href={shellHref('/')} class="brand" aria-label="StickerLab home">
-		<img src={asset('/art/logo-wordmark.webp')} width="500" height="224" alt="StickerLab" />
+		<img src={asset('art/logo-wordmark.webp')} width="500" height="224" alt="StickerLab" />
 	</a>
 	<nav class="topnav" aria-label="Primary navigation">
 		{#each primaryNavigation as item (item.to)}

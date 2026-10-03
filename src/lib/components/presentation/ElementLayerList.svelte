@@ -1,8 +1,8 @@
 <script>
-	import { buttonIcon } from '$lib/ui/styles.js';
+	import { buttonIcon } from '#lib/ui/styles.js';
 	import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Lock, Trash2, Unlock } from 'lucide-svelte';
 
-	/** @type {{ store: import('$lib/presentations/editor/store.svelte').PresentationStore }} */
+	/** @type {{ store: import('#lib/presentations/editor/store.svelte.js').PresentationStore }} */
 	let { store } = $props();
 	let state = $derived(store.current);
 	let slide = $derived(

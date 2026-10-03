@@ -1,14 +1,14 @@
 <script>
-	import Modal from '$lib/components/Modal.svelte';
-	import { button } from '$lib/ui/styles.js';
-	import { isCatalogError } from '$lib/catalog/repository';
+	import Modal from '#lib/components/Modal.svelte';
+	import { button } from '#lib/ui/styles.js';
+	import { isCatalogError } from '#lib/catalog/repository.js';
 
 	/** @type {{
-	 * repository: import('$lib/catalog/repository').CatalogAdminRepository,
+	 * repository: import('#lib/catalog/repository.js').CatalogAdminRepository,
 	 * needsCollection: boolean,
 	 * defaultTitle: string,
 	 * onsave: (input: {
-	 *   metadata: import('$lib/catalog/repository').CatalogTemplateInput,
+	 *   metadata: import('#lib/catalog/repository.js').CatalogTemplateInput,
 	 *   collectionId: string | null
 	 * }) => Promise<void>
 	 * }} */
@@ -19,7 +19,7 @@
 	let open = $state(false);
 	let loading = $state(false);
 	let saving = $state(false);
-	/** @type {import('$lib/catalog/types').CatalogCollection[]} */
+	/** @type {import('#lib/catalog/types.js').CatalogCollection[]} */
 	let collections = $state.raw([]);
 	/** @type {string | null} */
 	let error = $state(null);

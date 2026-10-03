@@ -1,11 +1,11 @@
 <script>
-	import { Konva } from '$lib/presentations/rendering/konvaText';
-	import { renderSlide, renderText } from '$lib/presentations/rendering/renderSlide';
+	import { Konva } from '#lib/presentations/rendering/konvaText.js';
+	import { renderSlide, renderText } from '#lib/presentations/rendering/renderSlide.js';
 	import {
 		clampPresentationZoom,
 		presentationViewport
-	} from '$lib/presentations/editor/viewGeometry';
-	import { snapToAlignment } from '$lib/presentations/editor/alignmentGuides';
+	} from '#lib/presentations/editor/viewGeometry.js';
+	import { snapToAlignment } from '#lib/presentations/editor/alignmentGuides.js';
 	import {
 		documentPointFromView,
 		elementGeometry,
@@ -15,17 +15,17 @@
 		resizeTransform,
 		rotateTransform,
 		rotationFromPoint
-	} from '$lib/presentations/editor/transformGeometry';
+	} from '#lib/presentations/editor/transformGeometry.js';
 	import PresentationCanvasControls from './PresentationCanvasControls.svelte';
 	import PresentationSelectionFrame from './PresentationSelectionFrame.svelte';
 	import TextEditOverlay from './TextEditOverlay.svelte';
 
 	/**
-	 * @typedef {import('$lib/presentations/editor/transformGeometry').TransformGeometry} TransformGeometry
-	 * @typedef {import('$lib/presentations/editor/transformGeometry').ViewPoint} ViewPoint
-	 * @typedef {import('$lib/presentations/editor/transformGeometry').ResizeHandle} ResizeHandle
-	 * @typedef {import('$lib/presentations/editor/alignmentGuides').AlignmentGuide} AlignmentGuide
-	 * @typedef {import('$lib/presentations/model/types').Element} Element
+	 * @typedef {import('#lib/presentations/editor/transformGeometry.js').TransformGeometry} TransformGeometry
+	 * @typedef {import('#lib/presentations/editor/transformGeometry.js').ViewPoint} ViewPoint
+	 * @typedef {import('#lib/presentations/editor/transformGeometry.js').ResizeHandle} ResizeHandle
+	 * @typedef {import('#lib/presentations/editor/alignmentGuides.js').AlignmentGuide} AlignmentGuide
+	 * @typedef {import('#lib/presentations/model/types.js').Element} Element
 	 *
 	 * @typedef {{
 	 *   pointerId: number,
@@ -49,9 +49,9 @@
 	 */
 
 	/** @type {{
-	 *   store: import('$lib/presentations/editor/store.svelte').PresentationStore,
-	 *   images: import('$lib/presentations/rendering/renderSlide').PresentationImageSources,
-	 *   session: import('$lib/presentations/editor/textEditSession.svelte').TextEditSession
+	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore,
+	 *   images: import('#lib/presentations/rendering/renderSlide.js').PresentationImageSources,
+	 *   session: import('#lib/presentations/editor/textEditSession.svelte.js').TextEditSession
 	 * }} */
 	let { store, images, session } = $props();
 

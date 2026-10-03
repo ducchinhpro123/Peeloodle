@@ -1,5 +1,5 @@
 <script>
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	/**
 	 * Root layout: global stylesheet plus the app-scoped workspace, editor state
 	 * and save coordinator. Creating them here (not in a module) keeps mutable
@@ -19,12 +19,12 @@
 	 */
 	import '../app.css';
 	import { resolve } from '$app/paths';
-	import AppScope from '$lib/components/AppScope.svelte';
-	import { CloudWorkspace, setCloudWorkspaceContext } from '$lib/cloud/workspace.svelte';
-	import { createDraftSaving } from '$lib/editor/draftSaving';
-	import { EditorState } from '$lib/editor/editorState.svelte';
-	import { IdbPresentationRepository } from '$lib/presentations/persistence/idb';
-	import { createPresentationStore } from '$lib/presentations/editor/store.svelte';
+	import AppScope from '#lib/components/AppScope.svelte';
+	import { CloudWorkspace, setCloudWorkspaceContext } from '#lib/cloud/workspace.svelte.js';
+	import { createDraftSaving } from '#lib/editor/draftSaving.js';
+	import { EditorState } from '#lib/editor/editorState.svelte.js';
+	import { IdbPresentationRepository } from '#lib/presentations/persistence/idb.js';
+	import { createPresentationStore } from '#lib/presentations/editor/store.svelte.js';
 
 	const workspace = new CloudWorkspace();
 	setCloudWorkspaceContext(workspace);

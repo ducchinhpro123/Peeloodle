@@ -1,10 +1,10 @@
 <script>
 	import { Search, Sparkles } from 'lucide-svelte';
 	import { SvelteMap } from 'svelte/reactivity';
-	import Modal from '$lib/components/Modal.svelte';
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
-	import { isCatalogError } from '$lib/catalog/repository';
-	import { cloneTemplate, CloneTemplateError } from '$lib/presentations/templates/cloneTemplate';
+	import Modal from '#lib/components/Modal.svelte';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
+	import { isCatalogError } from '#lib/catalog/repository.js';
+	import { cloneTemplate, CloneTemplateError } from '#lib/presentations/templates/cloneTemplate.js';
 
 	/**
 	 * Public presentation-template browser (P69/P70): published templates only,
@@ -13,8 +13,8 @@
 	 * touches the template or another clone.
 	 *
 	 * @type {{
-	 *   catalogRepository: import('$lib/catalog/repository').CatalogRepository | null,
-	 *   presentationRepository: import('$lib/presentations/persistence/repository').PresentationRepository,
+	 *   catalogRepository: import('#lib/catalog/repository.js').CatalogRepository | null,
+	 *   presentationRepository: import('#lib/presentations/persistence/repository.js').PresentationRepository,
 	 *   onused: (presentationId: string) => void
 	 * }}
 	 */
@@ -23,7 +23,7 @@
 	const PAGE_SIZE = 12;
 	const USE_CASES = ['class', 'research-defense', 'club-pitch'];
 
-	/** @type {import('$lib/catalog/types').CatalogTemplate[]} */
+	/** @type {import('#lib/catalog/types.js').CatalogTemplate[]} */
 	let rows = $state.raw([]);
 	/** @type {string | null} */
 	let nextCursor = $state.raw(null);
@@ -46,7 +46,7 @@
 	let cloneError = $state(null);
 
 	let previewOpen = $state(false);
-	/** @type {import('$lib/catalog/types').CatalogTemplate | null} */
+	/** @type {import('#lib/catalog/types.js').CatalogTemplate | null} */
 	let previewTemplate = $state.raw(null);
 	/** @type {string[]} */
 	let previewUrls = $state.raw([]);
@@ -121,7 +121,7 @@
 		void load(true);
 	});
 
-	/** @param {import('$lib/catalog/types').CatalogTemplate} row */
+	/** @param {import('#lib/catalog/types.js').CatalogTemplate} row */
 	async function openPreview(row) {
 		previewTemplate = row;
 		previewOpen = true;
@@ -149,7 +149,7 @@
 		}
 	}
 
-	/** @param {import('$lib/catalog/types').CatalogTemplate} row */
+	/** @param {import('#lib/catalog/types.js').CatalogTemplate} row */
 	async function useTemplate(row) {
 		const catalog = catalogRepository;
 		if (!catalog || cloningId) return;

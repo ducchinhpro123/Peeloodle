@@ -5,9 +5,9 @@
 	 * Konva needs a browser (and its own canvas), so the artboard is loaded
 	 * dynamically on the client.
 	 */
-	import { browser } from '$app/environment';
-	/** @typedef {import('$lib/editor/editorState.svelte').EditorState} EditorState */
+	import { browser } from '$app/env';
 
+	/** @typedef {import('#lib/editor/editorState.svelte.js').EditorState} EditorState */
 	/** @type {{ editor: EditorState, urls: Record<string, string> }} */
 	let { editor, urls } = $props();
 

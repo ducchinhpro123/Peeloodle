@@ -3,7 +3,7 @@
  * the reminder back. Hash content, not just revision (concurrent inserts can
  * produce different documents at the same revision).
  */
-import { sha256Hex } from '$lib/hash';
+import { sha256Hex } from '#lib/hash.js';
 import { presentationDocumentToJson } from '../model/parse';
 import type { PresentationDocument } from '../model/types';
 

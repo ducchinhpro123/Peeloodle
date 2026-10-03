@@ -7,8 +7,8 @@
  * against the declared hash and size before they are handed to a caller.
  */
 
-import { sha256Hex } from '$lib/hash';
-import type { CatalogRepository } from '$lib/catalog/repository';
+import { sha256Hex } from '#lib/hash.js';
+import type { CatalogRepository } from '#lib/catalog/repository.js';
 
 const SIGNED_URL_SECONDS = 120;
 

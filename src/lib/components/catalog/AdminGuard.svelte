@@ -1,6 +1,6 @@
 <script>
-	import { isCatalogError } from '$lib/catalog/repository';
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
+	import { isCatalogError } from '#lib/catalog/repository.js';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
 
 	/**
 	 * Catalog access gate (P51).
@@ -13,7 +13,7 @@
 	 * @type {{
 	 *   configured: boolean,
 	 *   sessionEmail: string | null,
-	 *   repository: import('$lib/catalog/repository').CatalogAdminRepository | null,
+	 *   repository: import('#lib/catalog/repository.js').CatalogAdminRepository | null,
 	 *   homeHref: string,
 	 *   children: import('svelte').Snippet
 	 * }}

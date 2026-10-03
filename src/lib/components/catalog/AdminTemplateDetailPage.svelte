@@ -1,13 +1,13 @@
 <script>
 	import { ImagePlus, Pencil, Presentation, ShieldAlert } from 'lucide-svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
-	import { isCatalogError } from '$lib/catalog/repository';
-	import { TemplateDraftRepository } from '$lib/presentations/templates/templateDraftRepository';
+	import Modal from '#lib/components/Modal.svelte';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
+	import { isCatalogError } from '#lib/catalog/repository.js';
+	import { TemplateDraftRepository } from '#lib/presentations/templates/templateDraftRepository.js';
 	import {
 		generateTemplatePreviews,
 		TemplatePreviewError
-	} from '$lib/presentations/templates/templatePreviews';
+	} from '#lib/presentations/templates/templatePreviews.js';
 
 	/**
 	 * Admin template detail (P66/P67): the stable metadata, the immutable version
@@ -18,7 +18,7 @@
 	 *
 	 * @type {{
 	 *   templateId: string,
-	 *   repository: import('$lib/catalog/repository').CatalogAdminRepository,
+	 *   repository: import('#lib/catalog/repository.js').CatalogAdminRepository,
 	 *   listHref: string,
 	 *   editHref: string
 	 * }}
@@ -27,9 +27,9 @@
 
 	const USE_CASES = ['class', 'research-defense', 'club-pitch'];
 
-	/** @type {import('$lib/catalog/types').CatalogTemplate | null} */
+	/** @type {import('#lib/catalog/types.js').CatalogTemplate | null} */
 	let template = $state.raw(null);
-	/** @type {import('$lib/catalog/types').CatalogTemplateVersionSummary[]} */
+	/** @type {import('#lib/catalog/types.js').CatalogTemplateVersionSummary[]} */
 	let versions = $state.raw([]);
 	/** @type {'loading' | 'ready' | 'missing' | 'error'} */
 	let status = $state('loading');
@@ -44,7 +44,7 @@
 	/** @type {string | null} */
 	let formError = $state(null);
 	let form = $state({ title: '', useCase: 'class', description: '', tags: '', sortOrder: 0 });
-	/** @type {import('$lib/catalog/types').CatalogTemplate | null} */
+	/** @type {import('#lib/catalog/types.js').CatalogTemplate | null} */
 	let conflict = $state.raw(null);
 
 	// ---- P67 preview generation ----
@@ -79,7 +79,7 @@
 	/** @type {string | null} */
 	let archiveError = $state(null);
 
-	/** @param {import('$lib/catalog/repository').CatalogRefusal} reason */
+	/** @param {import('#lib/catalog/repository.js').CatalogRefusal} reason */
 	function refusalMessage(reason) {
 		if (reason === 'revision_conflict')
 			return 'Another change happened first. Reload the page to see the current state.';
@@ -219,13 +219,13 @@
 		previewError = null;
 		previewNotice = null;
 		previewStage = 'Preparing the draft…';
-		/** @type {Awaited<ReturnType<typeof import('$lib/presentations/exports/snapshot').prepareExportSnapshot>> | null} */
+		/** @type {Awaited<ReturnType<typeof import('#lib/presentations/exports/snapshot.js').prepareExportSnapshot>> | null} */
 		let snapshot = null;
 		try {
 			// Loaded on demand: the preview flow is the only consumer here, and
 			// keeping the snapshot module dynamic preserves the export-builder
 			// chunking the offline journeys rely on.
-			const { prepareExportSnapshot } = await import('$lib/presentations/exports/snapshot');
+			const { prepareExportSnapshot } = await import('#lib/presentations/exports/snapshot.js');
 			const head = await draftRepository.getDraftHead();
 			snapshot = await prepareExportSnapshot(draftRepository, head.document);
 			const result = await generateTemplatePreviews({

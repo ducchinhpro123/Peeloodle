@@ -6,8 +6,8 @@
  * what keeps `?tool=text` from duplicating a text layer on reload or back.
  */
 
-import { base, resolve } from '$app/paths';
-import type { Layer, ProjectDocument } from '$lib/domain/domain';
+import { resolve } from '$app/paths';
+import type { Layer, ProjectDocument } from '#lib/domain/domain.js';
 import type { EditorState } from './editorState.svelte';
 
 export const TOOL_INTENTS = ['erase', 'text', 'effects', 'export'] as const;
@@ -85,7 +85,7 @@ const APP_LOCAL_ROUTES =
  * @param pathname raw `page.url.pathname`, or an already app-local pathname
  * @param configuredBase the configured base; callers keep the `$app/paths` default
  */
-export function appLocalPathname(pathname: string, configuredBase: string = base): string {
+export function appLocalPathname(pathname: string, configuredBase: string = resolve): string {
 	if (!configuredBase) return pathname;
 	if (pathname === configuredBase) return '/';
 	if (!pathname.startsWith(`${configuredBase}/`)) return pathname;
@@ -100,6 +100,7 @@ export function shouldReuseCurrentToolRoute(
 	intent: ToolIntent
 ): boolean {
 	const query = search.startsWith('?') ? search.slice(1) : search;
+
 	return (
 		pathname.startsWith('/editor/') &&
 		parseToolIntent(new URLSearchParams(query).get(TOOL_INTENT_PARAM)) === intent

@@ -1,8 +1,8 @@
 <script>
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	import { asset } from '$app/paths';
 	import Modal from './Modal.svelte';
-	/** @typedef {import('$lib/domain/domain').Template} Template */
+	/** @typedef {import('#lib/domain/domain.js').Template} Template */
 
 	/**
 	 * @type {{

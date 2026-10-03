@@ -8,7 +8,7 @@
 	 * the administrator came from.
 	 */
 	$effect(() => {
-		void goto(resolve('/admin/collections'), { replaceState: true });
+		void goto(resolve('admin/collections'), { replaceState: true });
 	});
 </script>
 

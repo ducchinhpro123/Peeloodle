@@ -8,16 +8,16 @@
 	 * URLs and viewport state never enter the persisted document.
 	 */
 	import Konva from 'konva';
-	import { ARTBOARD_SIZE } from '$lib/domain/domain';
-	import { getStageMetrics, viewportAfterWheel } from '$lib/editor/maskUtils';
-	import { createMaskBrush } from '$lib/editor/maskBrush';
+	import { ARTBOARD_SIZE } from '#lib/domain/domain.js';
+	import { getStageMetrics, viewportAfterWheel } from '#lib/editor/maskUtils.js';
+	import { createMaskBrush } from '#lib/editor/maskBrush.js';
 	import {
 		createImageSurface,
 		decodeMaskImage,
 		formatCssFilter
-	} from '$lib/exports/renderDocument';
-	import { cssFontFamily, loadFont, measureTextEditBox } from '$lib/fonts';
-	/** @typedef {import('$lib/editor/editorState.svelte').EditorState} EditorState */
+	} from '#lib/exports/renderDocument.js';
+	import { cssFontFamily, loadFont, measureTextEditBox } from '#lib/fonts.js';
+	/** @typedef {import('#lib/editor/editorState.svelte.js').EditorState} EditorState */
 
 	/**
 	 * @type {{
@@ -330,7 +330,7 @@
 	});
 
 	/**
-	 * @param {import('$lib/domain/domain').Layer} layer
+	 * @param {import('#lib/domain/domain.js').Layer} layer
 	 * @returns {Konva.Node | undefined}
 	 */
 	function ensureNode(layer) {
@@ -433,7 +433,7 @@
 	 * Composites crop → mask → filters → outline once per distinct appearance, then
 	 * reuses that canvas through drag/zoom frames (the source's `useMemo` seam).
 	 *
-	 * @param {import('$lib/domain/domain').ImageLayer} layer
+	 * @param {import('#lib/domain/domain.js').ImageLayer} layer
 	 * @returns {{ canvas: CanvasImageSource, width: number, height: number } | undefined}
 	 */
 	function ensureSurface(layer) {
@@ -481,7 +481,7 @@
 
 	/**
 	 * @param {Konva.Node} node
-	 * @param {import('$lib/domain/domain').Layer} layer
+	 * @param {import('#lib/domain/domain.js').Layer} layer
 	 */
 	function applyTransformToNode(node, layer) {
 		node.position({ x: layer.transform.x, y: layer.transform.y });
@@ -496,7 +496,7 @@
 	 *
 	 * @param {Konva.Node} node
 	 * @param {string} layerId
-	 * @param {import('$lib/domain/domain').Layer['kind']} kind
+	 * @param {import('#lib/domain/domain').Layer['kind']} kind
 	 */
 	function bindHandlers(node, layerId, kind) {
 		node.off('.app');

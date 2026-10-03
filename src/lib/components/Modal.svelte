@@ -1,5 +1,5 @@
 <script>
-	import { buttonIconLarge } from '$lib/ui/styles.js';
+	import { buttonIconLarge } from '#lib/ui/styles.js';
 	/**
 	 * Accessible modal built on the native `&lt;dialog&gt;` element, which provides
 	 * the focus trap, Escape handling and focus restoration the React source got

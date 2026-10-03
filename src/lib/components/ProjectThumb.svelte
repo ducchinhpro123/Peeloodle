@@ -4,9 +4,9 @@
 	 * component never revokes it; a failed or pending render falls back to the
 	 * source's honest placeholder copy.
 	 */
-	import { acquireProjectThumbnail } from '$lib/editor/projectThumbnails';
+	import { acquireProjectThumbnail } from '#lib/editor/projectThumbnails.js';
 
-	/** @type {{ project: import('$lib/domain/domain').ProjectDocument, repository: import('$lib/persistence/repository').StickerLabRepository }} */
+	/** @type {{ project: import('#lib/domain/domain').ProjectDocument, repository: import('$lib/persistence/repository').StickerLabRepository }} */
 	let { project, repository } = $props();
 
 	let url = $state(/** @type {string | null} */ (null));

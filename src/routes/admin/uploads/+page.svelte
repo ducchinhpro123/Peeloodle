@@ -1,12 +1,12 @@
 <script>
-	import AdminUploadsPage from '$lib/components/catalog/AdminUploadsPage.svelte';
-	import { getCatalogRepository } from '$lib/catalog/client';
+	import AdminUploadsPage from '#lib/components/catalog/AdminUploadsPage.svelte';
+	import { getCatalogRepository } from '#lib/catalog/client.js';
 
 	/**
 	 * `/admin/uploads` — the uploads screen. The gate in the admin layout has already
 	 * confirmed membership; this route supplies the repository.
 	 */
-	/** @type {import('$lib/catalog/repository').CatalogAdminRepository | null} */
+	/** @type {import('#lib/catalog/repository.js').CatalogAdminRepository | null} */
 	let repository = $state.raw(null);
 	/** @type {string | null} */
 	let error = $state(null);

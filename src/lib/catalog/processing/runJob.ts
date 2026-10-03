@@ -15,7 +15,7 @@ import type {
 	CatalogUploadCompletionResult
 } from '../repository';
 import type { CatalogUploadJob } from '../types';
-import { sha256Hex } from '$lib/hash';
+import { sha256Hex } from '#lib/hash.js';
 import { isProcessingError } from './errors';
 import type { ProcessedAsset } from './index';
 

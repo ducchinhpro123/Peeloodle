@@ -14,7 +14,7 @@ import {
 	pngDimensions,
 	sniffImageFormat,
 	webpDimensions
-} from '$lib/imageFormat';
+} from '#lib/imageFormat.js';
 import { ProcessingError } from './errors';
 import { PROCESSING_LIMITS } from './limits';
 

@@ -1,19 +1,19 @@
 <script>
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	/**
 	 * Export dialog (P40). The page owns the export controller; this shows the two
 	 * formats plus the backup, live progress, cancellation while work is running, and
 	 * any preflight warnings that should be read before relying on the file.
 	 */
 	import { Download } from 'lucide-svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import { offlineReadinessLabel } from '$lib/presentations/offlineReadiness';
+	import Modal from '#lib/components/Modal.svelte';
+	import { offlineReadinessLabel } from '#lib/presentations/offlineReadiness.js';
 
 	/** @type {{
-	 *   exportState: import('$lib/presentations/editor/exportController').PresentationExportState,
-	 *   offline: import('$lib/presentations/offlineReadiness').PresentationOfflineSnapshot,
-	 *   reloadSafety: import('$lib/presentations/offlineReadiness').ReloadSafety,
-	 *   onexport: (format: import('$lib/presentations/editor/exportController').PresentationExportFormat) => void,
+	 *   exportState: import('#lib/presentations/editor/exportController.js').PresentationExportState,
+	 *   offline: import('#lib/presentations/offlineReadiness.js').PresentationOfflineSnapshot,
+	 *   reloadSafety: import('#lib/presentations/offlineReadiness.js').ReloadSafety,
+	 *   onexport: (format: import('#lib/presentations/editor/exportController.js').PresentationExportFormat) => void,
 	 *   oncancel: () => void
 	 * }} */
 	let { exportState, offline, reloadSafety, onexport, oncancel } = $props();

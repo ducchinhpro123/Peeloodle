@@ -1,13 +1,13 @@
 <script>
-	import { buttonIcon } from '$lib/ui/styles.js';
+	import { buttonIcon } from '#lib/ui/styles.js';
 	import { Minus, Plus, Scan } from 'lucide-svelte';
 	import {
 		clampPresentationZoom,
 		PRESENTATION_MAX_ZOOM,
 		PRESENTATION_MIN_ZOOM
-	} from '$lib/presentations/editor/viewGeometry';
+	} from '#lib/presentations/editor/viewGeometry.js';
 
-	/** @type {{ store: import('$lib/presentations/editor/store.svelte').PresentationStore }} */
+	/** @type {{ store: import('#lib/presentations/editor/store.svelte.js').PresentationStore }} */
 	let { store } = $props();
 	let zoom = $derived(store.current.view.zoom);
 

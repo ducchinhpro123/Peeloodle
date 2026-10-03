@@ -1,16 +1,16 @@
 <script>
 	import { onDestroy } from 'svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import { button } from '$lib/ui/styles.js';
-	import { ensurePresentationFonts } from '$lib/presentations/rendering/fonts';
+	import Modal from '#lib/components/Modal.svelte';
+	import { button } from '#lib/ui/styles.js';
+	import { ensurePresentationFonts } from '#lib/presentations/rendering/fonts.js';
 	import {
 		PRESENTATION_PAGE_HEIGHT,
 		PRESENTATION_PAGE_WIDTH
-	} from '$lib/presentations/model/types';
+	} from '#lib/presentations/model/types.js';
 	import {
 		BUILTIN_LAYOUTS,
 		createBuiltinLayout
-	} from '$lib/presentations/templates/builtinLayouts';
+	} from '#lib/presentations/templates/builtinLayouts.js';
 
 	/**
 	 * Offline built-in layout picker: five cards, each previewed with the shared
@@ -20,9 +20,9 @@
 	 * never blocks insertion.
 	 *
 	 * @type {{
-	 *   theme: import('$lib/presentations/model/types').Theme,
+	 *   theme: import('#lib/presentations/model/types.js').Theme,
 	 *   disabled?: boolean,
-	 *   oninsert: (id: import('$lib/presentations/templates/builtinLayouts').BuiltinLayoutId) => { ok: boolean, message?: string }
+	 *   oninsert: (id: import('#lib/presentations/templates/builtinLayouts.js').BuiltinLayoutId) => { ok: boolean, message?: string }
 	 * }}
 	 */
 	let { theme, disabled = false, oninsert } = $props();
@@ -53,7 +53,7 @@
 		}));
 		try {
 			await ensurePresentationFonts();
-			const { rasterizeSlidePage } = await import('$lib/presentations/rendering/rasterizeSlide');
+			const { rasterizeSlidePage } = await import('#lib/presentations/rendering/rasterizeSlide.js');
 			for (const item of slides) {
 				if (generation !== epoch) return;
 				const raster = await rasterizeSlidePage({
@@ -71,7 +71,7 @@
 		}
 	}
 
-	/** @param {import('$lib/presentations/templates/builtinLayouts').BuiltinLayoutId} id */
+	/** @param {import('#lib/presentations/templates/builtinLayouts.js').BuiltinLayoutId} id */
 	function insert(id) {
 		const result = oninsert(id);
 		if (result.ok) close();

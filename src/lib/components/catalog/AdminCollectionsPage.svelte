@@ -1,8 +1,8 @@
 <script>
 	import { Plus, Pencil, Search, Upload, Archive } from 'lucide-svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
-	import { isCatalogError } from '$lib/catalog/repository';
+	import Modal from '#lib/components/Modal.svelte';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
+	import { isCatalogError } from '#lib/catalog/repository.js';
 
 	/**
 	 * Admin collection management (P52): paged search, create, edit with
@@ -13,13 +13,13 @@
 	 * explicitly replaces the other edit. Every other refusal is explained in the
 	 * place the action was taken.
 	 *
-	 * @type {{ repository: import('$lib/catalog/repository').CatalogAdminRepository }}
+	 * @type {{ repository: import('#lib/catalog/repository.js').CatalogAdminRepository }}
 	 */
 	let { repository } = $props();
 
 	const PAGE_SIZE = 12;
 
-	/** @type {import('$lib/catalog/types').CatalogCollection[]} */
+	/** @type {import('#lib/catalog/types.js').CatalogCollection[]} */
 	let rows = $state.raw([]);
 	/** @type {string | null} */
 	let nextCursor = $state.raw(null);
@@ -41,10 +41,10 @@
 	let formBusy = $state(false);
 	/** @type {string | null} */
 	let formError = $state(null);
-	/** @type {import('$lib/catalog/types').CatalogCollection | null} */
+	/** @type {import('#lib/catalog/types.js').CatalogCollection | null} */
 	let conflict = $state.raw(null);
 
-	/** @type {import('$lib/catalog/types').CatalogCollection | null} */
+	/** @type {import('#lib/catalog/types.js').CatalogCollection | null} */
 	let archiveTarget = $state.raw(null);
 	let archiveItems = $state(false);
 	let archiveBusy = $state(false);
@@ -62,7 +62,7 @@
 		return 'The request failed. Please retry.';
 	}
 
-	/** @param {import('$lib/catalog/repository').CatalogRefusal} reason */
+	/** @param {import('#lib/catalog/repository.js').CatalogRefusal} reason */
 	function refusalText(reason) {
 		if (reason === 'not_found') return 'This collection no longer exists.';
 		if (reason === 'archived') return 'This collection is archived and cannot be changed.';
@@ -130,7 +130,7 @@
 		editorOpen = true;
 	}
 
-	/** @param {import('$lib/catalog/types').CatalogCollection} row */
+	/** @param {import('#lib/catalog/types.js').CatalogCollection} row */
 	function openEdit(row) {
 		editingId = row.id;
 		editingRevision = row.revision;
@@ -186,7 +186,7 @@
 		}
 	}
 
-	/** @param {import('$lib/catalog/types').CatalogCollection} row */
+	/** @param {import('#lib/catalog/types.js').CatalogCollection} row */
 	async function publish(row) {
 		notice = null;
 		try {
@@ -206,7 +206,7 @@
 		}
 	}
 
-	/** @param {import('$lib/catalog/types').CatalogCollection} row */
+	/** @param {import('#lib/catalog/types.js').CatalogCollection} row */
 	function openArchive(row) {
 		archiveTarget = row;
 		archiveItems = false;

@@ -1,11 +1,11 @@
 <script>
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import AppShell from '$lib/components/AppShell.svelte';
-	import AdminGuard from '$lib/components/catalog/AdminGuard.svelte';
-	import AdminShell from '$lib/components/catalog/AdminShell.svelte';
-	import { getCatalogRepository } from '$lib/catalog/client';
-	import { getCloudWorkspace } from '$lib/cloud/workspace.svelte';
+	import AppShell from '#lib/components/AppShell.svelte';
+	import AdminGuard from '#lib/components/catalog/AdminGuard.svelte';
+	import AdminShell from '#lib/components/catalog/AdminShell.svelte';
+	import { getCatalogRepository } from '#lib/catalog/client.js';
+	import { getCloudWorkspace } from '#lib/cloud/workspace.svelte.js';
 
 	/**
 	 * `/admin` — the catalog's route-wide session and membership gate (P51). The
@@ -13,7 +13,7 @@
 	 * hands the facts to `AdminGuard`. Child routes mount the real screens.
 	 */
 	const workspace = getCloudWorkspace();
-	/** @type {import('$lib/catalog/remote').SupabaseCatalog | null} */
+	/** @type {import('#lib/catalog/remote.js').SupabaseCatalog | null} */
 	let repository = $state.raw(null);
 
 	$effect(() => {
@@ -40,10 +40,10 @@
 		homeHref={resolve('/')}
 	>
 		<AdminShell
-			collectionsHref={resolve('/admin/collections')}
-			assetsHref={resolve('/admin/assets')}
-			uploadsHref={resolve('/admin/uploads')}
-			templatesHref={resolve('/admin/templates')}
+			collectionsHref={resolve('admin/collections')}
+			assetsHref={resolve('admin/assets')}
+			uploadsHref={resolve('admin/uploads')}
+			templatesHref={resolve('admin/templates')}
 			pathname={page.url.pathname}
 		>
 			{@render children()}

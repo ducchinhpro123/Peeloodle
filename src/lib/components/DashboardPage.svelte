@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { button, buttonPrimary } from '$lib/ui/styles.js';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	import {
 		ArrowRight,
 		BookOpen,
@@ -18,11 +18,11 @@
 	import PresentationThumb from './PresentationThumb.svelte';
 	import TemplateRail from './TemplateRail.svelte';
 	import Modal from './Modal.svelte';
-	import { shellHref } from '$lib/app/navigation';
+	import { shellHref } from '#lib/app/navigation.js';
 
 	/** @type {{
-	 * repository: import('$lib/persistence/repository').StickerLabRepository,
-	 * presentationRepository: import('$lib/presentations/persistence/repository').PresentationRepository,
+	 * repository: import('#lib/persistence/repository.js').StickerLabRepository,
+	 * presentationRepository: import('#lib/presentations/persistence/repository.js').PresentationRepository,
 	 * onopen: (projectId: string) => void,
 	 * pathname?: string, search?: string
 	 * }} */
@@ -31,7 +31,7 @@
 	let loading = $state(true);
 	let loadError = $state(false);
 	let recent = $state.raw(
-		/** @type {import('$lib/presentations/model/types').PresentationSummary[]} */ ([])
+		/** @type {import('#lib/presentations/model/types.js').PresentationSummary[]} */ ([])
 	);
 
 	const tasks = [
@@ -87,9 +87,12 @@
 		{#snippet title()}Your next big idea.<br /><em>Make it stick.</em>{/snippet}
 		{#snippet action()}
 			<div class="desk-actions">
-				<a class={buttonPrimary} href={shellHref('/presentations')}
-					><Presentation size={17} />Make a presentation<ArrowRight size={17} /></a
-				>
+				<a class={buttonPrimary} href={shellHref('/presentations')}>
+					<Presentation size={17} />
+					Make a presentation
+					<ArrowRight size={17} />
+				</a>
+
 				<button type="button" class={button} onclick={() => (walkthroughOpen = true)}
 					>Quick start</button
 				>
@@ -142,7 +145,7 @@
 						<a
 							class="recent-card"
 							aria-label={`Open ${item.title}`}
-							href={resolve(`/presentations/${item.id}`)}
+							href={resolve(`presentations/${item.id}`)}
 						>
 							<span class="recent-preview"
 								><PresentationThumb
@@ -177,6 +180,7 @@
 			</div>
 			<LocalProjectList {repository} limit={6} />
 		</section>
+
 		<TemplateRail {repository} {onopen} title="Sticker inspiration" flushTop />
 	</div>
 </AppShell>

@@ -1,5 +1,5 @@
 <script>
-	import { button, buttonDanger, buttonIcon, buttonPrimary } from '$lib/ui/styles.js';
+	import { button, buttonDanger, buttonIcon, buttonPrimary } from '#lib/ui/styles.js';
 	import { asset } from '$app/paths';
 	import {
 		ArrowRight,
@@ -14,24 +14,24 @@
 		Trash2,
 		Upload
 	} from 'lucide-svelte';
-	import AppShell from '$lib/components/AppShell.svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import PresentationThumb from '$lib/components/PresentationThumb.svelte';
-	import PresentationStarterGallery from '$lib/components/PresentationStarterGallery.svelte';
-	import { blobToArrayBuffer } from '$lib/blob';
-	import { createPresentationDocument } from '$lib/presentations/model/factories';
-	import { PRESENTATION_LIMITS } from '$lib/presentations/model/limits';
+	import AppShell from '#lib/components/AppShell.svelte';
+	import Modal from '#lib/components/Modal.svelte';
+	import PresentationThumb from '#lib/components/PresentationThumb.svelte';
+	import PresentationStarterGallery from '#lib/components/PresentationStarterGallery.svelte';
+	import { blobToArrayBuffer } from '#lib/blob.js';
+	import { createPresentationDocument } from '#lib/presentations/model/factories.js';
+	import { PRESENTATION_LIMITS } from '#lib/presentations/model/limits.js';
 	import {
 		RENAME_EMPTY_TITLE_MESSAGE,
 		describeLibraryFailure,
 		renamedDocument
-	} from '$lib/presentations/library/libraryActions';
-	import { restoreBackupArchive } from '$lib/presentations/library/restoreBackup';
-	import { offlineReadinessLabel } from '$lib/presentations/offlineReadiness';
-	import { usePresentationOfflineReadiness } from '$lib/presentations/presentationOffline.svelte';
+	} from '#lib/presentations/library/libraryActions.js';
+	import { restoreBackupArchive } from '#lib/presentations/library/restoreBackup.js';
+	import { offlineReadinessLabel } from '#lib/presentations/offlineReadiness.js';
+	import { usePresentationOfflineReadiness } from '#lib/presentations/presentationOffline.svelte.js';
 
 	/** @type {{
-	 *   repository: import('$lib/presentations/persistence/repository').PresentationRepository,
+	 *   repository: import('#lib/presentations/persistence/repository.js').PresentationRepository,
 	 *   pathname: string,
 	 *   search: string,
 	 *   onopen: (documentId: string) => void | Promise<void>,
@@ -40,19 +40,19 @@
 	let { repository, pathname, search, onopen, openhref } = $props();
 
 	let items = $state.raw(
-		/** @type {import('$lib/presentations/model/types').PresentationSummary[]} */ ([])
+		/** @type {import('#lib/presentations/model/types.js').PresentationSummary[]} */ ([])
 	);
 	let loading = $state(true);
 	let creatingBlank = $state(false);
 	let error = $state(/** @type {string | null} */ (null));
 	let query = $state('');
 	let renaming = $state(
-		/** @type {import('$lib/presentations/model/types').PresentationSummary | null} */ (null)
+		/** @type {import('#lib/presentations/model/types.js').PresentationSummary | null} */ (null)
 	);
 	let renameTitle = $state('');
 	let renameError = $state(/** @type {string | null} */ (null));
 	let pendingDelete = $state(
-		/** @type {import('$lib/presentations/model/types').PresentationSummary | null} */ (null)
+		/** @type {import('#lib/presentations/model/types.js').PresentationSummary | null} */ (null)
 	);
 	let deleteError = $state(/** @type {string | null} */ (null));
 	let actionError = $state(/** @type {string | null} */ (null));
@@ -129,7 +129,7 @@
 	}
 
 	/**
-	 * @param {import('$lib/presentations/model/types').PresentationSummary} item
+	 * @param {import('#lib/presentations/model/types.js').PresentationSummary} item
 	 * @param {HTMLButtonElement} opener
 	 */
 	function openRename(item, opener) {
@@ -162,7 +162,7 @@
 		}
 	}
 
-	/** @param {import('$lib/presentations/model/types').PresentationSummary} item */
+	/** @param {import('#lib/presentations/model/types.js').PresentationSummary} item */
 	async function duplicate(item) {
 		busyId = item.id;
 		actionError = null;
@@ -223,14 +223,14 @@
 				<div
 					class="presentation-hero-actions [margin-top:var(--space-5)] [display:flex] [flex-wrap:wrap] [gap:var(--space-3)]"
 				>
-					<button class={buttonPrimary} onclick={createBlank} disabled={creatingBlank}
-						><FilePlus2 size={18} />{creatingBlank
-							? 'Creating…'
-							: 'Start a blank presentation'}</button
-					>
-					{#if items[0]}<a class={button} href={openhref(items[0].id)}
-							>Open latest <ArrowRight size={16} /></a
-						>{/if}
+					<button class={buttonPrimary} onclick={createBlank} disabled={creatingBlank}>
+						<FilePlus2 size={18} />
+						{creatingBlank ? 'Creating…' : 'Start a blank presentation'}
+					</button>
+
+					{#if items[0]}
+						<a class={button} href={openhref(items[0].id)}>Open latest <ArrowRight size={16} /></a>
+					{/if}
 				</div>
 				<ul class="presentation-hero-points" aria-label="Presentation features">
 					<li>16:9 slide canvas</li>
@@ -243,10 +243,11 @@
 				aria-hidden="true"
 			>
 				<span class="presentation-art-note">big idea energy ✦</span>
-				<img src={asset('/art/presentation-cat-hero.webp')} alt="" width="1200" height="744" />
-				<span class="presentation-art-tape"></span><span class="presentation-art-caption"
-					>Made to explain.<br />Styled to remember.</span
-				>
+
+				<img src={asset('art/presentation-cat-hero.webp')} alt="" width="1200" height="744" />
+
+				<span class="presentation-art-tape"></span>
+				<span class="presentation-art-caption">Made to explain.<br />Styled to remember.</span>
 			</div>
 		</section>
 
@@ -346,7 +347,7 @@
 					</div>
 					<img
 						class="presentation-empty-cat"
-						src={asset('/art/presentation-stickers/cat-presenter.png')}
+						src={asset('art/presentation-stickers/cat-presenter.png')}
 						alt=""
 						width="728"
 						height="1014"
@@ -360,11 +361,12 @@
 					<p class="presentation-empty-description">
 						Start with a blank slide. Add your words, images, and a little personality as you go.
 					</p>
-					<button class={buttonPrimary} onclick={createBlank} disabled={creatingBlank}
-						><FilePlus2 size={18} />{creatingBlank
-							? 'Creating…'
-							: 'Create your first presentation'}</button
-					>
+
+					<button class={buttonPrimary} onclick={createBlank} disabled={creatingBlank}>
+						<FilePlus2 size={18} />
+						{creatingBlank ? 'Creating…' : 'Create your first presentation'}
+					</button>
+
 					<p class="presentation-empty-restore">
 						Already have a .stickerlab.zip? Use <strong>Restore backup</strong> above.
 					</p>
@@ -387,24 +389,35 @@
 								href={openhref(item.id)}
 								aria-label={`Open ${item.title}`}
 							>
-								<span class="presentation-card-preview" aria-hidden="true"
-									><span class="presentation-card-paper"
-										><Presentation size={17} /><b>{item.title}</b><em></em></span
-									><PresentationThumb
-										{repository}
-										documentId={item.id}
-										revision={item.revision}
-									/><i>16:9 SLIDES</i></span
+								<span class="presentation-card-preview" aria-hidden="true">
+									<span class="presentation-card-paper">
+										<Presentation size={17} />
+										<b>{item.title}</b>
+										<em></em>
+									</span>
+
+									<PresentationThumb {repository} documentId={item.id} revision={item.revision} /><i
+										>16:9 SLIDES</i
+									></span
 								>
 								<span
 									class="presentation-card-body [display:grid] [gap:var(--space-2)] [padding:var(--space-4)_var(--space-2)_var(--space-2)]"
 									><span
 										class="presentation-card-title [display:flex] [align-items:center] [justify-content:space-between] [gap:var(--space-3)]"
-										><strong title={item.title}>{item.title}</strong><ArrowRight size={17} /></span
-									><small><Clock3 size={13} /> Updated {formattedDate(item.updatedAt)}</small><small
+									>
+										<strong title={item.title}>{item.title}</strong>
+										<ArrowRight size={17} />
+									</span>
+
+									<small>
+										<Clock3 size={13} />
+										Updated {formattedDate(item.updatedAt)}
+									</small>
+
+									<small
 										>{item.slideCount} {item.slideCount === 1 ? 'slide' : 'slides'} · Local</small
-									></span
-								>
+									>
+								</span>
 							</a>
 							<div
 								class="presentation-card-actions [margin-top:auto] [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-1)] [padding:var(--space-2)_var(--space-2)_0]"
@@ -490,10 +503,10 @@
 					class={button}
 					type="button"
 					onclick={() => (pendingDelete = null)}>Keep presentation</button
-				><button
-					class={buttonDanger}
-					disabled={busyId === pendingDelete?.id}
-					onclick={confirmDelete}>Delete presentation</button
+				>
+
+				<button class={buttonDanger} disabled={busyId === pendingDelete?.id} onclick={confirmDelete}
+					>Delete presentation</button
 				>{/snippet}
 		</Modal>
 	</div>

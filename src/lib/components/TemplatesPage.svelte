@@ -1,5 +1,5 @@
 <script>
-	import { button } from '$lib/ui/styles.js';
+	import { button } from '#lib/ui/styles.js';
 	/**
 	 * Port of `src/features/templates/TemplatesPage.tsx` (React main `54eae61c`):
 	 * the source `/templates` catalog — hero, category pills, `q` search, the three
@@ -16,11 +16,11 @@
 	import Hero from './Hero.svelte';
 	import StickerCollage from './StickerCollage.svelte';
 	import TemplateRail from './TemplateRail.svelte';
-	import { TEMPLATE_CATEGORIES, templateData } from '$lib/editor/templates';
+	import { TEMPLATE_CATEGORIES, templateData } from '#lib/editor/templates.js';
 
 	/**
 	 * @type {{
-	 *   repository: import('$lib/persistence/repository').StickerLabRepository,
+	 *   repository: import('#lib/persistence/repository.js').StickerLabRepository,
 	 *   onopen: (projectId: string) => void,
 	 *   pathname?: string,
 	 *   search?: string,

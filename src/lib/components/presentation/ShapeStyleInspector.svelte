@@ -1,7 +1,7 @@
 <script>
 	/** @type {{
-	 *   element: import('$lib/presentations/model/types').ShapeElement,
-	 *   store: import('$lib/presentations/editor/store.svelte').PresentationStore
+	 *   element: import('#lib/presentations/model/types.js').ShapeElement,
+	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore
 	 * }} */
 	let { element, store } = $props();
 
@@ -11,7 +11,7 @@
 
 	/**
 	 * Every change is grouped under one history entry per editing session.
-	 * @param {Partial<import('$lib/presentations/model/types').ShapeElement>} update
+	 * @param {Partial<import('#lib/presentations/model/types.js').ShapeElement>} update
 	 */
 	function patch(update) {
 		store

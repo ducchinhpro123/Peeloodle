@@ -1,9 +1,9 @@
 <script>
 	import { tick } from 'svelte';
-	import { button } from '$lib/ui/styles.js';
-	import { layoutTextElement } from '$lib/presentations/rendering/textLayout';
-	import { measureTextWidth } from '$lib/presentations/editor/textMeasure';
-	import { growTextToFit, textBoxInsidePage } from '$lib/presentations/editor/textFit';
+	import { button } from '#lib/ui/styles.js';
+	import { layoutTextElement } from '#lib/presentations/rendering/textLayout.js';
+	import { measureTextWidth } from '#lib/presentations/editor/textMeasure.js';
+	import { growTextToFit, textBoxInsidePage } from '#lib/presentations/editor/textFit.js';
 
 	/**
 	 * Sizing mode and text-overflow feedback (P27, extended). The layout service
@@ -18,8 +18,8 @@
 	 *   floor; the document is untouched when it refuses.
 	 *
 	 * @type {{
-	 *   element: import('$lib/presentations/model/types').TextElement,
-	 *   store: import('$lib/presentations/editor/store.svelte').PresentationStore
+	 *   element: import('#lib/presentations/model/types.js').TextElement,
+	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore
 	 * }}
 	 */
 	let { element, store } = $props();

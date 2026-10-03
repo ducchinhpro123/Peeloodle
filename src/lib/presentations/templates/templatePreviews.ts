@@ -15,13 +15,13 @@
  * referenced by a version.
  */
 
-import { sha256Hex } from '$lib/hash';
+import { sha256Hex } from '#lib/hash.js';
 import type {
 	CatalogActionResult,
 	CatalogRefusal,
 	CatalogTemplatePreviewsInput
-} from '$lib/catalog/repository';
-import type { CatalogTemplateDraft } from '$lib/catalog/types';
+} from '#lib/catalog/repository.js';
+import type { CatalogTemplateDraft } from '#lib/catalog/types.js';
 import { rasterizeSlidePage } from '../rendering/rasterizeSlide';
 import type { PresentationImageSources } from '../rendering/renderSlide';
 import type { PresentationDocument } from '../model/types';

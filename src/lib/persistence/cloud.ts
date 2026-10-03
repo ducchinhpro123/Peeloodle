@@ -10,7 +10,7 @@
  * stays usable on its own and no callback reaches into protected internals.
  */
 
-import type { PackRecord, ProjectDocument } from '$lib/domain/domain';
+import type { PackRecord, ProjectDocument } from '#lib/domain/domain.js';
 import {
 	IdbRepository,
 	loadProjectBundle,

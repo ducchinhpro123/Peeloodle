@@ -1,14 +1,14 @@
 <script>
 	import { onMount } from 'svelte';
 	import { Search, Plus, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-svelte';
-	import { SHIPPED_TEMPLATES } from '$lib/presentations/templates/shippedTemplates';
-	import { ensurePresentationFonts } from '$lib/presentations/rendering/fonts';
-	import { rasterizeSlidePage } from '$lib/presentations/rendering/rasterizeSlide';
-	import { button, buttonPrimary } from '$lib/ui/styles';
+	import { SHIPPED_TEMPLATES } from '#lib/presentations/templates/shippedTemplates.js';
+	import { ensurePresentationFonts } from '#lib/presentations/rendering/fonts.js';
+	import { rasterizeSlidePage } from '#lib/presentations/rendering/rasterizeSlide.js';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	import Modal from './Modal.svelte';
 	import { resolve } from '$app/paths';
 
-	/** @type {{ repository: import('$lib/presentations/persistence/repository').PresentationRepository, onopen: (id: string) => void | Promise<void>, onblank: () => void, creatingBlank: boolean, task?: string | null }} */
+	/** @type {{ repository: import('#lib/presentations/persistence/repository.js').PresentationRepository, onopen: (id: string) => void | Promise<void>, onblank: () => void, creatingBlank: boolean, task?: string | null }} */
 	let { repository, onopen, onblank, creatingBlank, task = null } = $props();
 	let query = $state('');
 	let category = $derived(
@@ -22,7 +22,7 @@
 	);
 	const categories = ['All templates', 'Class', 'Research', 'Pitch', 'Business'];
 	const labels = ['Class', 'Research', 'Pitch', 'Business'];
-	/** @type {Array<{ key: string, title: string, description: string, category: string, document: import('$lib/presentations/model/types').PresentationDocument, previews: string[] }>} */
+	/** @type {Array<{ key: string, title: string, description: string, category: string, document: import('#lib/presentations/model/types.js').PresentationDocument, previews: string[] }>} */
 	let decks = $state.raw([]);
 	let loading = $state(true);
 	let previewError = $state(false);
@@ -63,12 +63,12 @@
 				await ensurePresentationFonts();
 				for (const deck of built) {
 					const template = SHIPPED_TEMPLATES.find((item) => item.key === deck.key);
-					/** @type {import('$lib/presentations/rendering/decodedArtwork').DecodedArtworkSources | null} */
+					/** @type {import('#lib/presentations/rendering/decodedArtwork.js').DecodedArtworkSources | null} */
 					let artwork = null;
 					try {
 						if (template?.loadArtwork) {
 							const { decodeArtworkBatch } =
-								await import('$lib/presentations/rendering/decodedArtwork');
+								await import('#lib/presentations/rendering/decodedArtwork.js');
 							artwork = await decodeArtworkBatch(await template.loadArtwork(deck.document));
 						}
 						for (const slide of deck.document.slides) {
@@ -127,30 +127,35 @@
 		<span class="local-note">Built in · No account needed</span>
 	</div>
 	<p class="catalog-note">
-		These starters work without an account. <a href={resolve('/presentation-templates')}
-			>Browse online deck templates</a
-		> for more — internet access required.
+		These starters work without an account.
+		<a href={resolve('presentation-templates')}>Browse online deck templates</a>
+		for more — internet access required.
 	</p>
 	<div class="gallery-toolbar">
-		<label class="template-search"
-			><Search size={18} aria-hidden="true" /><span class="sr-only"
-				>Search presentation templates</span
-			><input type="search" bind:value={query} placeholder="Find your starting point…" /></label
-		>
+		<label class="template-search">
+			<Search size={18} aria-hidden="true" />
+			<span class="sr-only">Search presentation templates</span>
+
+			<input type="search" bind:value={query} placeholder="Find your starting point…" />
+		</label>
+
 		<div class="categories" role="group" aria-label="Template category">
-			{#each categories as item (item)}<button
+			{#each categories as item (item)}
+				<button
 					class:active={category === item}
 					aria-pressed={category === item}
 					onclick={() => (category = item)}>{item}</button
-				>{/each}
+				>
+			{/each}
 		</div>
 	</div>
 	<div class="template-grid">
-		<button class="blank-template" onclick={onblank} disabled={creatingBlank}
-			><span class="blank-art"><Plus size={30} /></span><strong
-				>{creatingBlank ? 'Creating…' : 'Start from scratch'}</strong
-			><small>Blank 16:9 presentation</small></button
-		>
+		<button class="blank-template" onclick={onblank} disabled={creatingBlank}>
+			<span class="blank-art"><Plus size={30} /></span>
+			<strong>{creatingBlank ? 'Creating…' : 'Start from scratch'}</strong>
+			<small>Blank 16:9 presentation</small>
+		</button>
+
 		{#each filtered as deck (deck.key)}
 			<button
 				class="template-card"
