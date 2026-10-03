@@ -217,7 +217,7 @@ test.describe('P45 capacity evidence', () => {
 		const openStart = Date.now();
 		await page.goto(`/presentations/${document.id}`);
 		await expect(page.getByTestId('presentation-canvas')).toBeVisible({ timeout: 180_000 });
-		await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({
+		await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
 			timeout: 180_000
 		});
 		const openMs = Date.now() - openStart;
@@ -346,7 +346,7 @@ test.describe('P45 capacity evidence', () => {
 		const openStart = Date.now();
 		await page.goto(`/presentations/${document.id}`);
 		await expect(page.getByTestId('presentation-canvas')).toBeVisible({ timeout: 120_000 });
-		await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({
+		await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
 			timeout: 120_000
 		});
 		const openMs = Date.now() - openStart;
@@ -455,7 +455,7 @@ test.describe('P45 capacity evidence', () => {
 		const openStart = Date.now();
 		await page.goto(`/presentations/${document.id}`);
 		await expect(page.getByTestId('presentation-canvas')).toBeVisible({ timeout: 180_000 });
-		await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({
+		await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
 			timeout: 180_000
 		});
 		const openMs = Date.now() - openStart;
@@ -464,7 +464,7 @@ test.describe('P45 capacity evidence', () => {
 		// One real edit and its save prove the near-ceiling document writes back.
 		const saveStart = Date.now();
 		await addShape(page, 'rectangle');
-		await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({
+		await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
 			timeout: 180_000
 		});
 		const saveMs = Date.now() - saveStart;
@@ -499,7 +499,7 @@ test.describe('P45 capacity evidence', () => {
 				},
 				notes: [
 					'Each slide carries one text element at the per-element text ceiling (200 paragraphs × 20 runs), which is what gives the JSON its bulk.',
-					'The save is a real command (a new rectangle) written through the autosave coordinator; "Saved locally" is the app’s own confirmation.',
+					'The save is a real command (a new rectangle) written through the autosave coordinator; "Saved in this browser" is the app’s own confirmation.',
 					'This probe measures capacity; it does not exercise rejection of over-limit documents.'
 				]
 			},

@@ -88,7 +88,9 @@ test('adds, duplicates, reorders, and deletes slides through the accessible rail
 	await expect(rail(page, 'Move slide 3 up')).toHaveCount(0);
 	const movedOrder = [sourceSlideId, added.id, copy.id];
 	await expect.poll(() => slideIds(page, id)).toEqual(movedOrder);
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({ timeout: 10_000 });
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
+		timeout: 10_000
+	});
 
 	// Reload and reopen from the library: the order, the copy's content and the
 	// reused asset all come back from storage, not from in-memory state.

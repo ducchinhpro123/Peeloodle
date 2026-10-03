@@ -13,6 +13,7 @@ import { Home, ImagePlus, LayoutGrid, LayoutTemplate, Plus, Presentation } from 
  * The shell's internal link targets. Every one of them is a real route now that
  * the sticker library landed.
  * @typedef {'/' | '/create' | '/templates' | '/presentation-templates' | '/my-stickers' | '/presentations' | '/my-stickers#local-stickers'
+ *   | '/presentations?task=class' | '/presentations?task=research-defense' | '/presentations?task=club-pitch'
  *   | '/create?tool=erase' | '/create?tool=text' | '/create?tool=effects' | '/create?tool=export'} ShellLink
  */
 
@@ -36,6 +37,10 @@ export function shellHref(link) {
 	if (link === '/templates') return resolve('/templates');
 	if (link === '/presentation-templates') return resolve('/presentation-templates');
 	if (link === '/presentations') return resolve('/presentations');
+	if (link === '/presentations?task=class') return resolve('/presentations?task=class');
+	if (link === '/presentations?task=research-defense')
+		return resolve('/presentations?task=research-defense');
+	if (link === '/presentations?task=club-pitch') return resolve('/presentations?task=club-pitch');
 	if (link === '/my-stickers') return resolve('/my-stickers');
 	return resolve('/my-stickers#local-stickers');
 }

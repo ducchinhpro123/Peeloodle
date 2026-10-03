@@ -32,8 +32,8 @@ test('a shell nav link writes the pending edit before it leaves the editor', asy
 	expect(stored?.text).toContain('Home must not lose this');
 
 	// The editor really is gone and the dashboard is live.
-	await expect(page.getByRole('heading', { name: /Small stickers/ })).toBeVisible();
-	await expect(page.getByText('Untitled presentation', { exact: true })).toHaveCount(0);
+	await expect(page.getByRole('heading', { name: /Your next big idea/ })).toBeVisible();
+	await expect(page.getByTestId('presentation-canvas')).toHaveCount(0);
 });
 
 test('a clean editor follows a shell nav link immediately', async ({ page }) => {
@@ -43,7 +43,7 @@ test('a clean editor follows a shell nav link immediately', async ({ page }) => 
 	await page.locator('.topnav').getByRole('link', { name: 'Home' }).click();
 
 	await expect(page).toHaveURL('/');
-	await expect(page.getByRole('heading', { name: /Small stickers/ })).toBeVisible();
+	await expect(page.getByRole('heading', { name: /Your next big idea/ })).toBeVisible();
 	await expect(page.getByText(/could not be saved/i)).toHaveCount(0);
 });
 

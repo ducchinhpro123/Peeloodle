@@ -18,6 +18,7 @@
 	 * }} */
 	let { exportState, offline, reloadSafety, onexport, oncancel } = $props();
 
+	// Direct backup failures appear next to the backup action on the page.
 	let open = $state(false);
 	/** @type {HTMLButtonElement | null} */
 	let opener = $state(null);
@@ -37,10 +38,30 @@
 <Modal
 	{open}
 	title="Export presentation"
-	description="PDF keeps the exact slide visuals as fixed pages; PPTX keeps text, shapes and pictures editable. Both include every slide in order."
+	description="Choose the file for what you want to do. Every format includes all your slides in order."
 	onclose={() => (open = false)}
 	onclosed={() => opener?.focus()}
 >
+	<dl class="format-guide">
+		<div>
+			<dt>PDF · For handing in</dt>
+			<dd>Fixed slide pages that keep your visuals. Not editable slides.</dd>
+		</div>
+		<div>
+			<dt>PPTX · For editing elsewhere</dt>
+			<dd>
+				Editable text, shapes and pictures. Check the file in your presentation app before your
+				deadline.
+			</dd>
+		</div>
+		<div>
+			<dt>Backup · For reopening here</dt>
+			<dd>
+				Your editable deck and images in a .stickerlab.zip. Restore it from the presentation
+				library, including on another device.
+			</dd>
+		</div>
+	</dl>
 	<div
 		class="presentation-export-actions [margin-top:var(--space-4)] [display:flex] [flex-wrap:wrap] [gap:var(--space-2)]"
 	>
@@ -90,6 +111,19 @@
 </Modal>
 
 <style>
+	.format-guide {
+		display: grid;
+		gap: 14px;
+		font-size: 13px;
+		line-height: 1.5;
+	}
+	.format-guide dt {
+		font-weight: 700;
+	}
+	.format-guide dd {
+		margin: 4px 0 0;
+		color: var(--muted);
+	}
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.presentation-export-warnings {
 		margin-top: var(--space-4);

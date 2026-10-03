@@ -27,7 +27,7 @@ test('multiline text remains inside its auto-growing box while typing', async ({
 	await field.fill('Xin chào Việt Nam\nSecond line\nThird line\nFourth line\nFifth line');
 	await expect.poll(() => fieldsFit(page)).toBe(true);
 	await field.blur();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	const row = JSON.parse(await readStoredPresentationJson(page, id));
 	expect(row.slides[0].elements[0].autoGrow).toBe(true);
 	await page.reload();
@@ -42,7 +42,7 @@ test('heading preset styles survive first typing, clearing and reopening', async
 	await expect(page.getByTestId('text-edit-field')).toBeFocused();
 	await page.keyboard.type('My heading');
 	await page.keyboard.press('Escape');
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	const row = await storedRow(page, id);
 	const text = row.slides[0].elements[0];
 	expect(text.paragraphs[0].runs[0].size).toBe(56);
@@ -94,7 +94,7 @@ test('keeps blank lines, an unbroken link and mixed sizes inside the box', async
 	await sizeSelect.selectOption('96');
 	await expect.poll(() => fieldsFit(page)).toBe(true);
 	await field.blur();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 
 	// Autosave settles asynchronously; poll for the committed structure instead of
 	// reading a row that may still hold the pre-change document. An empty
@@ -178,7 +178,7 @@ test('inserts a built-in layout offline without replacing existing content', asy
 	await page.getByRole('button', { name: 'Add heading', exact: true }).click();
 	await page.keyboard.type('Keep my original');
 	await page.keyboard.press('Escape');
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	await context.setOffline(true);
 	await page.getByRole('button', { name: 'Add layout', exact: true }).click();
 	const dialog = page.getByRole('dialog', { name: 'Add a slide layout' });

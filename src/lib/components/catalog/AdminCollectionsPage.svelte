@@ -8,8 +8,7 @@
 	 * Admin collection management (P52): paged search, create, edit with
 	 * compare-and-set revisions, publish and archive.
 	 *
-	 * The repository is the props-only seam, so the page renders (and is tested)
-	 * against `MemoryCatalog` as well as the Supabase adapter. A revision conflict
+	 * The repository is supplied through props. A revision conflict
 	 * keeps the form's values and shows the server's current revision; saving again
 	 * explicitly replaces the other edit. Every other refusal is explained in the
 	 * place the action was taken.

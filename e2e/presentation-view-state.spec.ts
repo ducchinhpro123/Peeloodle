@@ -111,7 +111,7 @@ test('the fit control returns the view to 100% without touching the document', a
 	await page.setViewportSize({ width: 1280, height: 768 });
 	const id = await openBlankEditor(page);
 	await addShape(page, 'rectangle');
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 
 	const before = await readStoredPresentationJson(page, id);
 	const box = (await canvasHost(page).boundingBox())!;

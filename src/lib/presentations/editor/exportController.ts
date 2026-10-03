@@ -12,6 +12,11 @@
 
 import { NOTHING_UNSAVED, reloadInstruction, type ReloadSafety } from '../offlineReadiness';
 import { downloadBlob } from '$lib/exports/download';
+import {
+	backupDocumentFingerprint,
+	rememberBackupDownload,
+	type BackupDownloadReceipt
+} from './backupReceipt';
 import type { PresentationRepository } from '../persistence/repository';
 import type { PresentationDocument } from '../model/types';
 import type { ExportWarning } from '../exports/snapshot';
@@ -37,6 +42,8 @@ export type PresentationExportState = {
 	total: number;
 	message: string | null;
 	warnings: ExportWarning[];
+	/** Only set after a restorable snapshot was handed to the browser. */
+	backupDownload?: BackupDownloadReceipt;
 };
 
 export const IDLE_PRESENTATION_EXPORT: PresentationExportState = {
@@ -207,6 +214,15 @@ export function createPresentationExport(
 			}
 			if (controller.signal.aborted) throw new Error('cancelled');
 
+			const backupDownload =
+				format === 'backup'
+					? {
+							documentId: snapshot.document.id,
+							documentSha256: await backupDocumentFingerprint(snapshot.document),
+							downloadedAt: new Date().toISOString()
+						}
+					: undefined;
+			if (controller.signal.aborted) throw new Error('cancelled');
 			const download = input.download ?? downloadBlob;
 			// Copy through a view: `Uint8Array.buffer` is ArrayBufferLike, which a Blob
 			// cannot take, and the bytes are copied either way.
@@ -215,13 +231,15 @@ export function createPresentationExport(
 				new Blob([blobBytes], { type: MIME[format] }),
 				exportFileName(snapshot.document.title, format)
 			);
+			if (backupDownload) rememberBackupDownload(backupDownload);
 			publish({
 				phase: 'done',
 				format,
 				completed: total,
 				total,
 				message: null,
-				warnings: snapshot.warnings
+				warnings: snapshot.warnings,
+				...(backupDownload ? { backupDownload } : {})
 			});
 		} catch (error) {
 			const wasCancelled =

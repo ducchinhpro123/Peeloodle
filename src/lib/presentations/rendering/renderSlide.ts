@@ -8,7 +8,7 @@ import type {
 	TextElement,
 	TextRun
 } from '../model/types';
-import { createKonvaTextForRun, Konva as KonvaRuntime, konvaTextWidthForRun } from './konvaText';
+import { createKonvaTextForRun, Konva as KonvaRuntime, konvaTextWidth } from './konvaText';
 import { layoutTextElement } from './textLayout';
 
 export type PresentationImageSource = CanvasImageSource & {
@@ -195,7 +195,7 @@ export function renderText(element: TextElement, listening: boolean): Konva.Grou
 		);
 	}
 	const content = new KonvaRuntime.Group({ x: element.padding, y: element.padding, listening });
-	const layout = layoutTextElement(element, (text, spec) => konvaTextWidthForRun(text, spec));
+	const layout = layoutTextElement(element, konvaTextWidth);
 
 	for (const line of layout.lines) {
 		if (line.bullet && line.firstInParagraph) {

@@ -17,7 +17,6 @@
 		const repo = repository;
 		let live = true;
 		void (async () => {
-			if (import.meta.env.MODE === 'test') return;
 			try {
 				const thumbnail = await acquireProjectThumbnail({ repository: repo, project: current });
 				if (!live) return;

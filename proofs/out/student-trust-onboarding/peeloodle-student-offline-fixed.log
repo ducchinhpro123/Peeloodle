@@ -1,0 +1,17 @@
+
+Running 12 tests using 1 worker
+
+  ✓   1 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (3.5s)
+  ✓   2 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (3.2s)
+  ✓   3 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (3.5s)
+  ✓   4 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (3.9s)
+  ✓   5 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (3.3s)
+  ✓   6 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (3.5s)
+  ✓   7 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (4.2s)
+  ✓   8 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (4.7s)
+  ✓   9 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (4.1s)
+  ✓  10 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (3.3s)
+  ✓  11 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (3.5s)
+  ✓  12 e2e/presentation-offline.spec.ts:287:1 › a builder that cannot be fetched says how to recover and needs a reload (3.8s)
+
+  12 passed (52.0s)

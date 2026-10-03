@@ -57,7 +57,7 @@ export function reloadInstruction(safety: ReloadSafety = NOTHING_UNSAVED): strin
 		return 'Do not reload or close this tab: saving is failing, and reloading would discard the edits still in this page. Reconnect and press Save to keep them.';
 	}
 	if (safety.unsavedWork) {
-		return 'Reconnect and press Save, then wait for “Saved locally” before reloading this page.';
+		return 'Reconnect and press Save, then wait for “Saved in this browser” before reloading this page.';
 	}
 	return 'Reconnect and reload the page. Your saved work is not affected.';
 }

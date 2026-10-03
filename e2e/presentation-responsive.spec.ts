@@ -94,6 +94,25 @@ test('keeps the library and the authoring preview contained on a phone', async (
 	await expect(page.getByRole('button', { name: 'Duplicate active slide' })).toBeVisible();
 	await expect.poll(() => noHorizontalOverflow(page)).toBe(true);
 
+	await page.getByRole('button', { name: 'Add slide' }).click();
+	await page.getByRole('button', { name: /^Show slide 1:/ }).click();
+	await expect(page.getByRole('button', { name: /^Show slide 1:/ })).toHaveAttribute(
+		'aria-current',
+		'true'
+	);
+	const [backup] = await Promise.all([
+		page.waitForEvent('download'),
+		page.getByRole('button', { name: 'Back up my work', exact: true }).click()
+	]);
+	await backup.saveAs(test.info().outputPath('phone-presentation.stickerlab.zip'));
+	await page.getByRole('button', { name: 'Export', exact: true }).click();
+	await expect(page.getByRole('dialog', { name: 'Export presentation' })).toContainText(
+		'For handing in'
+	);
+	await expect.poll(() => noHorizontalOverflow(page)).toBe(true);
+	await page.keyboard.press('Escape');
+	await page.screenshot({ path: test.info().outputPath('phone-editor-after.png') });
+
 	await page.getByRole('link', { name: 'Back to presentations' }).click();
 	await expect(page.getByRole('link', { name: 'Open Untitled presentation' })).toBeVisible();
 	await expect.poll(() => noHorizontalOverflow(page)).toBe(true);

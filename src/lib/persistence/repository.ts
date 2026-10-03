@@ -109,139 +109,6 @@ export async function loadProjectBundle(
 	return { assets: new Map(assets), masks: new Map(masks) };
 }
 
-export class MemoryRepository implements StickerLabRepository {
-	private projects = new Map<string, unknown>();
-	private assets = new Map<string, AssetRecord>();
-	private packs = new Map<string, PackRecord>();
-	private masks = new Map<string, Blob>();
-	private failNextWrite = false;
-
-	injectWriteFailure(): void {
-		this.failNextWrite = true;
-	}
-
-	/** Test seam: write an unvalidated value as if it came off disk. */
-	seedRawProject(id: string, value: unknown): void {
-		this.projects.set(id, value);
-	}
-
-	async getProject(id: string): Promise<ProjectDocument> {
-		if (!this.projects.has(id))
-			throw new PersistenceError('not_found', `Project ${id} was not found`);
-		return parseProjectDocument(this.projects.get(id));
-	}
-
-	async listProjects(): Promise<ProjectDocument[]> {
-		const documents: ProjectDocument[] = [];
-		for (const value of this.projects.values()) {
-			try {
-				documents.push(parseProjectDocument(value));
-			} catch {
-				// Skip unreadable rows so one corrupt record cannot hide the rest.
-			}
-		}
-		return sortProjects(documents);
-	}
-
-	async saveProject(document: ProjectDocument): Promise<void> {
-		await this.saveProjectWithAssets(document, []);
-	}
-
-	async deleteProject(id: string): Promise<void> {
-		this.guardWrite();
-		this.projects.delete(id);
-	}
-
-	async getAsset(id: string): Promise<AssetRecord> {
-		const record = this.assets.get(id);
-		if (!record) throw new PersistenceError('not_found', `Asset ${id} was not found`);
-		return { asset: parseAsset(record.asset), blob: record.blob };
-	}
-
-	async listAssets(): Promise<Asset[]> {
-		return [...this.assets.values()].map((record) => parseAsset(record.asset));
-	}
-
-	async saveAsset(record: AssetRecord): Promise<void> {
-		this.guardWrite();
-		const next = new Map(this.assets);
-		next.set(record.asset.id, cloneAssetRecord(record));
-		this.assets = next;
-	}
-
-	async deleteAsset(id: string): Promise<void> {
-		this.guardWrite();
-		this.assets.delete(id);
-	}
-
-	async saveProjectWithAssets(
-		document: ProjectDocument,
-		assets: AssetRecord[],
-		masks: MaskRecord[] = []
-	): Promise<void> {
-		this.guardWrite();
-		const clean = serializeProjectDocument(document);
-		const nextAssets = new Map(this.assets);
-		for (const record of assets) nextAssets.set(record.asset.id, cloneAssetRecord(record));
-		const nextMasks = new Map(this.masks);
-		for (const record of masks) nextMasks.set(record.key, record.blob);
-		assertProjectReferences(
-			clean,
-			(id) => nextAssets.has(id),
-			(key) => nextMasks.has(key)
-		);
-		const nextProjects = new Map(this.projects);
-		nextProjects.set(clean.id, clean);
-		this.assets = nextAssets;
-		this.masks = nextMasks;
-		this.projects = nextProjects;
-	}
-
-	async getMask(key: string): Promise<Blob> {
-		const blob = this.masks.get(key);
-		if (!blob) throw new PersistenceError('not_found', `Mask ${key} was not found`);
-		return blob;
-	}
-
-	async saveMask(key: string, blob: Blob): Promise<void> {
-		this.guardWrite();
-		this.masks.set(key, blob);
-	}
-
-	async deleteMask(key: string): Promise<void> {
-		this.guardWrite();
-		this.masks.delete(key);
-	}
-
-	async getPack(id: string): Promise<PackRecord> {
-		const pack = this.packs.get(id);
-		if (!pack) throw new PersistenceError('not_found', `Pack ${id} was not found`);
-		return clonePackRecord(pack);
-	}
-
-	async listPacks(): Promise<PackRecord[]> {
-		return [...this.packs.values()]
-			.map(clonePackRecord)
-			.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-	}
-
-	async savePack(record: PackRecord): Promise<void> {
-		this.guardWrite();
-		this.packs.set(record.id, clonePackRecord(record));
-	}
-
-	async deletePack(id: string): Promise<void> {
-		this.guardWrite();
-		this.packs.delete(id);
-	}
-
-	private guardWrite(): void {
-		if (!this.failNextWrite) return;
-		this.failNextWrite = false;
-		throw new PersistenceError('transaction_failed', 'Save failed');
-	}
-}
-
 export class IdbRepository implements StickerLabRepository {
 	private openPromise: Promise<IDBDatabase> | undefined;
 
@@ -273,7 +140,7 @@ export class IdbRepository implements StickerLabRepository {
 			try {
 				documents.push(parseProjectDocument(row));
 			} catch {
-				// Same as memory: listing must not crash on one bad row.
+				// One unreadable row must not hide the rest of the library.
 			}
 		}
 		return sortProjects(documents);
@@ -417,7 +284,7 @@ export class IdbRepository implements StickerLabRepository {
 				const maskStore = tx.objectStore(MASKS_STORE);
 				for (const stored of storedAssets) await idbRequest(assetStore.put(stored));
 				for (const stored of storedMasks) await idbRequest(maskStore.put(stored));
-				// The stored row shape is an adapter concern; reference integrity is shared.
+				// Validate stored rows before checking reference integrity.
 				const storedAssetIds = new Set<string>();
 				for (const assetId of clean.assetIds) {
 					const row = await idbRequest<unknown>(assetStore.get(assetId));
@@ -614,18 +481,10 @@ export class IdbRepository implements StickerLabRepository {
 	}
 }
 
-export function createMemoryRepository(): MemoryRepository {
-	return new MemoryRepository();
-}
-
-export function createIdbRepository(dbName = DEFAULT_DB_NAME): IdbRepository {
-	return new IdbRepository(dbName);
-}
-
 let localRepository: StickerLabRepository | undefined;
 
 export function getLocalRepository(): StickerLabRepository {
-	if (!localRepository) localRepository = createIdbRepository();
+	if (!localRepository) localRepository = new IdbRepository();
 	return localRepository;
 }
 
@@ -654,10 +513,6 @@ export function parsePackRecord(value: unknown): PackRecord {
 	};
 	if (typeof raw.coverAssetId === 'string') record.coverAssetId = raw.coverAssetId;
 	return record;
-}
-
-function clonePackRecord(record: PackRecord): PackRecord {
-	return { ...record, projectIds: [...record.projectIds] };
 }
 
 function cloneAssetRecord(record: AssetRecord): AssetRecord {
@@ -707,7 +562,6 @@ function isArrayBufferValue(value: unknown): value is ArrayBuffer {
 	return isArrayBuffer(value);
 }
 
-/** Reference integrity both adapters must enforce: assets by id, masks by key. */
 /** A failed blob read while storing is an invalid asset, not a generic failure. */
 async function readAssetBlob(blob: Blob): Promise<ArrayBuffer> {
 	try {
@@ -718,6 +572,7 @@ async function readAssetBlob(blob: Blob): Promise<ArrayBuffer> {
 	}
 }
 
+/** Reference integrity: assets by id, masks by key. */
 function assertProjectReferences(
 	document: ProjectDocument,
 	hasAsset: (id: string) => boolean,

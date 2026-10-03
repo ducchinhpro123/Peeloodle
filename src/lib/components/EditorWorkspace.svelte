@@ -598,6 +598,12 @@
 									onclick={() => document.getElementById('photo-file-input')?.click()}
 									><Upload size={16} />Upload a photo</button
 								>
+								<button
+									type="button"
+									class={button}
+									onclick={() => void onAddSample('/samples/cat-in-console.png', 'Sample cat')}
+									><Sparkles size={16} />Try a sample photo</button
+								>
 								{#if intent === 'text'}
 									<button
 										type="button"

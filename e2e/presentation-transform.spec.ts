@@ -102,9 +102,9 @@ async function boxedText(page: Page, x = 200, y = 200) {
 	await page.keyboard.press('Escape');
 	await expect(page.getByTestId('text-edit-field')).not.toBeVisible();
 	// Let the autosave settle before touching the canvas. The save swaps the status
-	// text ("Unsaved changes" -> "Saved locally"), and at this width that can change
+	// text ("Unsaved changes" -> "Saved in this browser"), and at this width that can change
 	// how many rows the editor bar's action group needs, which moves the canvas.
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 
 	await setField(page, 'X position', String(x));
 	await setField(page, 'Y position', String(y));
@@ -130,7 +130,7 @@ test('moves in document units at two zoom levels and commits one history entry p
 	const id = decodeURIComponent(page.url().split('/').pop()!);
 	// Let the field edits reach disk first, so the mid-gesture read below is about
 	// the gesture and not about the autosave debounce.
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	await expect
 		.poll(
 			async () =>
@@ -190,7 +190,7 @@ test('moves in document units at two zoom levels and commits one history entry p
 	expect(Math.abs(afterSecond.y - beforeSecond.y - (moved.y - start.y))).toBeLessThanOrEqual(1);
 
 	// The move reached disk: the stored element carries the same numbers.
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	await expect
 		.poll(async () => (await readStoredPresentation(page, id))?.elements[0]?.x)
 		.toBeCloseTo(afterSecond.x, 0);
@@ -273,7 +273,7 @@ test('resizing a text box changes its frame without stretching the painted lette
 	await page.getByTestId('text-edit-field').fill('this is good');
 	await page.keyboard.press('Escape');
 	await expect(page.getByTestId('text-edit-field')).not.toBeVisible();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	await page.getByRole('button', { name: 'Fit slide to window' }).click();
 	const view = await canvasView(page);
 	const start = await readGeometry(page);
@@ -355,7 +355,7 @@ test('clicking a selected text box then pressing Delete removes it, but editing 
 	await page.keyboard.press('Delete');
 	await expect(canvasHost(page)).toHaveAttribute('data-selected-element', '');
 	await expect(page.locator('.presentation-layer-item')).toHaveCount(0);
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	await expect.poll(async () => (await readStoredPresentation(page, id))?.elements.length).toBe(0);
 	await page.screenshot({ path: testInfo.outputPath('text-deleted.png') });
 
@@ -376,7 +376,7 @@ test('canvas shortcuts duplicate the selected element and Escape clears selectio
 	const id = await openBlankEditor(page);
 	await addShape(page, 'rectangle');
 	const original = await readGeometry(page);
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	await clickAt(
 		page,
 		at(await canvasView(page), original.x + original.width / 2, original.y + original.height / 2)
@@ -431,7 +431,7 @@ test('keeps the visual centre through the numeric rotation field and a rotate-ha
 	expect(Math.abs(centreAfterDrag.y - centreBefore.y)).toBeLessThanOrEqual(3);
 
 	// The angle survives a real reload and reopen.
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	const id = decodeURIComponent(page.url().split('/').pop()!);
 	await page.reload();
 	await expect(canvasHost(page)).toBeVisible();
@@ -584,7 +584,7 @@ test('selects every visible element kind and leaves a locked element alone', asy
 	await expect(inspector(page).getByLabel('Width', { exact: true })).toBeDisabled();
 
 	// The row already on disk, so the drag's claims can be compared against it.
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	const listed = (await listStoredPresentations(page))[0];
 	const storedBefore = await readStoredPresentation(page, listed.id);
 
@@ -613,7 +613,7 @@ test('selects every visible element kind and leaves a locked element alone', asy
 	expect(await canvasHost(page).getAttribute('data-view-pan-y')).toBe(panBefore.y);
 	// The gesture also left no revision behind: the save state never moved, and
 	// the stored row is the same document.
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	const storedAfter = await readStoredPresentation(page, listed.id);
 	const geometryOf = ({ x, y, width, height, rotation }) => ({ x, y, width, height, rotation });
 	expect(geometryOf(storedAfter.elements.find((element) => element.kind === 'shape'))).toEqual(

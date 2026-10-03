@@ -183,7 +183,7 @@ test('a deck at the slide, element and asset ceilings exports in measured bounds
 
 	await page.goto(`/presentations/${document.id}`);
 	await expect(page.getByTestId('presentation-canvas')).toBeVisible();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 
 	const pdfBytes = await exportViaDialog(page, 'Export PDF');
 	const pdfFacts = await readPdfFacts(pdfBytes);
@@ -212,7 +212,7 @@ test('a byte-heavy deck keeps every artwork in its exports', async ({ page }) =>
 
 	await page.goto(`/presentations/${document.id}`);
 	await expect(page.getByTestId('presentation-canvas')).toBeVisible();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 
 	const pdfBytes = await exportViaDialog(page, 'Export PDF');
 	expect((await readPdfFacts(pdfBytes)).pages).toBe(8);

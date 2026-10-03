@@ -1,548 +1,391 @@
 <script>
+	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { button, buttonPrimary } from '$lib/ui/styles.js';
-	import { asset } from '$app/paths';
 	import {
-		ChevronRight,
+		ArrowRight,
+		BookOpen,
 		Clock,
+		GraduationCap,
 		ImagePlus,
-		LayoutGrid,
-		Play,
-		Scissors,
-		Sparkles,
-		Type,
-		Upload
+		Lightbulb,
+		Presentation
 	} from 'lucide-svelte';
 	import AppShell from './AppShell.svelte';
 	import Hero from './Hero.svelte';
 	import StickerCollage from './StickerCollage.svelte';
 	import LocalProjectList from './LocalProjectList.svelte';
+	import PresentationThumb from './PresentationThumb.svelte';
 	import TemplateRail from './TemplateRail.svelte';
 	import Modal from './Modal.svelte';
 	import { shellHref } from '$lib/app/navigation';
 
-	/**
-	 * @type {{
-	 *   repository: import('$lib/persistence/repository').StickerLabRepository,
-	 *   onopen: (projectId: string) => void,
-	 *   pathname?: string,
-	 *   search?: string,
-	 * }}
-	 */
-	let { repository, onopen, pathname = '/', search = '' } = $props();
-
+	/** @type {{
+	 * repository: import('$lib/persistence/repository').StickerLabRepository,
+	 * presentationRepository: import('$lib/presentations/persistence/repository').PresentationRepository,
+	 * onopen: (projectId: string) => void,
+	 * pathname?: string, search?: string
+	 * }} */
+	let { repository, presentationRepository, onopen, pathname = '/', search = '' } = $props();
 	let walkthroughOpen = $state(false);
+	let loading = $state(true);
+	let loadError = $state(false);
+	let recent = $state.raw(
+		/** @type {import('$lib/presentations/model/types').PresentationSummary[]} */ ([])
+	);
 
-	/**
-	 * `to` stays a literal shell target so the shared `shellHref` helper (and typed
-	 * `resolve()`) can check it; every destination here is a real route, including
-	 * `/my-stickers` since its route file landed.
-	 * @type {Array<{
-	 *   icon: typeof Scissors,
-	 *   title: string,
-	 *   to: import('$lib/app/navigation').ShellLink,
-	 *   detail: string,
-	 *   tone: string,
-	 *   torn?: boolean,
-	 * }>}
-	 */
-	const dashboardFeatures = [
+	const tasks = [
 		{
-			icon: Scissors,
-			title: 'Background Eraser',
-			to: '/create?tool=erase',
-			detail: 'Brush away the background. Keep the good bits.',
-			tone: 'pink'
+			title: 'Class presentation',
+			detail: 'Explain an idea, share a project, teach something new.',
+			icon: BookOpen,
+			href: shellHref('/presentations?task=class'),
+			label: '01 · FOR CLASS'
 		},
 		{
-			icon: Type,
-			title: 'Text & Emoji',
-			to: '/create?tool=text',
-			detail: 'Say it your way with editable text.',
-			tone: 'blue'
+			title: 'Research defense',
+			detail: 'Your question, method and findings. A clear place to start.',
+			icon: GraduationCap,
+			href: shellHref('/presentations?task=research-defense'),
+			label: '02 · FOR YOUR RESEARCH'
 		},
 		{
-			icon: Sparkles,
-			title: 'Filters & Effects',
-			to: '/create?tool=effects',
-			detail: 'Tune brightness, contrast, and grayscale on a photo.',
-			tone: 'yellow'
+			title: 'Club pitch',
+			detail: 'Get your team excited about what comes next.',
+			icon: Lightbulb,
+			href: shellHref('/presentations?task=club-pitch'),
+			label: '03 · FOR YOUR COMMUNITY'
 		},
 		{
-			icon: LayoutGrid,
-			title: 'Templates',
-			to: '/templates',
-			detail: 'A little inspiration. A lot of possibilities.',
-			tone: 'purple'
-		},
-		{
-			icon: Upload,
-			title: 'Share & Export',
-			to: '/create?tool=export',
-			detail: 'Made it? Take it with you as a transparent PNG.',
-			tone: 'green',
-			torn: true
+			title: 'Create a Sticker',
+			detail: 'Make a personal sticker, then bring it into your slides.',
+			icon: ImagePlus,
+			href: shellHref('/create'),
+			label: '04 · A LITTLE PERSONALITY'
 		}
 	];
+
+	async function loadRecent() {
+		loading = true;
+		loadError = false;
+		try {
+			recent = (await presentationRepository.listPresentations()).slice(0, 3);
+		} catch {
+			loadError = true;
+		} finally {
+			loading = false;
+		}
+	}
+	onMount(() => {
+		void loadRecent();
+	});
 </script>
 
 <AppShell {pathname} {search}>
 	<Hero variant="dashboard">
-		{#snippet kicker()}
-			<p class="hero-kicker tape">YOUR EVERYDAY, REMIXED</p>
-		{/snippet}
-		{#snippet title()}
-			Small stickers.<br /><em>Big personality.</em>
-		{/snippet}
+		{#snippet kicker()}<p class="hero-kicker tape">YOUR STUDENT DESK</p>{/snippet}
+		{#snippet title()}Your next big idea.<br /><em>Make it stick.</em>{/snippet}
 		{#snippet action()}
-			<div
-				class="actions [margin-top:var(--space-5)] [display:flex] [flex-wrap:wrap] [gap:var(--space-3)]"
-			>
-				<a class={buttonPrimary} href={shellHref('/create')}
-					><ImagePlus size={16} />Create a Sticker<ChevronRight size={16} /></a
+			<div class="desk-actions">
+				<a class={buttonPrimary} href={shellHref('/presentations')}
+					><Presentation size={17} />Make a presentation<ArrowRight size={17} /></a
 				>
-				<button type="button" class={button} onclick={() => (walkthroughOpen = true)}>
-					<Play size={16} />Watch how it works
-				</button>
+				<button type="button" class={button} onclick={() => (walkthroughOpen = true)}
+					>Quick start</button
+				>
 			</div>
 		{/snippet}
-		{#snippet points()}
-			<ul class="hero-points">
+		{#snippet points()}<ul class="hero-points">
 				<li>No account needed</li>
-				<li>Saved on your device</li>
-				<li>Made by you</li>
-			</ul>
-		{/snippet}
-		{#snippet art()}
-			<StickerCollage />
-		{/snippet}
-		Your cat. Your chaos. Your favorite face. Turn everyday photos into little things worth sending.
+				<li>Saved in this browser</li>
+				<li>Your words. Your style.</li>
+			</ul>{/snippet}
+		{#snippet art()}<StickerCollage />{/snippet}
+		Class project, research defense, or your club’s next big plan. Start with useful slides, add your
+		ideas and a little personality.
 	</Hero>
 
-	<div
-		class="feature-grid [margin:var(--space-5)_0_var(--space-6)] [display:grid] [grid-template-columns:repeat(auto-fit,_minmax(190px,_1fr))] [gap:var(--space-4)]"
-	>
-		{#each dashboardFeatures as feature (feature.title)}
-			<a class={`feature${feature.torn ? ' torn' : ''}`} href={shellHref(feature.to)}>
-				<b class={feature.tone}><feature.icon size={18} /></b>
-				<span><strong>{feature.title}</strong><small>{feature.detail}</small></span>
-				<i class="feature-doodle" aria-hidden="true">
-					{#if feature.title === 'Text & Emoji'}
-						<span class="feature-scrap">Make it yours!</span>
-					{:else if feature.title === 'Templates'}
-						<span class="feature-polaroid field"
-							><img src={asset('/art/polaroid-field.svg')} alt="" /></span
-						>
-						<span class="feature-polaroid daisy"
-							><img src={asset('/art/polaroid-daisy.svg')} alt="" /></span
-						>
-						<img
-							class="feature-smiley"
-							src={asset('/art/stickers/04-winking-smiley.webp')}
-							alt=""
-						/>
-					{/if}
-				</i>
-			</a>
-		{/each}
-	</div>
+	<section class="desk-tasks" aria-labelledby="task-heading">
+		<div class="section-title">
+			<h2 id="task-heading">What are you making?</h2>
+			<span>A head start, not a blank stare.</span>
+		</div>
+		<div class="task-grid">
+			{#each tasks as task (task.title)}
+				<a class="task-card" aria-label={task.title} href={task.href}>
+					<small>{task.label}</small><task.icon size={26} aria-hidden="true" />
+					<strong>{task.title}</strong>
+					<p>{task.detail}</p>
+					<ArrowRight size={19} aria-hidden="true" />
+				</a>
+			{/each}
+		</div>
+	</section>
 
-	<div
-		class="split [display:grid] [grid-template-columns:minmax(0,_1fr)_minmax(0,_1fr)] [gap:var(--space-5)]"
-	>
-		<section>
-			<div
-				class="section-title [margin:var(--space-5)_0_var(--space-4)] [display:flex] [align-items:center] [justify-content:space-between] [gap:var(--space-3)]"
-			>
-				<h2><Clock size={16} aria-hidden="true" /> Recent Projects</h2>
+	<section class="recent-decks" aria-labelledby="recent-heading">
+		<div class="section-title">
+			<h2 id="recent-heading"><Clock size={17} aria-hidden="true" />Recent presentations</h2>
+			<a href={shellHref('/presentations')}>All presentations <ArrowRight size={15} /></a>
+		</div>
+		<p class="storage-note">
+			Saved in this browser — not automatically synced. Download a backup to keep a portable copy.
+		</p>
+		{#if loading}<p role="status">Finding your presentations…</p>
+		{:else if loadError}<p role="alert">
+				Could not read your saved presentations. <button class={button} onclick={loadRecent}
+					>Try again</button
+				>
+			</p>
+		{:else if recent.length}
+			<ul class="recent-grid">
+				{#each recent as item (item.id)}<li>
+						<a
+							class="recent-card"
+							aria-label={`Open ${item.title}`}
+							href={resolve(`/presentations/${item.id}`)}
+						>
+							<span class="recent-preview"
+								><PresentationThumb
+									repository={presentationRepository}
+									documentId={item.id}
+									revision={item.revision}
+								/></span
+							>
+							<strong>{item.title}</strong><small
+								>{item.slideCount}
+								{item.slideCount === 1 ? 'slide' : 'slides'} · Saved in this browser</small
+							>
+						</a>
+					</li>{/each}
+			</ul>
+		{:else}<div class="desk-empty">
+				<BookOpen size={26} aria-hidden="true" />
+				<div>
+					<strong>Your next assignment starts here.</strong>
+					<p>
+						Pick a starting point above. Your saved presentations will appear here when you return.
+					</p>
+				</div>
+			</div>{/if}
+	</section>
+
+	<div class="sticker-shelf">
+		<section aria-labelledby="sticker-heading">
+			<div class="section-title">
+				<h2 id="sticker-heading">Your personal stickers</h2>
 				<a href={shellHref('/my-stickers#local-stickers')}>View all</a>
 			</div>
 			<LocalProjectList {repository} limit={6} />
 		</section>
-		<TemplateRail {repository} {onopen} title="🔥 Trending Templates" flushTop />
+		<TemplateRail {repository} {onopen} title="Sticker inspiration" flushTop />
 	</div>
-
-	<section class="bottom-banner">
-		<img
-			class="banner-sticker"
-			src={asset('/art/stickers/16-rainbow.webp')}
-			alt=""
-			width="96"
-			height="72"
-		/>
-		<b>Less ordinary.<br />More you.</b>
-		<div class="banner-copy [margin-left:auto] [text-align:right]">
-			<strong>Stick together</strong><small>Connect, create and share with friends.</small>
-		</div>
-		<a href={shellHref('/create')} class={buttonPrimary}>Start Creating<ChevronRight size={16} /></a
-		>
-	</section>
 </AppShell>
 
 <Modal
 	open={walkthroughOpen}
-	title="How StickerLab works"
-	description="From camera roll to conversation starter."
+	title="Your first presentation"
+	description="From an idea to something you can hand in."
 	onclose={() => (walkthroughOpen = false)}
 >
 	<ol class="walkthrough">
-		<li>Create a sticker from the dashboard or Create page.</li>
-		<li>Upload a PNG, JPEG, or static WebP photo.</li>
-		<li>Move, resize, and rotate it, then add text.</li>
-		<li>Save locally, reopen from Dashboard or My Stickers, and export a transparent PNG.</li>
+		<li>
+			<strong>Choose your assignment.</strong> Preview a class, research or club template, or start from
+			scratch. You get your own editable copy.
+		</li>
+		<li>
+			<strong>Make it yours.</strong> Replace the sample text, add photos, and use
+			<strong>Add sticker</strong> for your personal stickers. A laptop or desktop works best for editing.
+		</li>
+		<li>
+			<strong>Know where it lives.</strong> “Saved in this browser” means it stays here, not in an account.
+			Clearing browser data can remove it.
+		</li>
+		<li>
+			<strong>Take it with you.</strong> PDF for handing in, PPTX for editing elsewhere, and a .stickerlab.zip
+			backup to reopen here. Restore that backup from Presentations on another device.
+		</li>
 	</ol>
-	{#snippet footer()}
-		<button type="button" class={buttonPrimary} onclick={() => (walkthroughOpen = false)}
-			>Let’s make something</button
-		>
-	{/snippet}
+	{#snippet footer()}<a class={buttonPrimary} href={shellHref('/presentations')}
+			>Choose a starting point<ArrowRight size={16} /></a
+		>{/snippet}
 </Modal>
 
 <style>
-	/* Migrated from the former global layout stylesheet; scoped to this owner. */
-	.bottom-banner .button {
-		border-radius: var(--radius-sm);
-		min-height: 44px;
-		padding: 12px 16px;
-		font-size: 13px;
-	}
-	.feature {
+	.desk-actions {
 		display: flex;
-		position: relative;
-		min-height: 196px;
-		align-items: flex-start;
+		flex-wrap: wrap;
 		gap: var(--space-3);
-		padding: var(--space-5) var(--space-4) 72px;
-		border: 1px solid #08152f06;
-		border-radius: 24px;
-		background: var(--blush);
-		color: var(--ink);
-		text-decoration: none;
-		transition:
-			transform 160ms ease,
-			box-shadow 160ms ease;
+		margin-top: var(--space-5);
 	}
-	.feature:hover {
-		transform: translateY(-3px);
-		box-shadow: var(--shadow-hover);
+	.desk-tasks,
+	.recent-decks {
+		margin-top: var(--space-6);
 	}
-	.feature:nth-child(2) {
-		background: var(--sky);
-	}
-	.feature:nth-child(3) {
-		background: var(--pale);
-	}
-	.feature:nth-child(4) {
-		background: var(--lav);
-	}
-	.feature:nth-child(5) {
-		background: var(--pale);
-		clip-path: polygon(0 0, 100% 0, 100% 78%, 97% 84%, 100% 90%, 94% 100%, 0 100%);
-	}
-	.feature.torn {
-		background: var(--pale);
-		clip-path: polygon(0 0, 100% 0, 100% 78%, 97% 84%, 100% 90%, 94% 100%, 0 100%);
-	}
-	.feature > b {
-		display: grid;
-		width: 42px;
-		height: 42px;
-		flex: 0 0 42px;
-		place-items: center;
-		border-radius: 12px;
-		background: var(--icon-pink);
-		color: #fff;
-	}
-	.feature > b.blue {
-		background: var(--icon-blue);
-	}
-	.feature > b.purple {
-		background: var(--icon-purple);
-	}
-	.feature > b.green {
-		background: var(--icon-green);
-	}
-	.feature > b.yellow {
-		background: #e0a106;
-	}
-	.feature span {
-		display: grid;
-		gap: 2px;
-		min-width: 0;
-	}
-	.feature strong {
-		max-width: 9.5em;
-		font-size: 15px;
-		font-weight: 700;
-		line-height: 1.25;
-	}
-	.feature small {
-		color: var(--muted);
-		font-size: 12px;
-		font-weight: 500;
-		line-height: 1.35;
-	}
-	.feature::after {
-		margin-left: auto;
-		content: '›';
-		font-size: 22px;
-		color: #8aa0b8;
-	}
-	.feature-doodle {
-		position: absolute;
-		left: 18px;
-		bottom: 12px;
-		width: 88px;
-		height: 40px;
-		pointer-events: none;
-	}
-	.feature:nth-child(1) .feature-doodle {
-		width: 118px;
-		height: 42px;
-		background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 40' fill='none'%3E%3Cpath d='M4 28c10-16 18 10 32-8 12-16 18 12 34-6 12-14 20 10 36-8 10-12 16 8 28-4' stroke='%23ff7eb8' stroke-width='11' stroke-linecap='round'/%3E%3C/svg%3E")
-			center / contain no-repeat;
-		transform: rotate(-8deg);
-	}
-	.feature:nth-child(2) .feature-doodle {
-		left: 18px;
-		width: 168px;
-		height: 58px;
-	}
-	.feature:nth-child(2) .feature-doodle::before {
-		position: absolute;
-		right: 0;
-		bottom: 4px;
-		color: #1b2438;
-		content: '— Aa';
-		font-family: Chewy, cursive;
-		font-size: 34px;
-		font-weight: 400;
-		line-height: 1;
-	}
-	.feature-scrap {
-		position: absolute;
-		left: 0;
-		bottom: 2px;
-		padding: 8px 10px 7px;
-		background: #e9d7b0;
-		box-shadow: 0 3px 8px #08152f14;
-		clip-path: polygon(
-			6% 10%,
-			18% 0,
-			42% 8%,
-			70% 0,
-			96% 12%,
-			100% 78%,
-			88% 100%,
-			52% 92%,
-			18% 100%,
-			0 82%
-		);
-		color: #3d3428;
-		font-family: Chewy, cursive;
-		font-size: 13px;
-		transform: rotate(-10deg);
-	}
-	.feature:nth-child(3) .feature-doodle {
-		left: auto;
-		right: 16px;
-	}
-	.feature:nth-child(4) .feature-doodle {
-		left: auto;
-		right: 16px;
-	}
-	.feature:nth-child(3) .feature-doodle {
-		display: block;
-		width: 132px;
-		height: 58px;
-		transform: none;
-	}
-	.feature-polaroid {
-		position: absolute;
-		display: block;
-		overflow: hidden;
-		padding: 3px 3px 10px;
-		background: #fff;
-		box-shadow: 0 3px 8px #08152f18;
-	}
-	.feature-polaroid img {
-		display: block;
-		width: 52px;
-		height: 38px;
-		object-fit: cover;
-	}
-	.feature-polaroid.field {
-		left: 0;
-		bottom: 4px;
-		transform: rotate(-8deg);
-	}
-	.feature-polaroid.daisy {
-		left: 40px;
-		bottom: 0;
-		transform: rotate(10deg);
-	}
-	.feature-smiley {
-		position: absolute;
-		right: -2px;
-		bottom: -2px;
-		width: 44px;
-		height: 44px;
-		object-fit: contain;
-		transform: rotate(8deg);
-	}
-	.feature:nth-child(4) .feature-doodle {
-		width: 56px;
-		height: 56px;
-		background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none'%3E%3Cpath d='M6 22 42 8 22 40l-2-12z' stroke='%231a2744' stroke-width='2.4' stroke-linejoin='round'/%3E%3Cpath d='M20 28 42 8' stroke='%231a2744' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E")
-			center / contain no-repeat;
-		transform: rotate(14deg);
-	}
-	.split > section {
-		min-width: 0;
+	.section-title {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 12px;
+		margin-bottom: 16px;
 	}
 	.section-title h2 {
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 9px;
 		margin: 0;
-		font-size: 16px;
+		font-size: clamp(18px, 2vw, 25px);
+		letter-spacing: -0.025em;
+	}
+	.section-title > span,
+	.storage-note {
+		color: var(--muted);
+		font-size: 13px;
 	}
 	.section-title a {
-		color: #008dce;
-		font-size: 13px;
-		font-weight: 600;
-	}
-	.bottom-banner {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		gap: 6px;
+		color: var(--scrapbook-green);
+		font-size: 13px;
+		font-weight: 700;
+	}
+	.task-grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 		gap: 16px;
-		margin-top: var(--space-5);
-		padding: var(--space-4) var(--space-5);
-		border: 1px solid #e3dbf1;
-		border-radius: var(--radius);
-		background: linear-gradient(100deg, #f3e8ff, #e3f8ec);
 	}
-	.bottom-banner b {
-		max-width: 240px;
-		font-size: 20px;
-		line-height: 1.25;
-		letter-spacing: -0.03em;
+	.task-card {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		min-width: 0;
+		padding: 22px;
+		border: 1px solid #08152f0a;
+		border-radius: 18px;
+		background: var(--pale);
+		color: var(--ink);
+		text-decoration: none;
+		transition: transform 160ms ease;
 	}
-	.banner-sticker {
-		width: 88px;
-		height: 64px;
-		object-fit: contain;
-		transform: rotate(-10deg);
+	.task-card:nth-child(2) {
+		background: var(--sky);
 	}
-	.banner-copy strong {
+	.task-card:nth-child(3) {
+		background: var(--lav);
+	}
+	.task-card:nth-child(4) {
+		background: var(--blush);
+	}
+	.task-card:hover {
+		transform: translateY(-3px);
+	}
+	.task-card small {
+		font-size: 9px;
+		font-weight: 800;
+		letter-spacing: 0.07em;
+		margin-bottom: 20px;
+	}
+	.task-card strong {
+		font-size: 18px;
+		margin-top: 14px;
+	}
+	.task-card p {
+		font-size: 13px;
+		line-height: 1.5;
+		color: #3c4b60;
+		margin: 8px 0 20px;
+	}
+	.task-card :global(svg:last-child) {
+		margin-top: auto;
+		align-self: flex-end;
+	}
+	.recent-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 18px;
+		list-style: none;
+		padding: 0;
+	}
+	.recent-card {
+		display: grid;
+		gap: 9px;
+		padding: 12px;
+		border: 1px solid var(--line);
+		border-radius: 16px;
+		background: var(--surface);
+		color: var(--ink);
+		text-decoration: none;
+	}
+	.recent-preview {
+		position: relative;
 		display: block;
-		font-size: 14px;
+		aspect-ratio: 16/9;
+		overflow: hidden;
+		border-radius: 9px;
+		background: var(--cream);
 	}
-	.banner-copy small {
+	.recent-card strong {
+		overflow-wrap: anywhere;
+	}
+	.recent-card small {
 		color: var(--muted);
 		font-size: 12px;
-		font-weight: 500;
+	}
+	.desk-empty {
+		display: flex;
+		align-items: center;
+		gap: 18px;
+		padding: 24px;
+		border: 1px dashed var(--mint-line);
+		border-radius: 16px;
+		background: var(--surface);
+	}
+	.desk-empty p {
+		color: var(--muted);
+		font-size: 13px;
+		margin-bottom: 0;
+	}
+	.sticker-shelf {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: var(--space-5);
+		margin-top: var(--space-7);
+	}
+	.sticker-shelf > section {
+		min-width: 0;
 	}
 	.walkthrough {
 		display: grid;
-		gap: var(--space-4);
-		margin: 0;
-		padding: 0;
-		list-style: none;
-		counter-reset: steps;
-	}
-	.walkthrough li {
-		position: relative;
-		min-height: 36px;
-		padding-left: 48px;
-		counter-increment: steps;
+		gap: 18px;
+		padding-left: 24px;
 		font-size: 14px;
 		line-height: 1.6;
 	}
-	.walkthrough li::before {
-		content: counter(steps, decimal-leading-zero);
-		position: absolute;
-		left: 0;
-		top: 0;
-		display: grid;
-		place-items: center;
-		width: 32px;
-		height: 32px;
-		border-radius: 10px;
-		background: var(--pale);
-		color: #007b55;
-		font-size: 12px;
-		font-weight: 800;
-	}
-	@media (max-width: 1150px) {
-		.feature-grid {
-			grid-template-columns: 1fr 1fr;
+	@media (max-width: 1100px) {
+		.task-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
 	@media (max-width: 720px) {
-		.feature:nth-child(2) .feature-doodle {
-			width: 124px;
-		}
-		.feature:nth-child(2) .feature-doodle::before {
-			font-size: 26px;
-		}
-		.feature-grid {
-			grid-template-columns: 1fr 1fr;
-		}
-		.feature {
-			min-height: 188px;
-			flex-direction: column;
-			align-items: flex-start;
-			gap: var(--space-3);
-			padding: var(--space-4) var(--space-4) 68px;
-			font-size: 13px;
-		}
-		.feature:nth-child(3) .feature-doodle {
-			width: 110px;
-			height: 48px;
-		}
-		.feature-polaroid img {
-			width: 36px;
-			height: 26px;
-		}
-		.feature-smiley {
-			width: 32px;
-			height: 32px;
-		}
-		.feature::after {
-			display: none;
-		}
-		.feature strong {
-			font-size: 13px;
-		}
-		.feature > b {
-			width: 37px;
-			height: 37px;
-			flex-basis: 37px;
-		}
-		.feature small {
-			font-size: 12px;
-			line-height: 1.5;
-		}
-		.split {
-			/* minmax(0, …) so the single column can shrink below the rail's min-content. */
+		.task-grid,
+		.recent-grid,
+		.sticker-shelf {
 			grid-template-columns: minmax(0, 1fr);
 		}
-		.bottom-banner {
-			flex-wrap: wrap;
-			gap: var(--space-4);
-			padding: var(--space-4);
+		.task-card {
+			padding: 20px;
 		}
-		.banner-copy {
-			margin-left: 0;
-			text-align: left;
+		.task-card small {
+			margin-bottom: 12px;
 		}
-		.bottom-banner .button {
-			padding: 9px;
+		.task-card p {
+			margin-bottom: 10px;
 		}
-
-		.banner-copy {
-			display: none;
+		.desk-actions > a {
+			width: 100%;
+			justify-content: center;
 		}
 	}
 </style>

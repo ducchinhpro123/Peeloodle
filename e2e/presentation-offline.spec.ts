@@ -91,7 +91,7 @@ async function insertPhoto(page: Page) {
 		width: Number(await inspector.getByLabel('Width', { exact: true }).inputValue()),
 		height: Number(await inspector.getByLabel('Height', { exact: true }).inputValue())
 	};
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	return box;
 }
 
@@ -145,7 +145,7 @@ test('a prepared session keeps editing, saving and first-use exports after the n
 	await expect(field).toBeFocused();
 	await page.keyboard.type(TEXT);
 	await page.keyboard.press('Escape');
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	await page.close();
 
 	// 2 — a fresh page. Building the deck above fetched the editor's route code into
@@ -171,7 +171,7 @@ test('a prepared session keeps editing, saving and first-use exports after the n
 		.first()
 		.click();
 	await expect(session.getByTestId('presentation-canvas')).toBeVisible();
-	await expect(session.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(session.getByText('Saved in this browser', { exact: true })).toBeVisible();
 
 	// 4 — edit and autosave with no connection.
 	await session
@@ -185,7 +185,7 @@ test('a prepared session keeps editing, saving and first-use exports after the n
 	await session.getByTestId('text-edit-field').press('End');
 	await session.keyboard.type(' và sửa khi mất mạng');
 	await session.keyboard.press('Escape');
-	await expect(session.getByText('Saved locally', { exact: true })).toBeVisible({
+	await expect(session.getByText('Saved in this browser', { exact: true })).toBeVisible({
 		timeout: 15_000
 	});
 
@@ -249,13 +249,13 @@ test('a disconnect before the warm-up finishes is reported honestly and poisons 
 	await context.setOffline(false);
 	await page.getByRole('button', { name: /Create your first presentation/ }).click();
 	await expect(page).toHaveURL(/\/presentations\/[^/]+$/);
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	await page.getByRole('button', { name: 'Add text' }).click();
 	const field = page.getByTestId('text-edit-field');
 	await expect(field).toBeFocused();
 	await field.fill(TEXT);
 	await page.keyboard.press('Escape');
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
 		timeout: 15_000
 	});
 	const imageBox = await insertPhoto(page);
@@ -277,7 +277,7 @@ test('a disconnect before the warm-up finishes is reported honestly and poisons 
 		.first()
 		.click();
 	await expect(page.getByTestId('presentation-canvas')).toBeVisible();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	// The artwork can only be painted from IndexedDB: the network is gone and the
 	// module holding the decoded bitmap belongs to the page that just reloaded.
 	expect(await paintedArtwork(page, imageBox)).toBeGreaterThan(1_000);
@@ -313,22 +313,24 @@ test('a builder that cannot be fetched says how to recover and needs a reload', 
 
 	await page.goto('/presentations');
 	await expect(page.getByRole('button', { name: /Create your first presentation/ })).toBeVisible();
-	// All three builders were really requested while the connection was up, then the
-	// disconnect turned those fetches into failures instead of a replayed message.
+	// Only the builders fail. Disconnecting here also races the editor's still-loading
+	// chunks and tests a different failure. The prepared-session journey above owns
+	// a disconnect after *all* required modules arrive.
 	await held;
-	await context.setOffline(true);
 	releaseBuilders();
 	await expect(page.getByText(UNPREPARED_LABEL)).toBeVisible({ timeout: 30_000 });
 	expect(heldPaths).toHaveLength(builders.size);
 
-	// A failed warm-up must not touch local work that its modules can still serve.
+	// A failed builder must not poison the editor. Open it while online so its own
+	// modules are known to be loaded before testing local work without the network.
 	await page.getByRole('button', { name: /Create your first presentation/ }).click();
 	await expect(page).toHaveURL(/\/presentations\/[^/]+$/);
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
+	await context.setOffline(true);
 	await page.getByRole('button', { name: 'Add text' }).click();
 	await page.getByTestId('text-edit-field').fill(TEXT);
 	await page.keyboard.press('Escape');
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
 		timeout: 15_000
 	});
 

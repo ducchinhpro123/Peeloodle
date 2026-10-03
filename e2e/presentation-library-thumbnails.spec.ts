@@ -29,7 +29,7 @@ async function openLibraryWithDecks(page: Page, decks: SeededDeck[]): Promise<vo
 	await page.goto('/presentations');
 	await page.getByRole('button', { name: 'Start a blank presentation' }).click();
 	await expect(page).toHaveURL(/\/presentations\/[^/]+$/);
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	const sourceId = decodeURIComponent(page.url().split('/').pop()!);
 
 	await page.getByRole('button', { name: 'Add text' }).click();
@@ -37,7 +37,7 @@ async function openLibraryWithDecks(page: Page, decks: SeededDeck[]): Promise<vo
 	await page.keyboard.type('Seed');
 	await page.keyboard.press('Escape');
 	await expect(page.getByTestId('text-edit-field')).not.toBeVisible();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	await page.getByLabel('Back to presentations').click();
 	await expect(page).toHaveURL(/\/presentations$/);
 

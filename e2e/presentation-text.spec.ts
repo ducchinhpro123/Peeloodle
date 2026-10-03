@@ -158,7 +158,9 @@ test('inserts, edits, saves, and reopens a text box without moving it', async ({
 
 	// The autosave writes it; a reload and the library's own reopen path bring the
 	// box back where it was, with its text painted inside it and nothing below.
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({ timeout: 10_000 });
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
+		timeout: 10_000
+	});
 	await page.reload();
 	await page.goto('/presentations');
 	await page.getByRole('link', { name: 'Open Untitled presentation' }).click();
@@ -192,7 +194,9 @@ test('formats a text selection and keeps it through save and reopen', async ({ p
 
 	// Blurring ends the session, which is what the autosave debounce waits for.
 	await textField(page).blur();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({ timeout: 10_000 });
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
+		timeout: 10_000
+	});
 
 	const formatted = runsOf(textElement(await storedRow(page, id)));
 	expect(formatted.map((run) => run.text).join('')).toBe('Xin chao');
@@ -223,7 +227,9 @@ test('applies paragraph formatting and links, and reports text overflow', async 
 	await page.keyboard.press('Control+a');
 	await toolbar(page).getByRole('button', { name: 'Bulleted list' }).click();
 	await textField(page).blur();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({ timeout: 10_000 });
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
+		timeout: 10_000
+	});
 
 	const stored = (await storedRow(page, id)).slides[0].elements[0];
 	expect(stored.paragraphs.map((paragraph: any) => paragraph.alignment)).toEqual([
@@ -322,7 +328,9 @@ test('keeps the caret where the user left it while typing', async ({ page }) => 
 	await expect.poll(caretOffset).toBe(2);
 
 	await textField(page).blur();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({ timeout: 10_000 });
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
+		timeout: 10_000
+	});
 	await expect.poll(async () => runText(textElement(await storedRow(page, id)))).toBe('XYabc');
 });
 
@@ -339,7 +347,9 @@ test('autosaves a typed edit and keeps it after a reload and reopen', async ({ p
 	// No Save click anywhere in this journey: the debounce writes it, and the status
 	// only reads saved once the document really is clean.
 	await expect(page.getByText('Unsaved changes', { exact: true })).toBeVisible();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({ timeout: 10_000 });
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
+		timeout: 10_000
+	});
 
 	await page.reload();
 	await page.goto('/presentations');

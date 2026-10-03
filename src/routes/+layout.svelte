@@ -22,15 +22,15 @@
 	import AppScope from '$lib/components/AppScope.svelte';
 	import { CloudWorkspace, setCloudWorkspaceContext } from '$lib/cloud/workspace.svelte';
 	import { createDraftSaving } from '$lib/editor/draftSaving';
-	import { createEditorState } from '$lib/editor/editorState.svelte';
-	import { createIdbPresentationRepository } from '$lib/presentations/persistence/idb';
+	import { EditorState } from '$lib/editor/editorState.svelte';
+	import { IdbPresentationRepository } from '$lib/presentations/persistence/idb';
 	import { createPresentationStore } from '$lib/presentations/editor/store.svelte';
 
 	const workspace = new CloudWorkspace();
 	setCloudWorkspaceContext(workspace);
-	const editor = createEditorState();
+	const editor = new EditorState();
 	const saving = createDraftSaving(editor);
-	const presentationRepository = createIdbPresentationRepository();
+	const presentationRepository = new IdbPresentationRepository();
 	const presentationStore = createPresentationStore();
 
 	/** Retry re-runs the whole restore after a failed local flush. */

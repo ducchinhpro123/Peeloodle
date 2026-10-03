@@ -234,7 +234,7 @@
 				</div>
 				<ul class="presentation-hero-points" aria-label="Presentation features">
 					<li>16:9 slide canvas</li>
-					<li>Saved on your device</li>
+					<li>Saved in this browser</li>
 					<li>No account needed</li>
 				</ul>
 			</div>
@@ -250,7 +250,21 @@
 			</div>
 		</section>
 
-		<PresentationStarterGallery {repository} {onopen} onblank={createBlank} {creatingBlank} />
+		<section class="library-safety-note" aria-label="Where your work is saved">
+			<strong>Saved in this browser. Not automatically synced.</strong>
+			<p>
+				Clearing browser data can remove your presentations. Use <strong>Back up my work</strong> in
+				the editor to download a portable .stickerlab.zip. Use <strong>Restore backup</strong> here to
+				open it on another device.
+			</p>
+		</section>
+		<PresentationStarterGallery
+			{repository}
+			{onopen}
+			onblank={createBlank}
+			{creatingBlank}
+			task={new URLSearchParams(search).get('task')}
+		/>
 
 		<div class="presentation-library-controls">
 			<div>
@@ -493,6 +507,17 @@
 		background: #fff;
 	}
 
+	.library-safety-note {
+		padding: 18px 22px;
+		border-left: 4px solid var(--scrapbook-green);
+		background: var(--pale);
+		border-radius: 10px;
+		font-size: 13px;
+		line-height: 1.6;
+	}
+	.library-safety-note p {
+		margin: 8px 0 0;
+	}
 	.presentations-library {
 		display: grid;
 		gap: var(--space-6);

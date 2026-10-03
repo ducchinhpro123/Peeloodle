@@ -222,9 +222,3 @@ export class IdbPresentationRepository implements PresentationRepository {
 		return this.openPromise;
 	}
 }
-
-export function createIdbPresentationRepository(
-	dbName = STICKERLAB_DB_NAME
-): IdbPresentationRepository {
-	return new IdbPresentationRepository(dbName);
-}

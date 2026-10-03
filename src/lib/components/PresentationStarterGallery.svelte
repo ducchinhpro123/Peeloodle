@@ -6,11 +6,20 @@
 	import { rasterizeSlidePage } from '$lib/presentations/rendering/rasterizeSlide';
 	import { button, buttonPrimary } from '$lib/ui/styles';
 	import Modal from './Modal.svelte';
+	import { resolve } from '$app/paths';
 
-	/** @type {{ repository: import('$lib/presentations/persistence/repository').PresentationRepository, onopen: (id: string) => void | Promise<void>, onblank: () => void, creatingBlank: boolean }} */
-	let { repository, onopen, onblank, creatingBlank } = $props();
+	/** @type {{ repository: import('$lib/presentations/persistence/repository').PresentationRepository, onopen: (id: string) => void | Promise<void>, onblank: () => void, creatingBlank: boolean, task?: string | null }} */
+	let { repository, onopen, onblank, creatingBlank, task = null } = $props();
 	let query = $state('');
-	let category = $state('All templates');
+	let category = $derived(
+		task === 'class'
+			? 'Class'
+			: task === 'research-defense'
+				? 'Research'
+				: task === 'club-pitch'
+					? 'Pitch'
+					: 'All templates'
+	);
 	const categories = ['All templates', 'Class', 'Research', 'Pitch', 'Business'];
 	const labels = ['Class', 'Research', 'Pitch', 'Business'];
 	/** @type {Array<{ key: string, title: string, description: string, category: string, document: import('$lib/presentations/model/types').PresentationDocument, previews: string[] }>} */
@@ -117,6 +126,11 @@
 		</div>
 		<span class="local-note">Built in · No account needed</span>
 	</div>
+	<p class="catalog-note">
+		These starters work without an account. <a href={resolve('/presentation-templates')}
+			>Browse online deck templates</a
+		> for more — internet access required.
+	</p>
 	<div class="gallery-toolbar">
 		<label class="template-search"
 			><Search size={18} aria-hidden="true" /><span class="sr-only"
@@ -252,6 +266,15 @@
 		margin: 8px 0 0;
 		color: var(--muted);
 		font-size: 14px;
+	}
+	.catalog-note {
+		font-size: 13px;
+		color: var(--muted);
+		line-height: 1.5;
+	}
+	.catalog-note a {
+		color: var(--scrapbook-green);
+		font-weight: 700;
 	}
 	.local-note {
 		color: var(--scrapbook-green);

@@ -32,12 +32,14 @@ test('uploads a personal image, paints it, stores its bytes, and reopens it', as
 
 	await page.getByTestId('presentation-image-input').setInputFiles(PHOTO);
 	// The insert reaches disk through the autosave. The stored asset is what the
-	// claim is about, so wait for it: the status text still reads "Saved locally"
+	// claim is about, so wait for it: the status text still reads "Saved in this browser"
 	// from the blank deck until the insert re-renders it.
 	await expect
 		.poll(async () => (await readStoredPresentation(page, id))?.assets.length ?? 0)
 		.toBe(1);
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({ timeout: 10_000 });
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
+		timeout: 10_000
+	});
 	await expect(page.locator('.presentation-canvas-error')).toHaveCount(0);
 
 	const stored = (await readStoredPresentation(page, id))!;
@@ -81,7 +83,7 @@ test('uploads a personal image, paints it, stores its bytes, and reopens it', as
 	await page.goto('/presentations');
 	await page.getByRole('link', { name: 'Open Untitled presentation' }).click();
 	await expect(page.getByTestId('presentation-canvas')).toBeVisible();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	await expect(page.locator('.presentation-canvas-error')).toHaveCount(0);
 
 	const reopened = (await readStoredPresentation(page, id))!;

@@ -46,7 +46,7 @@ test('creates a company-profile deck with editable text and self-contained artwo
 	await expect(text).toContainText('COMPANY');
 	await text.fill('MY COMPANY');
 	await page.keyboard.press('Escape');
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	await expect
 		.poll(async () => (await readStoredPresentation(page, id))?.text)
 		.toContain('MY COMPANY');
@@ -79,7 +79,7 @@ test('browses built-in decks, previews slides and creates an editable local copy
 	await page.goto('/presentations');
 	const gallery = page.getByRole('region', { name: 'Start with a template' });
 	await expect(gallery).toBeVisible();
-	await expect(gallery.locator('.template-cover img')).toHaveCount(3);
+	await expect(gallery.locator('.template-cover img')).toHaveCount(4);
 	await gallery.screenshot({ path: testInfo.outputPath('template-gallery.png') });
 	await gallery.getByLabel('Search presentation templates').fill('research');
 	await expect(gallery.getByRole('button', { name: 'Preview Research defense' })).toBeVisible();

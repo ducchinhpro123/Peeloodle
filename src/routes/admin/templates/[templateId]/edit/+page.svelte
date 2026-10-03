@@ -8,7 +8,7 @@
 	import { getAppContext } from '$lib/app/context';
 	import { getCatalogRepository } from '$lib/catalog/client';
 	import { getCloudWorkspace } from '$lib/cloud/workspace.svelte';
-	import { createTemplateDraftRepository } from '$lib/presentations/templates/templateDraftRepository';
+	import { TemplateDraftRepository } from '$lib/presentations/templates/templateDraftRepository';
 
 	/**
 	 * `/admin/templates/<id>/edit` — the shared presentation editor in template
@@ -45,11 +45,11 @@
 	/**
 	 * The catalog adapter is created once the repository exists; `invalidate`
 	 * makes the remount read the newest version instead of the cached one.
-	 * @type {ReturnType<typeof createTemplateDraftRepository> | null}
+	 * @type {TemplateDraftRepository | null}
 	 */
 	const draftRepository = $derived(
 		repository
-			? createTemplateDraftRepository({ catalog: repository, templateId: params.templateId })
+			? new TemplateDraftRepository({ catalog: repository, templateId: params.templateId })
 			: null
 	);
 

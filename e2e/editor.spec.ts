@@ -497,9 +497,9 @@ test.describe('sticker vertical slice', () => {
 		page
 	}) => {
 		await page.goto('/');
-		await expect(page.getByRole('heading', { level: 1 })).toContainText('Small stickers');
+		await expect(page.getByRole('heading', { level: 1 })).toContainText('Your next big idea');
 		await expect(page.getByText('No account needed')).toBeVisible();
-		await expect(page.getByText('Saved on your device')).toBeVisible();
+		await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 
 		await page.getByRole('link', { name: /Create a Sticker/ }).click();
 		await expect(page).toHaveURL(/\/editor\/[0-9a-z-]+/, { timeout: 20_000 });
@@ -593,7 +593,7 @@ test.describe('sticker vertical slice', () => {
 		// The dashboard's library link is a real destination now.
 		await page.goto('/');
 		const viewAll = page
-			.locator('.section-title', { hasText: 'Recent Projects' })
+			.locator('.section-title', { hasText: 'Your personal stickers' })
 			.getByRole('link', { name: 'View all' });
 		await expect(viewAll).toHaveAttribute('href', '/my-stickers#local-stickers');
 		await viewAll.click();
@@ -778,7 +778,7 @@ test.describe('sticker vertical slice', () => {
 		page
 	}) => {
 		await page.goto('/');
-		await page.locator('a.feature', { hasText: 'Templates' }).click();
+		await page.locator('.sticker-shelf').getByRole('link', { name: 'View all' }).last().click();
 		await expect(page).toHaveURL(/\/templates$/);
 		await expect(page.getByRole('heading', { level: 1 })).toContainText('Find your vibe');
 		await expect(page.locator('.filters')).toContainText(
@@ -1330,7 +1330,7 @@ test.describe('sticker vertical slice', () => {
 		// Leaving the editor flushes the pending revision first, so the departure is
 		// safe and the unload guard must stay silent.
 		await page.getByRole('link', { name: /Back to Home/ }).click();
-		await expect(page.getByRole('heading', { level: 1 })).toContainText('Small stickers');
+		await expect(page.getByRole('heading', { level: 1 })).toContainText('Your next big idea');
 		await expect
 			.poll(async () => (await readStoredProject(page, projectId))?.title, { timeout: 20_000 })
 			.toBe('Recent card sticker');
@@ -1384,7 +1384,7 @@ test.describe('sticker vertical slice', () => {
 		// Leave the editor anyway: the app must keep saying the draft is unsaved
 		// instead of dropping it silently on the next reload or close.
 		await page.getByRole('link', { name: /Back to Home/ }).click();
-		await expect(page.getByRole('heading', { level: 1 })).toContainText('Small stickers');
+		await expect(page.getByRole('heading', { level: 1 })).toContainText('Your next big idea');
 		expect(await readStoredProject(page, projectId)).toBeUndefined();
 
 		const recovery = page.getByTestId('unsaved-draft-recovery');
@@ -1399,7 +1399,7 @@ test.describe('sticker vertical slice', () => {
 		await page.waitForTimeout(500);
 		expect(dialogs).toContain('beforeunload');
 		await expect(recovery).toBeVisible();
-		await expect(page.getByRole('heading', { level: 1 })).toContainText('Small stickers');
+		await expect(page.getByRole('heading', { level: 1 })).toContainText('Your next big idea');
 
 		// Recovery: the retained draft still holds the edits the failed write could not
 		// persist, and the app never replaced it with the older stored revision — even
@@ -1435,14 +1435,14 @@ test.describe('sticker vertical slice', () => {
 		// Navigation, walkthrough and delete dialogs are all mounted on the dashboard,
 		// so the opened one must announce its own title and description.
 		await page.goto('/');
-		const walkthrough = page.getByRole('button', { name: 'Watch how it works' });
+		const walkthrough = page.getByRole('button', { name: 'Quick start', exact: true });
 		await walkthrough.focus();
 		await page.keyboard.press('Enter');
 		const walkthroughDialog = page.locator('dialog[open]');
 		await expect(walkthroughDialog).toBeVisible();
-		await expect(walkthroughDialog).toHaveAccessibleName('How StickerLab works');
+		await expect(walkthroughDialog).toHaveAccessibleName('Your first presentation');
 		await expect(walkthroughDialog).toHaveAccessibleDescription(
-			'From camera roll to conversation starter.'
+			'From an idea to something you can hand in.'
 		);
 
 		// Space on the focused close button activates it, and the native dialog puts

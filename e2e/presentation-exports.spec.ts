@@ -9,11 +9,62 @@
  */
 import { expect, test, type Download, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { strFromU8, unzipSync } from 'fflate';
 import { PDFDocument } from 'pdf-lib';
 import { listStoredPresentations, openBlankEditor, readStoredPresentation } from './presentations';
 
 const TEXT = 'Export journey text';
+
+// Failure inventory for the receipt: a failed/cancelled download is not a backup;
+// a PDF/PPTX is not restorable here; new edits and same-revision races must be stale.
+// Block the real browser image decoder during export (never a production seam).
+test('a backup describes the captured deck, not edits made while it is preparing', async ({
+	page
+}, info) => {
+	await page.addInitScript(() => {
+		const decode = window.createImageBitmap.bind(window);
+		Object.assign(window, { holdExportImage: false, exportImageHeld: false });
+		window.createImageBitmap = async (...args: Parameters<typeof createImageBitmap>) => {
+			const state = window as unknown as {
+				holdExportImage: boolean;
+				exportImageHeld: boolean;
+				releaseExportImage: () => void;
+			};
+			if (state.holdExportImage) {
+				state.exportImageHeld = true;
+				await new Promise<void>((resolve) => {
+					state.releaseExportImage = resolve;
+				});
+			}
+			return decode(...args);
+		};
+	});
+	const id = await openBlankEditor(page);
+	await page
+		.getByTestId('presentation-image-input')
+		.setInputFiles(path.resolve('static/samples/cat-in-console.png'));
+	await expect.poll(async () => (await readStoredPresentation(page, id))?.assets.length).toBe(1);
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
+	await page.evaluate(() => Object.assign(window, { holdExportImage: true }));
+	await page.getByRole('button', { name: 'Back up my work', exact: true }).click();
+	await expect.poll(() => page.evaluate(() => Reflect.get(window, 'exportImageHeld'))).toBe(true);
+	await page.getByRole('button', { name: 'Add slide', exact: true }).click();
+	const [download] = await Promise.all([
+		page.waitForEvent('download'),
+		page.evaluate(() => {
+			Reflect.set(window, 'holdExportImage', false);
+			Reflect.get(window, 'releaseExportImage')();
+		})
+	]);
+	const archive = unzipSync(await bytesOf(download));
+	expect(JSON.parse(strFromU8(archive['document.json'])).slides).toHaveLength(1);
+	await download.saveAs(info.outputPath('captured-not-live.stickerlab.zip'));
+	await expect(
+		page.getByText('Your backup is older than your latest edits', { exact: true })
+	).toBeVisible();
+	await page.screenshot({ path: info.outputPath('stale-backup.png') });
+});
 
 /** Opens the export dialog if it is not already showing. */
 async function exportDialog(page: Page) {
@@ -62,7 +113,9 @@ test('the editor writes a real PDF, an editable PPTX and a restorable backup', a
 	await page.keyboard.press('Escape');
 	await page.getByRole('button', { name: 'Add slide' }).click();
 	await expect(page.locator('.presentation-slide-card')).toHaveCount(2);
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
+
+	await expect(page.getByText('Back up your work before you leave', { exact: true })).toBeVisible();
 
 	// PDF: one fixed page per slide, at the deck's own 16:9 size, carrying an image.
 	const pdfDownload = await exportVia(page, 'Export PDF');
@@ -93,6 +146,11 @@ test('the editor writes a real PDF, an editable PPTX and a restorable backup', a
 		'<p:sldSz cx="12192000" cy="6858000"/>'
 	);
 
+	// PDF/PPTX are handoff files, not this app's restorable backup.
+	await expect(
+		page.getByText('Back up your work before you leave', { exact: true })
+	).toBeAttached();
+
 	// Backup: the manifest and the document travel together in the archive.
 	const backupDownload = await exportVia(page, 'Download backup (.zip)');
 	expect(backupDownload.suggestedFilename()).toBe('Untitled presentation.stickerlab.zip');
@@ -104,6 +162,16 @@ test('the editor writes a real PDF, an editable PPTX and a restorable backup', a
 	expect(JSON.parse(strFromU8(backupEntries['document.json'])).slides).toHaveLength(2);
 	const savedBackup = test.info().outputPath('export-journey.stickerlab.zip');
 	await backupDownload.saveAs(savedBackup);
+	await page.keyboard.press('Escape');
+	await expect(page.getByText('Backup download started', { exact: true })).toBeVisible();
+	await page.reload();
+	await expect(page.getByText('Backup download started', { exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Add text', exact: true }).click();
+	await page.keyboard.type('Edited after the backup');
+	await page.keyboard.press('Escape');
+	await expect(
+		page.getByText('Your backup is older than your latest edits', { exact: true })
+	).toBeVisible();
 
 	// The archive is restorable exactly as the dialog claims: the library reads it
 	// back as an independent deck that still holds the typed text.

@@ -44,7 +44,7 @@ test.describe('milestone journey', () => {
 			// 1. Create a presentation from the library (the hero button exists empty or not).
 			await page.getByRole('button', { name: 'Start a blank presentation' }).click();
 			await expect(page).toHaveURL(/\/presentations\/[^/]+$/);
-			await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+			await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 			const presentationId = decodeURIComponent(page.url().split('/').pop()!);
 
 			// 2. Add a text box and type into the DOM overlay; closing it commits the run.
@@ -58,7 +58,7 @@ test.describe('milestone journey', () => {
 			// 3. Insert a real repo PNG through the real file input: sniffing, decode,
 			// hashing, the atomic document + bytes write and the canvas draw all run.
 			await page.getByTestId('presentation-image-input').setInputFiles(JOURNEY_IMAGE);
-			await expect(page.getByText('Saved locally', { exact: true })).toBeVisible({
+			await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible({
 				timeout: 10_000
 			});
 			await expect(page.locator('.presentation-canvas-error')).toHaveCount(0);
@@ -97,7 +97,7 @@ test.describe('milestone journey', () => {
 			await page.getByRole('link', { name: `Open ${RENAMED_TITLE}` }).click();
 			await expect(page).toHaveURL(`/presentations/${presentationId}`);
 			await expect(page.getByTestId('presentation-canvas')).toBeVisible();
-			await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+			await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 			await expect(page.locator('.presentation-canvas-error')).toHaveCount(0);
 
 			// 7. The composition came back: same text, same image geometry, same

@@ -658,10 +658,6 @@ export class EditorState {
 	};
 }
 
-export function createEditorState(): EditorState {
-	return new EditorState();
-}
-
 export function saveStatusLabel(status: SaveStatus, dirty: boolean): string {
 	if (status === 'saving') return 'Saving';
 	if (status === 'saved-locally') return 'Saved locally';

@@ -19,7 +19,7 @@ async function createPresentation(page: Page): Promise<string> {
 	// The hero button is the one that always exists, empty library or not.
 	await page.getByRole('button', { name: 'Start a blank presentation' }).click();
 	await expect(page).toHaveURL(/\/presentations\/[^/]+$/);
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	const id = decodeURIComponent(page.url().split('/').pop()!);
 	await page.getByLabel('Back to presentations').click();
 	await expect(page).toHaveURL(/\/presentations$/);

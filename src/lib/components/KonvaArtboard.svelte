@@ -18,16 +18,14 @@
 	} from '$lib/exports/renderDocument';
 	import { cssFontFamily, loadFont, measureTextEditBox } from '$lib/fonts';
 	/** @typedef {import('$lib/editor/editorState.svelte').EditorState} EditorState */
-	import DomCanvas from './DomCanvas.svelte';
 
 	/**
 	 * @type {{
 	 *   editor: EditorState,
 	 *   urls: Record<string, string>,
-	 *   domFallback?: boolean,
 	 * }}
 	 */
-	let { editor, urls, domFallback = import.meta.env.MODE === 'test' } = $props();
+	let { editor, urls } = $props();
 
 	let host = $state(/** @type {HTMLDivElement | undefined} */ (undefined));
 	let size = $state({ width: 640, height: 480 });
@@ -80,7 +78,7 @@
 
 	$effect(() => {
 		// The brush's pointer pipeline follows the source hook's element listeners.
-		if (domFallback || !host) return;
+		if (!host) return;
 		const element = host;
 		const handlers = brush.handlers;
 		element.addEventListener('pointerdown', handlers.onpointerdown);
@@ -157,7 +155,7 @@
 	}
 
 	$effect(() => {
-		if (domFallback || !host) return;
+		if (!host) return;
 		const stageInstance = new Konva.Stage({ container: host, ...measureHost() });
 		const layerInstance = new Konva.Layer();
 		artboardRect = new Konva.Rect({
@@ -210,7 +208,6 @@
 
 	// Load asset images and mask rasters before the scene reads them.
 	$effect(() => {
-		if (domFallback) return;
 		const assets = editor.assets;
 		for (const id of Object.keys(assets)) {
 			const url = urls[id];
@@ -257,7 +254,6 @@
 
 	// Konva caches text measurements at construction, so mount text only after its font loads.
 	$effect(() => {
-		if (domFallback) return;
 		/** @type {string[]} */
 		const families = [];
 		for (const layer of editor.document?.layers ?? []) {
@@ -275,7 +271,7 @@
 	});
 
 	$effect(() => {
-		if (domFallback || !stage || !sceneLayer) return;
+		if (!stage || !sceneLayer) return;
 		const document = editor.document;
 		const selectedLayerId = editor.selectedLayerId;
 		const viewport = editor.viewport;
@@ -566,7 +562,7 @@
 
 	/** Wheel zoom (cursor anchored), space/hand pan and pointer pan, as the source. */
 	$effect(() => {
-		if (domFallback || !host) return;
+		if (!host) return;
 		const element = host;
 		/** @type {{ pointerId: number, x: number, y: number } | null} */
 		let panRef = null;
@@ -697,51 +693,47 @@
 	onblur={() => (spaceHeld = false)}
 />
 
-{#if domFallback}
-	<DomCanvas {editor} {urls} />
-{:else}
+<div
+	class="artboard-host{brushActive ? ' brush-active' : ''}{spaceHeld ? ' space-pan' : ''}{panning
+		? ' is-panning'
+		: ''}"
+	data-testid="editor-canvas"
+	data-space-pan={spaceHeld || undefined}
+	data-panning={panning || undefined}
+	bind:this={host}
+>
+	{#if editing && editing.kind === 'text' && editingBox}
+		<textarea
+			class="canvas-text-edit"
+			aria-label="Edit canvas text"
+			bind:this={textEditor}
+			value={editing.content}
+			rows={Math.max(1, editing.content.split('\n').length)}
+			style:left="{editingBox.position.x}px"
+			style:top="{editingBox.position.y}px"
+			style:width="{editingBox.box.width}px"
+			style:height="{editingBox.box.height}px"
+			style:font-family={cssFontFamily(editing.fontFamily)}
+			style:font-size="{editingBox.fontSize}px"
+			style:color={editing.color}
+			style:transform={editingBox.rotation ? `rotate(${editingBox.rotation}deg)` : undefined}
+			oninput={(event) => {
+				if (editing?.kind === 'text')
+					editor.updateText(editing.id, { content: event.currentTarget.value });
+			}}
+			onblur={stopEditing}
+			onkeydown={(event) => {
+				if (event.key === 'Escape') event.currentTarget.blur();
+			}}></textarea>
+	{/if}
 	<div
-		class="artboard-host{brushActive ? ' brush-active' : ''}{spaceHeld ? ' space-pan' : ''}{panning
-			? ' is-panning'
-			: ''}"
-		data-testid="editor-canvas"
-		data-space-pan={spaceHeld || undefined}
-		data-panning={panning || undefined}
-		bind:this={host}
-	>
-		{#if editing && editing.kind === 'text' && editingBox}
-			<textarea
-				class="canvas-text-edit"
-				aria-label="Edit canvas text"
-				bind:this={textEditor}
-				value={editing.content}
-				rows={Math.max(1, editing.content.split('\n').length)}
-				style:left="{editingBox.position.x}px"
-				style:top="{editingBox.position.y}px"
-				style:width="{editingBox.box.width}px"
-				style:height="{editingBox.box.height}px"
-				style:font-family={cssFontFamily(editing.fontFamily)}
-				style:font-size="{editingBox.fontSize}px"
-				style:color={editing.color}
-				style:transform={editingBox.rotation ? `rotate(${editingBox.rotation}deg)` : undefined}
-				oninput={(event) => {
-					if (editing?.kind === 'text')
-						editor.updateText(editing.id, { content: event.currentTarget.value });
-				}}
-				onblur={stopEditing}
-				onkeydown={(event) => {
-					if (event.key === 'Escape') event.currentTarget.blur();
-				}}></textarea>
-		{/if}
-		<div
-			bind:this={brushCursor}
-			class="brush-cursor"
-			data-testid="brush-cursor"
-			aria-hidden="true"
-			style="display: none"
-		></div>
-	</div>
-{/if}
+		bind:this={brushCursor}
+		class="brush-cursor"
+		data-testid="brush-cursor"
+		aria-hidden="true"
+		style="display: none"
+	></div>
+</div>
 
 <style>
 	.artboard-host {

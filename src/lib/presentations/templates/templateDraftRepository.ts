@@ -62,12 +62,6 @@ export type TemplateDraftRepositoryInput = {
 	fetch?: typeof fetch;
 };
 
-export function createTemplateDraftRepository(
-	input: TemplateDraftRepositoryInput
-): TemplateDraftRepository {
-	return new TemplateDraftRepository(input);
-}
-
 export class TemplateDraftRepository implements PresentationRepository {
 	#catalog: CatalogAdminRepository;
 	#templateId: string;

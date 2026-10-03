@@ -89,7 +89,7 @@ test('moves a shape in document units and undoes the move', async ({ page }) => 
 	await expect(host).not.toHaveAttribute('data-selected-element', '');
 
 	// And the move reached disk: the stored element carries the same numbers.
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	const stored = await readStoredPresentation(page, id);
 	const element = stored?.elements[0];
 	expect(element).toMatchObject({ kind: 'shape', width: moved.width, height: moved.height });
@@ -146,7 +146,7 @@ test('autosaves typed text and keeps it across a reload', async ({ page }) => {
 	await page.keyboard.press('Escape');
 	await expect(field).not.toBeVisible();
 
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	const stored = await readStoredPresentation(page, id);
 	expect(stored?.text).toContain('Typed on the real build');
 
@@ -154,7 +154,7 @@ test('autosaves typed text and keeps it across a reload', async ({ page }) => {
 	// still carry it.
 	await page.reload();
 	await expect(page.getByTestId('presentation-canvas')).toBeVisible();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	const reloaded = await readStoredPresentation(page, id);
 	expect(reloaded?.elements.filter((element) => element.kind === 'text')).toHaveLength(1);
 	await selectFromElementList(page, 'Body text');
@@ -166,12 +166,12 @@ test('adds a photo, stores its bytes, and paints it on the slide', async ({ page
 	const id = await openBlankEditor(page);
 	await page.getByTestId('presentation-image-input').setInputFiles(PHOTO);
 	// The insert reaches disk through the autosave. Wait for the stored row first:
-	// the status text still reads "Saved locally" from the blank deck until the
+	// the status text still reads "Saved in this browser" from the blank deck until the
 	// insert re-renders it, so it cannot synchronize this read by itself.
 	await expect
 		.poll(async () => (await readStoredPresentation(page, id))?.assetIds.length ?? 0)
 		.toBe(1);
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 
 	const stored = await readStoredPresentation(page, id);
 	const image = stored?.elements.find((element) => element.kind === 'image');
@@ -206,7 +206,7 @@ test('leaving mid-edit writes the pending text before it navigates', async ({ pa
 	await page.getByRole('link', { name: 'Open Untitled presentation' }).click();
 	await expect(page).toHaveURL(/\/presentations\/[^/]+$/);
 	await expect(page.getByTestId('presentation-canvas')).toBeVisible();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 });
 
 test('a newer stored revision becomes a conflict that keeps the local copy', async ({ page }) => {
@@ -233,7 +233,21 @@ test('a newer stored revision becomes a conflict that keeps the local copy', asy
 	await expect(page.getByText(/saved as a separate conflict copy/)).toBeVisible();
 	const rows = await listStoredPresentations(page);
 	expect(rows).toHaveLength(2);
-	expect(rows.some((row) => row.title.includes('conflict copy'))).toBe(true);
+	const copy = rows.find((row) => row.title.includes('conflict copy'));
+	expect(copy).toBeDefined();
+	expect((await readStoredPresentation(page, copy!.id))?.text).toContain('Work from this tab');
 	// The editor adopts the newer stored revision and keeps working.
 	await expect(page.locator('.presentation-editor-title h1')).toHaveText('Newer from another tab');
+	await page.getByRole('link', { name: 'Back to presentations' }).click();
+	await page.getByRole('link', { name: `Open ${copy!.title}` }).click();
+	await expect(page.getByTestId('presentation-canvas')).toBeVisible();
+	await page.getByRole('button', { name: 'Add text' }).click();
+	await page.keyboard.type('More work in the recovered copy');
+	await page.keyboard.press('Escape');
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect
+		.poll(async () => (await readStoredPresentation(page, copy!.id))?.text)
+		.toContain('More work in the recovered copy');
+	expect((await readStoredPresentation(page, id))?.revision).toBe(revision);
+	await page.screenshot({ path: test.info().outputPath('reopened-conflict-copy.png') });
 });

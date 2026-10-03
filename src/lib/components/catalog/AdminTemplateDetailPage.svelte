@@ -3,7 +3,7 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import { button, buttonPrimary } from '$lib/ui/styles.js';
 	import { isCatalogError } from '$lib/catalog/repository';
-	import { createTemplateDraftRepository } from '$lib/presentations/templates/templateDraftRepository';
+	import { TemplateDraftRepository } from '$lib/presentations/templates/templateDraftRepository';
 	import {
 		generateTemplatePreviews,
 		TemplatePreviewError
@@ -49,7 +49,7 @@
 
 	// ---- P67 preview generation ----
 	const draftRepository = $derived(
-		repository ? createTemplateDraftRepository({ catalog: repository, templateId }) : null
+		repository ? new TemplateDraftRepository({ catalog: repository, templateId }) : null
 	);
 	/** The newest immutable version; previews always bind to it. */
 	const newestVersion = $derived(versions[0] ?? null);

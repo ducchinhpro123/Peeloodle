@@ -136,7 +136,7 @@ test('P44: the export dialog writes the reader fixture PPTX and PDF', async ({ p
 
 	await page.goto(`/presentations/${document.id}`);
 	await expect(page.getByTestId('presentation-canvas')).toBeVisible();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 
 	const pptxBytes = await exportViaDialog(page, 'Export PPTX');
 	const pdfBytes = await exportViaDialog(page, 'Export PDF');

@@ -3,6 +3,7 @@
 	import {
 		ArrowLeft,
 		Copy,
+		Download,
 		ClipboardPaste,
 		GripVertical,
 		ImagePlus,
@@ -33,6 +34,10 @@
 	import { createSlideShape } from '$lib/presentations/editor/shapeTools';
 	import { createPresentationSaving } from '$lib/presentations/editor/presentationSaving';
 	import { createPresentationExport } from '$lib/presentations/editor/exportController';
+	import {
+		backupDocumentFingerprint,
+		readBackupDownloadReceipt
+	} from '$lib/presentations/editor/backupReceipt';
 	import { usePresentationOfflineReadiness } from '$lib/presentations/presentationOffline.svelte';
 	import { createTextEditSession } from '$lib/presentations/editor/textEditSession.svelte';
 	import ElementLayerList from './ElementLayerList.svelte';
@@ -144,6 +149,15 @@
 		reloadSafety: () => ({ unsavedWork: store.getState().dirty, saveFailed: saveReported })
 	});
 	let exportState = $state.raw(exportController.getState());
+	let backupReceipt = $state.raw(
+		/** @type {import('$lib/presentations/editor/backupReceipt').BackupDownloadReceipt | null} */ (
+			null
+		)
+	);
+	let documentFingerprint = $state(/** @type {string | null} */ (null));
+	const exporting = $derived(
+		exportState.phase === 'preparing' || exportState.phase === 'rendering'
+	);
 	// A deep link straight into the editor still prepares offline use for this session.
 	const offline = usePresentationOfflineReadiness();
 
@@ -227,13 +241,51 @@
 						? 'Unsaved changes'
 						: templateMode
 							? 'Draft saved'
-							: 'Saved locally'
+							: 'Saved in this browser'
 	);
 	// A failure is shown in words, not only in a tooltip: what happened and that
 	// the edit is still here with a way to retry it.
 	const saveStatus = $derived(
 		saveReported && saveState.message ? `${saveLabel} — ${saveState.message}` : saveLabel
 	);
+
+	const currentBackup = $derived(
+		!!backupReceipt &&
+			documentFingerprint === backupReceipt.documentSha256 &&
+			!editorState.view.editingElementId
+	);
+	const backupHeading = $derived(
+		backupReceipt
+			? currentBackup
+				? 'Backup download started'
+				: 'Your backup is older than your latest edits'
+			: 'Back up your work before you leave'
+	);
+
+	$effect(() => {
+		if (templateMode) return;
+		backupReceipt = readBackupDownloadReceipt(presentationId);
+	});
+	$effect(() => {
+		const receipt = exportState.backupDownload;
+		if (receipt && receipt.documentId === presentationId) backupReceipt = receipt;
+	});
+	$effect(() => {
+		const current = presentation;
+		documentFingerprint = null;
+		let live = true;
+		if (current && !templateMode)
+			void backupDocumentFingerprint(current)
+				.then((value) => {
+					if (live) documentFingerprint = value;
+				})
+				.catch(() => {
+					/* Keep reminder conservative if hashing is unavailable. */
+				});
+		return () => {
+			live = false;
+		};
+	});
 
 	// Effects never run during SSR, so the import alone is the client-only seam;
 	// the placeholder below holds the canvas track until it resolves.
@@ -936,7 +988,7 @@
 					<h1 title={presentation.title}>{presentation.title}</h1>
 				</div>
 				<p class="presentation-local-status" role="status" title={saveState.message ?? undefined}>
-					{editorNote ?? saveStatus}
+					{saveLabel}
 				</p>
 				<button type="button" class={button} onclick={requestSave}
 					><Save size={16} aria-hidden="true" /> {templateMode ? 'Save version' : 'Save'}</button
@@ -1129,6 +1181,33 @@
 					{editorNote ?? saveState.message ?? saveStatus}
 				</p>{/if}
 		</header>
+		{#if !templateMode}
+			<section class="presentation-backup-note" aria-label="Presentation backup">
+				<div>
+					<strong>{backupHeading}</strong>
+					<p>
+						{currentBackup
+							? 'Check your browser’s downloads and keep the .stickerlab.zip somewhere safe. Restore it from Presentations on another device.'
+							: 'Browser saves are not synced. Clearing browser data can remove this work. Download a portable copy you can restore here.'}
+					</p>
+				</div>
+				<button
+					type="button"
+					class={button}
+					disabled={exporting}
+					onclick={() => void exportController.exportDeck('backup')}
+					><Download size={16} aria-hidden="true" />{exporting && exportState.format === 'backup'
+						? 'Preparing backup…'
+						: 'Back up my work'}</button
+				>
+				{#if exporting && exportState.format === 'backup'}<p role="status">
+						Preparing your portable copy…
+					</p>{/if}
+				{#if exportState.format === 'backup' && exportState.phase === 'failed'}<p role="alert">
+						{exportState.message}
+					</p>{/if}
+			</section>
+		{/if}
 		{#if editorState.view.editingElementId}<TextFormatToolbar session={textSession} />{/if}
 		{#if insertError}<p class="asset-error" role="alert">{insertError}</p>{/if}
 		<div class="presentation-mobile-note [display:none]">
@@ -1448,6 +1527,32 @@
 		background: var(--warning-bg);
 		color: var(--warning-ink);
 		font-size: 12px;
+	}
+	.presentation-backup-note {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 12px 18px;
+		background: var(--pale);
+		border-bottom: 1px solid var(--mint-line);
+		font-size: 12px;
+	}
+	.presentation-backup-note > div {
+		flex: 1 1 270px;
+		min-width: 0;
+	}
+	.presentation-backup-note p {
+		margin: 5px 0 0;
+		line-height: 1.5;
+		color: var(--muted);
+	}
+	.presentation-backup-note > button {
+		flex: 0 0 auto;
+	}
+	.presentation-add-shape {
+		position: relative;
 	}
 	.presentation-add-shape select {
 		min-height: 36px;

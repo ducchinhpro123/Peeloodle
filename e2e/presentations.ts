@@ -261,7 +261,7 @@ export async function openBlankEditor(page: Page): Promise<string> {
 	await page.getByRole('button', { name: CREATE }).first().click();
 	await expect(page).toHaveURL(/\/presentations\/[^/]+$/);
 	await expect(page.getByTestId('presentation-canvas')).toBeVisible();
-	await expect(page.getByText('Saved locally', { exact: true })).toBeVisible();
+	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 	return decodeURIComponent(page.url().split('/').pop()!);
 }
 

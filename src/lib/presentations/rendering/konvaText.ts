@@ -8,7 +8,7 @@
 
 import Konva from 'konva';
 import { fontFamilyFor } from './fonts';
-import { fontSpecFor, type FontSpec } from './textLayout';
+import type { FontSpec } from './textLayout';
 import type { TextRun } from '../model/types';
 
 export { Konva };
@@ -55,11 +55,4 @@ export function konvaTextWidth(text: string, spec: FontSpec): number {
 	const width = node.getTextWidth();
 	node.destroy();
 	return width;
-}
-
-export function konvaTextWidthForRun(
-	text: string,
-	run: Pick<TextRun, 'fontId' | 'size' | 'bold' | 'italic'>
-): number {
-	return konvaTextWidth(text, fontSpecFor(run));
 }
