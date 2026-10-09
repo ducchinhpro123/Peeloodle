@@ -106,9 +106,7 @@
 		onreload = null,
 		// `$bindable` compiles to a prop getter/setter, so this component only ever
 		// publishes the guard; the route reads it back through the binding, which
-		// leaves the initial value unread here. The repo's ESLint flags this without
-		// the directive even though the Svelte autofixer reports it as unused.
-		// eslint-disable-next-line no-useless-assignment
+		// leaves the initial value unread here.
 		leaveguard = $bindable(null)
 	} = $props();
 
@@ -212,7 +210,6 @@
 	/** @type {Map<string, HTMLButtonElement>} */
 	// Slide buttons are addressed imperatively by the focus effect below and never
 	// read from the template, so they stay out of the reactive graph.
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const slideButtons = new Map();
 
 	const editorState = $derived(store.current);

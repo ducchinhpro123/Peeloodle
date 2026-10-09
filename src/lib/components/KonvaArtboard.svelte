@@ -40,20 +40,16 @@
 	/** @type {Map<string, Konva.Node>} */
 	// Imperative Konva/canvas caches, never read from the template: reactive
 	// collections would proxy Konva nodes and canvases for no benefit.
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const nodes = new Map();
 	/** @type {Map<string, { signature: string, canvas: HTMLCanvasElement | null }>} */
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const surfaces = new Map();
 
 	let imagesVersion = $state(0);
 	let fontsLoaded = $state(/** @type {string[]} */ ([]));
 	let maskVersion = $state(0);
 	/** @type {Map<string, CanvasImageSource>} */
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const maskImages = new Map();
 	/** @type {Map<string, HTMLImageElement>} */
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const htmlImages = new Map();
 	/** @type {string | null} */
 	let editingTextId = $state(null);
@@ -223,7 +219,6 @@
 		// Evict rasters no layer references any more (a replaced or cleared mask) and
 		// release bitmap-backed ones, instead of pinning every mask ever decoded.
 		/** @type {Set<string>} */
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local bookkeeping for one pass
 		const liveMaskKeys = new Set();
 		for (const layer of document?.layers ?? []) {
 			if (layer.kind === 'image' && layer.maskKey) liveMaskKeys.add(layer.maskKey);
@@ -288,7 +283,6 @@
 		stage.position({ x: metrics.stageX, y: metrics.stageY });
 
 		/** @type {Set<string>} */
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local bookkeeping for one reconcile pass
 		const live = new Set();
 		for (const layer of document?.layers ?? []) {
 			if (!layer.visible) continue;

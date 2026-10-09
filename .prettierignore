@@ -12,3 +12,11 @@ bun.lockb
 # Supabase CLI scratch state and linked local worktrees
 /supabase/.temp/
 /.worktrees/
+
+# Proof harness output: retained byte-identical to what it proved, so it is
+# neither reformatted nor linted (see .oxlintrc.json ignorePatterns).
+/proofs/
+
+# Paraglide/inlang generated project state; only settings.json is hand-edited.
+/project.inlang/
+!/project.inlang/settings.json
