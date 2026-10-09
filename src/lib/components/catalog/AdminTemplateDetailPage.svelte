@@ -385,7 +385,7 @@
 {#if status === 'loading'}
 	<p role="status">Loading template…</p>
 {:else if status === 'missing'}
-	<section class="[display:grid] [max-width:62ch] [justify-items:start] [gap:var(--space-3)]">
+	<section class="[display:grid] [justify-items:start] [gap:var(--space-3)] [max-inline-size:62ch]">
 		<ShieldAlert size={34} aria-hidden="true" />
 		<h1>Template not found</h1>
 		<p>It may have been removed or the link may be wrong.</p>
@@ -403,7 +403,7 @@
 				><Presentation size={16} aria-hidden="true" /> All templates</a
 			>
 			<span
-				class="admin-state [border-radius:999px] [padding:2px_10px] [font-size:11px] [font-weight:800]"
+				class="admin-state [border-radius:999px] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:2px] [padding-block-end:2px] [font-size:11px] [font-weight:800]"
 				class:is-draft={template.state === 'draft'}
 				class:is-published={template.state === 'published'}
 				class:is-archived={template.state === 'archived'}>{template.state}</span
@@ -421,19 +421,23 @@
 			class="[display:grid] [gap:var(--space-3)] [border-radius:var(--radius-sm)] [padding:var(--space-4)] [background:var(--surface)] [border:1px_solid_var(--line)]"
 		>
 			<div class="[display:flex] [flex-wrap:wrap] [align-items:flex-start] [gap:var(--space-3)]">
-				<div class="[min-width:0] [flex:1_1_20rem]">
+				<div class="[flex:1_1_20rem] [min-inline-size:0]">
 					<h1 class="[margin:0] [font-size:22px] [overflow-wrap:anywhere]">{template.title}</h1>
 					<p
-						class="[margin:2px_0_0] [font-size:12px] [overflow-wrap:anywhere] [color:var(--muted)]"
+						class="[margin-inline-start:0] [margin-inline-end:0] [margin-block-start:2px] [margin-block-end:0] [font-size:12px] [overflow-wrap:anywhere] [color:var(--muted)]"
 					>
 						{template.useCase}
 						{#if template.tags.length}· tags: {template.tags.join(', ')}{/if}
 						· order {template.sortOrder}
 					</p>
-					{#if template.description}<p class="[margin:6px_0_0] [overflow-wrap:anywhere]">
+					{#if template.description}<p
+							class="[margin-inline-start:0] [margin-inline-end:0] [margin-block-start:6px] [margin-block-end:0] [overflow-wrap:anywhere]"
+						>
 							{template.description}
 						</p>{/if}
-					<p class="[margin:6px_0_0] [font-size:12px] [color:var(--muted)]">
+					<p
+						class="[margin-inline-start:0] [margin-inline-end:0] [margin-block-start:6px] [margin-block-end:0] [font-size:12px] [color:var(--muted)]"
+					>
 						created {date(template.createdAt)} · updated {date(template.updatedAt)}
 					</p>
 				</div>
@@ -448,7 +452,10 @@
 					{/if}
 				</div>
 			</div>
-			{#if notice}<p role="status" class="[margin:0] [font-weight:700] [color:#007b55]">
+			{#if notice}<p
+					role="status"
+					class="[margin:0] [font-weight:700] [color:oklch(0.515677_0.111250_163.1262)]"
+				>
 					{notice}
 				</p>{/if}
 			{#if versions.length === 0}
@@ -466,7 +473,12 @@
 		<section class="[display:grid] [gap:var(--space-3)]">
 			<h2 class="[margin:0] [font-size:16px]">Preview</h2>
 			{#if previewNotice}
-				<p role="status" class="[margin:0] [font-weight:700] [color:#007b55]">{previewNotice}</p>
+				<p
+					role="status"
+					class="[margin:0] [font-weight:700] [color:oklch(0.515677_0.111250_163.1262)]"
+				>
+					{previewNotice}
+				</p>
 			{/if}
 			{#if newestVersion?.coverPath}
 				<div
@@ -500,7 +512,7 @@
 				</div>
 			{:else}
 				<div
-					class="[display:grid] [justify-items:start] [gap:var(--space-3)] [border-radius:var(--radius-sm)] [padding:var(--space-4)] [background:var(--surface)] [border:1px_dashed_#abd3c3]"
+					class="[display:grid] [justify-items:start] [gap:var(--space-3)] [border-radius:var(--radius-sm)] [padding:var(--space-4)] [background:var(--surface)] [border:1px_dashed_oklch(0.833566_0.047737_168.8711)]"
 				>
 					<p class="[margin:0]">
 						No previews yet. Generate the cover and slide previews from this exact draft;
@@ -518,7 +530,12 @@
 		<section class="[display:grid] [gap:var(--space-3)]">
 			<h2 class="[margin:0] [font-size:16px]">Lifecycle</h2>
 			{#if lifecycleNotice}
-				<p role="status" class="[margin:0] [font-weight:700] [color:#007b55]">{lifecycleNotice}</p>
+				<p
+					role="status"
+					class="[margin:0] [font-weight:700] [color:oklch(0.515677_0.111250_163.1262)]"
+				>
+					{lifecycleNotice}
+				</p>
 			{/if}
 			{#if lifecycleError}<p role="alert" class="[margin:0] [font-weight:700]">
 					{lifecycleError}
@@ -529,7 +546,7 @@
 				{#if newestVersion?.validationState === 'validated'}
 					{#if template.publishedVersionId === newestVersion.id}
 						<span
-							class="[border-radius:999px] [padding:2px_10px] [font-size:11px] [font-weight:800] [color:#00694a] [background:#e3f4ea]"
+							class="[border-radius:999px] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:2px] [padding-block-end:2px] [font-size:11px] [font-weight:800] [color:oklch(0.461264_0.097571_164.5432)] [background:oklch(0.951787_0.022294_160.2249)]"
 							>published</span
 						>
 						<p class="[margin:0] [font-size:13px]">
@@ -592,12 +609,12 @@
 							<strong>Version {version.versionNumber}</strong>
 							{#if version.id === template.publishedVersionId}
 								<span
-									class="[border-radius:999px] [padding:2px_10px] [font-size:11px] [font-weight:800] [color:#00694a] [background:#e3f4ea]"
+									class="[border-radius:999px] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:2px] [padding-block-end:2px] [font-size:11px] [font-weight:800] [color:oklch(0.461264_0.097571_164.5432)] [background:oklch(0.951787_0.022294_160.2249)]"
 									>published</span
 								>
 							{/if}
 							<span
-								class="admin-state [border-radius:999px] [padding:2px_10px] [font-size:11px] [font-weight:800]"
+								class="admin-state [border-radius:999px] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:2px] [padding-block-end:2px] [font-size:11px] [font-weight:800]"
 								class:is-draft={version.validationState === 'pending'}
 								class:is-published={version.validationState === 'validated'}
 								class:is-archived={version.validationState === 'rejected'}
@@ -724,7 +741,7 @@
 				required
 				maxlength="200"
 				bind:value={form.title}
-				class="[min-height:38px] [border-radius:var(--radius-sm)] [padding:8px_12px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[border-radius:var(--radius-sm)] [padding-inline-start:12px] [padding-inline-end:12px] [padding-block-start:8px] [padding-block-end:8px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)] [min-block-size:38px]"
 			/>
 		</label>
 		<label class="[display:grid] [gap:4px] [font-size:12px] [font-weight:700]">
@@ -732,7 +749,7 @@
 			<select
 				id="catalog-template-use-case"
 				bind:value={form.useCase}
-				class="[min-height:38px] [border-radius:var(--radius-sm)] [padding:6px_10px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[border-radius:var(--radius-sm)] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:6px] [padding-block-end:6px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)] [min-block-size:38px]"
 			>
 				{#each USE_CASES as option (option)}
 					<option value={option}>{option}</option>
@@ -746,7 +763,7 @@
 				rows="3"
 				maxlength="10000"
 				bind:value={form.description}
-				class="[border-radius:var(--radius-sm)] [padding:8px_12px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[border-radius:var(--radius-sm)] [padding-inline-start:12px] [padding-inline-end:12px] [padding-block-start:8px] [padding-block-end:8px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
 			></textarea>
 		</label>
 		<label class="[display:grid] [gap:4px] [font-size:12px] [font-weight:700]">
@@ -754,7 +771,7 @@
 			<input
 				id="catalog-template-tags"
 				bind:value={form.tags}
-				class="[min-height:38px] [border-radius:var(--radius-sm)] [padding:8px_12px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[border-radius:var(--radius-sm)] [padding-inline-start:12px] [padding-inline-end:12px] [padding-block-start:8px] [padding-block-end:8px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)] [min-block-size:38px]"
 			/>
 		</label>
 		<label class="[display:grid] [gap:4px] [font-size:12px] [font-weight:700]">
@@ -763,7 +780,7 @@
 				id="catalog-template-order"
 				type="number"
 				bind:value={form.sortOrder}
-				class="[min-height:38px] [border-radius:var(--radius-sm)] [padding:8px_12px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[border-radius:var(--radius-sm)] [padding-inline-start:12px] [padding-inline-end:12px] [padding-block-start:8px] [padding-block-end:8px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)] [min-block-size:38px]"
 			/>
 		</label>
 		{#if formError}<p role="alert" class="[margin:0] [font-weight:700]">{formError}</p>{/if}
@@ -790,19 +807,19 @@
 		color: var(--danger);
 	}
 	.admin-cover {
-		width: 240px;
-		max-width: 100%;
-		height: auto;
+		inline-size: 240px;
+		max-inline-size: 100%;
+		block-size: auto;
 		aspect-ratio: 16 / 9;
 		object-fit: cover;
 	}
 	.admin-state.is-draft {
 		background: var(--pale);
-		color: #315b4e;
+		color: oklch(0.436246 0.052317 171.7714);
 	}
 	.admin-state.is-published {
-		background: #e3f4ea;
-		color: #00694a;
+		background: oklch(0.951787 0.022294 160.2249);
+		color: oklch(0.461264 0.097571 164.5432);
 	}
 	.admin-state.is-archived {
 		background: var(--cream);

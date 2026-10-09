@@ -75,7 +75,7 @@
 
 {#if choice && intent}
 	<section
-		class="tool-choice [margin:0_auto] [max-width:1440px] [padding:var(--space-5)]"
+		class="tool-choice [margin-inline-start:auto] [margin-inline-end:auto] [margin-block-start:0] [margin-block-end:0] [padding:var(--space-5)] [max-inline-size:1440px]"
 		data-testid="tool-document-choice"
 	>
 		<header class="tool-choice-header">
@@ -117,7 +117,7 @@
 						>
 							<ProjectThumb {project} {repository} />
 							<span
-								class="tool-choice-card-body [display:block] [padding:var(--space-4)_var(--space-2)_var(--space-2)]"
+								class="tool-choice-card-body [display:block] [padding-inline-start:var(--space-2)] [padding-inline-end:var(--space-2)] [padding-block-start:var(--space-4)] [padding-block-end:var(--space-2)]"
 							>
 								<strong>{project.title}</strong>
 								<span
@@ -156,12 +156,15 @@
 		flex: 1 1 320px;
 	}
 	.tool-choice-header h1 {
-		margin: var(--space-3) 0;
+		margin-block-start: var(--space-3);
+		margin-block-end: var(--space-3);
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		font-size: clamp(28px, 3vw, 42px);
 		line-height: 1.15;
 	}
 	.tool-choice-header p {
-		max-width: 55ch;
+		max-inline-size: 55ch;
 		color: var(--muted);
 		margin: 0;
 	}
@@ -171,7 +174,10 @@
 		justify-content: space-between;
 		gap: var(--space-3);
 		flex-wrap: wrap;
-		margin: var(--space-6) 0 var(--space-4);
+		margin-block-start: var(--space-6);
+		margin-block-end: var(--space-4);
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 	}
 	.tool-choice-heading h2 {
 		margin: 0;
@@ -182,13 +188,13 @@
 		font-size: 13px;
 	}
 	.tool-choice-grid li {
-		min-width: 0;
+		min-inline-size: 0;
 	}
 	.tool-choice-card {
 		display: block;
-		width: 100%;
-		height: 100%;
-		text-align: left;
+		inline-size: 100%;
+		block-size: 100%;
+		text-align: start;
 		padding: var(--space-3);
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
@@ -196,20 +202,22 @@
 		box-shadow: var(--shadow);
 		color: var(--ink);
 	}
-	.tool-choice-card:hover {
-		border-color: var(--mint);
-		box-shadow: var(--shadow-hover);
+	@media (hover: hover) and (pointer: fine) {
+		.tool-choice-card:hover {
+			border-color: var(--mint);
+			box-shadow: var(--shadow-hover);
+		}
 	}
 	:global(.tool-choice-card .project-thumb) {
-		height: auto;
+		block-size: auto;
 		aspect-ratio: 4 / 3;
 		border-radius: var(--radius-sm);
 		padding: var(--space-5);
 	}
 	:global(.tool-choice-card .project-thumb img) {
-		width: 100%;
-		height: 100%;
-		min-height: 0;
+		inline-size: 100%;
+		block-size: 100%;
+		min-block-size: 0;
 		object-fit: contain;
 	}
 	.tool-choice-card-body strong {
@@ -221,7 +229,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-2);
-		margin-top: var(--space-3);
+		margin-block-start: var(--space-3);
 		color: var(--muted);
 		font-size: 12px;
 	}

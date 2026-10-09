@@ -106,11 +106,14 @@
 		flex: 0 0 220px;
 		flex-direction: column;
 		gap: 16px;
-		width: 220px;
-		min-height: calc(100vh - var(--header-height));
-		padding: var(--space-4) var(--space-3);
-		border-right: 1px solid #eff2f4;
-		background: #fff;
+		inline-size: 220px;
+		min-block-size: calc(100vh - var(--header-height));
+		padding-block-start: var(--space-4);
+		padding-block-end: var(--space-4);
+		padding-inline-start: var(--space-3);
+		padding-inline-end: var(--space-3);
+		border-inline-end: 1px solid oklch(0.959437 0.004191 236.4975);
+		background: oklch(1 0 none);
 	}
 	.side-tools {
 		display: grid;
@@ -120,23 +123,29 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		padding: 9px 12px;
+		padding-block-start: 9px;
+		padding-block-end: 9px;
+		padding-inline-start: 12px;
+		padding-inline-end: 12px;
 		border-radius: 10px;
 		font-size: 13.5px;
 		font-weight: 500;
 	}
 	.sidebar a.active {
 		background: var(--pale);
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 		font-weight: 700;
 	}
 	.side-tools {
-		padding-top: 14px;
-		border-top: 1px solid var(--line);
+		padding-block-start: 14px;
+		border-block-start: 1px solid var(--line);
 	}
 	.side-tools small {
-		padding: 0 12px 4px;
-		color: #8996aa;
+		padding-block-start: 0;
+		padding-block-end: 4px;
+		padding-inline-start: 12px;
+		padding-inline-end: 12px;
+		color: oklch(0.669479 0.033254 258.939);
 		font-size: 11px;
 		font-weight: 600;
 		letter-spacing: 0.04em;
@@ -146,14 +155,14 @@
 		display: grid;
 		grid-template-columns: 52px 1fr;
 		gap: 2px 10px;
-		margin-top: auto;
+		margin-block-start: auto;
 		padding: var(--space-3);
 		background: var(--cream);
 	}
 	.studio-note img {
 		grid-row: 1 / span 2;
-		width: 52px;
-		height: 52px;
+		inline-size: 52px;
+		block-size: 52px;
 		margin: 0;
 		transform: rotate(-8deg);
 	}
@@ -171,13 +180,13 @@
 		display: flex;
 		gap: 4px;
 		padding: 0;
-		color: #007b55;
+		color: oklch(0.515677 0.11125 163.1262);
 		font-size: 12px;
 		font-weight: 800;
 	}
 	.card {
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 </style>

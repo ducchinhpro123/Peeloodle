@@ -121,7 +121,7 @@
 		align-items: center;
 		gap: var(--space-3);
 		padding: var(--space-4);
-		min-height: 72px;
+		min-block-size: 72px;
 		border: 1px solid var(--line);
 		border-radius: var(--radius-sm);
 		font-size: 14px;
@@ -129,7 +129,7 @@
 		cursor: pointer;
 	}
 	.export-sizes label:has(:checked) {
-		border-color: #00875e;
+		border-color: oklch(0.551582 0.11869 163.307);
 		background: var(--pale);
 	}
 	@media (max-width: 720px) {

@@ -641,10 +641,14 @@
 		justify-content: center;
 		gap: var(--space-3);
 		padding: var(--space-5);
-		border: 1px dashed #abd3c3;
+		border: 1px dashed oklch(0.833566 0.047737 168.8711);
 		border-radius: var(--radius);
-		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
-		color: #55708c;
+		background: radial-gradient(
+			ellipse at bottom,
+			oklch(0.966239 0.018933 157.8754),
+			oklch(1 0 none) 75%
+		);
+		color: oklch(0.535034 0.054407 249.7873);
 		text-align: center;
 	}
 	:global(.empty h2) {
@@ -660,18 +664,18 @@
 		height: 56px;
 		border-radius: 18px;
 		background: var(--pale);
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 		transform: rotate(-8deg);
 	}
 	.empty {
 		min-height: 250px;
-		margin-top: 20px;
+		margin-block-start: 20px;
 	}
 	.presentation-guide {
 		position: absolute;
 		z-index: 3;
 		background: var(--icon-purple);
-		box-shadow: 0 0 0 1px #ffffffaa;
+		box-shadow: 0 0 0 1px color-mix(in oklch, oklch(1 0 none) 66.6667%, transparent);
 		pointer-events: none;
 	}
 	.presentation-guide.is-x {
@@ -684,15 +688,21 @@
 		position: relative;
 		min-width: 0;
 		min-height: 0;
-		overflow: hidden;
-		background: #dfe8e6;
+		overflow: clip;
+		background: oklch(0.923614 0.009985 181.3932);
 	}
 	.presentation-canvas-error {
 		position: absolute;
 		z-index: 2;
-		inset: auto var(--space-4) var(--space-7);
+		inset-block-start: auto;
+		inset-block-end: var(--space-7);
+		inset-inline-start: var(--space-4);
+		inset-inline-end: var(--space-4);
 		margin: 0;
-		padding: var(--space-3) var(--space-4);
+		padding-block-start: var(--space-3);
+		padding-block-end: var(--space-3);
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
 		border: 1px solid var(--warning-line);
 		border-radius: var(--radius-sm);
 		background: var(--warning-bg);
@@ -704,14 +714,19 @@
 		cursor: grabbing;
 	}
 	:global(.presentation-canvas canvas) {
-		filter: drop-shadow(0 12px 28px #08152f2b);
+		filter: drop-shadow(
+			0 12px 28px color-mix(in oklch, oklch(0.201186 0.055198 262.3998) 16.8627%, transparent)
+		);
 	}
 	.presentation-blank-slide {
 		position: absolute;
 		z-index: 1;
-		inset: 50% auto auto 50%;
+		inset-block-start: 50%;
+		inset-block-end: auto;
+		inset-inline-start: 50%;
+		inset-inline-end: auto;
 		margin: 0;
-		color: #9aa7b7;
+		color: oklch(0.723315 0.027523 253.6235);
 		font-size: 12px;
 		pointer-events: none;
 		transform: translate(-50%, -50%);

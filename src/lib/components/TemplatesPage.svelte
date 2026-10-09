@@ -86,7 +86,7 @@
 	</Hero>
 
 	<div
-		class="pills [margin:var(--space-5)_0] [display:flex] [scrollbar-width:thin] [gap:var(--space-2)] [overflow:auto] [padding:4px_2px]"
+		class="pills [margin-inline-start:0] [margin-inline-end:0] [margin-block-start:var(--space-5)] [margin-block-end:var(--space-5)] [display:flex] [scrollbar-width:thin] [gap:var(--space-2)] [overflow:auto] [padding-inline-start:2px] [padding-inline-end:2px] [padding-block-start:4px] [padding-block-end:4px]"
 		role="group"
 		aria-label="Template category filters"
 	>
@@ -103,7 +103,7 @@
 		<span class="muted [color:var(--muted)]"
 			>{result.length} editable templates · free to make your own</span
 		>
-		<label class="filter-search [margin-left:auto]">
+		<label class="filter-search [margin-inline-start:auto]">
 			<Search size={16} />
 			<input
 				bind:value={() => query, (value) => onquery(value)}
@@ -128,7 +128,7 @@
 			items={result.slice(2)}
 		/>
 	{:else}
-		<div class="empty [margin-top:20px] [min-height:250px]">
+		<div class="empty [margin-block-start:20px] [min-block-size:250px]">
 			<h2>No sample templates found</h2>
 			<button type="button" class={button} onclick={resetFilters}>Reset filters</button>
 		</div>
@@ -141,92 +141,109 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		padding: 8px 14px;
+		padding-block-start: 8px;
+		padding-block-end: 8px;
+		padding-inline-start: 14px;
+		padding-inline-end: 14px;
 		border-radius: 999px;
-		background: #f3f5f8;
-		color: #52627e;
+		background: oklch(0.96948 0.004541 258.3246);
+		color: oklch(0.494015 0.049212 261.4769);
 	}
 	.filter-search input {
-		min-width: 220px;
+		min-inline-size: 220px;
 		border: 0;
-		outline: 0;
 		background: transparent;
 	}
 	.empty {
 		display: flex;
-		min-height: 208px;
+		min-block-size: 208px;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		gap: var(--space-3);
 		padding: var(--space-5);
-		border: 1px dashed #abd3c3;
+		border: 1px dashed oklch(0.833566 0.047737 168.8711);
 		border-radius: var(--radius);
-		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
-		color: #55708c;
+		background: radial-gradient(
+			ellipse at bottom,
+			oklch(0.966239 0.018933 157.8754),
+			oklch(1 0 none) 75%
+		);
+		color: oklch(0.535034 0.054407 249.7873);
 		text-align: center;
 	}
 	.empty h2 {
 		color: var(--ink);
 	}
 	:global(.empty p) {
-		max-width: 480px;
+		max-inline-size: 480px;
 		font-size: 14px;
 	}
 	:global(.empty > svg) {
 		padding: 12px;
-		width: 56px;
-		height: 56px;
+		inline-size: 56px;
+		block-size: 56px;
 		border-radius: 18px;
 		background: var(--pale);
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 		transform: rotate(-8deg);
 	}
 	.pills button {
-		padding: 10px 16px;
-		border: 1px solid #e6eaf2;
+		padding-block-start: 10px;
+		padding-block-end: 10px;
+		padding-inline-start: 16px;
+		padding-inline-end: 16px;
+		border: 1px solid oklch(0.936316 0.011619 264.5091);
 		border-radius: 999px;
-		background: #f5f7ff;
-		color: #273a5c;
+		background: oklch(0.976909 0.010856 274.8971);
+		color: oklch(0.349519 0.064628 261.4121);
 		white-space: nowrap;
 	}
 	.pills button[aria-pressed='true'] {
-		border-color: #00875e;
-		background: #00875e;
-		color: #fff;
+		border-color: oklch(0.551582 0.11869 163.307);
+		background: oklch(0.551582 0.11869 163.307);
+		color: oklch(1 0 none);
 	}
 	.pills button {
-		min-height: 44px;
+		min-block-size: 44px;
 		font-size: 13px;
 	}
-	.pills button:hover:not([aria-pressed='true']) {
-		background: var(--lav);
+	@media (hover: hover) and (pointer: fine) {
+		.pills button:hover:not([aria-pressed='true']) {
+			background: var(--lav);
+		}
 	}
 	.filters {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-4);
-		margin: var(--space-5) 0;
-		padding: var(--space-3) var(--space-4);
+		margin-block-start: var(--space-5);
+		margin-block-end: var(--space-5);
+		margin-inline-start: 0;
+		margin-inline-end: 0;
+		padding-block-start: var(--space-3);
+		padding-block-end: var(--space-3);
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
-		background: #fff;
+		background: oklch(1 0 none);
 		font-size: 13px;
 	}
 	.filters label {
-		color: #3e506d;
+		color: oklch(0.42873 0.053505 259.7499);
 		font-size: 13px;
 	}
 	:global(.filters select) {
-		margin-left: 7px;
+		margin-inline-start: 7px;
 		padding: 7px;
-		border: 1px solid #e2e9f1;
+		border: 1px solid oklch(0.931042 0.013199 251.5632);
 		border-radius: 8px;
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 	.filter-search input {
-		min-width: 145px;
+		min-inline-size: 145px;
 	}
 	@media (max-width: 720px) {
 		.filters {
@@ -234,17 +251,20 @@
 			align-items: stretch;
 		}
 		.filter-search {
-			width: 100%;
-			margin-left: 0;
+			inline-size: 100%;
+			margin-inline-start: 0;
 		}
 		.filter-search input {
-			width: 100%;
+			inline-size: 100%;
 		}
 		.filters label {
 			flex: 1;
 		}
 		.pills {
-			margin: 12px 0;
+			margin-block-start: 12px;
+			margin-block-end: 12px;
+			margin-inline-start: 0;
+			margin-inline-end: 0;
 		}
 	}
 </style>

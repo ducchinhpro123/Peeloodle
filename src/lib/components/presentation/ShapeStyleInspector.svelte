@@ -25,7 +25,7 @@
 </script>
 
 <div
-	class="presentation-shape-fields [margin-top:var(--space-3)] [display:grid] [gap:var(--space-3)]"
+	class="presentation-shape-fields [margin-block-start:var(--space-3)] [display:grid] [gap:var(--space-3)]"
 >
 	{#if !linear}
 		<label>
@@ -106,16 +106,19 @@
 		font-weight: 700;
 	}
 	.presentation-shape-fields input[type='color'] {
-		width: 100%;
-		min-height: 36px;
+		inline-size: 100%;
+		min-block-size: 36px;
 		padding: 2px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
 		background: var(--surface);
 	}
 	.presentation-shape-fields input[type='number'] {
-		min-height: 36px;
-		padding: 6px 8px;
+		min-block-size: 36px;
+		padding-block-start: 6px;
+		padding-block-end: 6px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
 		background: var(--surface);

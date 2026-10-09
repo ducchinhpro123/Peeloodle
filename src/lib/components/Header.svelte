@@ -45,14 +45,17 @@
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.header {
 		position: sticky;
-		top: 0;
+		inset-block-start: 0;
 		z-index: 5;
 		display: flex;
 		align-items: center;
 		gap: var(--space-5);
-		height: var(--header-height);
-		padding: var(--space-1) clamp(12px, 1.6vw, 20px);
-		border-bottom: 1px solid #d4eddf;
+		block-size: var(--header-height);
+		padding-block-start: var(--space-1);
+		padding-block-end: var(--space-1);
+		padding-inline-start: clamp(12px, 1.6vw, 20px);
+		padding-inline-end: clamp(12px, 1.6vw, 20px);
+		border-block-end: 1px solid oklch(0.923899 0.03234 161.2503);
 		background: var(--pale) url('/art/header-paper.svg') center / 100% 100% no-repeat;
 		overflow-x: clip;
 	}
@@ -61,15 +64,15 @@
 		display: flex;
 		align-items: center;
 		flex: none;
-		min-width: 0;
+		min-inline-size: 0;
 		color: var(--ink);
 		text-decoration: none;
 	}
 	.brand img {
 		display: block;
-		height: 72px;
-		width: auto;
-		max-width: min(280px, 100%);
+		block-size: 72px;
+		inline-size: auto;
+		max-inline-size: min(280px, 100%);
 		object-fit: contain;
 	}
 	.topnav {
@@ -77,7 +80,10 @@
 		display: flex;
 		flex-shrink: 0;
 		align-items: center;
-		padding: var(--space-1) var(--space-4);
+		padding-block-start: var(--space-1);
+		padding-block-end: var(--space-1);
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
 		background: url('/art/header-scrap.svg') center / 100% 100% no-repeat;
 	}
 	.topnav a {
@@ -90,38 +96,47 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		min-height: 44px;
-		padding: var(--space-2) clamp(12px, 1.15vw, 20px);
+		min-block-size: 44px;
+		padding-block-start: var(--space-2);
+		padding-block-end: var(--space-2);
+		padding-inline-start: clamp(12px, 1.15vw, 20px);
+		padding-inline-end: clamp(12px, 1.15vw, 20px);
 		font-size: clamp(14px, 1.08vw, 18px);
 		font-weight: 500;
 		white-space: nowrap;
 	}
 	.topnav a.active {
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 		font-weight: 800;
 	}
 	.topnav a.active::before {
 		position: absolute;
 		z-index: -1;
-		inset: -7px 0 2px;
-		background: #bdebd9bd;
+		inset-block-start: -7px;
+		inset-block-end: 2px;
+		inset-inline-start: 0;
+		inset-inline-end: 0;
+		background: color-mix(in oklch, oklch(0.902782 0.053476 169.3001) 74.1176%, transparent);
 		box-shadow: var(--shadow);
 		transform: rotate(-4deg);
 		content: '';
 	}
 	.topnav a.active::after {
 		position: absolute;
-		right: 17%;
-		bottom: 0;
-		left: 17%;
-		height: 6px;
-		border-top: 3px solid #009467;
-		border-bottom: 1px solid #00946788;
+		inset-inline-end: 17%;
+		inset-block-end: 0;
+		inset-inline-start: 17%;
+		block-size: 6px;
+		border-block-start: 3px solid oklch(0.589646 0.127269 163.0923);
+		border-block-end: 1px solid
+			color-mix(in oklch, oklch(0.589646 0.127269 163.0923) 53.3333%, transparent);
 		transform: rotate(-6deg);
 		content: '';
 	}
-	.topnav a:hover {
-		color: #00875e;
+	@media (hover: hover) and (pointer: fine) {
+		.topnav a:hover {
+			color: oklch(0.551582 0.11869 163.307);
+		}
 	}
 	.mobile-only {
 		display: none;
@@ -129,13 +144,16 @@
 	@media (max-width: 1150px) {
 		.header {
 			gap: var(--space-3);
-			padding: var(--space-1) var(--space-3);
+			padding-block-start: var(--space-1);
+			padding-block-end: var(--space-1);
+			padding-inline-start: var(--space-3);
+			padding-inline-end: var(--space-3);
 		}
 		.brand {
 			flex-basis: auto;
 		}
 		.brand img {
-			height: 64px;
+			block-size: 64px;
 		}
 		.topnav {
 			padding: var(--space-1);
@@ -159,21 +177,24 @@
 			grid-template-columns: 44px minmax(0, 1fr) 44px;
 			grid-template-rows: 44px 44px;
 			gap: var(--space-2);
-			padding: var(--space-1) var(--space-3);
+			padding-block-start: var(--space-1);
+			padding-block-end: var(--space-1);
+			padding-inline-start: var(--space-3);
+			padding-inline-end: var(--space-3);
 		}
 		.mobile-only {
 			display: inline-flex;
 		}
 		.header > .mobile-only {
 			grid-area: 1 / 1;
-			background: #fff9;
+			background: color-mix(in oklch, oklch(1 0 none) 60%, transparent);
 		}
 		.brand {
 			grid-area: 1 / 2;
 			justify-content: center;
 		}
 		.brand img {
-			height: 40px;
+			block-size: 40px;
 		}
 		.topnav {
 			display: none;

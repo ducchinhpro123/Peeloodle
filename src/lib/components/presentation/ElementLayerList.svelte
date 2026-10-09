@@ -89,15 +89,15 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		width: 100%;
-		min-width: 0;
+		inline-size: 100%;
+		min-inline-size: 0;
 		padding: 4px;
 		border: 0;
 		border-radius: 6px;
 		background: transparent;
 		color: var(--ink);
 		font-size: 11px;
-		text-align: left;
+		text-align: start;
 	}
 	.presentation-layer-select span {
 		color: var(--muted);
@@ -105,7 +105,7 @@
 		text-transform: capitalize;
 	}
 	.presentation-layer-select b {
-		min-width: 0;
+		min-inline-size: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -115,8 +115,8 @@
 		outline-offset: 1px;
 	}
 	.presentation-layer-actions .button.icon {
-		width: 100%;
-		min-height: 26px;
+		inline-size: 100%;
+		min-block-size: 26px;
 		padding: 3px;
 	}
 	.presentation-layer-delete {

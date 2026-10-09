@@ -268,7 +268,10 @@
 		letter-spacing: -0.04em;
 	}
 	.gallery-heading p {
-		margin: 8px 0 0;
+		margin-block-start: 8px;
+		margin-block-end: 0;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		color: var(--muted);
 		font-size: 14px;
 	}
@@ -291,14 +294,20 @@
 		gap: 20px;
 		align-items: center;
 		flex-wrap: wrap;
-		margin: 26px 0;
+		margin-block-start: 26px;
+		margin-block-end: 26px;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 	}
 	.template-search {
 		display: flex;
 		align-items: center;
 		gap: 10px;
 		flex: 1 1 240px;
-		padding: 0 16px;
+		padding-block-start: 0;
+		padding-block-end: 0;
+		padding-inline-start: 16px;
+		padding-inline-end: 16px;
 		border: 1px solid var(--control-line);
 		border-radius: 12px;
 		background: var(--canvas);
@@ -309,12 +318,11 @@
 		outline-offset: 2px;
 	}
 	input {
-		width: 100%;
-		min-width: 0;
-		min-height: 48px;
+		inline-size: 100%;
+		min-inline-size: 0;
+		min-block-size: 48px;
 		border: 0;
 		background: transparent;
-		outline: none;
 		color: var(--ink);
 		font: inherit;
 		font-size: 14px;
@@ -325,8 +333,11 @@
 		gap: 8px;
 	}
 	.categories button {
-		min-height: 44px;
-		padding: 10px 16px;
+		min-block-size: 44px;
+		padding-block-start: 10px;
+		padding-block-end: 10px;
+		padding-inline-start: 16px;
+		padding-inline-end: 16px;
 		border: 1px solid var(--line);
 		border-radius: 999px;
 		background: var(--surface);
@@ -343,14 +354,14 @@
 	}
 	.template-grid {
 		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
 		gap: 22px;
 	}
 	.template-card,
 	.blank-template {
-		min-width: 0;
+		min-inline-size: 0;
 		padding: 0;
-		text-align: left;
+		text-align: start;
 		border: 0;
 		background: transparent;
 		color: var(--ink);
@@ -362,7 +373,7 @@
 		position: relative;
 		display: grid;
 		aspect-ratio: 16 / 9;
-		overflow: hidden;
+		overflow: clip;
 		border: 1px solid var(--line);
 		border-radius: 12px;
 		background: var(--canvas);
@@ -370,14 +381,17 @@
 	}
 	.template-cover img {
 		display: block;
-		width: 100%;
-		height: auto;
+		inline-size: 100%;
+		block-size: auto;
 	}
 	.slide-count {
 		position: absolute;
-		right: 8px;
-		bottom: 8px;
-		padding: 4px 7px;
+		inset-inline-end: 8px;
+		inset-block-end: 8px;
+		padding-block-start: 4px;
+		padding-block-end: 4px;
+		padding-inline-start: 7px;
+		padding-inline-end: 7px;
 		background: var(--surface);
 		border-radius: 5px;
 		font-size: 11px;
@@ -386,25 +400,25 @@
 	.blank-art {
 		border-style: dashed;
 		color: var(--scrapbook-green);
-		background: #f0f8f4;
+		background: oklch(0.97201 0.009953 164.8727);
 	}
 	.card-caption {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
 		gap: 8px;
-		margin-top: 14px;
+		margin-block-start: 14px;
 	}
 	strong {
 		font-size: 14px;
 	}
 	.blank-template > strong {
 		display: block;
-		margin-top: 14px;
+		margin-block-start: 14px;
 	}
 	small {
 		display: block;
-		margin-top: 5px;
+		margin-block-start: 5px;
 		font-size: 12px;
 		color: var(--muted);
 	}
@@ -412,12 +426,17 @@
 		text-align: center;
 		padding: 20px;
 	}
-	.template-card:hover .template-cover,
-	.blank-template:hover .blank-art {
-		border-color: var(--primary);
+	@media (hover: hover) and (pointer: fine) {
+		.template-card:hover .template-cover,
+		.blank-template:hover .blank-art {
+			border-color: var(--primary);
+		}
 	}
 	.no-results {
-		padding: 24px 0 0;
+		padding-block-start: 24px;
+		padding-block-end: 0;
+		padding-inline-start: 0;
+		padding-inline-end: 0;
 		color: var(--muted);
 	}
 	.slide-preview {
@@ -429,14 +448,17 @@
 	}
 	.slide-preview img {
 		display: block;
-		width: 100%;
-		height: auto;
+		inline-size: 100%;
+		block-size: auto;
 	}
 	.preview-controls {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin: 16px 0;
+		margin-block-start: 16px;
+		margin-block-end: 16px;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		font-size: 13px;
 	}
 	.preview-note {
@@ -444,9 +466,6 @@
 		color: var(--muted);
 	}
 	@media (max-width: 1150px) {
-		.template-grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
 		.gallery-heading {
 			align-items: flex-start;
 			flex-direction: column;
@@ -456,9 +475,6 @@
 	@media (max-width: 600px) {
 		.starter-gallery {
 			padding: 20px;
-		}
-		.template-grid {
-			grid-template-columns: 1fr;
 		}
 		.gallery-toolbar {
 			gap: 14px;

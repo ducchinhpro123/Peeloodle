@@ -54,6 +54,6 @@
 	:global(.card) {
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 </style>

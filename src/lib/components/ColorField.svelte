@@ -26,7 +26,7 @@
 </script>
 
 <span
-	class="inspector-color-value [display:inline-flex] [min-width:0] [flex-wrap:wrap] [align-items:center] [gap:8px]"
+	class="inspector-color-value [display:inline-flex] [flex-wrap:wrap] [align-items:center] [gap:8px] [min-inline-size:0]"
 >
 	<button
 		type="button"
@@ -38,7 +38,7 @@
 		onclick={() => (pickerOpen = !pickerOpen)}
 	></button>
 	<input
-		class="inspector-hue-picker [height:188px] [width:100%] [flex:1_0_100%]"
+		class="inspector-hue-picker [flex:1_0_100%] [block-size:188px] [inline-size:100%]"
 		type="color"
 		aria-label={label}
 		{disabled}
@@ -65,8 +65,8 @@
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.inspector-swatch {
 		appearance: none;
-		width: 26px;
-		height: 26px;
+		inline-size: 26px;
+		block-size: 26px;
 		padding: 0;
 		border: 1px solid var(--line);
 		border-radius: 50%;
@@ -76,8 +76,11 @@
 		opacity: 0.45;
 	}
 	:global(.inspector .inspector-hex) {
-		width: 8.5rem;
-		padding: 4px 8px;
+		inline-size: 8.5rem;
+		padding-block-start: 4px;
+		padding-block-end: 4px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		color: var(--muted);
 		font-size: 11px;
 		font-weight: 700;

@@ -189,7 +189,7 @@
 				type="search"
 				placeholder="Search deck templates"
 				bind:value={query}
-				class="[min-height:38px] [min-width:0] [flex:1] [border-radius:var(--radius-sm)] [padding:8px_12px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[flex:1] [border-radius:var(--radius-sm)] [padding-inline-start:12px] [padding-inline-end:12px] [padding-block-start:8px] [padding-block-end:8px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)] [min-block-size:38px] [min-inline-size:0]"
 			/>
 			<button type="submit" class={button}><Search size={16} aria-hidden="true" /> Search</button>
 		</form>
@@ -197,7 +197,7 @@
 			Use case
 			<select
 				bind:value={useCase}
-				class="[min-height:38px] [border-radius:var(--radius-sm)] [padding:6px_10px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[border-radius:var(--radius-sm)] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:6px] [padding-block-end:6px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)] [min-block-size:38px]"
 			>
 				<option value="">All use cases</option>
 				{#each USE_CASES as option (option)}
@@ -224,7 +224,7 @@
 		</div>
 	{:else if rows.length === 0}
 		<div
-			class="[display:grid] [place-items:center] [gap:var(--space-3)] [border-radius:var(--radius)] [padding:var(--space-7)] [text-align:center] [border:1px_dashed_#abd3c3]"
+			class="[display:grid] [place-items:center] [gap:var(--space-3)] [border-radius:var(--radius)] [padding:var(--space-7)] [text-align:center] [border:1px_dashed_oklch(0.833566_0.047737_168.8711)]"
 		>
 			<Sparkles size={28} aria-hidden="true" />
 			<p>
@@ -246,7 +246,7 @@
 		</div>
 	{:else}
 		<ul
-			class="presentation-template-grid [margin:0] [display:grid] [grid-template-columns:repeat(auto-fill,_minmax(230px,_1fr))] [gap:var(--space-4)] [padding:0] [list-style:none]"
+			class="presentation-template-grid [margin:0] [display:grid] [grid-template-columns:repeat(auto-fill,_minmax(min(100%,_230px),_1fr))] [gap:var(--space-4)] [padding:0] [list-style:none]"
 		>
 			{#each rows as row (row.id)}
 				<li
@@ -254,7 +254,7 @@
 				>
 					<button
 						type="button"
-						class="presentation-template-cover [overflow:hidden] [border-radius:6px] [padding:0] [background:var(--cream)] [border:0]"
+						class="presentation-template-cover [overflow:clip] [border-radius:6px] [padding:0] [background:var(--cream)] [border:0]"
 						aria-label="Preview {row.title}"
 						onclick={() => void openPreview(row)}
 					>
@@ -262,7 +262,7 @@
 							<img
 								src={coverUrls.get(row.id)}
 								alt=""
-								class="[display:block] [aspect-ratio:16/9] [width:100%] [object-fit:cover]"
+								class="[display:block] [aspect-ratio:16/9] [object-fit:cover] [inline-size:100%]"
 							/>
 						{:else}
 							<span
@@ -273,11 +273,15 @@
 					</button>
 					<div>
 						<h2 class="[margin:0] [font-size:16px]">{row.title}</h2>
-						<p class="[margin:2px_0_0] [font-size:12px] [color:var(--muted)]">
+						<p
+							class="[margin-inline-start:0] [margin-inline-end:0] [margin-block-start:2px] [margin-block-end:0] [font-size:12px] [color:var(--muted)]"
+						>
 							{row.useCase}
 							{#if row.tags.length}· tags: {row.tags.join(', ')}{/if}
 						</p>
-						{#if row.description}<p class="[margin:6px_0_0] [font-size:13px]">
+						{#if row.description}<p
+								class="[margin-inline-start:0] [margin-inline-end:0] [margin-block-start:6px] [margin-block-end:0] [font-size:13px]"
+							>
 								{row.description}
 							</p>{/if}
 					</div>
@@ -321,11 +325,11 @@
 				{#each previewUrls as url, index (url)}
 					<figure class="[margin:0]">
 						<img
-							class="[display:block] [width:100%] [border-radius:6px] [border:1px_solid_var(--line)]"
+							class="[display:block] [border-radius:6px] [border:1px_solid_var(--line)] [inline-size:100%]"
 							src={url}
 							alt="Slide {index + 1}"
 						/>
-						<figcaption class="[margin-top:4px] [font-size:12px] [color:var(--muted)]">
+						<figcaption class="[margin-block-start:4px] [font-size:12px] [color:var(--muted)]">
 							Slide {index + 1}
 						</figcaption>
 					</figure>
@@ -353,8 +357,10 @@
 	.presentation-template-cover {
 		cursor: pointer;
 	}
-	.presentation-template-cover:hover {
-		outline: 2px solid var(--mint);
-		outline-offset: 2px;
+	@media (hover: hover) and (pointer: fine) {
+		.presentation-template-cover:hover {
+			outline: 2px solid var(--mint);
+			outline-offset: 2px;
+		}
 	}
 </style>

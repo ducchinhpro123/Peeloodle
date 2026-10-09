@@ -493,8 +493,14 @@
 		position: absolute;
 		top: 100%;
 		left: 0;
-		margin: var(--space-4) 0 0;
-		padding: var(--space-2) var(--space-3);
+		margin-block-start: var(--space-4);
+		margin-block-end: 0;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
+		padding-block-start: var(--space-2);
+		padding-block-end: var(--space-2);
+		padding-inline-start: var(--space-3);
+		padding-inline-end: var(--space-3);
 		border: 1px solid var(--warning-line);
 		border-radius: var(--radius-sm);
 		background: var(--warning-bg);

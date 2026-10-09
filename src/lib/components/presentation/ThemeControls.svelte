@@ -84,8 +84,11 @@
 		font-weight: 700;
 	}
 	.presentation-theme-fields select {
-		min-height: 36px;
-		padding: 6px 8px;
+		min-block-size: 36px;
+		padding-block-start: 6px;
+		padding-block-end: 6px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
 		background: var(--surface);
@@ -94,8 +97,11 @@
 		font-weight: 700;
 	}
 	.presentation-theme-fields input {
-		min-height: 36px;
-		padding: 6px 8px;
+		min-block-size: 36px;
+		padding-block-start: 6px;
+		padding-block-end: 6px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
 		background: var(--surface);
@@ -104,7 +110,7 @@
 		font-weight: 700;
 	}
 	.presentation-theme-fields input[type='color'] {
-		width: 100%;
+		inline-size: 100%;
 		padding: 2px;
 	}
 	.presentation-theme-fields .muted {

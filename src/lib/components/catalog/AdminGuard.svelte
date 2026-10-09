@@ -63,7 +63,7 @@
 {#if status === 'ready'}
 	{@render children()}
 {:else}
-	<section class="catalog-gate [display:grid] [max-width:62ch] [gap:var(--space-3)]">
+	<section class="catalog-gate [display:grid] [gap:var(--space-3)] [max-inline-size:62ch]">
 		{#if status === 'checking'}
 			<p role="status">Checking catalog access…</p>
 		{:else if status === 'unconfigured'}

@@ -60,7 +60,7 @@
 </script>
 
 <div
-	class="presentation-image-fields [margin-top:var(--space-3)] [display:grid] [gap:var(--space-3)]"
+	class="presentation-image-fields [margin-block-start:var(--space-3)] [display:grid] [gap:var(--space-3)]"
 >
 	<div class="presentation-image-actions [display:flex] [flex-wrap:wrap] [gap:var(--space-2)]">
 		<button
@@ -121,7 +121,7 @@
 <style>
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.presentation-image-actions .button {
-		min-height: 36px;
+		min-block-size: 36px;
 	}
 	.presentation-geometry-fields {
 		display: grid;
@@ -136,8 +136,8 @@
 		font-weight: 700;
 	}
 	.presentation-geometry-fields input {
-		min-width: 0;
-		width: 100%;
+		min-inline-size: 0;
+		inline-size: 100%;
 		padding: 8px;
 		border: 1px solid var(--line);
 		border-radius: 8px;

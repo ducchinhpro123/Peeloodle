@@ -7,8 +7,8 @@
 	let detail = $derived(page.error?.message ?? '');
 </script>
 
-<main style="max-width: 720px; margin: 0 auto; padding: 48px 20px;">
-	<h1 style="font-size: 32px;">This screen is not part of the current milestone</h1>
+<main style="max-inline-size: 720px; margin: 0 auto; padding: 48px 20px">
+	<h1 style="font-size: 32px">This screen is not part of the current milestone</h1>
 	<p>
 		StickerLab is being ported to SvelteKit one vertical slice at a time. The pages that work today
 		are the dashboard, <code>/templates</code>, <code>/my-stickers</code>, <code>/create</code>,

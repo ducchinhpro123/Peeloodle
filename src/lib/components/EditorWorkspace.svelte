@@ -417,7 +417,10 @@
 />
 
 {#if editor.loadError && doc?.id !== projectId}
-	<section class="empty [margin-top:20px] [min-height:250px]" style="margin-top: 24px">
+	<section
+		class="empty [margin-block-start:20px] [min-block-size:250px]"
+		style="margin-block-start: 24px"
+	>
 		<h1>Sticker not found</h1>
 		<p>{editor.loadError}</p>
 		<a class={buttonPrimary} href={resolve('create')}>Create a sticker</a>
@@ -460,7 +463,9 @@
 					<tool.icon size={18} />{tool.label}
 				</button>
 			{/each}
-			<div class="tool-history [margin:6px_0_0] [display:flex] [gap:4px]">
+			<div
+				class="tool-history [margin-inline-start:0] [margin-inline-end:0] [margin-block-start:6px] [margin-block-end:0] [display:flex] [gap:4px]"
+			>
 				<button type="button" disabled={!editor.canUndo || maskBusy} onclick={() => editor.undo()}>
 					<Undo2 size={16} />Undo
 				</button>
@@ -468,7 +473,9 @@
 					<Redo2 size={16} />Redo
 				</button>
 			</div>
-			<div class="tool-rail-footer [margin-top:auto] [display:grid] [gap:8px] [padding-top:8px]">
+			<div
+				class="tool-rail-footer [margin-block-start:auto] [display:grid] [gap:8px] [padding-block-start:8px]"
+			>
 				{#if tipOpen}
 					<div class="tool-tip-card">
 						<strong><Lightbulb size={14} aria-hidden="true" /> Pro Tip</strong>
@@ -477,7 +484,7 @@
 					</div>
 				{/if}
 				<div
-					class="tool-mascot [display:grid] [grid-template-columns:44px_1fr] [align-items:center] [gap:8px] [padding:0_6px_4px]"
+					class="tool-mascot [display:grid] [grid-template-columns:44px_1fr] [align-items:center] [gap:8px] [padding-inline-start:6px] [padding-inline-end:6px] [padding-block-start:0] [padding-block-end:4px]"
 					aria-hidden="true"
 				>
 					<img src={asset('art/stickers/04-winking-smiley.webp')} alt="" width="52" height="52" />
@@ -488,14 +495,14 @@
 		</aside>
 
 		<div
-			class="editor-stage [display:grid] [min-height:0] [min-width:0] [grid-template-rows:auto_minmax(0,_1fr)_auto] [gap:8px] [padding:6px_12px_8px_8px]"
+			class="editor-stage [display:grid] [grid-template-rows:auto_minmax(0,_1fr)_auto] [gap:8px] [padding-inline-start:8px] [padding-inline-end:12px] [padding-block-start:6px] [padding-block-end:8px] [min-block-size:0] [min-inline-size:0]"
 			bind:this={stage}
 		>
 			<section
-				class="editor-top [display:flex] [min-width:0] [align-items:center] [gap:12px] [padding:0_2px]"
+				class="editor-top [display:flex] [align-items:center] [gap:12px] [padding-inline-start:2px] [padding-inline-end:2px] [padding-block-start:0] [padding-block-end:0] [min-inline-size:0]"
 			>
 				<div
-					class="editor-identity [display:flex] [min-width:0] [flex:1] [align-items:center] [gap:10px]"
+					class="editor-identity [display:flex] [flex:1] [align-items:center] [gap:10px] [min-inline-size:0]"
 				>
 					<h1>
 						<input
@@ -684,32 +691,36 @@
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.empty {
 		display: flex;
-		min-height: 208px;
+		min-block-size: 208px;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		gap: var(--space-3);
 		padding: var(--space-5);
-		border: 1px dashed #abd3c3;
+		border: 1px dashed oklch(0.833566 0.047737 168.8711);
 		border-radius: var(--radius);
-		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
-		color: #55708c;
+		background: radial-gradient(
+			ellipse at bottom,
+			oklch(0.966239 0.018933 157.8754),
+			oklch(1 0 none) 75%
+		);
+		color: oklch(0.535034 0.054407 249.7873);
 		text-align: center;
 	}
 	:global(.empty h2) {
 		color: var(--ink);
 	}
 	.empty p {
-		max-width: 480px;
+		max-inline-size: 480px;
 		font-size: 14px;
 	}
 	:global(.empty > svg) {
 		padding: 12px;
-		width: 56px;
-		height: 56px;
+		inline-size: 56px;
+		block-size: 56px;
 		border-radius: 18px;
 		background: var(--pale);
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 		transform: rotate(-8deg);
 	}
 
@@ -717,9 +728,9 @@
 		display: grid;
 		grid-template-columns: 188px minmax(0, 1fr);
 		flex: 1;
-		min-height: 0;
-		height: 100%;
-		background: #f4faf7;
+		min-block-size: 0;
+		block-size: 100%;
+		background: oklch(0.979756 0.007457 164.9427);
 	}
 	.editor-top .save-status {
 		display: inline-flex;
@@ -735,7 +746,7 @@
 		align-items: center;
 		gap: 6px;
 		margin: 0;
-		min-width: 0;
+		min-inline-size: 0;
 		font-size: 18px;
 	}
 	:global(.editor-top h1 svg) {
@@ -750,46 +761,58 @@
 		color: var(--muted);
 	}
 	.editor-actions .button {
-		min-height: 36px;
-		padding: 6px 12px;
+		min-block-size: 36px;
+		padding-block-start: 6px;
+		padding-block-end: 6px;
+		padding-inline-start: 12px;
+		padding-inline-end: 12px;
 		font-size: 13px;
 		white-space: nowrap;
 		border-radius: 10px;
 	}
 	.editor {
 		display: grid;
-		min-height: 0;
+		min-block-size: 0;
 		grid-template-columns: minmax(0, 1fr) 272px;
 		gap: 10px;
 	}
 	.tool-rail {
-		min-width: 0;
+		min-inline-size: 0;
 		padding: var(--space-4);
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 	.tool-rail {
 		display: flex;
 		flex-direction: column;
 		gap: 1px;
-		padding: 10px 8px 8px;
+		padding-block-start: 10px;
+		padding-block-end: 8px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		overflow: auto;
 		border: 0;
-		border-right: 1px solid #e8eef3;
+		border-inline-end: 1px solid oklch(0.946009 0.009324 242.8404);
 		border-radius: 0;
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 	.back-home {
 		display: flex;
 		align-items: center;
 		gap: 4px;
-		min-height: 32px;
-		margin: 0 4px 8px;
-		padding: 4px 10px;
+		min-block-size: 32px;
+		margin-block-start: 0;
+		margin-block-end: 8px;
+		margin-inline-start: 4px;
+		margin-inline-end: 4px;
+		padding-block-start: 4px;
+		padding-block-end: 4px;
+		padding-inline-start: 10px;
+		padding-inline-end: 10px;
 		border: 1px solid var(--line);
 		border-radius: 999px;
-		background: #f7faf8;
+		background: oklch(0.982279 0.004114 157.1794);
 		color: var(--ink);
 		font-size: 12px;
 		font-weight: 600;
@@ -797,49 +820,57 @@
 		white-space: nowrap;
 	}
 	:global(.tool-rail > b) {
-		padding: 0 8px 4px;
+		padding-block-start: 0;
+		padding-block-end: 4px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		font-size: 11px;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
-		color: #8996aa;
+		color: oklch(0.669479 0.033254 258.939);
 	}
 	.tool-rail button {
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		min-height: 36px;
-		padding: 6px 8px;
+		min-block-size: 36px;
+		padding-block-start: 6px;
+		padding-block-end: 6px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		border: 0;
 		border-radius: 10px;
 		background: transparent;
 		color: var(--ink);
-		text-align: left;
+		text-align: start;
 		font-size: 13px;
 		white-space: nowrap;
 	}
-	.tool-rail button:hover:not(:disabled) {
-		background: #f1f7f3;
+	@media (hover: hover) and (pointer: fine) {
+		.tool-rail button:hover:not(:disabled) {
+			background: oklch(0.970502 0.008245 157.0915);
+		}
 	}
 	.tool-rail button[aria-pressed='true'] {
 		background: var(--pale);
-		color: #008c62;
+		color: oklch(0.566431 0.121538 163.5089);
 		font-weight: 700;
 	}
 	:global(.tool-rail button.active) {
 		background: var(--pale);
-		color: #008c62;
+		color: oklch(0.566431 0.121538 163.5089);
 		font-weight: 700;
 	}
 	.tool-history button {
 		flex: 1;
 		justify-content: center;
-		min-height: 32px;
+		min-block-size: 32px;
 		font-size: 12px;
 	}
 	.tool-tip-card {
 		padding: 10px;
 		border-radius: 14px;
-		background: #fff6e8;
+		background: oklch(0.976382 0.020841 79.0971);
 		color: var(--ink);
 	}
 	.tool-tip-card strong {
@@ -849,26 +880,29 @@
 		font-size: 12px;
 	}
 	.tool-tip-card p {
-		margin: 4px 0 6px;
-		color: #6b5a3e;
+		margin-block-start: 4px;
+		margin-block-end: 6px;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
+		color: oklch(0.477008 0.047203 79.6908);
 		font-size: 11px;
 		line-height: 1.4;
 	}
 	.tool-tip-card button {
-		min-height: 24px;
+		min-block-size: 24px;
 		padding: 0;
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 		font-size: 12px;
 		font-weight: 800;
 	}
 	.tool-mascot img {
-		width: 44px;
-		height: 44px;
+		inline-size: 44px;
+		block-size: 44px;
 		transform: rotate(-8deg);
 	}
 	.tool-mascot p {
 		margin: 0;
-		color: #1f3d4d;
+		color: oklch(0.344159 0.045548 233.5267);
 		font-family: Chewy, cursive;
 		font-size: 13px;
 		font-weight: 400;
@@ -876,11 +910,11 @@
 	}
 	.canvas-area {
 		display: flex;
-		min-width: 0;
-		min-height: 0;
+		min-inline-size: 0;
+		min-block-size: 0;
 		padding: 0;
 		border-radius: 16px;
-		background: #effbf7;
+		background: oklch(0.978051 0.01367 174.175);
 	}
 	.canvas-controls {
 		display: flex;
@@ -890,17 +924,17 @@
 		padding: 2px;
 		border: 1px solid var(--line);
 		border-radius: 10px;
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 	.canvas-controls b {
-		min-width: 40px;
+		min-inline-size: 40px;
 		text-align: center;
 		font-size: 12px;
 	}
 	.canvas-controls button {
 		display: grid;
-		width: 26px;
-		height: 26px;
+		inline-size: 26px;
+		block-size: 26px;
 		place-items: center;
 		padding: 0;
 		border: 0;
@@ -908,23 +942,26 @@
 		background: transparent;
 	}
 	.canvas-controls button[aria-label='Reset view'] {
-		width: auto;
-		min-width: 40px;
-		padding: 0 4px;
+		inline-size: auto;
+		min-inline-size: 40px;
+		padding-block-start: 0;
+		padding-block-end: 0;
+		padding-inline-start: 4px;
+		padding-inline-end: 4px;
 	}
 	.canvas-controls button[aria-pressed='true'] {
 		background: var(--pale);
-		color: #008c62;
+		color: oklch(0.566431 0.121538 163.5089);
 	}
 	.editor-stage:fullscreen {
-		width: 100%;
-		height: 100%;
+		inline-size: 100%;
+		block-size: 100%;
 		padding: 8px;
-		background: #effbf7;
+		background: oklch(0.978051 0.01367 174.175);
 	}
 	.editor-stage:fullscreen .editor {
 		grid-template-columns: minmax(0, 1fr);
-		height: 100%;
+		block-size: 100%;
 	}
 	.editor-stage:fullscreen .inspector {
 		display: none;
@@ -933,23 +970,23 @@
 		display: none;
 	}
 	.editor-stage:fullscreen .canvas-area {
-		height: 100%;
-		min-height: 0;
+		block-size: 100%;
+		min-block-size: 0;
 		border-radius: 0;
 	}
 	.editor-stage:fullscreen .canvas-workspace {
-		height: 100%;
-		min-height: 0;
+		block-size: 100%;
+		min-block-size: 0;
 		border-radius: 0;
 	}
 	.canvas-workspace {
 		position: relative;
 		display: grid;
 		flex: 1;
-		min-height: 0;
-		height: auto;
+		min-block-size: 0;
+		block-size: auto;
 		place-items: center;
-		overflow: hidden;
+		overflow: clip;
 		border-radius: var(--radius-sm);
 		background: conic-gradient(
 				var(--line) 25%,
@@ -966,9 +1003,9 @@
 		cursor: grabbing !important;
 	}
 	.title-input {
-		width: auto;
-		min-width: 8ch;
-		max-width: min(28ch, 32vw);
+		inline-size: auto;
+		min-inline-size: 8ch;
+		max-inline-size: min(28ch, 32vw);
 		field-sizing: content;
 		padding: 0;
 		border: 0;
@@ -979,26 +1016,26 @@
 		font-weight: 750;
 	}
 	.save-status[data-state='saving'] {
-		color: #8a6d00;
+		color: oklch(0.547657 0.111923 90.2325);
 	}
 	.save-status[data-state='saved-locally'] {
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 	}
 	.save-status[data-state='save-failed'] {
-		color: #b42318;
+		color: oklch(0.500336 0.182051 29.5127);
 	}
 	.project-thumb {
 		display: grid;
-		height: 88px;
+		block-size: 88px;
 		place-items: center;
-		overflow: hidden;
+		overflow: clip;
 		border-radius: 10px;
-		background-color: #fff;
+		background-color: oklch(1 0 none);
 		background-image:
-			linear-gradient(45deg, #e4e7eb 25%, transparent 25%),
-			linear-gradient(-45deg, #e4e7eb 25%, transparent 25%),
-			linear-gradient(45deg, transparent 75%, #e4e7eb 75%),
-			linear-gradient(-45deg, transparent 75%, #e4e7eb 75%);
+			linear-gradient(45deg, oklch(0.92682 0.006306 255.4767) 25%, transparent 25%),
+			linear-gradient(-45deg, oklch(0.92682 0.006306 255.4767) 25%, transparent 25%),
+			linear-gradient(45deg, transparent 75%, oklch(0.92682 0.006306 255.4767) 75%),
+			linear-gradient(-45deg, transparent 75%, oklch(0.92682 0.006306 255.4767) 75%);
 		background-position:
 			0 0,
 			0 8px,
@@ -1009,8 +1046,8 @@
 		font-weight: 800;
 	}
 	:global(.project-thumb img) {
-		width: 100%;
-		height: 100%;
+		inline-size: 100%;
+		block-size: 100%;
 		object-fit: contain;
 	}
 	.editor-welcome {
@@ -1020,11 +1057,11 @@
 		flex-direction: column;
 		align-items: center;
 		gap: var(--space-3);
-		width: min(360px, calc(100% - 32px));
+		inline-size: min(360px, calc(100% - 32px));
 		padding: var(--space-5);
-		border: 1px solid #fff;
+		border: 1px solid oklch(1 0 none);
 		border-radius: 24px;
-		background: #fffffff5;
+		background: color-mix(in oklch, oklch(1 0 none) 96.0784%, transparent);
 		box-shadow: var(--shadow-hover);
 		text-align: center;
 	}
@@ -1048,11 +1085,11 @@
 		font-size: 10px;
 	}
 	:global(.inspector-hue-picker .react-colorful__hue) {
-		height: 14px;
+		block-size: 14px;
 		border-radius: 8px;
 	}
 	:global(.inspector-hue-picker .react-colorful__alpha) {
-		height: 14px;
+		block-size: 14px;
 		border-radius: 8px;
 	}
 	.properties-toggle {
@@ -1075,8 +1112,8 @@
    * editor's own toggle is a normal button in its action bar. */
 		.editor-workspace .properties-toggle {
 			position: fixed;
-			right: 15px;
-			bottom: 15px;
+			inset-inline-end: 15px;
+			inset-block-end: 15px;
 			z-index: 4;
 		}
 		.tool-tip-card {
@@ -1089,17 +1126,20 @@
 			flex-wrap: wrap;
 		}
 		.title-input {
-			max-width: min(28ch, 70vw);
+			max-inline-size: min(28ch, 70vw);
 		}
 	}
 	@media (max-width: 720px) {
 		.editor-workspace {
 			display: flex;
 			flex-direction: column;
-			height: auto;
+			block-size: auto;
 		}
 		.editor-stage {
-			padding: 8px 12px 16px;
+			padding-block-start: 8px;
+			padding-block-end: 16px;
+			padding-inline-start: 12px;
+			padding-inline-end: 12px;
 		}
 		.editor-top {
 			align-items: flex-start;
@@ -1109,20 +1149,20 @@
 		}
 		.editor-identity {
 			flex: none;
-			width: 100%;
+			inline-size: 100%;
 		}
 		.editor-top h1 {
 			flex: 1;
-			min-width: 0;
-			max-width: 100%;
+			min-inline-size: 0;
+			max-inline-size: 100%;
 		}
 		.title-input {
-			max-width: min(22ch, calc(100vw - 140px));
+			max-inline-size: min(22ch, calc(100vw - 140px));
 			font-size: 18px;
 		}
 		.editor-actions {
 			flex-direction: row;
-			width: 100%;
+			inline-size: 100%;
 		}
 		.editor-actions .button {
 			flex: 1;
@@ -1132,8 +1172,8 @@
 			font-size: 12px;
 		}
 		:global(.editor-actions svg) {
-			width: 18px;
-			height: 18px;
+			inline-size: 18px;
+			block-size: 18px;
 		}
 		.editor {
 			display: block;
@@ -1142,14 +1182,17 @@
 			display: flex;
 			flex-direction: row;
 			flex-wrap: nowrap;
-			width: 100%;
+			inline-size: 100%;
 			padding: 8px;
 			overflow: auto;
-			border-right: 0;
-			border-bottom: 1px solid var(--line);
+			border-inline-end: 0;
+			border-block-end: 1px solid var(--line);
 		}
 		.back-home {
-			margin: 0 8px 0 0;
+			margin-block-start: 0;
+			margin-block-end: 0;
+			margin-inline-start: 0;
+			margin-inline-end: 8px;
 			white-space: nowrap;
 		}
 		:global(.tool-rail > b) {
@@ -1168,17 +1211,17 @@
 			white-space: nowrap;
 		}
 		.canvas-area {
-			height: min(68dvh, 620px);
+			block-size: min(68dvh, 620px);
 		}
 		.canvas-workspace {
-			min-height: 420px;
+			min-block-size: 420px;
 		}
 		.editor-welcome {
 			padding: var(--space-5);
 		}
 		.editor-welcome img {
-			width: 56px;
-			height: 56px;
+			inline-size: 56px;
+			block-size: 56px;
 		}
 	}
 </style>

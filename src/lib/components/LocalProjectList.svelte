@@ -78,12 +78,12 @@
 	</div>
 {:else}
 	<div
-		class="project-grid [display:grid] [grid-template-columns:repeat(auto-fill,_minmax(152px,_1fr))] [gap:var(--space-4)]"
+		class="project-grid [display:grid] [grid-template-columns:repeat(auto-fill,_minmax(min(100%,_152px),_1fr))] [gap:var(--space-4)]"
 	>
 		{#each visible as project (project.id)}
 			<article class="project-card">
 				<a
-					class="project-card-link [display:grid] [min-width:0] [gap:6px] [color:inherit] [text-decoration:none]"
+					class="project-card-link [display:grid] [gap:6px] [color:inherit] [min-inline-size:0] [text-decoration:none]"
 					href={resolve(`editor/${project.id}`)}
 				>
 					<ProjectThumb {project} {repository} />
@@ -162,36 +162,40 @@
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.project-empty {
 		display: flex;
-		min-height: 208px;
+		min-block-size: 208px;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		gap: var(--space-3);
 		padding: var(--space-5);
-		border: 1px dashed #abd3c3;
+		border: 1px dashed oklch(0.833566 0.047737 168.8711);
 		border-radius: var(--radius);
-		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
-		color: #55708c;
+		background: radial-gradient(
+			ellipse at bottom,
+			oklch(0.966239 0.018933 157.8754),
+			oklch(1 0 none) 75%
+		);
+		color: oklch(0.535034 0.054407 249.7873);
 		text-align: center;
 	}
 	:global(.project-empty h3) {
 		color: var(--ink);
 	}
 	:global(.project-empty p) {
-		max-width: 480px;
+		max-inline-size: 480px;
 		font-size: 14px;
 	}
 	:global(.project-empty > svg) {
 		padding: 12px;
-		width: 56px;
-		height: 56px;
+		inline-size: 56px;
+		block-size: 56px;
 		border-radius: 18px;
 		background: var(--pale);
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 		transform: rotate(-8deg);
 	}
 	.project-empty a {
-		color: #008d62;
+		color: oklch(0.569191 0.122802 163.1218);
 		font-weight: 700;
 	}
 	.project-card {
@@ -201,20 +205,20 @@
 		padding: 10px;
 		border: 1px solid var(--line);
 		border-radius: 12px;
-		background: #fff;
+		background: oklch(1 0 none);
 		color: inherit;
 		text-decoration: none;
 	}
 	.project-delete {
 		position: absolute;
-		top: 8px;
-		right: 8px;
+		inset-block-start: 8px;
+		inset-inline-end: 8px;
 		z-index: 1;
-		background: #fffffff0;
+		background: color-mix(in oklch, oklch(1 0 none) 94.1176%, transparent);
 	}
 	.project-new .project-thumb {
-		background: #fff;
-		border: 1px dashed #9ddaca;
-		color: #008d62;
+		background: oklch(1 0 none);
+		border: 1px dashed oklch(0.842353 0.066178 176.5591);
+		color: oklch(0.569191 0.122802 163.1218);
 	}
 </style>

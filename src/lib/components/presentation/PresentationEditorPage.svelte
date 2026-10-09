@@ -1218,10 +1218,10 @@
 			>
 		</div>
 		<div
-			class="presentation-workspace [display:grid] [min-height:0] [min-width:0] [flex:1] [grid-template-columns:168px_minmax(0,_1fr)_220px]"
+			class="presentation-workspace [display:grid] [flex:1] [grid-template-columns:168px_minmax(0,_1fr)_220px] [min-block-size:0] [min-inline-size:0]"
 		>
 			<aside
-				class="presentation-slide-rail [border-right:1px_solid_var(--line)]"
+				class="presentation-slide-rail [border-inline-end:1px_solid_var(--line)]"
 				aria-label="Slides"
 			>
 				<p>Slides</p>
@@ -1231,7 +1231,7 @@
 					slide and press Alt plus the up or down arrow key.</span
 				>
 				<div
-					class="presentation-slide-rail-actions [margin-bottom:var(--space-3)] [display:grid] [gap:var(--space-2)]"
+					class="presentation-slide-rail-actions [margin-block-end:var(--space-3)] [display:grid] [gap:var(--space-2)]"
 				>
 					<button
 						type="button"
@@ -1257,7 +1257,7 @@
 				<div class="presentation-slide-list">
 					{#each presentation.slides as slide, index (slide.id)}
 						<div
-							class="presentation-slide-item [min-width:0]"
+							class="presentation-slide-item [min-inline-size:0]"
 							class:is-dragging={draggingSlideId === slide.id}
 						>
 							<button
@@ -1313,11 +1313,11 @@
 			{:else}
 				<!-- Holds the canvas track and its panel tone until Konva arrives. -->
 				<div
-					class="presentation-canvas-placeholder [min-height:0] [min-width:0] [background:#dfe8e6]"
+					class="presentation-canvas-placeholder [background:oklch(0.923614_0.009985_181.3932)] [min-block-size:0] [min-inline-size:0]"
 				></div>
 			{/if}
 			<aside
-				class="presentation-inspector [border-left:1px_solid_var(--line)]"
+				class="presentation-inspector [border-inline-start:1px_solid_var(--line)]"
 				aria-label="Presentation details"
 			>
 				<p>Page</p>
@@ -1337,7 +1337,7 @@
 				</dl>
 				{#if activeSlide}
 					<label
-						class="presentation-slide-background [margin-bottom:var(--space-5)] [display:grid] [gap:var(--space-1)] [font-size:11px] [font-weight:700] [color:var(--muted)]"
+						class="presentation-slide-background [margin-block-end:var(--space-5)] [display:grid] [gap:var(--space-1)] [font-size:11px] [font-weight:700] [color:var(--muted)]"
 					>
 						Slide background
 						<input
@@ -1403,10 +1403,10 @@
 	.card {
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 	.asset-error {
-		margin-bottom: var(--space-3);
+		margin-block-end: var(--space-3);
 		padding: var(--space-3);
 		border-radius: var(--radius-sm);
 		background: var(--cream);
@@ -1416,7 +1416,7 @@
 
 	.presentation-route-state {
 		display: grid;
-		min-height: 100%;
+		min-block-size: 100%;
 		place-content: center;
 		justify-items: center;
 		gap: var(--space-4);
@@ -1430,47 +1430,53 @@
 		margin: 0;
 	}
 	.presentation-route-state p {
-		max-width: 58ch;
+		max-inline-size: 58ch;
 		color: var(--muted);
 	}
 	.presentation-editor {
 		display: flex;
-		min-width: 0;
-		min-height: 0;
+		min-inline-size: 0;
+		min-block-size: 0;
 		flex: 1;
 		flex-direction: column;
-		background: #f2f6f5;
+		background: oklch(0.969839 0.004443 179.7348);
 	}
 	/* Keep the deck title and Save fixed. Tools have their own single scrollable
 	 * row so selecting an element or changing the save status never shifts the slide. */
 	.presentation-editor-bar {
 		display: flex;
-		min-width: 0;
+		min-inline-size: 0;
 		flex-direction: column;
-		border-bottom: 1px solid var(--line);
+		border-block-end: 1px solid var(--line);
 		background: var(--surface);
 	}
 	.presentation-editor-heading {
 		display: flex;
-		min-width: 0;
-		min-height: 52px;
+		min-inline-size: 0;
+		min-block-size: 52px;
 		align-items: center;
 		gap: var(--space-3);
-		padding: 5px var(--space-4);
+		padding-block-start: 5px;
+		padding-block-end: 5px;
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
 	}
 	.presentation-editor-heading > .button {
 		flex: none;
 	}
 	.presentation-editor-actions {
 		display: flex;
-		min-width: 0;
-		width: 100%;
+		min-inline-size: 0;
+		inline-size: 100%;
 		align-items: center;
 		gap: var(--space-2);
 		overflow-x: auto;
 		overflow-y: hidden;
-		padding: 5px var(--space-4) 8px;
-		border-top: 1px solid var(--line);
+		padding-block-start: 5px;
+		padding-block-end: 8px;
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
+		border-block-start: 1px solid var(--line);
 		scrollbar-width: thin;
 	}
 	.presentation-editor-actions > :global(*) {
@@ -1486,7 +1492,7 @@
 	}
 	.presentation-editor-title {
 		flex: 1 1 auto;
-		min-width: 0;
+		min-inline-size: 0;
 	}
 	.presentation-editor-title p {
 		margin: 0;
@@ -1502,7 +1508,7 @@
 		text-transform: uppercase;
 	}
 	.presentation-editor-title h1 {
-		max-width: 100%;
+		max-inline-size: 100%;
 		overflow: hidden;
 		font-size: 18px;
 		line-height: 1.3;
@@ -1511,19 +1517,22 @@
 	}
 	.presentation-local-status {
 		flex: 0 1 30ch;
-		min-width: 0;
+		min-inline-size: 0;
 		margin: 0;
 		overflow: hidden;
-		color: #007b55;
+		color: oklch(0.515677 0.11125 163.1262);
 		font-size: 12px;
 		font-weight: 800;
-		text-align: right;
+		text-align: end;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 	.presentation-editor-feedback {
 		margin: 0;
-		padding: 8px var(--space-4);
+		padding-block-start: 8px;
+		padding-block-end: 8px;
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
 		background: var(--warning-bg);
 		color: var(--warning-ink);
 		font-size: 12px;
@@ -1534,17 +1543,23 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 12px;
-		padding: 12px 18px;
+		padding-block-start: 12px;
+		padding-block-end: 12px;
+		padding-inline-start: 18px;
+		padding-inline-end: 18px;
 		background: var(--pale);
-		border-bottom: 1px solid var(--mint-line);
+		border-block-end: 1px solid var(--mint-line);
 		font-size: 12px;
 	}
 	.presentation-backup-note > div {
 		flex: 1 1 270px;
-		min-width: 0;
+		min-inline-size: 0;
 	}
 	.presentation-backup-note p {
-		margin: 5px 0 0;
+		margin-block-start: 5px;
+		margin-block-end: 0;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		line-height: 1.5;
 		color: var(--muted);
 	}
@@ -1555,8 +1570,11 @@
 		position: relative;
 	}
 	.presentation-add-shape select {
-		min-height: 36px;
-		padding: 6px 8px;
+		min-block-size: 36px;
+		padding-block-start: 6px;
+		padding-block-end: 6px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
 		background: var(--surface);
@@ -1565,27 +1583,30 @@
 		font-weight: 700;
 	}
 	.presentation-slide-background input {
-		width: 100%;
-		min-height: 36px;
+		inline-size: 100%;
+		min-block-size: 36px;
 		padding: 2px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
 		background: var(--surface);
 	}
 	.presentation-slide-rail {
-		min-height: 0;
+		min-block-size: 0;
 		padding: var(--space-4);
 		overflow: auto;
 		background: var(--surface);
 	}
 	.presentation-inspector {
-		min-height: 0;
+		min-block-size: 0;
 		padding: var(--space-4);
 		overflow: auto;
 		background: var(--surface);
 	}
 	.presentation-slide-rail > p {
-		margin: 0 0 var(--space-3);
+		margin-block-start: 0;
+		margin-block-end: var(--space-3);
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		color: var(--muted);
 		font-size: 11px;
 		font-weight: 800;
@@ -1599,7 +1620,10 @@
 		text-transform: none;
 	}
 	.presentation-inspector > p:not(.muted) {
-		margin: 0 0 var(--space-3);
+		margin-block-start: 0;
+		margin-block-end: var(--space-3);
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		color: var(--muted);
 		font-size: 11px;
 		font-weight: 800;
@@ -1607,8 +1631,8 @@
 		text-transform: uppercase;
 	}
 	.presentation-slide-rail-actions .button {
-		width: 100%;
-		min-height: 38px;
+		inline-size: 100%;
+		min-block-size: 38px;
 		justify-content: flex-start;
 		padding: 8px;
 		font-size: 11px;
@@ -1625,14 +1649,14 @@
 	}
 	.presentation-slide-card {
 		display: grid;
-		width: 100%;
+		inline-size: 100%;
 		gap: var(--space-2);
 		padding: var(--space-2);
 		border: 2px solid var(--line);
 		border-radius: var(--radius-sm);
 		background: var(--surface);
 		color: var(--ink);
-		text-align: left;
+		text-align: start;
 		cursor: grab;
 		touch-action: pan-x pan-y;
 	}
@@ -1645,8 +1669,10 @@
 	.presentation-slide-card[data-drop-position='after'] {
 		box-shadow: 0 4px 0 var(--mint);
 	}
-	.presentation-slide-card:hover {
-		border-color: var(--mint);
+	@media (hover: hover) and (pointer: fine) {
+		.presentation-slide-card:hover {
+			border-color: var(--mint);
+		}
 	}
 	.presentation-slide-card[aria-current] {
 		border-color: var(--mint);
@@ -1665,11 +1691,11 @@
 	}
 	.presentation-slide-grip {
 		position: absolute;
-		top: 5px;
-		left: 5px;
+		inset-block-start: 5px;
+		inset-inline-start: 5px;
 		display: grid;
-		width: 32px;
-		height: 32px;
+		inline-size: 32px;
+		block-size: 32px;
 		place-items: center;
 		border: 1px solid var(--line);
 		border-radius: 8px;
@@ -1679,9 +1705,14 @@
 		cursor: grab;
 		touch-action: none;
 		opacity: 0;
-		transition: opacity 150ms ease;
+		transition: opacity 150ms ease-out;
 	}
-	.presentation-slide-item:hover .presentation-slide-grip,
+	@media (hover: hover) and (pointer: fine) {
+		.presentation-slide-item:hover .presentation-slide-grip {
+			opacity: 1;
+		}
+	}
+
 	.presentation-slide-item:focus-within .presentation-slide-grip {
 		opacity: 1;
 	}
@@ -1692,11 +1723,11 @@
 	}
 	.presentation-slide-delete {
 		position: absolute;
-		top: 5px;
-		right: 5px;
+		inset-block-start: 5px;
+		inset-inline-end: 5px;
 		display: grid;
-		width: 32px;
-		height: 32px;
+		inline-size: 32px;
+		block-size: 32px;
 		place-items: center;
 		border: 1px solid var(--danger-line);
 		border-radius: 8px;
@@ -1705,9 +1736,14 @@
 		box-shadow: var(--shadow);
 		cursor: pointer;
 		opacity: 0;
-		transition: opacity 150ms ease;
+		transition: opacity 150ms ease-out;
 	}
-	.presentation-slide-item:hover .presentation-slide-delete,
+	@media (hover: hover) and (pointer: fine) {
+		.presentation-slide-item:hover .presentation-slide-delete {
+			opacity: 1;
+		}
+	}
+
 	.presentation-slide-item:focus-within .presentation-slide-delete {
 		opacity: 1;
 	}
@@ -1716,14 +1752,21 @@
 		outline: 2px solid var(--mint);
 		outline-offset: 2px;
 	}
-	.presentation-slide-delete:hover:not(:disabled) {
-		background: var(--danger-tint);
-		color: var(--danger-strong);
+	@media (hover: hover) and (pointer: fine) {
+		.presentation-slide-delete:hover:not(:disabled) {
+			background: var(--danger-tint);
+			color: var(--danger-strong);
+		}
 	}
 	.presentation-slide-delete:disabled {
 		cursor: not-allowed;
 	}
-	.presentation-slide-item:hover .presentation-slide-delete:disabled,
+	@media (hover: hover) and (pointer: fine) {
+		.presentation-slide-item:hover .presentation-slide-delete:disabled {
+			opacity: 0.5;
+		}
+	}
+
 	.presentation-slide-item:focus-within .presentation-slide-delete:disabled {
 		opacity: 0.5;
 	}
@@ -1736,14 +1779,17 @@
 	.presentation-inspector dl {
 		display: grid;
 		gap: var(--space-3);
-		margin: 0 0 var(--space-5);
+		margin-block-start: 0;
+		margin-block-end: var(--space-5);
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 	}
 	.presentation-inspector dl div {
 		display: flex;
 		justify-content: space-between;
 		gap: var(--space-3);
-		padding-bottom: var(--space-2);
-		border-bottom: 1px solid var(--line);
+		padding-block-end: var(--space-2);
+		border-block-end: 1px solid var(--line);
 		font-size: 12px;
 	}
 	.presentation-inspector dt {
@@ -1754,7 +1800,7 @@
 		font-weight: 800;
 	}
 	.presentation-inspector .muted {
-		margin-top: var(--space-5);
+		margin-block-start: var(--space-5);
 		font-size: 12px;
 	}
 	@media (max-width: 1150px) {
@@ -1767,14 +1813,14 @@
 	}
 	@media (max-width: 720px) {
 		.presentation-editor {
-			min-height: calc(100dvh - var(--header-height));
+			min-block-size: calc(100dvh - var(--header-height));
 		}
 		.presentation-editor-heading {
 			gap: var(--space-2);
 			padding-inline: var(--space-3);
 		}
 		.presentation-editor-heading > .button {
-			min-height: 40px;
+			min-block-size: 40px;
 			padding-inline: var(--space-2);
 		}
 		.presentation-local-status {
@@ -1797,23 +1843,29 @@
 			display: flex;
 			align-items: flex-start;
 			gap: var(--space-2);
-			padding: var(--space-3) var(--space-4);
-			border-bottom: 1px solid #d8e4df;
+			padding-block-start: var(--space-3);
+			padding-block-end: var(--space-3);
+			padding-inline-start: var(--space-4);
+			padding-inline-end: var(--space-4);
+			border-block-end: 1px solid oklch(0.908386 0.014482 169.213);
 			background: var(--pale);
-			color: #315b4e;
+			color: oklch(0.436246 0.052317 171.7714);
 			font-size: 12px;
 			line-height: 1.5;
 		}
 		.presentation-workspace {
 			display: block;
-			min-height: 0;
+			min-block-size: 0;
 			flex: 1;
 		}
 		.presentation-slide-rail {
 			display: block;
-			padding: var(--space-3) var(--space-4);
-			border-right: 0;
-			border-bottom: 1px solid var(--line);
+			padding-block-start: var(--space-3);
+			padding-block-end: var(--space-3);
+			padding-inline-start: var(--space-4);
+			padding-inline-end: var(--space-4);
+			border-inline-end: 0;
+			border-block-end: 1px solid var(--line);
 		}
 		.presentation-inspector {
 			display: none;
@@ -1823,10 +1875,10 @@
 		}
 		.presentation-slide-list {
 			display: flex;
-			min-width: 0;
+			min-inline-size: 0;
 			gap: var(--space-3);
 			overflow-x: auto;
-			padding-bottom: var(--space-1);
+			padding-block-end: var(--space-1);
 			scrollbar-width: thin;
 		}
 		.presentation-slide-item {

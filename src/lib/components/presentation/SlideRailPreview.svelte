@@ -66,15 +66,15 @@
 <style>
 	.preview {
 		display: block;
-		width: 100%;
+		inline-size: 100%;
 		aspect-ratio: 16 / 9;
-		overflow: hidden;
+		overflow: clip;
 		border-radius: 6px;
 	}
 	.preview img {
 		display: block;
-		width: 100%;
-		height: 100%;
+		inline-size: 100%;
+		block-size: 100%;
 		object-fit: contain;
 	}
 </style>

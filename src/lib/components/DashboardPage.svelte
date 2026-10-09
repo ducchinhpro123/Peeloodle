@@ -219,11 +219,11 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-3);
-		margin-top: var(--space-5);
+		margin-block-start: var(--space-5);
 	}
 	.desk-tasks,
 	.recent-decks {
-		margin-top: var(--space-6);
+		margin-block-start: var(--space-6);
 	}
 	.section-title {
 		display: flex;
@@ -231,7 +231,7 @@
 		justify-content: space-between;
 		flex-wrap: wrap;
 		gap: 12px;
-		margin-bottom: 16px;
+		margin-block-end: 16px;
 	}
 	.section-title h2 {
 		display: flex;
@@ -256,7 +256,7 @@
 	}
 	.task-grid {
 		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
 		gap: 16px;
 	}
 	.task-card {
@@ -264,14 +264,18 @@
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
-		min-width: 0;
+		min-inline-size: 0;
 		padding: 22px;
-		border: 1px solid #08152f0a;
+		border: 1px solid color-mix(in oklch, oklch(0.201186 0.055198 262.3998) 3.9216%, transparent);
 		border-radius: 18px;
 		background: var(--pale);
 		color: var(--ink);
 		text-decoration: none;
-		transition: transform 160ms ease;
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.task-card {
+			transition: transform 160ms ease-out;
+		}
 	}
 	.task-card:nth-child(2) {
 		background: var(--sky);
@@ -282,32 +286,37 @@
 	.task-card:nth-child(4) {
 		background: var(--blush);
 	}
-	.task-card:hover {
-		transform: translateY(-3px);
+	@media (hover: hover) and (pointer: fine) {
+		.task-card:hover {
+			transform: translateY(-3px);
+		}
 	}
 	.task-card small {
 		font-size: 9px;
 		font-weight: 800;
 		letter-spacing: 0.07em;
-		margin-bottom: 20px;
+		margin-block-end: 20px;
 	}
 	.task-card strong {
 		font-size: 18px;
-		margin-top: 14px;
+		margin-block-start: 14px;
 	}
 	.task-card p {
 		font-size: 13px;
 		line-height: 1.5;
-		color: #3c4b60;
-		margin: 8px 0 20px;
+		color: oklch(0.408713 0.040335 256.8414);
+		margin-block-start: 8px;
+		margin-block-end: 20px;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 	}
 	.task-card :global(svg:last-child) {
-		margin-top: auto;
+		margin-block-start: auto;
 		align-self: flex-end;
 	}
 	.recent-grid {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
 		gap: 18px;
 		list-style: none;
 		padding: 0;
@@ -326,7 +335,7 @@
 		position: relative;
 		display: block;
 		aspect-ratio: 16/9;
-		overflow: hidden;
+		overflow: clip;
 		border-radius: 9px;
 		background: var(--cream);
 	}
@@ -349,46 +358,36 @@
 	.desk-empty p {
 		color: var(--muted);
 		font-size: 13px;
-		margin-bottom: 0;
+		margin-block-end: 0;
 	}
 	.sticker-shelf {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
 		gap: var(--space-5);
-		margin-top: var(--space-7);
+		margin-block-start: var(--space-7);
 	}
 	.sticker-shelf > section {
-		min-width: 0;
+		min-inline-size: 0;
 	}
 	.walkthrough {
 		display: grid;
 		gap: 18px;
-		padding-left: 24px;
+		padding-inline-start: 24px;
 		font-size: 14px;
 		line-height: 1.6;
 	}
-	@media (max-width: 1100px) {
-		.task-grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-	}
 	@media (max-width: 720px) {
-		.task-grid,
-		.recent-grid,
-		.sticker-shelf {
-			grid-template-columns: minmax(0, 1fr);
-		}
 		.task-card {
 			padding: 20px;
 		}
 		.task-card small {
-			margin-bottom: 12px;
+			margin-block-end: 12px;
 		}
 		.task-card p {
-			margin-bottom: 10px;
+			margin-block-end: 10px;
 		}
 		.desk-actions > a {
-			width: 100%;
+			inline-size: 100%;
 			justify-content: center;
 		}
 	}

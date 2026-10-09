@@ -42,7 +42,7 @@
 		>
 			{#if template.previewImage}
 				<img
-					class="template-preview-image [height:100%] [min-height:0] [width:100%] [object-fit:contain]"
+					class="template-preview-image [object-fit:contain] [block-size:100%] [inline-size:100%] [min-block-size:0]"
 					src={asset(
 						/** @type {import('$app/types').AssetPath} */ (template.previewImage.replace(/^\//, ''))
 					)}
@@ -82,7 +82,7 @@
 			<div class="detail-cover template-preview-art">
 				{#if template.previewImage}
 					<img
-						class="template-preview-image [height:100%] [min-height:0] [width:100%] [object-fit:contain]"
+						class="template-preview-image [object-fit:contain] [block-size:100%] [inline-size:100%] [min-block-size:0]"
 						src={asset(
 							/** @type {import('$app/types').AssetPath} */ (
 								template.previewImage.replace(/^\//, '')
@@ -131,63 +131,84 @@
 		line-height: 1.35;
 	}
 	.template-card {
-		min-width: 168px;
+		min-inline-size: 168px;
 		flex: 1;
-		padding: 8px 8px 16px;
-		overflow: hidden;
+		padding-block-start: 8px;
+		padding-block-end: 16px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
+		overflow: clip;
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
-		background: #fff;
+		background: oklch(1 0 none);
 		scroll-snap-align: start;
 		box-shadow: var(--shadow);
 	}
 	.template-card:nth-child(3n + 2) .template-art {
-		background: radial-gradient(circle at 30% 20%, #fff9e2, #e9defa);
+		background: radial-gradient(
+			circle at 30% 20%,
+			oklch(0.980714 0.030736 94.8832),
+			oklch(0.917772 0.039377 303.4203)
+		);
 	}
 	.template-card:nth-child(3n) .template-art {
-		background: radial-gradient(circle at 30% 20%, #fff5ca, #ffdfd6);
+		background: radial-gradient(
+			circle at 30% 20%,
+			oklch(0.967293 0.056544 96.4162),
+			oklch(0.927662 0.037658 36.2254)
+		);
 	}
 	:global(.template-card > b) {
 		display: block;
-		margin-top: 6px;
-		padding: 0 9px;
+		margin-block-start: 6px;
+		padding-block-start: 0;
+		padding-block-end: 0;
+		padding-inline-start: 9px;
+		padding-inline-end: 9px;
 	}
 	.template-card > small {
 		display: block;
-		margin-top: 6px;
-		padding: 0 9px;
+		margin-block-start: 6px;
+		padding-block-start: 0;
+		padding-block-end: 0;
+		padding-inline-start: 9px;
+		padding-inline-end: 9px;
 	}
 	.template-art {
 		position: relative;
 		display: grid;
-		height: 128px;
+		block-size: 128px;
 		place-items: center;
 		border-radius: var(--radius-sm);
-		background: radial-gradient(circle at 30% 20%, #fff1f7, #d8f3e7);
+		background: radial-gradient(
+			circle at 30% 20%,
+			oklch(0.970809 0.016943 349.4803),
+			oklch(0.94119 0.032488 167.1257)
+		);
 		font-size: 63px;
 	}
 	.template-art .favorite-button {
 		position: absolute;
-		top: 4px;
-		right: 4px;
+		inset-block-start: 4px;
+		inset-inline-end: 4px;
 		display: grid;
 		place-items: center;
-		width: 44px;
-		height: 44px;
+		inline-size: 44px;
+		block-size: 44px;
 		padding: 0;
 		border: 0;
 		border-radius: 50%;
-		background: #ffffffe6;
-		color: #c62c66;
+		background: color-mix(in oklch, oklch(1 0 none) 90.1961%, transparent);
+		color: oklch(0.553692 0.192534 3.7887);
 		font-size: 22px;
 	}
 	.template-preview-trigger {
 		display: grid;
 		place-items: center;
-		width: 100%;
-		height: 100%;
-		min-height: 0;
-		overflow: hidden;
+		inline-size: 100%;
+		block-size: 100%;
+		min-block-size: 0;
+		overflow: clip;
 		padding: 0;
 		border: 0;
 		border-radius: inherit;
@@ -195,39 +216,49 @@
 		color: inherit;
 		font-size: inherit;
 	}
-	.template-preview-trigger:hover {
-		box-shadow: inset 0 0 0 2px #00875e40;
+	@media (hover: hover) and (pointer: fine) {
+		.template-preview-trigger:hover {
+			box-shadow: inset 0 0 0 2px
+				color-mix(in oklch, oklch(0.551582 0.11869 163.307) 25.098%, transparent);
+		}
 	}
 	.template-preview-trigger:focus-visible {
 		outline-offset: -3px;
 	}
 	.template-title-btn {
 		display: block;
-		width: 100%;
-		padding: 0 9px;
-		margin-top: 6px;
+		inline-size: 100%;
+		padding-block-start: 0;
+		padding-block-end: 0;
+		padding-inline-start: 9px;
+		padding-inline-end: 9px;
+		margin-block-start: 6px;
 		background: transparent;
 		border: 0;
-		text-align: left;
+		text-align: start;
 		cursor: pointer;
 		color: inherit;
 		font: inherit;
 	}
 	.detail-cover.template-preview-art {
-		height: 240px;
+		block-size: 240px;
 		font-size: 80px;
 	}
 	.detail-cover {
 		display: grid;
-		height: 155px;
+		block-size: 155px;
 		place-items: center;
 		border-radius: 12px;
-		background: linear-gradient(135deg, #dff7ee, #f5e7ff);
+		background: linear-gradient(
+			135deg,
+			oklch(0.956132 0.027801 171.2158),
+			oklch(0.946118 0.035177 311.4254)
+		);
 		font-size: 72px;
 	}
 	@media (max-width: 720px) {
 		.template-card {
-			min-width: 152px;
+			min-inline-size: 152px;
 		}
 	}
 </style>

@@ -66,7 +66,7 @@
 />
 
 {#if !workspace.ready}
-	<section class="empty [margin-top:20px] [min-height:250px]">
+	<section class="empty [margin-block-start:20px] [min-block-size:250px]">
 		<h1>Opening private workspace</h1>
 		<p role={workspace.error ? 'alert' : 'status'}>
 			{workspace.error ?? 'Preserving local work and restoring your session…'}
@@ -102,16 +102,22 @@
 <style>
 	.draft-recovery {
 		position: fixed;
-		inset: auto var(--space-4) var(--space-4) var(--space-4);
+		inset-block-start: auto;
+		inset-block-end: var(--space-4);
+		inset-inline-start: var(--space-4);
+		inset-inline-end: var(--space-4);
 		z-index: 60;
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-3);
 		align-items: center;
 		justify-content: space-between;
-		max-width: 720px;
+		max-inline-size: 720px;
 		margin-inline: auto;
-		padding: var(--space-3) var(--space-4);
+		padding-block-start: var(--space-3);
+		padding-block-end: var(--space-3);
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
 		border: 1px solid var(--danger-line);
 		border-radius: var(--radius-sm);
 		background: var(--danger-tint);
@@ -140,32 +146,36 @@
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.empty {
 		display: flex;
-		min-height: 208px;
+		min-block-size: 208px;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		gap: var(--space-3);
 		padding: var(--space-5);
-		border: 1px dashed #abd3c3;
+		border: 1px dashed oklch(0.833566 0.047737 168.8711);
 		border-radius: var(--radius);
-		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
-		color: #55708c;
+		background: radial-gradient(
+			ellipse at bottom,
+			oklch(0.966239 0.018933 157.8754),
+			oklch(1 0 none) 75%
+		);
+		color: oklch(0.535034 0.054407 249.7873);
 		text-align: center;
 	}
 	:global(.empty h2) {
 		color: var(--ink);
 	}
 	.empty p {
-		max-width: 480px;
+		max-inline-size: 480px;
 		font-size: 14px;
 	}
 	:global(.empty > svg) {
 		padding: 12px;
-		width: 56px;
-		height: 56px;
+		inline-size: 56px;
+		block-size: 56px;
 		border-radius: 18px;
 		background: var(--pale);
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 		transform: rotate(-8deg);
 	}
 </style>

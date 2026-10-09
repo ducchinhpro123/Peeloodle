@@ -67,8 +67,8 @@
    it can neither move the card's layout nor leave the paper showing through it. */
 	.presentation-card-thumb img {
 		display: block;
-		width: 100%;
-		height: 100%;
+		inline-size: 100%;
+		block-size: 100%;
 		object-fit: cover;
 	}
 </style>

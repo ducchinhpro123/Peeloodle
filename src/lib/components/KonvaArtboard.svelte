@@ -758,11 +758,11 @@
 		margin: 0;
 		padding: 0;
 		border: 1px dashed var(--mint);
-		background: #ffffffd9;
+		background: color-mix(in oklch, oklch(1 0 none) 85.098%, transparent);
 		transform-origin: top left;
 		line-height: 1;
 		resize: none;
-		overflow: hidden;
+		overflow: clip;
 	}
 
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
@@ -782,12 +782,12 @@
 		margin: 0;
 		padding: 0;
 		border: 0;
-		outline: 2px solid #3b82f6;
+		outline: 2px solid oklch(0.623083 0.188015 259.8145);
 		background: transparent;
 		color: inherit;
 		line-height: 1;
 		resize: none;
-		overflow: hidden;
+		overflow: clip;
 		white-space: pre;
 		overflow-wrap: normal;
 		word-break: keep-all;

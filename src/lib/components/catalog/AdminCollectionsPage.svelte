@@ -272,7 +272,7 @@
 				type="search"
 				placeholder="Search collections"
 				bind:value={query}
-				class="[min-height:38px] [min-width:0] [flex:1] [border-radius:var(--radius-sm)] [padding:8px_12px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[flex:1] [border-radius:var(--radius-sm)] [padding-inline-start:12px] [padding-inline-end:12px] [padding-block-start:8px] [padding-block-end:8px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)] [min-block-size:38px] [min-inline-size:0]"
 			/>
 			<button type="submit" class={button}><Search size={16} aria-hidden="true" /> Search</button>
 			{#if appliedQuery}
@@ -291,7 +291,10 @@
 		>
 	</div>
 
-	{#if notice}<p role="status" class="admin-notice [margin:0] [font-weight:700] [color:#007b55]">
+	{#if notice}<p
+			role="status"
+			class="admin-notice [margin:0] [font-weight:700] [color:oklch(0.515677_0.111250_163.1262)]"
+		>
 			{notice}
 		</p>{/if}
 
@@ -305,7 +308,7 @@
 		</div>
 	{:else if rows.length === 0}
 		<div
-			class="[display:grid] [place-items:center] [gap:var(--space-3)] [border-radius:var(--radius)] [padding:var(--space-7)] [text-align:center] [border:1px_dashed_#abd3c3]"
+			class="[display:grid] [place-items:center] [gap:var(--space-3)] [border-radius:var(--radius)] [padding:var(--space-7)] [text-align:center] [border:1px_dashed_oklch(0.833566_0.047737_168.8711)]"
 		>
 			<Upload size={28} aria-hidden="true" />
 			<p>
@@ -336,21 +339,23 @@
 				<li
 					class="admin-collection [display:flex] [flex-wrap:wrap] [align-items:center] [gap:var(--space-3)] [border-radius:var(--radius-sm)] [padding:var(--space-4)] [background:var(--surface)] [border:1px_solid_var(--line)]"
 				>
-					<div class="admin-collection-main [min-width:12rem] [flex:1_1_16rem]">
+					<div class="admin-collection-main [flex:1_1_16rem] [min-inline-size:12rem]">
 						<h2 class="[margin:0] [font-size:16px] [overflow-wrap:anywhere]">{row.name}</h2>
 						<p
-							class="[margin:2px_0_0] [font-size:12px] [overflow-wrap:anywhere] [color:var(--muted)]"
+							class="[margin-inline-start:0] [margin-inline-end:0] [margin-block-start:2px] [margin-block-end:0] [font-size:12px] [overflow-wrap:anywhere] [color:var(--muted)]"
 						>
 							{#if row.tags.length}tags: {row.tags.join(', ')} ·
 							{/if}order {row.sortOrder} · revision
 							{row.revision} · updated {date(row.updatedAt)}
 						</p>
-						{#if row.description}<p class="[margin:4px_0_0] [overflow-wrap:anywhere]">
+						{#if row.description}<p
+								class="[margin-inline-start:0] [margin-inline-end:0] [margin-block-start:4px] [margin-block-end:0] [overflow-wrap:anywhere]"
+							>
 								{row.description}
 							</p>{/if}
 					</div>
 					<span
-						class="admin-state [border-radius:999px] [padding:2px_10px] [font-size:11px] [font-weight:800]"
+						class="admin-state [border-radius:999px] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:2px] [padding-block-end:2px] [font-size:11px] [font-weight:800]"
 						class:is-draft={row.state === 'draft'}
 						class:is-published={row.state === 'published'}
 						class:is-archived={row.state === 'archived'}>{row.state}</span
@@ -409,7 +414,7 @@
 				required
 				maxlength="200"
 				bind:value={form.name}
-				class="[min-height:38px] [border-radius:var(--radius-sm)] [padding:8px_12px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[border-radius:var(--radius-sm)] [padding-inline-start:12px] [padding-inline-end:12px] [padding-block-start:8px] [padding-block-end:8px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)] [min-block-size:38px]"
 			/>
 		</label>
 		<label class="[display:grid] [gap:4px] [font-size:12px] [font-weight:700]">
@@ -419,7 +424,7 @@
 				rows="3"
 				maxlength="10000"
 				bind:value={form.description}
-				class="[border-radius:var(--radius-sm)] [padding:8px_12px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[border-radius:var(--radius-sm)] [padding-inline-start:12px] [padding-inline-end:12px] [padding-block-start:8px] [padding-block-end:8px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
 			></textarea>
 		</label>
 		<label class="[display:grid] [gap:4px] [font-size:12px] [font-weight:700]">
@@ -427,7 +432,7 @@
 			<input
 				id="catalog-collection-tags"
 				bind:value={form.tags}
-				class="[min-height:38px] [border-radius:var(--radius-sm)] [padding:8px_12px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[border-radius:var(--radius-sm)] [padding-inline-start:12px] [padding-inline-end:12px] [padding-block-start:8px] [padding-block-end:8px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)] [min-block-size:38px]"
 			/>
 		</label>
 		<label class="[display:grid] [gap:4px] [font-size:12px] [font-weight:700]">
@@ -436,7 +441,7 @@
 				id="catalog-collection-order"
 				type="number"
 				bind:value={form.sortOrder}
-				class="[min-height:38px] [border-radius:var(--radius-sm)] [padding:8px_12px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="[border-radius:var(--radius-sm)] [padding-inline-start:12px] [padding-inline-end:12px] [padding-block-start:8px] [padding-block-end:8px] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)] [min-block-size:38px]"
 			/>
 		</label>
 		{#if formError}<p role="alert" class="[margin:0] [font-weight:700]">{formError}</p>{/if}
@@ -485,11 +490,11 @@
 <style>
 	.admin-state.is-draft {
 		background: var(--pale);
-		color: #315b4e;
+		color: oklch(0.436246 0.052317 171.7714);
 	}
 	.admin-state.is-published {
-		background: #e3f4ea;
-		color: #00694a;
+		background: oklch(0.951787 0.022294 160.2249);
+		color: oklch(0.461264 0.097571 164.5432);
 	}
 	.admin-state.is-archived {
 		background: var(--cream);

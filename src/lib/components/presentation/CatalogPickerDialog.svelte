@@ -240,7 +240,7 @@
 
 		{#if assets.length > 0}
 			<ul
-				class="catalog-grid [margin:0] [display:grid] [grid-template-columns:repeat(auto-fill,_minmax(150px,_1fr))] [gap:var(--space-3)] [padding:0] [list-style:none]"
+				class="catalog-grid [margin:0] [display:grid] [grid-template-columns:repeat(auto-fill,_minmax(min(100%,_150px),_1fr))] [gap:var(--space-3)] [padding:0] [list-style:none]"
 			>
 				{#each assets as asset (asset.id)}
 					{@const version = versions.get(asset.id)}
@@ -284,13 +284,13 @@
 <style>
 	.catalog-item {
 		display: grid;
-		width: 100%;
+		inline-size: 100%;
 		gap: 4px;
 		padding: var(--space-2);
 		border: 1px solid var(--line);
 		border-radius: var(--radius-sm);
 		background: var(--surface);
-		text-align: left;
+		text-align: start;
 		cursor: pointer;
 	}
 	.catalog-item:disabled {

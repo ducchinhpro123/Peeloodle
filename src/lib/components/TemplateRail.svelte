@@ -55,7 +55,7 @@
 		<h2>{title}</h2>
 		<a href={shellHref('/templates')}>View all</a>
 	</div>
-	<div class="rail [max-width:100%] [min-width:0]">
+	<div class="rail [max-inline-size:100%] [min-inline-size:0]">
 		{#each items as template (template.id)}
 			<TemplateCard
 				{template}
@@ -70,10 +70,13 @@
 <style>
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.section-title {
-		margin: var(--space-5) 0 var(--space-4);
+		margin-block-start: var(--space-5);
+		margin-block-end: var(--space-4);
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 	}
 	.section-title.flush-top {
-		margin-top: 0;
+		margin-block-start: 0;
 	}
 	.section-title h2 {
 		display: flex;
@@ -83,17 +86,20 @@
 		font-size: 16px;
 	}
 	.section-title a {
-		color: #008dce;
+		color: oklch(0.612815 0.139235 239.516);
 		font-size: 13px;
 		font-weight: 600;
 	}
 	.rail {
 		display: flex;
 		gap: var(--space-4);
-		padding: 2px 2px var(--space-3);
+		padding-block-start: 2px;
+		padding-block-end: var(--space-3);
+		padding-inline-start: 2px;
+		padding-inline-end: 2px;
 		overflow: auto;
 		scroll-snap-type: x proximity;
 		scrollbar-width: thin;
-		scrollbar-color: #c4d9cf transparent;
+		scrollbar-color: oklch(0.866759 0.026314 165.5539) transparent;
 	}
 </style>

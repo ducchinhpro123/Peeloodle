@@ -57,7 +57,7 @@
 </script>
 
 <section
-	class="asset-tray [margin:0] [padding:6px_10px_8px]"
+	class="asset-tray [margin:0] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:6px] [padding-block-end:8px]"
 	tabindex="-1"
 	aria-label="Sticker assets"
 >
@@ -98,7 +98,7 @@
 
 	{#if tab === 'uploads'}
 		<div
-			class="asset-items [display:flex] [align-items:center] [gap:8px] [overflow:auto] [padding-top:8px]"
+			class="asset-items [display:flex] [align-items:center] [gap:8px] [overflow:auto] [padding-block-start:8px]"
 		>
 			<button
 				type="button"
@@ -145,7 +145,7 @@
 			These are image layers, not editable text and not an OS emoji font. Lettering in a cutout
 			stays part of the picture; use Text styles for words you can type.
 		</p>
-		<label class="filter-search asset-search [margin-left:auto]">
+		<label class="filter-search asset-search [margin-inline-start:auto]">
 			<Search size={16} />
 			<input
 				value={query}
@@ -160,7 +160,7 @@
 			</p>
 		{:else}
 			<div
-				class="asset-items [display:flex] [align-items:center] [gap:8px] [overflow:auto] [padding-top:8px]"
+				class="asset-items [display:flex] [align-items:center] [gap:8px] [overflow:auto] [padding-block-start:8px]"
 			>
 				{#each matches as entry (entry.src)}
 					<button
@@ -188,7 +188,7 @@
 			Start with a style. Change the words, font, size, and color in Sticker Properties.
 		</p>
 		<div
-			class="asset-items text-presets [display:flex] [align-items:center] [gap:8px] [overflow:auto] [padding-top:8px]"
+			class="asset-items text-presets [display:flex] [align-items:center] [gap:8px] [overflow:auto] [padding-block-start:8px]"
 		>
 			{#each TEXT_PRESETS as preset (preset.fontFamily)}
 				<button
@@ -215,55 +215,60 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		padding: 8px 14px;
+		padding-block-start: 8px;
+		padding-block-end: 8px;
+		padding-inline-start: 14px;
+		padding-inline-end: 14px;
 		border-radius: 999px;
-		background: #f3f5f8;
-		color: #52627e;
+		background: oklch(0.96948 0.004541 258.3246);
+		color: oklch(0.494015 0.049212 261.4769);
 	}
 	.filter-search input {
-		min-width: 220px;
+		min-inline-size: 220px;
 		border: 0;
-		outline: 0;
 		background: transparent;
 	}
 	.filter-search input {
-		min-width: 145px;
+		min-inline-size: 145px;
 	}
 	.asset-tray {
-		min-width: 0;
+		min-inline-size: 0;
 		padding: var(--space-4);
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 	.asset-thumb {
-		width: 80px;
-		height: 70px;
+		inline-size: 80px;
+		block-size: 70px;
 		padding: 0;
-		overflow: hidden;
+		overflow: clip;
 		border: 1px solid var(--line);
 		border-radius: 9px;
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 	.asset-thumb img {
-		width: 100%;
-		height: 100%;
+		inline-size: 100%;
+		block-size: 100%;
 		object-fit: contain;
 	}
 	.asset-tray .filter-search {
-		margin: 0 0 8px;
-		max-width: min(280px, 100%);
+		margin-block-start: 0;
+		margin-block-end: 8px;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
+		max-inline-size: min(280px, 100%);
 	}
 	.asset-tray .filter-search input {
-		min-width: 0;
-		width: 100%;
+		min-inline-size: 0;
+		inline-size: 100%;
 	}
 	.asset-view-all {
-		margin-left: auto;
+		margin-inline-start: auto;
 		padding: 0;
 		border: 0;
 		background: transparent;
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 		font-size: 12px;
 		font-weight: 700;
 	}
@@ -273,23 +278,26 @@
 		overflow: auto;
 	}
 	.asset-tray [role='tab'] {
-		padding: 5px 2px;
+		padding-block-start: 5px;
+		padding-block-end: 5px;
+		padding-inline-start: 2px;
+		padding-inline-end: 2px;
 		border: 0;
 		background: transparent;
 		white-space: nowrap;
 		font-size: 13px;
 	}
 	.asset-tray [role='tab'][data-state='active'] {
-		border-bottom: 2px solid var(--mint);
-		color: #008d62;
+		border-block-end: 2px solid var(--mint);
+		color: oklch(0.569191 0.122802 163.1218);
 	}
 	.asset-items button {
 		flex: 0 0 68px;
-		height: 68px;
+		block-size: 68px;
 		border: 1px dashed var(--mint);
 		border-radius: var(--radius-sm);
-		background: #fff;
-		color: #008d62;
+		background: oklch(1 0 none);
+		color: oklch(0.569191 0.122802 163.1218);
 	}
 	.asset-tray [role='tab'] {
 		text-transform: capitalize;
@@ -297,11 +305,11 @@
 	.asset-items .sticker {
 		padding: 7px;
 		border-radius: 10px;
-		background: #f3f6fa;
+		background: oklch(0.972008 0.006231 255.4748);
 		font-size: 45px;
 	}
 	.asset-error {
-		margin-bottom: var(--space-3);
+		margin-block-end: var(--space-3);
 		padding: var(--space-3);
 		border-radius: var(--radius-sm);
 		background: var(--cream);
@@ -310,8 +318,8 @@
 	}
 	.asset-items .catalog-asset {
 		flex-basis: 76px;
-		width: 76px;
-		height: 76px;
+		inline-size: 76px;
+		block-size: 76px;
 		flex-direction: column;
 		gap: 2px;
 		padding: 4px;
@@ -319,12 +327,12 @@
 		color: var(--ink);
 	}
 	.catalog-asset img {
-		width: 100%;
-		height: 48px;
+		inline-size: 100%;
+		block-size: 48px;
 		object-fit: contain;
 	}
 	.catalog-asset span {
-		width: 100%;
+		inline-size: 100%;
 		overflow: hidden;
 		font-size: 9px;
 		line-height: 1.15;
@@ -333,10 +341,13 @@
 	}
 	.asset-items .text-preset {
 		flex: 0 0 148px;
-		height: 88px;
+		block-size: 88px;
 		flex-direction: column;
 		gap: 0;
-		padding: 6px 8px;
+		padding-block-start: 6px;
+		padding-block-end: 6px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		border-style: solid;
 		color: var(--ink);
 	}
@@ -359,14 +370,14 @@
 	}
 	@media (max-width: 720px) {
 		.asset-tray {
-			margin-bottom: 50px;
+			margin-block-end: 50px;
 		}
 		.filter-search {
-			width: 100%;
-			margin-left: 0;
+			inline-size: 100%;
+			margin-inline-start: 0;
 		}
 		.filter-search input {
-			width: 100%;
+			inline-size: 100%;
 		}
 	}
 </style>

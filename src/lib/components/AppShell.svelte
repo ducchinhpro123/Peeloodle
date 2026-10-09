@@ -35,27 +35,27 @@
 
 	:global(.layout > .sidebar) {
 		position: sticky;
-		top: var(--header-height);
+		inset-block-start: var(--header-height);
 		align-self: flex-start;
-		height: calc(100dvh - var(--header-height));
-		min-height: 0;
+		block-size: calc(100dvh - var(--header-height));
+		min-block-size: 0;
 		overflow-y: auto;
 		scrollbar-width: thin;
 	}
 	main {
-		min-width: 0;
+		min-inline-size: 0;
 		flex: 1;
-		padding: var(--space-5);
+		padding: var(--page-gutter);
 	}
 	:global(main > section) {
-		min-width: 0;
+		min-inline-size: 0;
 	}
 	:global(main > div) {
-		min-width: 0;
+		min-inline-size: 0;
 	}
 	.editor-layout {
-		height: calc(100dvh - var(--header-height));
-		min-height: 0;
+		block-size: calc(100dvh - var(--header-height));
+		min-block-size: 0;
 	}
 	:global(.editor-layout > .sidebar) {
 		display: none;
@@ -63,22 +63,20 @@
 	.editor-layout main {
 		display: flex;
 		flex-direction: column;
-		min-width: 0;
-		min-height: 0;
+		min-inline-size: 0;
+		min-block-size: 0;
 		padding: 0;
-		overflow: hidden;
+		overflow: clip;
 	}
 	:global(.editor-layout .cloud-banner) {
-		margin: 8px 12px 0;
-	}
-	@media (max-width: 1150px) {
-		main {
-			padding: var(--space-4);
-		}
+		margin-block-start: 8px;
+		margin-block-end: 0;
+		margin-inline-start: 12px;
+		margin-inline-end: 12px;
 	}
 	@media (max-width: 720px) {
 		.editor-layout {
-			height: auto;
+			block-size: auto;
 		}
 		.editor-layout main {
 			overflow: visible;
@@ -87,8 +85,7 @@
 			display: none;
 		}
 		.layout main {
-			padding: var(--space-4);
-			padding-bottom: var(--space-6);
+			padding-block-end: var(--space-6);
 		}
 		.editor-layout main {
 			padding: 0;

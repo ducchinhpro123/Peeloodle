@@ -102,7 +102,7 @@
 		{/if}
 		{#if footer}
 			<div
-				class="dialog-footer [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-3)] [padding-top:var(--space-5)] [border-top:1px_solid_var(--line)]"
+				class="dialog-footer [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-3)] [padding-block-start:var(--space-5)] [border-block-start:1px_solid_var(--line)]"
 			>
 				{@render footer()}
 			</div>
@@ -125,7 +125,7 @@
 		padding: 0;
 	}
 	dialog.dialog::backdrop {
-		background: #102c2866;
+		background: color-mix(in oklch, oklch(0.269988 0.034841 183.1133) 40%, transparent);
 		backdrop-filter: blur(5px);
 	}
 
@@ -133,17 +133,17 @@
 	.dialog {
 		position: fixed;
 		z-index: 21;
-		background: #fff;
-		box-shadow: 0 24px 80px #08152f33;
+		background: oklch(1 0 none);
+		box-shadow: 0 24px 80px color-mix(in oklch, oklch(0.201186 0.055198 262.3998) 20%, transparent);
 	}
 	.dialog {
-		top: 50%;
-		left: 50%;
-		width: calc(100% - 32px);
-		max-width: 520px;
-		max-height: calc(100dvh - 32px);
-		overflow: hidden;
-		border: 1px solid #fff;
+		inset-block-start: 50%;
+		inset-inline-start: 50%;
+		inline-size: calc(100% - 32px);
+		max-inline-size: 520px;
+		max-block-size: calc(100dvh - 32px);
+		overflow: clip;
+		border: 1px solid oklch(1 0 none);
 		border-radius: 24px;
 		transform: translate(-50%, -50%);
 	}
@@ -152,16 +152,16 @@
 		flex-direction: column;
 		gap: var(--space-5);
 		overflow-wrap: anywhere;
-		max-height: calc(100dvh - 34px);
+		max-block-size: calc(100dvh - 34px);
 		padding: var(--space-6);
 		overflow-y: auto;
 		overscroll-behavior: contain;
 		scrollbar-width: thin;
-		background: linear-gradient(#eefaf3, #fff 120px);
+		background: linear-gradient(oklch(0.974231 0.015633 160.631), oklch(1 0 none) 120px);
 	}
 	.dialog [data-slot='dialog-title'] {
 		margin: 0;
-		padding-right: 40px;
+		padding-inline-end: 40px;
 		color: var(--ink);
 		font-size: 24px;
 		line-height: 1.25;
@@ -169,7 +169,10 @@
 		overflow-wrap: anywhere;
 	}
 	.dialog [data-slot='dialog-description'] {
-		margin: -12px 0 0;
+		margin-block-start: -12px;
+		margin-block-end: 0;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		color: var(--muted);
 		font-size: 14px;
 		line-height: 1.65;
@@ -193,11 +196,11 @@
 		overflow-wrap: anywhere;
 	}
 	.dialog .pack-stickers-list {
-		max-height: 300px;
+		max-block-size: 300px;
 		margin: 0;
 	}
 	.dialog .pack-sticker-row {
-		min-height: 48px;
+		min-block-size: 48px;
 	}
 	.dialog .inspector {
 		padding: 0;
@@ -208,11 +211,11 @@
 	}
 	.close {
 		position: absolute;
-		top: 12px;
-		right: 12px;
+		inset-block-start: 12px;
+		inset-inline-end: 12px;
 	}
 	.dialog .button.icon.close {
-		background: #fff;
+		background: oklch(1 0 none);
 		border: 1px solid var(--line);
 		border-radius: 50%;
 	}

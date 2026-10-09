@@ -70,7 +70,7 @@
 		height: 14px;
 		border: 2px solid var(--mint);
 		border-radius: 4px;
-		background: #fff;
+		background: oklch(1 0 none);
 		box-shadow: var(--shadow);
 		pointer-events: auto;
 		touch-action: none;
@@ -138,7 +138,7 @@
 		z-index: 2;
 		border: 2px solid var(--mint);
 		border-radius: 4px;
-		box-shadow: 0 0 0 1px #ffffffcc inset;
+		box-shadow: 0 0 0 1px color-mix(in oklch, oklch(1 0 none) 80%, transparent) inset;
 		transform-origin: 0 0;
 		pointer-events: none;
 	}

@@ -337,26 +337,32 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-2);
-		padding: var(--space-2) var(--space-4);
-		border-bottom: 1px solid var(--line);
+		padding-block-start: var(--space-2);
+		padding-block-end: var(--space-2);
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
+		border-block-end: 1px solid var(--line);
 		background: var(--surface-warm);
 	}
 	.presentation-text-toolbar-group + .presentation-text-toolbar-group {
-		padding-left: var(--space-2);
-		border-left: 1px solid var(--line);
+		padding-inline-start: var(--space-2);
+		border-inline-start: 1px solid var(--line);
 	}
 	.presentation-text-toolbar .button.icon {
-		width: 36px;
-		min-height: 36px;
+		inline-size: 36px;
+		min-block-size: 36px;
 	}
 	.presentation-text-toolbar .button[aria-pressed='true'] {
 		background: var(--pale);
-		color: #00764f;
+		color: oklch(0.499969 0.110171 161.6836);
 		box-shadow: inset 0 0 0 2px var(--mint);
 	}
 	.presentation-text-toolbar-field select {
-		min-height: 36px;
-		padding: 6px 8px;
+		min-block-size: 36px;
+		padding-block-start: 6px;
+		padding-block-end: 6px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
 		background: var(--surface);
@@ -365,8 +371,11 @@
 		font-weight: 700;
 	}
 	.presentation-text-toolbar-field input {
-		min-height: 36px;
-		padding: 6px 8px;
+		min-block-size: 36px;
+		padding-block-start: 6px;
+		padding-block-end: 6px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
 		background: var(--surface);
@@ -375,11 +384,11 @@
 		font-weight: 700;
 	}
 	.presentation-text-toolbar-color input {
-		width: 44px;
+		inline-size: 44px;
 		padding: 2px;
 	}
 	.presentation-text-toolbar-link input {
-		min-width: 170px;
+		min-inline-size: 170px;
 	}
 	.presentation-text-toolbar-error {
 		flex-basis: 100%;

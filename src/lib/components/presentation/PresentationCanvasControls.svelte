@@ -47,32 +47,32 @@
 	.presentation-canvas-controls {
 		position: absolute;
 		z-index: 2;
-		right: var(--space-4);
-		bottom: var(--space-4);
+		inset-inline-end: var(--space-4);
+		inset-block-end: var(--space-4);
 		display: flex;
 		align-items: center;
 		gap: 2px;
 		padding: var(--space-1);
 		border: 1px solid var(--line);
 		border-radius: var(--radius-sm);
-		background: #fffffff2;
+		background: color-mix(in oklch, oklch(1 0 none) 94.902%, transparent);
 		box-shadow: var(--shadow);
 	}
 	.presentation-canvas-controls output {
-		min-width: 48px;
+		min-inline-size: 48px;
 		color: var(--ink);
 		font-size: 12px;
 		font-weight: 800;
 		text-align: center;
 	}
 	.presentation-canvas-controls .button.icon {
-		width: 36px;
-		min-height: 36px;
+		inline-size: 36px;
+		min-block-size: 36px;
 	}
 	@media (max-width: 720px) {
 		.presentation-canvas-controls {
-			right: var(--space-3);
-			bottom: var(--space-3);
+			inset-inline-end: var(--space-3);
+			inset-block-end: var(--space-3);
 		}
 	}
 </style>

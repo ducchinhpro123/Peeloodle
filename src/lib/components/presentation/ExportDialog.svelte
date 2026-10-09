@@ -63,7 +63,7 @@
 		</div>
 	</dl>
 	<div
-		class="presentation-export-actions [margin-top:var(--space-4)] [display:flex] [flex-wrap:wrap] [gap:var(--space-2)]"
+		class="presentation-export-actions [margin-block-start:var(--space-4)] [display:flex] [flex-wrap:wrap] [gap:var(--space-2)]"
 	>
 		<button type="button" class={buttonPrimary} disabled={busy} onclick={() => onexport('pdf')}
 			>Export PDF</button
@@ -121,12 +121,15 @@
 		font-weight: 700;
 	}
 	.format-guide dd {
-		margin: 4px 0 0;
+		margin-block-start: 4px;
+		margin-block-end: 0;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		color: var(--muted);
 	}
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.presentation-export-warnings {
-		margin-top: var(--space-4);
+		margin-block-start: var(--space-4);
 		padding: var(--space-3);
 		border: 1px solid var(--warning-line);
 		border-radius: var(--radius-sm);
@@ -136,10 +139,13 @@
 		font-weight: 600;
 	}
 	.presentation-export-warnings p {
-		margin: 0 0 var(--space-2);
+		margin-block-start: 0;
+		margin-block-end: var(--space-2);
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 	}
 	.presentation-export-warnings ul {
 		margin: 0;
-		padding-left: 1.1em;
+		padding-inline-start: 1.1em;
 	}
 </style>

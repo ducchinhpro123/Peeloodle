@@ -115,7 +115,7 @@
 		border-radius: var(--radius-sm);
 		background: var(--surface);
 		color: var(--ink);
-		text-align: left;
+		text-align: start;
 		cursor: pointer;
 	}
 	.layout-card:focus-visible {
@@ -124,8 +124,8 @@
 	}
 	.layout-card img,
 	.preview-fallback {
-		width: 100%;
-		height: auto;
+		inline-size: 100%;
+		block-size: auto;
 		aspect-ratio: 16 / 9;
 	}
 	.preview-fallback {

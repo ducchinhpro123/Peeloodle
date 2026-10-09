@@ -120,7 +120,7 @@
 		display: grid;
 		gap: var(--space-2);
 		justify-items: start;
-		margin-top: var(--space-3);
+		margin-block-start: var(--space-3);
 	}
 	.presentation-text-sizing label {
 		display: grid;
@@ -133,7 +133,7 @@
 	}
 	.presentation-fit-error {
 		margin: 0;
-		color: #8d1d3f;
+		color: oklch(0.429217 0.147553 8.5761);
 		font-size: 12px;
 		font-weight: 600;
 	}
@@ -141,8 +141,11 @@
 		display: grid;
 		gap: var(--space-2);
 		justify-items: start;
-		margin-top: var(--space-3);
-		padding: var(--space-2) var(--space-3);
+		margin-block-start: var(--space-3);
+		padding-block-start: var(--space-2);
+		padding-block-end: var(--space-2);
+		padding-inline-start: var(--space-3);
+		padding-inline-end: var(--space-3);
 		border: 1px solid var(--warning-line);
 		border-radius: var(--radius-sm);
 		background: var(--warning-bg);

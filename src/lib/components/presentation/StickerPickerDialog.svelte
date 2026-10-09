@@ -57,7 +57,7 @@
 			No saved stickers yet. Create one in the sticker editor first.
 		</p>{/if}
 	<ul
-		class="presentation-sticker-picker [margin:var(--space-4)_0_0] [display:grid] [gap:var(--space-2)] [padding:0] [list-style:none]"
+		class="presentation-sticker-picker [margin-inline-start:0] [margin-inline-end:0] [margin-block-start:var(--space-4)] [margin-block-end:0] [display:grid] [gap:var(--space-2)] [padding:0] [list-style:none]"
 	>
 		{#each projects ?? [] as project (project.id)}
 			<li>
@@ -81,45 +81,49 @@
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.empty {
 		display: flex;
-		min-height: 208px;
+		min-block-size: 208px;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		gap: var(--space-3);
 		padding: var(--space-5);
-		border: 1px dashed #abd3c3;
+		border: 1px dashed oklch(0.833566 0.047737 168.8711);
 		border-radius: var(--radius);
-		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 75%);
-		color: #55708c;
+		background: radial-gradient(
+			ellipse at bottom,
+			oklch(0.966239 0.018933 157.8754),
+			oklch(1 0 none) 75%
+		);
+		color: oklch(0.535034 0.054407 249.7873);
 		text-align: center;
 	}
 	:global(.empty h2) {
 		color: var(--ink);
 	}
 	:global(.empty p) {
-		max-width: 480px;
+		max-inline-size: 480px;
 		font-size: 14px;
 	}
 	:global(.empty > svg) {
 		padding: 12px;
-		width: 56px;
-		height: 56px;
+		inline-size: 56px;
+		block-size: 56px;
 		border-radius: 18px;
 		background: var(--pale);
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 		transform: rotate(-8deg);
 	}
 	.empty {
-		min-height: 250px;
-		margin-top: 20px;
+		min-block-size: 250px;
+		margin-block-start: 20px;
 	}
 	.presentation-sticker-picker .button {
 		display: flex;
-		width: 100%;
-		min-height: 40px;
+		inline-size: 100%;
+		min-block-size: 40px;
 		justify-content: space-between;
 		gap: var(--space-3);
-		text-align: left;
+		text-align: start;
 	}
 	.presentation-sticker-picker span {
 		color: var(--muted);

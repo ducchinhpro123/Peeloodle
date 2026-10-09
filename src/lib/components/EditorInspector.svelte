@@ -76,12 +76,14 @@
 	}
 </script>
 
-<aside class="inspector [min-height:0] [overflow:auto] [padding:12px]">
+<aside class="inspector [overflow:auto] [padding:12px] [min-block-size:0]">
 	<h2>Sticker Properties</h2>
 	{#if imageLayer && doc}
 		<div class="layer-card">
 			<img class="layer-card-thumb" alt="" src={urls[imageLayer.assetId]} />
-			<div class="layer-card-meta [display:grid] [min-width:0] [align-content:center] [gap:2px]">
+			<div
+				class="layer-card-meta [display:grid] [align-content:center] [gap:2px] [min-inline-size:0]"
+			>
 				<strong>{imageLayer.name}</strong>
 				<small>
 					{editor.assets[imageLayer.assetId]?.asset
@@ -218,7 +220,7 @@
 			/>
 		</label>
 		<div
-			class="inspector-color [display:flex] [flex-wrap:wrap] [align-items:center] [justify-content:space-between] [gap:8px] [padding:8px_0] [font-size:13px] [border-bottom:1px_solid_#eef1f4]"
+			class="inspector-color [display:flex] [flex-wrap:wrap] [align-items:center] [justify-content:space-between] [gap:8px] [padding-inline-start:0] [padding-inline-end:0] [padding-block-start:8px] [padding-block-end:8px] [font-size:13px] [border-block-end:1px_solid_oklch(0.956717_0.005156_247.8779)]"
 		>
 			<span>Color</span>
 			<ColorField
@@ -251,7 +253,7 @@
 			/>
 		</label>
 		<div
-			class="inspector-color [display:flex] [flex-wrap:wrap] [align-items:center] [justify-content:space-between] [gap:8px] [padding:8px_0] [font-size:13px] [border-bottom:1px_solid_#eef1f4]"
+			class="inspector-color [display:flex] [flex-wrap:wrap] [align-items:center] [justify-content:space-between] [gap:8px] [padding-inline-start:0] [padding-inline-end:0] [padding-block-start:8px] [padding-block-end:8px] [font-size:13px] [border-block-end:1px_solid_oklch(0.956717_0.005156_247.8779)]"
 		>
 			<span>Color</span>
 			<ColorField
@@ -369,7 +371,7 @@
 				/>
 			</label>
 		{/each}
-		<div class="button-row" style="margin-top: 12px">
+		<div class="button-row" style="margin-block-start: 12px">
 			<button type="button" class={button} onclick={() => editor.resetFilters(image.id)}
 				>Reset Filters</button
 			>
@@ -524,11 +526,11 @@
 		color: var(--muted);
 	}
 	.inspector {
-		min-width: 0;
+		min-inline-size: 0;
 		padding: var(--space-4);
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 	.inspector-fields {
 		display: grid;
@@ -546,28 +548,28 @@
 		grid-template-columns: 1fr;
 	}
 	.inspector-fields input {
-		min-width: 0;
+		min-inline-size: 0;
 	}
 	.inspector-fields select {
-		min-width: 0;
+		min-inline-size: 0;
 	}
 	.inspector-fields textarea {
-		min-width: 0;
+		min-inline-size: 0;
 	}
 	.inspector textarea {
-		width: 100%;
+		inline-size: 100%;
 		padding: 8px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
 	}
 	.inspector select {
-		width: 100%;
+		inline-size: 100%;
 		padding: 8px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
 	}
 	:global(.inspector input[type='text']) {
-		width: 100%;
+		inline-size: 100%;
 		padding: 8px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
@@ -581,29 +583,38 @@
 		display: flex;
 		align-items: center;
 		gap: 6px;
-		padding: 6px 8px;
+		padding-block-start: 6px;
+		padding-block-end: 6px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		border: 1px solid var(--line);
 		border-radius: 10px;
-		background: #fff;
+		background: oklch(1 0 none);
 		cursor: pointer;
 	}
 	.layer-row.active {
 		background: var(--pale);
-		border-color: #9ddaca;
+		border-color: oklch(0.842353 0.066178 176.5591);
 	}
 	.layer-kind-tag {
-		padding: 2px 6px;
+		padding-block-start: 2px;
+		padding-block-end: 2px;
+		padding-inline-start: 6px;
+		padding-inline-end: 6px;
 		border-radius: 6px;
-		background: #f1f4f8;
-		color: #52627e;
+		background: oklch(0.966013 0.006241 255.475);
+		color: oklch(0.494015 0.049212 261.4769);
 		font-size: 10px;
 		font-weight: 700;
 		text-transform: uppercase;
 	}
 	.layer-row-title {
 		flex: 1;
-		min-width: 0;
-		padding: 3px 6px;
+		min-inline-size: 0;
+		padding-block-start: 3px;
+		padding-block-end: 3px;
+		padding-inline-start: 6px;
+		padding-inline-end: 6px;
 		border: 1px solid transparent;
 		border-radius: 6px;
 		background: transparent;
@@ -612,67 +623,80 @@
 		font-weight: 600;
 	}
 	.layer-row-title:focus {
-		border-color: #9ddaca;
-		background: #fff;
-		outline: 0;
+		border-color: oklch(0.842353 0.066178 176.5591);
+		background: oklch(1 0 none);
 	}
 	.layer-action-btn {
 		display: inline-flex;
-		width: 26px;
-		height: 26px;
+		inline-size: 26px;
+		block-size: 26px;
 		align-items: center;
 		justify-content: center;
 		padding: 0;
 		border: 0;
 		border-radius: 6px;
 		background: transparent;
-		color: #66758f;
+		color: oklch(0.559805 0.044328 261.3837);
 		cursor: pointer;
 	}
-	.layer-action-btn:hover:not(:disabled) {
-		background: #eef3f7;
-		color: var(--ink);
+	@media (hover: hover) and (pointer: fine) {
+		.layer-action-btn:hover:not(:disabled) {
+			background: oklch(0.961511 0.00758 241.6639);
+			color: var(--ink);
+		}
 	}
 	.layer-action-btn:disabled {
 		opacity: 0.3;
 		cursor: not-allowed;
 	}
 	.layer-action-btn.active {
-		color: #00875e;
+		color: oklch(0.551582 0.11869 163.307);
 	}
 	.layer-action-btn.dimmed {
-		color: #a0aec0;
+		color: oklch(0.745708 0.030363 254.7208);
 	}
 	.inspector h2 {
-		margin: 0 0 10px;
+		margin-block-start: 0;
+		margin-block-end: 10px;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		font-size: 15px;
 	}
 	.inspector [role='tablist'] {
 		display: flex;
 		justify-content: space-between;
-		border-bottom: 1px solid var(--line);
+		border-block-end: 1px solid var(--line);
 	}
 	.inspector [role='tab'] {
-		padding: 7px 2px;
+		padding-block-start: 7px;
+		padding-block-end: 7px;
+		padding-inline-start: 2px;
+		padding-inline-end: 2px;
 		border: 0;
 		background: transparent;
-		color: #445474;
+		color: oklch(0.44613 0.056626 263.7425);
 		font-size: 12px;
 	}
 	.inspector [role='tab'][data-state='active'] {
-		border-bottom: 2px solid var(--mint);
-		color: #008d62;
+		border-block-end: 2px solid var(--mint);
+		color: oklch(0.569191 0.122802 163.1218);
 	}
 	.inspector [role='tabpanel'] {
-		padding: 8px 0 0;
+		padding-block-start: 8px;
+		padding-block-end: 0;
+		padding-inline-start: 0;
+		padding-inline-end: 0;
 	}
 	.inspector label {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 8px;
-		padding: 8px 0;
-		border-bottom: 1px solid #eef1f4;
+		padding-block-start: 8px;
+		padding-block-end: 8px;
+		padding-inline-start: 0;
+		padding-inline-end: 0;
+		border-block-end: 1px solid oklch(0.956717 0.005156 247.8779);
 		font-size: 13px;
 	}
 	.layer-card {
@@ -680,17 +704,17 @@
 		grid-template-columns: 48px 1fr;
 		gap: 6px 8px;
 		padding: 8px;
-		margin-bottom: 8px;
+		margin-block-end: 8px;
 		border: 1px solid var(--line);
 		border-radius: 14px;
-		background: #f8fbf9;
+		background: oklch(0.985264 0.004111 157.1797);
 	}
 	.layer-card-thumb {
-		width: 48px;
-		height: 48px;
+		inline-size: 48px;
+		block-size: 48px;
 		object-fit: contain;
 		border-radius: 10px;
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 	.layer-card-meta strong {
 		overflow: hidden;
@@ -703,20 +727,25 @@
 		font-size: 11px;
 	}
 	.layer-card-actions .button {
-		min-height: 30px;
-		padding: 4px 8px;
+		min-block-size: 30px;
+		padding-block-start: 4px;
+		padding-block-end: 4px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		font-size: 12px;
 	}
 	.layer-delete {
 		border: 0;
 		background: transparent;
-		color: #c2414b;
+		color: oklch(0.56032 0.164286 19.8255);
 		box-shadow: none;
 	}
-	.layer-delete:hover:not(:disabled) {
-		background: var(--danger-tint);
-		color: #9f1239;
-		box-shadow: none;
+	@media (hover: hover) and (pointer: fine) {
+		.layer-delete:hover:not(:disabled) {
+			background: var(--danger-tint);
+			color: oklch(0.454568 0.171284 13.6968);
+			box-shadow: none;
+		}
 	}
 	/*
  * NOTE: `.inspector-switch` (the 40x22 pill and its sliding ::after knob) has no
@@ -738,26 +767,32 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 8px;
-		min-width: 0;
+		min-inline-size: 0;
 	}
 	.inspector-section {
 		display: grid;
 		gap: 6px;
-		padding: 10px 0 4px;
+		padding-block-start: 10px;
+		padding-block-end: 4px;
+		padding-inline-start: 0;
+		padding-inline-end: 0;
 	}
 	.inspector-section > b {
 		font-size: 12px;
 	}
 	.flip-row .button {
-		min-height: 32px;
-		padding: 4px 8px;
+		min-block-size: 32px;
+		padding-block-start: 4px;
+		padding-block-end: 4px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		font-size: 12px;
 	}
 	.inspector-slider-value .slider {
-		width: 108px;
+		inline-size: 108px;
 	}
 	.font-preview {
-		max-height: 120px;
+		max-block-size: 120px;
 		overflow: auto;
 		padding: var(--space-4);
 		border: 1px solid var(--line);
@@ -777,8 +812,8 @@
 			flex-wrap: wrap;
 		}
 		.layer-action-btn {
-			width: 36px;
-			height: 36px;
+			inline-size: 36px;
+			block-size: 36px;
 		}
 	}
 </style>

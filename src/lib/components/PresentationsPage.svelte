@@ -213,7 +213,7 @@
 <AppShell {pathname} {search}>
 	<div class="presentations-library">
 		<section class="presentations-hero">
-			<div class="presentation-hero-copy [position:relative] [z-index:2] [max-width:680px]">
+			<div class="presentation-hero-copy [position:relative] [z-index:2] [max-inline-size:680px]">
 				<p class="hero-kicker"><Presentation size={15} /> YOUR IDEAS, ON THE BIG SCREEN</p>
 				<h1>Tell your story.<br /><em>Make it stick.</em></h1>
 				<p>
@@ -221,7 +221,7 @@
 					stays private in this browser.
 				</p>
 				<div
-					class="presentation-hero-actions [margin-top:var(--space-5)] [display:flex] [flex-wrap:wrap] [gap:var(--space-3)]"
+					class="presentation-hero-actions [margin-block-start:var(--space-5)] [display:flex] [flex-wrap:wrap] [gap:var(--space-3)]"
 				>
 					<button class={buttonPrimary} onclick={createBlank} disabled={creatingBlank}>
 						<FilePlus2 size={18} />
@@ -239,7 +239,7 @@
 				</ul>
 			</div>
 			<div
-				class="presentation-hero-art [position:relative] [z-index:1] [min-height:330px] [min-width:0] [align-self:stretch]"
+				class="presentation-hero-art [position:relative] [z-index:1] [align-self:stretch] [min-block-size:330px] [min-inline-size:0]"
 				aria-hidden="true"
 			>
 				<span class="presentation-art-note">big idea energy ✦</span>
@@ -401,7 +401,7 @@
 									></span
 								>
 								<span
-									class="presentation-card-body [display:grid] [gap:var(--space-2)] [padding:var(--space-4)_var(--space-2)_var(--space-2)]"
+									class="presentation-card-body [display:grid] [gap:var(--space-2)] [padding-inline-start:var(--space-2)] [padding-inline-end:var(--space-2)] [padding-block-start:var(--space-4)] [padding-block-end:var(--space-2)]"
 									><span
 										class="presentation-card-title [display:flex] [align-items:center] [justify-content:space-between] [gap:var(--space-3)]"
 									>
@@ -420,7 +420,7 @@
 								</span>
 							</a>
 							<div
-								class="presentation-card-actions [margin-top:auto] [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-1)] [padding:var(--space-2)_var(--space-2)_0]"
+								class="presentation-card-actions [margin-block-start:auto] [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-1)] [padding-inline-start:var(--space-2)] [padding-inline-end:var(--space-2)] [padding-block-start:var(--space-2)] [padding-block-end:0]"
 							>
 								<button
 									class={buttonIcon}
@@ -517,35 +517,44 @@
 	.card {
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
-		background: #fff;
+		background: oklch(1 0 none);
 	}
 
 	.library-safety-note {
-		padding: 18px 22px;
-		border-left: 4px solid var(--scrapbook-green);
+		padding-block-start: 18px;
+		padding-block-end: 18px;
+		padding-inline-start: 22px;
+		padding-inline-end: 22px;
+		border-inline-start: 4px solid var(--scrapbook-green);
 		background: var(--pale);
 		border-radius: 10px;
 		font-size: 13px;
 		line-height: 1.6;
 	}
 	.library-safety-note p {
-		margin: 8px 0 0;
+		margin-block-start: 8px;
+		margin-block-end: 0;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 	}
 	.presentations-library {
 		display: grid;
 		gap: var(--space-6);
-		width: 100%;
+		inline-size: 100%;
 		container-type: inline-size;
 	}
 	.presentations-hero {
 		position: relative;
 		display: grid;
 		grid-template-columns: minmax(360px, 0.88fr) minmax(430px, 1.12fr);
-		min-height: 380px;
+		min-block-size: 380px;
 		align-items: center;
 		gap: var(--space-5);
-		padding: var(--space-7) 4.6%;
-		overflow: hidden;
+		padding-block-start: var(--space-7);
+		padding-block-end: var(--space-7);
+		padding-inline-start: 4.6%;
+		padding-inline-end: 4.6%;
+		overflow: clip;
 		border: 0;
 		border-radius: var(--radius-sm);
 		background: var(--cream) url('/art/scrapbook-paper.svg') center / 100% 100% no-repeat;
@@ -554,11 +563,11 @@
 	.presentations-hero::before {
 		position: absolute;
 		z-index: -1;
-		right: -2%;
-		bottom: -23%;
-		width: 61%;
-		height: 82%;
-		background: #e6dafa;
+		inset-inline-end: -2%;
+		inset-block-end: -23%;
+		inline-size: 61%;
+		block-size: 82%;
+		background: oklch(0.907718 0.044962 302.5403);
 		clip-path: polygon(
 			4% 5%,
 			30% 0,
@@ -577,11 +586,11 @@
 	.presentations-hero::after {
 		position: absolute;
 		z-index: -1;
-		top: -23%;
-		right: 30%;
-		width: 31%;
-		height: 72%;
-		background: #fbe787;
+		inset-block-start: -23%;
+		inset-inline-end: 30%;
+		inline-size: 31%;
+		block-size: 72%;
+		background: oklch(0.924103 0.118789 97.8619);
 		clip-path: polygon(5% 0, 92% 5%, 100% 86%, 68% 100%, 3% 90%);
 		opacity: 0.82;
 		transform: rotate(7deg);
@@ -591,25 +600,37 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
-		margin: 0 0 var(--space-4);
+		margin-block-start: 0;
+		margin-block-end: var(--space-4);
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		font-size: 10px;
 		font-weight: 800;
 		letter-spacing: 0.12em;
-		padding: var(--space-2) var(--space-3);
-		background: #ffffffb8;
+		padding-block-start: var(--space-2);
+		padding-block-end: var(--space-2);
+		padding-inline-start: var(--space-3);
+		padding-inline-end: var(--space-3);
+		background: color-mix(in oklch, oklch(1 0 none) 72.1569%, transparent);
 		box-shadow: var(--shadow);
 		color: var(--scrapbook-green);
 		transform: rotate(-2deg);
 	}
 	.presentations-hero h1 {
-		margin: 0 0 var(--space-4);
+		margin-block-start: 0;
+		margin-block-end: var(--space-4);
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		font-size: clamp(2.45rem, 5.1cqw, 5.8rem);
 		line-height: 0.98;
 		letter-spacing: -0.06em;
 	}
 	.presentations-hero h1 em {
 		display: inline-block;
-		padding: 0 var(--space-2) var(--space-1);
+		padding-block-start: 0;
+		padding-block-end: var(--space-1);
+		padding-inline-start: var(--space-2);
+		padding-inline-end: var(--space-2);
 		background: var(--scrapbook-yellow);
 		color: var(--scrapbook-green);
 		font-family: Chewy, cursive;
@@ -617,13 +638,13 @@
 		transform: rotate(-2deg);
 	}
 	.presentation-hero-copy > p:not(.hero-kicker) {
-		max-width: 58ch;
+		max-inline-size: 58ch;
 		margin: 0;
-		color: #344960;
+		color: oklch(0.398016 0.047175 251.2854);
 		font-size: clamp(14px, 1.15cqw, 18px);
 	}
 	.presentation-hero-actions .button {
-		min-height: 48px;
+		min-block-size: 48px;
 		padding-inline: var(--space-5);
 		box-shadow: var(--shadow);
 	}
@@ -631,26 +652,34 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-2) var(--space-4);
-		margin: var(--space-4) 0 0;
+		margin-block-start: var(--space-4);
+		margin-block-end: 0;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		padding: 0;
-		color: #36584e;
+		color: oklch(0.430973 0.043219 173.6279);
 		font-size: 11px;
 		font-weight: 800;
 		list-style: none;
 	}
 	.presentation-hero-points li::before {
-		margin-right: 6px;
+		margin-inline-end: 6px;
 		color: var(--mint);
 		content: '✦';
 	}
 	.presentation-hero-art img {
 		position: absolute;
 		z-index: 2;
-		inset: 50% -2% auto auto;
-		width: min(100%, 720px);
-		height: auto;
+		inset-block-start: 50%;
+		inset-block-end: auto;
+		inset-inline-start: auto;
+		inset-inline-end: -2%;
+		inline-size: min(100%, 720px);
+		block-size: auto;
 		object-fit: contain;
-		filter: drop-shadow(0 14px 11px #08152f1c);
+		filter: drop-shadow(
+			0 14px 11px color-mix(in oklch, oklch(0.201186 0.055198 262.3998) 10.9804%, transparent)
+		);
 		transform: translateY(-48%) rotate(1deg);
 	}
 	.presentation-art-note {
@@ -670,17 +699,23 @@
 		line-height: 1.2;
 	}
 	.presentation-art-note {
-		top: 3%;
-		right: 3%;
-		padding: var(--space-2) var(--space-3);
-		background: #fffdf3;
+		inset-block-start: 3%;
+		inset-inline-end: 3%;
+		padding-block-start: var(--space-2);
+		padding-block-end: var(--space-2);
+		padding-inline-start: var(--space-3);
+		padding-inline-end: var(--space-3);
+		background: oklch(0.992859 0.013302 97.4358);
 		font-size: clamp(12px, 1.2cqw, 19px);
 		transform: rotate(7deg);
 	}
 	.presentation-art-caption {
-		right: 0;
-		bottom: 0;
-		padding: var(--space-3) var(--space-4);
+		inset-inline-end: 0;
+		inset-block-end: 0;
+		padding-block-start: var(--space-3);
+		padding-block-end: var(--space-3);
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
 		background: var(--blush);
 		font-size: clamp(12px, 1.35cqw, 21px);
 		transform: rotate(-6deg);
@@ -688,11 +723,17 @@
 	.presentation-art-tape {
 		position: absolute;
 		z-index: 3;
-		top: 1%;
-		left: 39%;
-		width: 18%;
-		height: 28px;
-		background: repeating-linear-gradient(90deg, #00875e5c 0 7px, transparent 7px 14px), #e8f4d9cc;
+		inset-block-start: 1%;
+		inset-inline-start: 39%;
+		inline-size: 18%;
+		block-size: 28px;
+		background:
+			repeating-linear-gradient(
+				90deg,
+				color-mix(in oklch, oklch(0.551582 0.11869 163.307) 36.0784%, transparent) 0 7px,
+				transparent 7px 14px
+			),
+			color-mix(in oklch, oklch(0.951003 0.037821 126.724) 80%, transparent);
 		transform: rotate(-8deg);
 	}
 	.presentation-library-controls {
@@ -700,54 +741,70 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-5);
-		padding: var(--space-4) var(--space-5);
+		padding-block-start: var(--space-4);
+		padding-block-end: var(--space-4);
+		padding-inline-start: var(--space-5);
+		padding-inline-end: var(--space-5);
 		border: 1px solid var(--line);
 		border-radius: 28px;
 		background: var(--surface);
 	}
 	.presentation-library-controls h2 {
-		margin: var(--space-1) 0 0;
+		margin-block-start: var(--space-1);
+		margin-block-end: 0;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		font-size: clamp(21px, 2cqw, 28px);
 	}
 	.presentation-library-controls > div > p:not(.presentation-library-eyebrow) {
-		margin: var(--space-1) 0 0;
+		margin-block-start: var(--space-1);
+		margin-block-end: 0;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		color: var(--muted);
 		font-size: 13px;
 	}
 	.presentation-library-search {
 		display: flex;
-		min-height: 46px;
+		min-block-size: 46px;
 		align-items: center;
 		gap: var(--space-2);
-		padding: 0 var(--space-4);
-		border: 1px solid #e0e8ef;
+		padding-block-start: 0;
+		padding-block-end: 0;
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
+		border: 1px solid oklch(0.926972 0.012822 244.2612);
 		border-radius: 999px;
-		background: #f4f6f9;
+		background: oklch(0.972476 0.004538 258.3246);
 		color: var(--muted);
 	}
 	.presentation-library-search:focus-within {
 		border-color: var(--mint);
-		box-shadow: 0 0 0 3px #08b8791f;
+		box-shadow: 0 0 0 3px
+			color-mix(in oklch, oklch(0.690943 0.155538 159.8206) 12.1569%, transparent);
 	}
 	.presentation-library-search input {
-		width: min(22vw, 250px);
-		min-width: 160px;
+		inline-size: min(22vw, 250px);
+		min-inline-size: 160px;
 		border: 0;
-		outline: 0;
 		background: transparent;
 		color: var(--ink);
 		font-size: 13px;
 	}
 	.presentation-library-state {
 		display: grid;
-		min-height: 300px;
+		min-block-size: 300px;
 		place-content: center;
 		justify-items: center;
 		gap: var(--space-3);
 		padding: var(--space-7);
 		border-style: dashed;
-		border-color: #a9d8c5;
-		background: radial-gradient(ellipse at bottom, #eaf8ef, #fff 72%);
+		border-color: oklch(0.84373 0.055715 168.3355);
+		background: radial-gradient(
+			ellipse at bottom,
+			oklch(0.966239 0.018933 157.8754),
+			oklch(1 0 none) 72%
+		);
 		text-align: center;
 	}
 	.presentation-library-state h2 {
@@ -757,7 +814,7 @@
 		margin: 0;
 	}
 	.presentation-library-state p {
-		max-width: 58ch;
+		max-inline-size: 58ch;
 		color: var(--muted);
 	}
 	.presentation-library-alert {
@@ -768,47 +825,48 @@
 	.presentation-library-empty {
 		display: grid;
 		grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
-		min-height: 410px;
-		overflow: hidden;
-		border: 1px solid #e4ebe3;
+		min-block-size: 410px;
+		overflow: clip;
+		border: 1px solid oklch(0.932524 0.013005 141.8097);
 		border-radius: var(--radius);
 		background: var(--surface-warm);
 	}
 	.presentation-empty-art {
 		position: relative;
-		min-height: 410px;
-		overflow: hidden;
-		background: #dff2e9;
+		min-block-size: 410px;
+		overflow: clip;
+		background: oklch(0.944608 0.023327 165.8476);
 		isolation: isolate;
 	}
 	.presentation-empty-art::before {
 		position: absolute;
-		top: -115px;
-		left: -100px;
-		width: 350px;
-		height: 350px;
-		border: 1px solid #b5decf;
+		inset-block-start: -115px;
+		inset-inline-start: -100px;
+		inline-size: 350px;
+		block-size: 350px;
+		border: 1px solid oklch(0.867119 0.047621 170.9234);
 		border-radius: 50%;
 		box-shadow:
-			0 0 0 65px #ffffff35,
-			0 0 0 130px #ffffff25;
+			0 0 0 65px color-mix(in oklch, oklch(1 0 none) 20.7843%, transparent),
+			0 0 0 130px color-mix(in oklch, oklch(1 0 none) 14.5098%, transparent);
 		content: '';
 	}
 	.presentation-empty-slide {
 		position: absolute;
-		top: 15%;
-		left: 11%;
+		inset-block-start: 15%;
+		inset-inline-start: 11%;
 		display: flex;
-		width: 73%;
+		inline-size: 73%;
 		aspect-ratio: 16 / 10;
 		flex-direction: column;
 		align-items: flex-start;
 		justify-content: center;
 		gap: 20px;
 		padding: clamp(20px, 3.2cqw, 48px);
-		border: 9px solid white;
-		background: #fff3cd;
-		box-shadow: 0 20px 32px #245c4830;
+		border: 9px solid oklch(1 0 none);
+		background: oklch(0.96403 0.050936 92.5537);
+		box-shadow: 0 20px 32px
+			color-mix(in oklch, oklch(0.431147 0.068197 166.8422) 18.8235%, transparent);
 		transform: rotate(-7deg);
 	}
 	.presentation-empty-slide-label {
@@ -824,36 +882,38 @@
 			cursive;
 	}
 	.presentation-empty-slide-line {
-		width: 38%;
-		height: 8px;
+		inline-size: 38%;
+		block-size: 8px;
 		background: var(--mint);
 		transform: rotate(-3deg);
 	}
 	.presentation-empty-cat {
 		position: absolute;
 		z-index: 2;
-		right: 2%;
-		bottom: -16%;
-		width: min(52%, 285px);
-		height: auto;
-		filter: drop-shadow(0 12px 10px #245c4826);
+		inset-inline-end: 2%;
+		inset-block-end: -16%;
+		inline-size: min(52%, 285px);
+		block-size: auto;
+		filter: drop-shadow(
+			0 12px 10px color-mix(in oklch, oklch(0.431147 0.068197 166.8422) 14.902%, transparent)
+		);
 		transform: rotate(8deg);
 	}
 	.presentation-empty-tape {
 		position: absolute;
 		z-index: 3;
-		top: 9%;
-		left: 34%;
-		width: 85px;
-		height: 26px;
-		background: #f4a9b4c9;
+		inset-block-start: 9%;
+		inset-inline-start: 34%;
+		inline-size: 85px;
+		block-size: 26px;
+		background: color-mix(in oklch, oklch(0.809613 0.089296 9.5851) 78.8235%, transparent);
 		transform: rotate(-5deg);
 	}
 	.presentation-empty-spark {
 		position: absolute;
-		top: 12%;
-		right: 8%;
-		color: #db9f00;
+		inset-block-start: 12%;
+		inset-inline-end: 8%;
+		color: oklch(0.740228 0.15274 81.4112);
 		font-size: 46px;
 		line-height: 1;
 	}
@@ -865,7 +925,10 @@
 		padding: clamp(32px, 5cqw, 76px);
 	}
 	.presentation-empty-copy h2 {
-		margin: 18px 0 14px;
+		margin-block-start: 18px;
+		margin-block-end: 14px;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		color: var(--ink);
 		font:
 			700 clamp(32px, 3.7cqw, 52px)/1.04 Fredoka,
@@ -882,19 +945,25 @@
 		text-transform: uppercase;
 	}
 	.presentation-empty-description {
-		max-width: 35ch;
-		margin: 0 0 25px;
-		color: #43576c;
+		max-inline-size: 35ch;
+		margin-block-start: 0;
+		margin-block-end: 25px;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
+		color: oklch(0.448776 0.042529 250.0267);
 		font-size: clamp(15px, 1.35cqw, 18px);
 		line-height: 1.6;
 	}
 	.presentation-empty-copy .button {
-		min-height: 50px;
+		min-block-size: 50px;
 		padding-inline: 22px;
 	}
 	.presentation-empty-restore {
-		max-width: 42ch;
-		margin: 24px 0 0;
+		max-inline-size: 42ch;
+		margin-block-start: 24px;
+		margin-block-end: 0;
+		margin-inline-start: 0;
+		margin-inline-end: 0;
 		color: var(--muted);
 		font-size: 12px;
 		line-height: 1.55;
@@ -903,8 +972,8 @@
 		color: var(--scrapbook-green);
 	}
 	:global(.presentation-library-no-results > svg) {
-		width: 58px;
-		height: 58px;
+		inline-size: 58px;
+		block-size: 58px;
 		padding: 14px;
 		border-radius: 18px;
 		background: var(--pale);
@@ -920,51 +989,69 @@
 		list-style: none;
 	}
 	.presentation-grid li {
-		min-width: 0;
+		min-inline-size: 0;
 	}
 	.presentation-card {
 		display: flex;
 		flex-direction: column;
-		height: 100%;
+		block-size: 100%;
 		padding: var(--space-3);
 		border: 1px solid var(--line);
 		border-radius: var(--radius);
 		background: var(--surface);
 		box-shadow: var(--shadow);
 		color: var(--ink);
-		transition:
-			border-color 160ms ease,
-			box-shadow 160ms ease,
-			transform 160ms ease;
 	}
-	.presentation-card:hover {
-		border-color: #9ddaca;
-		box-shadow: var(--shadow-hover);
-		transform: translateY(-3px);
+	@media (prefers-reduced-motion: no-preference) {
+		.presentation-card {
+			transition:
+				border-color 160ms ease-out,
+				box-shadow 160ms ease-out,
+				transform 160ms ease-out;
+		}
+	}
+	@media (hover: hover) and (pointer: fine) {
+		.presentation-card:hover {
+			border-color: oklch(0.842353 0.066178 176.5591);
+			box-shadow: var(--shadow-hover);
+			transform: translateY(-3px);
+		}
 	}
 	.presentation-card-preview {
 		position: relative;
 		display: grid;
 		aspect-ratio: 16 / 9;
 		place-items: center;
-		overflow: hidden;
+		overflow: clip;
 		padding: var(--space-5);
 		border-radius: var(--radius-sm);
-		background: linear-gradient(145deg, #d9f4e9, #fff0b9);
+		background: linear-gradient(
+			145deg,
+			oklch(0.944479 0.031821 169.2047),
+			oklch(0.953893 0.072171 94.6375)
+		);
 	}
 	.presentation-grid li:nth-child(3n + 2) .presentation-card-preview {
-		background: linear-gradient(145deg, #e9defa, #ffdbe9);
+		background: linear-gradient(
+			145deg,
+			oklch(0.917772 0.039377 303.4203),
+			oklch(0.925361 0.043692 352.5683)
+		);
 	}
 	.presentation-grid li:nth-child(3n) .presentation-card-preview {
-		background: linear-gradient(145deg, #d9eeff, #f7e4ba);
+		background: linear-gradient(
+			145deg,
+			oklch(0.938812 0.032076 242.3531),
+			oklch(0.923802 0.058474 86.5265)
+		);
 	}
 	.presentation-card-preview::before {
 		position: absolute;
-		top: 8%;
-		right: 7%;
-		width: 28%;
-		height: 16px;
-		background: #f4a9b4a3;
+		inset-block-start: 8%;
+		inset-inline-end: 7%;
+		inline-size: 28%;
+		block-size: 16px;
+		background: color-mix(in oklch, oklch(0.809613 0.089296 9.5851) 63.9216%, transparent);
 		box-shadow: var(--shadow);
 		transform: rotate(8deg);
 		content: '';
@@ -973,15 +1060,15 @@
 		position: relative;
 		display: grid;
 		z-index: 1;
-		width: 74%;
-		height: 68%;
+		inline-size: 74%;
+		block-size: 68%;
 		place-content: center;
 		justify-items: center;
 		gap: var(--space-2);
-		overflow: hidden;
+		overflow: clip;
 		padding: var(--space-3);
-		border: 6px solid #fff;
-		background: #fffdf5;
+		border: 6px solid oklch(1 0 none);
+		background: oklch(0.993391 0.010731 95.1592);
 		box-shadow: var(--shadow-hover);
 		color: var(--scrapbook-green);
 		text-align: center;
@@ -989,10 +1076,10 @@
 	}
 	.presentation-card-paper::after {
 		position: absolute;
-		right: -8%;
-		bottom: -30%;
-		width: 52%;
-		height: 58%;
+		inset-inline-end: -8%;
+		inset-block-end: -30%;
+		inline-size: 52%;
+		block-size: 58%;
 		border-radius: 50%;
 		background: var(--mint);
 		opacity: 0.18;
@@ -1002,7 +1089,7 @@
 		position: relative;
 		z-index: 1;
 		display: -webkit-box;
-		max-width: 100%;
+		max-inline-size: 100%;
 		overflow: hidden;
 		font:
 			400 17px/1.05 Chewy,
@@ -1013,19 +1100,22 @@
 		-webkit-line-clamp: 2;
 	}
 	.presentation-card-paper em {
-		width: 54%;
-		height: 7px;
+		inline-size: 54%;
+		block-size: 7px;
 		background: var(--scrapbook-yellow);
 		transform: rotate(-4deg);
 	}
 	.presentation-card-preview > i {
 		position: absolute;
 		z-index: 3;
-		right: var(--space-2);
-		bottom: var(--space-2);
-		padding: 4px 8px;
+		inset-inline-end: var(--space-2);
+		inset-block-end: var(--space-2);
+		padding-block-start: 4px;
+		padding-block-end: 4px;
+		padding-inline-start: 8px;
+		padding-inline-end: 8px;
 		border-radius: 999px;
-		background: #ffffffdc;
+		background: color-mix(in oklch, oklch(1 0 none) 86.2745%, transparent);
 		color: var(--muted);
 		font-size: 9px;
 		font-style: normal;
@@ -1040,19 +1130,25 @@
 	}
 	/* Always visible, never hover-only, and big enough to tap at 390px. */
 	.presentation-card-actions .button.icon {
-		width: 44px;
-		min-height: 44px;
+		inline-size: 44px;
+		min-block-size: 44px;
 	}
 	.presentation-card-title strong {
-		min-width: 0;
+		min-inline-size: 0;
 		overflow-wrap: anywhere;
 	}
 	:global(.presentation-card-title svg) {
 		color: var(--scrapbook-green);
-		transition: transform 160ms ease;
 	}
-	.presentation-card:hover :global(.presentation-card-title svg) {
-		transform: translateX(3px);
+	@media (prefers-reduced-motion: no-preference) {
+		:global(.presentation-card-title svg) {
+			transition: transform 160ms ease-out;
+		}
+	}
+	@media (hover: hover) and (pointer: fine) {
+		.presentation-card:hover :global(.presentation-card-title svg) {
+			transform: translateX(3px);
+		}
 	}
 	.presentation-card-body small {
 		display: flex;
@@ -1061,7 +1157,7 @@
 		color: var(--muted);
 	}
 	.presentation-card-body small:last-child {
-		color: #007b55;
+		color: oklch(0.515677 0.11125 163.1262);
 		font-weight: 800;
 	}
 	.dialog-field label {
@@ -1069,34 +1165,40 @@
 		font-weight: 700;
 	}
 	.dialog-field input {
-		width: 100%;
-		min-height: 48px;
-		padding: var(--space-3) var(--space-4);
-		border: 1px solid #d5dfdc;
+		inline-size: 100%;
+		min-block-size: 48px;
+		padding-block-start: var(--space-3);
+		padding-block-end: var(--space-3);
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
+		border: 1px solid oklch(0.895183 0.011489 176.2807);
 		border-radius: var(--radius-sm);
-		background: #fcfdfb;
+		background: oklch(0.992736 0.002826 128.4918);
 		font: inherit;
 	}
 	:global(.dialog-field textarea) {
-		width: 100%;
-		min-height: 48px;
-		padding: var(--space-3) var(--space-4);
-		border: 1px solid #d5dfdc;
+		inline-size: 100%;
+		min-block-size: 48px;
+		padding-block-start: var(--space-3);
+		padding-block-end: var(--space-3);
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
+		border: 1px solid oklch(0.895183 0.011489 176.2807);
 		border-radius: var(--radius-sm);
-		background: #fcfdfb;
+		background: oklch(0.992736 0.002826 128.4918);
 		font: inherit;
 	}
 	@media (max-width: 1150px) {
 		.presentations-hero {
 			grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-			min-height: 340px;
+			min-block-size: 340px;
 			padding: var(--space-6);
 		}
 		.presentations-hero h1 {
 			font-size: clamp(2.2rem, 5cqw, 3.7rem);
 		}
 		.presentation-hero-art {
-			min-height: 270px;
+			min-block-size: 270px;
 		}
 		.presentation-library-controls {
 			align-items: flex-start;
@@ -1113,21 +1215,21 @@
 		.presentations-hero {
 			grid-template-columns: 1fr;
 			gap: var(--space-3);
-			min-height: 0;
+			min-block-size: 0;
 			padding: var(--space-5);
 			background-size: auto 100%;
 		}
 		.presentations-hero::before {
-			right: -22%;
-			bottom: -12%;
-			width: 112%;
-			height: 48%;
+			inset-inline-end: -22%;
+			inset-block-end: -12%;
+			inline-size: 112%;
+			block-size: 48%;
 		}
 		.presentations-hero::after {
-			top: -8%;
-			right: -22%;
-			width: 70%;
-			height: 40%;
+			inset-block-start: -8%;
+			inset-inline-end: -22%;
+			inline-size: 70%;
+			block-size: 40%;
 		}
 		.presentations-hero h1 {
 			font-size: clamp(2.25rem, 12cqw, 3.2rem);
@@ -1138,33 +1240,36 @@
 		.presentation-hero-actions .button {
 			flex: 1 1 100%;
 			justify-content: center;
-			width: 100%;
+			inline-size: 100%;
 		}
 		.presentation-hero-points {
 			gap: var(--space-2) var(--space-3);
 			font-size: 10px;
 		}
 		.presentation-hero-art {
-			width: 100%;
-			min-height: 220px;
+			inline-size: 100%;
+			min-block-size: 220px;
 		}
 		.presentation-hero-art img {
-			right: -7%;
-			width: 112%;
+			inset-inline-end: -7%;
+			inline-size: 112%;
 		}
 		.presentation-art-note {
-			top: 0;
-			right: 0;
+			inset-block-start: 0;
+			inset-inline-end: 0;
 		}
 		.presentation-art-caption {
-			right: -2%;
-			bottom: 0;
-			padding: var(--space-2) var(--space-3);
+			inset-inline-end: -2%;
+			inset-block-end: 0;
+			padding-block-start: var(--space-2);
+			padding-block-end: var(--space-2);
+			padding-inline-start: var(--space-3);
+			padding-inline-end: var(--space-3);
 			font-size: 12px;
 		}
 		.presentation-art-tape {
-			left: 38%;
-			height: 18px;
+			inset-inline-start: 38%;
+			block-size: 18px;
 		}
 		.presentation-library-controls {
 			align-items: stretch;
@@ -1179,30 +1284,30 @@
 			gap: var(--space-3);
 		}
 		.presentation-library-search {
-			width: 100%;
+			inline-size: 100%;
 		}
 		.presentation-library-search input {
-			width: 100%;
-			min-width: 0;
+			inline-size: 100%;
+			min-inline-size: 0;
 		}
 		.presentation-device-note {
 			margin: 0;
 			white-space: normal;
 		}
 		.presentation-library-state {
-			min-height: 240px;
+			min-block-size: 240px;
 			padding: var(--space-5);
 		}
 		.presentation-library-empty {
 			grid-template-columns: 1fr;
 		}
 		.presentation-empty-art {
-			min-height: 250px;
+			min-block-size: 250px;
 		}
 		.presentation-empty-slide {
-			top: 12%;
-			left: 10%;
-			width: min(68%, 320px);
+			inset-block-start: 12%;
+			inset-inline-start: 10%;
+			inline-size: min(68%, 320px);
 			gap: 10px;
 			padding: 22px;
 			border-width: 6px;
@@ -1211,21 +1316,27 @@
 			font-size: clamp(24px, 7cqw, 36px);
 		}
 		.presentation-empty-cat {
-			right: 10%;
-			bottom: -22%;
-			width: min(40%, 170px);
+			inset-inline-end: 10%;
+			inset-block-end: -22%;
+			inline-size: min(40%, 170px);
 		}
 		.presentation-empty-copy {
-			padding: 32px 26px 36px;
+			padding-block-start: 32px;
+			padding-block-end: 36px;
+			padding-inline-start: 26px;
+			padding-inline-end: 26px;
 		}
 		.presentation-empty-copy h2 {
-			margin: 14px 0 10px;
+			margin-block-start: 14px;
+			margin-block-end: 10px;
+			margin-inline-start: 0;
+			margin-inline-end: 0;
 		}
 		.presentation-empty-description {
-			margin-bottom: 22px;
+			margin-block-end: 22px;
 		}
 		.presentation-empty-restore {
-			margin-top: 20px;
+			margin-block-start: 20px;
 		}
 		.presentation-grid {
 			grid-template-columns: 1fr;

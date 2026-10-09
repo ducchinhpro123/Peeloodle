@@ -84,13 +84,13 @@
 		display: grid;
 		place-items: center;
 		aspect-ratio: 4 / 3;
-		overflow: hidden;
+		overflow: clip;
 		border-radius: var(--radius-sm);
 		background: var(--surface);
 	}
 	.catalog-preview img {
-		max-width: 100%;
-		max-height: 100%;
+		max-inline-size: 100%;
+		max-block-size: 100%;
 		object-fit: contain;
 	}
 	.catalog-preview-note {

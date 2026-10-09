@@ -34,17 +34,21 @@
 </script>
 
 <span
-	class="slider [position:relative] [display:flex] [height:18px] [width:130px] [touch-action:none] [align-items:center] [user-select:none]"
+	class="slider [position:relative] [display:flex] [touch-action:none] [align-items:center] [block-size:18px] [inline-size:130px] [user-select:none]"
 	data-slot="slider"
 	data-disabled={disabled ? '' : undefined}
 >
 	<span class="slider-track" data-slot="slider-track">
-		<span class="slider-range" data-slot="slider-range" style:width="{percent}%"></span>
+		<span class="slider-range" data-slot="slider-range" style:inline-size="{percent}%"></span>
 	</span>
-	<span class="slider-thumb" data-slot="slider-thumb" style:left="calc({percent}% - 8px)"></span>
+	<span
+		class="slider-thumb"
+		data-slot="slider-thumb"
+		style:inset-inline-start="calc({percent}% - 8px)"
+	></span>
 	<input
 		type="range"
-		class="slider-input [position:absolute] [inset:0] [margin:0] [height:100%] [width:100%] [cursor:pointer] [opacity:0]"
+		class="slider-input [position:absolute] [inset:0] [margin:0] [cursor:pointer] [opacity:0] [block-size:100%] [inline-size:100%]"
 		{min}
 		{max}
 		{disabled}
@@ -65,9 +69,6 @@
 </span>
 
 <style>
-	.slider-input:focus-visible + :global(*) {
-		outline: none;
-	}
 	.slider:has(.slider-input:focus-visible) {
 		outline: 2px solid var(--mint);
 		outline-offset: 2px;
@@ -77,26 +78,27 @@
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.slider-track {
 		position: relative;
-		height: 5px;
+		block-size: 5px;
 		flex-grow: 1;
-		overflow: hidden;
+		overflow: clip;
 		border-radius: 999px;
-		background: #dce4e8;
+		background: oklch(0.913945 0.01021 228.8981);
 	}
 	.slider-range {
 		position: absolute;
-		height: 100%;
+		block-size: 100%;
 		border-radius: 999px;
 		background: var(--mint);
 	}
 	.slider-thumb {
 		display: block;
-		width: 17px;
-		height: 17px;
-		border: 2px solid #fff;
+		inline-size: 17px;
+		block-size: 17px;
+		border: 2px solid oklch(1 0 none);
 		border-radius: 50%;
-		background: #009b6c;
-		box-shadow: 0 1px 3px #001a3544;
+		background: oklch(0.609926 0.131697 163.0653);
+		box-shadow: 0 1px 3px
+			color-mix(in oklch, oklch(0.215483 0.062586 250.954) 26.6667%, transparent);
 	}
 	.slider[data-disabled] {
 		opacity: 0.55;

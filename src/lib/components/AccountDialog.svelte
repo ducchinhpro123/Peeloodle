@@ -199,7 +199,7 @@
 			Favorites remain browser-local and do not synchronize. Public sharing is not available.
 		</p>
 		<div
-			class="dialog-footer [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-3)] [padding-top:var(--space-5)] [border-top:1px_solid_var(--line)]"
+			class="dialog-footer [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-3)] [padding-block-start:var(--space-5)] [border-block-start:1px_solid_var(--line)]"
 		>
 			<button type="button" class={button} onclick={() => (open = false)}>Close</button>
 			<button type="button" class={button} disabled={busy} onclick={() => void run(signOut)}
@@ -228,7 +228,7 @@
 				Signing in will not upload your guest photos. You choose whether to import them afterward.
 			</p>
 			<div
-				class="dialog-footer [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-3)] [padding-top:var(--space-5)] [border-top:1px_solid_var(--line)]"
+				class="dialog-footer [display:flex] [flex-wrap:wrap] [justify-content:flex-end] [gap:var(--space-3)] [padding-block-start:var(--space-5)] [border-block-start:1px_solid_var(--line)]"
 			>
 				<button type="button" class={button} onclick={() => (open = false)}
 					>Keep editing locally</button
@@ -249,19 +249,19 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		min-width: 44px;
-		min-height: 44px;
+		min-inline-size: 44px;
+		min-block-size: 44px;
 		font-size: 13px;
 		font-weight: 600;
 	}
 	.profile span {
 		display: grid;
-		width: 28px;
-		height: 28px;
+		inline-size: 28px;
+		block-size: 28px;
 		place-items: center;
 		border-radius: 50%;
-		background: #1e3b5d;
-		color: #fff;
+		background: oklch(0.347462 0.069388 253.6507);
+		color: oklch(1 0 none);
 		font-size: 12px;
 		font-weight: 700;
 	}
@@ -274,20 +274,26 @@
 		font-weight: 700;
 	}
 	.dialog-field input {
-		width: 100%;
-		min-height: 48px;
-		padding: var(--space-3) var(--space-4);
-		border: 1px solid #d5dfdc;
+		inline-size: 100%;
+		min-block-size: 48px;
+		padding-block-start: var(--space-3);
+		padding-block-end: var(--space-3);
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
+		border: 1px solid oklch(0.895183 0.011489 176.2807);
 		border-radius: var(--radius-sm);
-		background: #fcfdfb;
+		background: oklch(0.992736 0.002826 128.4918);
 		font: inherit;
 	}
 	.profile-header {
 		position: relative;
 		flex-shrink: 0;
-		min-height: 52px;
+		min-block-size: 52px;
 		gap: var(--space-3);
-		padding: var(--space-2) var(--space-4);
+		padding-block-start: var(--space-2);
+		padding-block-end: var(--space-2);
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
 		border: 0;
 		border-radius: var(--radius);
 		background: var(--canvas);
@@ -295,28 +301,28 @@
 		font-size: clamp(14px, 1.08vw, 18px);
 	}
 	.profile-header span {
-		width: 36px;
-		height: 36px;
+		inline-size: 36px;
+		block-size: 36px;
 		font-size: 17px;
 		font-weight: 500;
 	}
 	.profile-header::before {
 		position: absolute;
-		top: -4px;
-		right: -9px;
-		width: 35px;
-		height: 21px;
-		background: #ffe3a4b3;
+		inset-block-start: -4px;
+		inset-inline-end: -9px;
+		inline-size: 35px;
+		block-size: 21px;
+		background: color-mix(in oklch, oklch(0.924384 0.085574 86.697) 70.1961%, transparent);
 		transform: rotate(45deg);
 		content: '';
 		pointer-events: none;
 	}
 	.profile-header::after {
 		position: absolute;
-		right: -22px;
-		bottom: -8px;
-		width: 22px;
-		height: 26px;
+		inset-inline-end: -22px;
+		inset-block-end: -8px;
+		inline-size: 22px;
+		block-size: 26px;
 		background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 27 32'%3E%3Cpath d='m15 3 9-1M11 13l10 5M4 20l2 9' fill='none' stroke='%231c3a52' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E")
 			center / contain no-repeat;
 		content: '';
@@ -324,12 +330,12 @@
 	}
 	@media (max-width: 1150px) {
 		.profile-header {
-			min-height: 48px;
+			min-block-size: 48px;
 			padding: var(--space-2);
 		}
 		.profile-header span {
-			width: 32px;
-			height: 32px;
+			inline-size: 32px;
+			block-size: 32px;
 			font-size: 14px;
 		}
 		.profile-header::after {
@@ -339,8 +345,8 @@
 	@media (max-width: 720px) {
 		.profile-header {
 			grid-area: 1 / 3;
-			width: 44px;
-			min-height: 44px;
+			inline-size: 44px;
+			min-block-size: 44px;
 			padding: 6px;
 		}
 		.profile-header b,
@@ -348,9 +354,9 @@
 			display: none;
 		}
 		.profile-header::before {
-			right: -3px;
-			width: 22px;
-			height: 12px;
+			inset-inline-end: -3px;
+			inline-size: 22px;
+			block-size: 12px;
 		}
 	}
 </style>

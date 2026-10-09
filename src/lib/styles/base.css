@@ -10,6 +10,21 @@
 	h2,
 	h3 {
 		font-weight: 800;
+		text-wrap: balance;
+	}
+
+	html {
+		scrollbar-gutter: stable;
+		scroll-padding-block-start: var(--header-height);
+		overflow-wrap: break-word;
+		overscroll-behavior-y: none;
+	}
+	html:has(.editor-layout) {
+		scrollbar-gutter: auto;
+	}
+	html:has(dialog:modal) {
+		/* Keep the root scroll container so closing a dialog preserves its position. */
+		overflow: hidden;
 	}
 
 	button,
@@ -22,12 +37,13 @@
 	 * is inset by the browser's default 8px margin. */
 	body {
 		margin: 0;
+		min-block-size: 100svh;
 	}
 	input[type='checkbox'],
 	input[type='radio'] {
 		accent-color: var(--primary);
-		width: 18px;
-		height: 18px;
+		inline-size: 18px;
+		block-size: 18px;
 		flex-shrink: 0;
 	}
 	textarea {
@@ -42,9 +58,66 @@
 	button {
 		cursor: pointer;
 	}
+	button,
+	a,
+	[role='button'] {
+		touch-action: manipulation;
+	}
+	button:not(:disabled):active,
+	a[href]:active,
+	[role='button']:not([aria-disabled='true']):active {
+		opacity: 0.8;
+	}
+	input[type='range'] {
+		font-variant-numeric: tabular-nums;
+	}
+	@media (any-pointer: coarse) {
+		html {
+			overscroll-behavior-y: auto;
+		}
+		input:not([type='range'], [type='checkbox'], [type='radio'], [type='color']),
+		textarea,
+		select {
+			font-size: max(16px, 1rem);
+		}
+	}
 	:focus-visible {
 		outline: 3px solid var(--primary);
 		outline-offset: 2px;
+	}
+}
+
+@layer utilities {
+	@media (hover: hover) and (pointer: fine) {
+		.button:not(:disabled):hover {
+			background: var(--control-hover);
+			box-shadow: var(--shadow);
+		}
+		.button.primary:not(:disabled):hover {
+			background: var(--primary-hover);
+			box-shadow: 0 4px 0 var(--primary-hover-shadow);
+		}
+		.button.danger:not(:disabled):hover {
+			background: var(--danger-strong);
+		}
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.button {
+			transition:
+				background-color 160ms ease-out,
+				box-shadow 160ms ease-out;
+		}
+		.button.primary {
+			transition:
+				background-color 160ms ease-out,
+				box-shadow 160ms ease-out,
+				transform 160ms ease-out;
+		}
+		@media (hover: hover) and (pointer: fine) {
+			.button.primary:not(:disabled):hover {
+				transform: translateY(-1px);
+			}
+		}
 	}
 }
 
@@ -57,6 +130,7 @@
 	*::before,
 	*::after {
 		transition: none !important;
+		animation: none !important;
 		scroll-behavior: auto !important;
 	}
 }

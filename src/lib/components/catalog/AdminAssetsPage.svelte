@@ -283,7 +283,7 @@
 	{/if}
 	{#if error}
 		<p
-			class="[margin:0] [border-radius:var(--radius-sm)] [padding:8px_10px] [font-size:13px] [color:#8d1d3f] [background:#fdecef]"
+			class="[margin:0] [border-radius:var(--radius-sm)] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:8px] [padding-block-end:8px] [font-size:13px] [color:oklch(0.429217_0.147553_8.5761)] [background:oklch(0.957393_0.018828_5.2919)]"
 			role="alert"
 		>
 			{error}
@@ -306,11 +306,11 @@
 				class="[border-radius:var(--radius-sm)] [padding:8px]"
 			/>
 		</label>
-		<label class="[display:grid] [min-width:0] [gap:4px] [font-size:13px]">
+		<label class="[display:grid] [gap:4px] [font-size:13px] [min-inline-size:0]">
 			Collection
 			<select
 				bind:value={collectionFilter}
-				class="[max-width:100%] [min-width:0] [border-radius:var(--radius-sm)] [padding:8px]"
+				class="[border-radius:var(--radius-sm)] [padding:8px] [max-inline-size:100%] [min-inline-size:0]"
 			>
 				<option value="">Any</option>
 				{#each collections as collection (collection.id)}
@@ -339,7 +339,7 @@
 		</p>
 	{:else}
 		<ul
-			class="asset-grid [margin:0] [display:grid] [grid-template-columns:repeat(auto-fill,_minmax(180px,_1fr))] [gap:var(--space-3)] [padding:0] [list-style:none]"
+			class="asset-grid [margin:0] [display:grid] [grid-template-columns:repeat(auto-fill,_minmax(min(100%,_180px),_1fr))] [gap:var(--space-3)] [padding:0] [list-style:none]"
 		>
 			{#each rows as asset (asset.id)}
 				<li>
@@ -371,7 +371,7 @@
 			aria-label={`Asset ${selected.name}`}
 		>
 			<div class="[display:flex] [align-items:start] [gap:var(--space-3)]">
-				<div class="[display:grid] [min-width:0] [flex:1] [gap:6px]">
+				<div class="[display:grid] [flex:1] [gap:6px] [min-inline-size:0]">
 					<h2 class="[margin:0] [font-size:16px]">{selected.name}</h2>
 					<p class="[margin:0] [font-size:12px] [color:var(--muted)]">
 						{selected.state} · revision {selected.revision}
@@ -387,13 +387,13 @@
 				</div>
 				{#if previewUrl}
 					<img
-						class="preview [width:140px] [border-radius:var(--radius-sm)] [background:var(--surface)]"
+						class="preview [border-radius:var(--radius-sm)] [background:var(--surface)] [inline-size:140px]"
 						src={previewUrl}
 						alt={`Preview of ${selected.name}`}
 					/>
 				{:else}
 					<span
-						class="[display:grid] [height:96px] [width:140px] [place-items:center] [border-radius:var(--radius-sm)] [color:var(--muted)] [background:var(--surface)]"
+						class="[display:grid] [place-items:center] [border-radius:var(--radius-sm)] [color:var(--muted)] [background:var(--surface)] [block-size:96px] [inline-size:140px]"
 					>
 						<ImageOff size={20} aria-hidden="true" />
 					</span>
@@ -441,7 +441,7 @@
 						Tags (comma separated)
 						<input bind:value={form.tags} class="[border-radius:var(--radius-sm)] [padding:8px]" />
 					</label>
-					<label class="[display:grid] [width:110px] [gap:4px] [font-size:13px]">
+					<label class="[display:grid] [gap:4px] [font-size:13px] [inline-size:110px]">
 						Order
 						<input
 							type="number"
@@ -449,11 +449,11 @@
 							class="[border-radius:var(--radius-sm)] [padding:8px]"
 						/>
 					</label>
-					<label class="[display:grid] [min-width:0] [flex:1] [gap:4px] [font-size:13px]">
+					<label class="[display:grid] [flex:1] [gap:4px] [font-size:13px] [min-inline-size:0]">
 						Collection
 						<select
 							bind:value={form.collectionId}
-							class="[max-width:100%] [min-width:0] [border-radius:var(--radius-sm)] [padding:8px]"
+							class="[border-radius:var(--radius-sm)] [padding:8px] [max-inline-size:100%] [min-inline-size:0]"
 						>
 							<option value="">Ungrouped</option>
 							{#each collections as collection (collection.id)}
@@ -464,7 +464,7 @@
 				</div>
 				{#if formError}
 					<p
-						class="[margin:0] [border-radius:var(--radius-sm)] [padding:8px_10px] [font-size:13px] [color:#8d1d3f] [background:#fdecef]"
+						class="[margin:0] [border-radius:var(--radius-sm)] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:8px] [padding-block-end:8px] [font-size:13px] [color:oklch(0.429217_0.147553_8.5761)] [background:oklch(0.957393_0.018828_5.2919)]"
 						role="alert"
 					>
 						{formError}
@@ -519,7 +519,7 @@
 >
 	{#if archiveError}
 		<p
-			class="[margin:0] [border-radius:var(--radius-sm)] [padding:8px_10px] [font-size:13px] [color:#8d1d3f] [background:#fdecef]"
+			class="[margin:0] [border-radius:var(--radius-sm)] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:8px] [padding-block-end:8px] [font-size:13px] [color:oklch(0.429217_0.147553_8.5761)] [background:oklch(0.957393_0.018828_5.2919)]"
 			role="alert"
 		>
 			{archiveError}
@@ -537,14 +537,14 @@
 	.asset-card {
 		display: grid;
 		gap: 4px;
-		width: 100%;
-		min-height: 84px;
+		inline-size: 100%;
+		min-block-size: 84px;
 		align-content: start;
 		padding: var(--space-3);
 		border: 1px solid var(--line);
 		border-radius: var(--radius-sm);
 		background: var(--surface);
-		text-align: left;
+		text-align: start;
 		cursor: pointer;
 	}
 	.asset-card[aria-pressed='true'] {

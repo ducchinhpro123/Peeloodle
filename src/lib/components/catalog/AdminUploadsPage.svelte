@@ -372,7 +372,7 @@
 	{/if}
 	{#if error}
 		<p
-			class="[margin:0] [border-radius:var(--radius-sm)] [padding:8px_10px] [font-size:13px] [color:#8d1d3f] [background:#fdecef]"
+			class="[margin:0] [border-radius:var(--radius-sm)] [padding-inline-start:10px] [padding-inline-end:10px] [padding-block-start:8px] [padding-block-end:8px] [font-size:13px] [color:oklch(0.429217_0.147553_8.5761)] [background:oklch(0.957393_0.018828_5.2919)]"
 			role="alert"
 		>
 			{error}
@@ -388,11 +388,11 @@
 			bucket; validation happens on the server and a file that fails is reported per file.
 		</p>
 		<div class="[display:flex] [flex-wrap:wrap] [align-items:center] [gap:var(--space-3)]">
-			<label class="[display:grid] [min-width:0] [gap:4px] [font-size:13px]">
+			<label class="[display:grid] [gap:4px] [font-size:13px] [min-inline-size:0]">
 				Collection
 				<select
 					bind:value={collectionId}
-					class="[max-width:100%] [min-width:0] [border-radius:var(--radius-sm)] [padding:8px]"
+					class="[border-radius:var(--radius-sm)] [padding:8px] [max-inline-size:100%] [min-inline-size:0]"
 				>
 					<option value="">Ungrouped</option>
 					{#each collections as collection (collection.id)}
@@ -474,9 +474,9 @@
 			<ul class="[margin:0] [display:grid] [gap:8px] [padding:0] [list-style:none]">
 				{#each status.jobs as job (job.id)}
 					<li
-						class="job [display:grid] [grid-template-columns:1fr_auto] [align-items:center] [gap:var(--space-3)] [padding-top:8px] [border-top:1px_solid_var(--line)]"
+						class="job [display:grid] [grid-template-columns:1fr_auto] [align-items:center] [gap:var(--space-3)] [padding-block-start:8px] [border-block-start:1px_solid_var(--line)]"
 					>
-						<div class="[display:grid] [min-width:0] [gap:2px]">
+						<div class="[display:grid] [gap:2px] [min-inline-size:0]">
 							<span class="[font-size:13px] [font-weight:600] [overflow-wrap:anywhere]"
 								>{job.originalName}</span
 							>
@@ -485,7 +485,7 @@
 								{#if job.attempts > 0}· attempt {job.attempts}{/if}
 							</span>
 							{#if job.errorMessage}
-								<span class="[font-size:12px] [color:#8d1d3f]"
+								<span class="[font-size:12px] [color:oklch(0.429217_0.147553_8.5761)]"
 									>{job.errorCode}: {job.errorMessage}</span
 								>
 							{/if}

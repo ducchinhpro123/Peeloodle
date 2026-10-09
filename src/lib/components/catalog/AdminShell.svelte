@@ -36,7 +36,7 @@
 			Catalog administration
 		</p>
 		<h1 class="[margin:0]">Assets and templates</h1>
-		<p class="[margin:0] [max-width:70ch] [font-size:13px] [color:var(--muted)]">
+		<p class="[margin:0] [font-size:13px] [color:var(--muted)] [max-inline-size:70ch]">
 			Draft edits are private until publication. Every operation re-checks administrator membership
 			on the server.
 		</p>
@@ -47,7 +47,7 @@
 	>
 		{#each sections as section (section.href)}
 			<a
-				class="admin-section-link [border-radius:999px] [padding:6px_14px] [font-size:13px] [font-weight:700] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
+				class="admin-section-link [border-radius:999px] [padding-inline-start:14px] [padding-inline-end:14px] [padding-block-start:6px] [padding-block-end:6px] [font-size:13px] [font-weight:700] [color:var(--ink)] [background:var(--surface)] [border:1px_solid_var(--line)]"
 				href={section.href}
 				aria-current={isCurrent(section.href) ? 'page' : undefined}>{section.label}</a
 			>

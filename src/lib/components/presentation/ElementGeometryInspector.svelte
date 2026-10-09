@@ -82,7 +82,7 @@
 	{/each}
 </div>
 <div
-	class="presentation-align-controls [margin-top:var(--space-3)] [display:grid] [grid-template-columns:repeat(3,_minmax(0,_1fr))] [gap:var(--space-1)]"
+	class="presentation-align-controls [margin-block-start:var(--space-3)] [display:grid] [grid-template-columns:repeat(3,_minmax(0,_1fr))] [gap:var(--space-1)]"
 	role="group"
 	aria-label="Align to slide"
 >
@@ -107,7 +107,7 @@
 	{#if onreplaceimage && (element.shape === 'rectangle' || element.shape === 'rounded-rectangle')}
 		<button
 			type="button"
-			class="{button} [margin-top:var(--space-3)]"
+			class="{button} [margin-block-start:var(--space-3)]"
 			disabled={element.locked}
 			onclick={() => onreplaceimage?.(element.id)}>Add image here</button
 		>
@@ -129,8 +129,8 @@
 		font-weight: 700;
 	}
 	:global(.presentation-geometry-fields input) {
-		min-width: 0;
-		width: 100%;
+		min-inline-size: 0;
+		inline-size: 100%;
 		padding: 8px;
 		border: 1px solid var(--line);
 		border-radius: 8px;
@@ -144,8 +144,11 @@
 		outline-offset: 1px;
 	}
 	.presentation-align-controls .button {
-		min-height: 32px;
-		padding: 6px 4px;
+		min-block-size: 32px;
+		padding-block-start: 6px;
+		padding-block-end: 6px;
+		padding-inline-start: 4px;
+		padding-inline-end: 4px;
 		font-size: 11px;
 	}
 </style>

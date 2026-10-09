@@ -41,7 +41,7 @@
 <AppShell pathname={page.url.pathname} search={page.url.search}>
 	<header class="[display:grid] [gap:4px]">
 		<h1 class="[margin:0]">Deck templates</h1>
-		<p class="[margin:0] [max-width:65ch] [color:var(--muted)]">
+		<p class="[margin:0] [color:var(--muted)] [max-inline-size:65ch]">
 			Published class, research-defense and club-pitch decks. “Use template” copies every slide and
 			artwork into a new presentation that is yours to edit; the template stays unchanged.
 		</p>

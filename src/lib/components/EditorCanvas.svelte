@@ -37,8 +37,8 @@
 		position: relative;
 		padding: 30px;
 		border-radius: 20px;
-		background: #ffffffc9;
-		box-shadow: 0 5px 16px #5774a133;
+		background: color-mix(in oklch, oklch(1 0 none) 78.8235%, transparent);
+		box-shadow: 0 5px 16px color-mix(in oklch, oklch(0.555358 0.078241 258.9671) 20%, transparent);
 		text-align: center;
 	}
 	:global(.canvas-placeholder .sticker) {
@@ -51,7 +51,7 @@
 		display: block;
 	}
 	.canvas-placeholder small {
-		margin-top: 7px;
+		margin-block-start: 7px;
 		color: var(--muted);
 	}
 </style>

@@ -41,8 +41,11 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-3);
-		padding: var(--space-3) var(--space-4);
-		margin-bottom: var(--space-4);
+		padding-block-start: var(--space-3);
+		padding-block-end: var(--space-3);
+		padding-inline-start: var(--space-4);
+		padding-inline-end: var(--space-4);
+		margin-block-end: var(--space-4);
 		border: 1px solid var(--line);
 		border-radius: var(--radius-sm);
 		background: var(--pale);
