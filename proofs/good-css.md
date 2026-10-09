@@ -73,7 +73,23 @@ Svelte MCP documentation and autofixer tools were unavailable in this session. L
 
 This is not a sitewide contrast audit or a click-through of every admin and authenticated control. The after-mode audit is `anti-slop/audit-001-2026-10-09.md`.
 
-Changes are local and uncommitted. No dependencies were added. Nothing was deployed.
+At initial verification, the CSS changes were local and uncommitted. The CSS migration added no dependencies. Nothing was deployed.
+
+## Main-branch integration
+
+The CSS migration was committed as `a9c45cd`. The Oxlint migration commit `afacf10` was merged into `main` as `8c287fb`. The merge had no conflicts.
+
+After `npm ci`, the merged code passed:
+
+- `npm run check`: 0 errors and 0 warnings.
+- `npm run lint`: exit code 0, with three Oxlint `unicorn(no-useless-spread)` warnings. The new lint configuration ignores the historical proof JSON formatting warnings.
+- `CI=true npx playwright test`: 94 passed and 3 skipped, including a production build.
+
+Merge verification logs are `proofs/out/good-css/merged-{check,lint,e2e}.log`.
+
+`npm ci` reported 10 dependency vulnerabilities: 6 moderate and 4 high. No automatic dependency fixes were applied.
+
+The Oxlint worktree and its branch were retained. Nothing was pushed or deployed.
 
 ## Repeat
 
