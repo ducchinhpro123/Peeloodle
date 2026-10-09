@@ -1,0 +1,142 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	// Oxlint replaces the previous ESLint flat config. The rule list below is the
+	// one `@oxlint/migrate` derived from `js.configs.recommended`, plus the two
+	// overrides the old config carried for TypeScript and Svelte files.
+	//
+	// Known gap while Oxlint has no Svelte template parser (oxc-project/oxc#15761):
+	// it lints `<script>` blocks only, so every `svelte/*` rule the old
+	// `eslint-plugin-svelte` config enforced is no longer checked. `oxlint` also
+	// suppresses scope rules such as `no-unused-vars` inside components, because a
+	// binding may be read from a template it cannot see.
+	"env": {
+		"builtin": true,
+		"browser": true,
+		"node": true
+	},
+	"ignorePatterns": [
+		"**/node_modules",
+		"**/.output",
+		"**/.vercel",
+		"**/.netlify",
+		"**/.wrangler",
+		".svelte-kit",
+		"build",
+		"dist",
+		"**/*.tsbuildinfo",
+		"**/.DS_Store",
+		"**/Thumbs.db",
+		"**/.env",
+		"**/.env.*",
+		"!**/.env.example",
+		"!**/.env.test",
+		"**/vite.config.js.timestamp-*",
+		"**/vite.config.ts.timestamp-*",
+		"test-results",
+		"playwright-report",
+		"**/.playwright-mcp",
+		"src/lib/paraglide",
+		"project.inlang/cache",
+		"**/__pycache__",
+		"**/.pi",
+		"**/.worktrees",
+		"**/.tmp",
+		"supabase/.temp",
+		// React-era proof harness imported from the source repository: kept
+		// byte-identical to what it proved, so it is neither reformatted nor linted.
+		"proofs/**"
+	],
+	"rules": {
+		"constructor-super": "error",
+		"for-direction": "error",
+		"getter-return": "error",
+		"no-async-promise-executor": "error",
+		"no-case-declarations": "error",
+		"no-class-assign": "error",
+		"no-compare-neg-zero": "error",
+		"no-cond-assign": "error",
+		"no-const-assign": "error",
+		"no-constant-binary-expression": "error",
+		"no-constant-condition": "error",
+		"no-control-regex": "error",
+		"no-debugger": "error",
+		"no-delete-var": "error",
+		"no-dupe-class-members": "error",
+		"no-dupe-else-if": "error",
+		"no-dupe-keys": "error",
+		"no-duplicate-case": "error",
+		"no-empty": "error",
+		"no-empty-character-class": "error",
+		"no-empty-pattern": "error",
+		"no-empty-static-block": "error",
+		"no-ex-assign": "error",
+		"no-extra-boolean-cast": "error",
+		"no-fallthrough": "error",
+		"no-func-assign": "error",
+		"no-global-assign": "error",
+		"no-import-assign": "error",
+		"no-invalid-regexp": "error",
+		"no-irregular-whitespace": "error",
+		"no-loss-of-precision": "error",
+		"no-misleading-character-class": "error",
+		"no-new-native-nonconstructor": "error",
+		"no-nonoctal-decimal-escape": "error",
+		"no-obj-calls": "error",
+		"no-prototype-builtins": "error",
+		"no-redeclare": "error",
+		"no-regex-spaces": "error",
+		"no-self-assign": "error",
+		"no-setter-return": "error",
+		"no-shadow-restricted-names": "error",
+		"no-sparse-arrays": "error",
+		"no-this-before-super": "error",
+		"no-unassigned-vars": "error",
+		"no-unreachable": "error",
+		"no-unsafe-finally": "error",
+		"no-unsafe-negation": "error",
+		"no-unsafe-optional-chaining": "error",
+		"no-unused-labels": "error",
+		"no-unused-private-class-members": "error",
+		"no-unused-vars": "error",
+		"no-useless-backreference": "error",
+		"no-useless-catch": "error",
+		"no-useless-escape": "error",
+		"no-with": "error",
+		"preserve-caught-error": "error",
+		"require-yield": "error",
+		"use-isnan": "error",
+		"valid-typeof": "error"
+	},
+	"overrides": [
+		{
+			"files": ["**/*.svelte", "**/*.svelte.js"],
+			"rules": {
+				// Carried over from the eslint-plugin-svelte config these three rules
+				// came from; the parser there owns the same exceptions.
+				"no-inner-declarations": "off",
+				"no-self-assign": "off",
+				// Svelte 5 tracks a dependency by reading it bare inside `$effect`
+				// (`retry;`), which this rule reads as a useless expression.
+				"no-unused-expressions": "off",
+				// Still nursery in Oxlint; the old config enforced its core equivalent.
+				"no-useless-assignment": "error"
+			}
+		},
+		{
+			"files": ["**/*.ts"],
+			"plugins": ["typescript"],
+			"rules": {
+				"no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }]
+			}
+		},
+		{
+			"files": ["**/*.js"],
+			"rules": {
+				// Nursery in Oxlint, but the old `js.configs.recommended` layer ran it
+				// on plain JavaScript modules, and those are the only files here that
+				// use no Svelte runes.
+				"no-undef": "error"
+			}
+		}
+	]
+}
