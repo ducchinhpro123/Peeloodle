@@ -3,7 +3,6 @@
 	import {
 		ArrowLeft,
 		Copy,
-		Download,
 		ClipboardPaste,
 		GripVertical,
 		ImagePlus,
@@ -34,10 +33,6 @@
 	import { createSlideShape } from '#lib/presentations/editor/shapeTools.js';
 	import { createPresentationSaving } from '#lib/presentations/editor/presentationSaving.js';
 	import { createPresentationExport } from '#lib/presentations/editor/exportController.js';
-	import {
-		backupDocumentFingerprint,
-		readBackupDownloadReceipt
-	} from '#lib/presentations/editor/backupReceipt.js';
 	import { usePresentationOfflineReadiness } from '#lib/presentations/presentationOffline.svelte.js';
 	import { createTextEditSession } from '#lib/presentations/editor/textEditSession.svelte.js';
 	import ElementLayerList from './ElementLayerList.svelte';
@@ -147,15 +142,6 @@
 		reloadSafety: () => ({ unsavedWork: store.getState().dirty, saveFailed: saveReported })
 	});
 	let exportState = $state.raw(exportController.getState());
-	let backupReceipt = $state.raw(
-		/** @type {import('#lib/presentations/editor/backupReceipt.js').BackupDownloadReceipt | null} */ (
-			null
-		)
-	);
-	let documentFingerprint = $state(/** @type {string | null} */ (null));
-	const exporting = $derived(
-		exportState.phase === 'preparing' || exportState.phase === 'rendering'
-	);
 	// A deep link straight into the editor still prepares offline use for this session.
 	const offline = usePresentationOfflineReadiness();
 
@@ -245,42 +231,6 @@
 	const saveStatus = $derived(
 		saveReported && saveState.message ? `${saveLabel} — ${saveState.message}` : saveLabel
 	);
-
-	const currentBackup = $derived(
-		!!backupReceipt &&
-			documentFingerprint === backupReceipt.documentSha256 &&
-			!editorState.view.editingElementId
-	);
-	const backupHeading = $derived(
-		backupReceipt
-			? 'Your backup is older than your latest edits'
-			: 'Back up your work before you leave'
-	);
-
-	$effect(() => {
-		if (templateMode) return;
-		backupReceipt = readBackupDownloadReceipt(presentationId);
-	});
-	$effect(() => {
-		const receipt = exportState.backupDownload;
-		if (receipt && receipt.documentId === presentationId) backupReceipt = receipt;
-	});
-	$effect(() => {
-		const current = presentation;
-		documentFingerprint = null;
-		let live = true;
-		if (current && !templateMode)
-			void backupDocumentFingerprint(current)
-				.then((value) => {
-					if (live) documentFingerprint = value;
-				})
-				.catch(() => {
-					/* Keep reminder conservative if hashing is unavailable. */
-				});
-		return () => {
-			live = false;
-		};
-	});
 
 	// Effects never run during SSR, so the import alone is the client-only seam;
 	// the placeholder below holds the canvas track until it resolves.
@@ -1176,32 +1126,6 @@
 					{editorNote ?? saveState.message ?? saveStatus}
 				</p>{/if}
 		</header>
-		{#if !templateMode && !currentBackup}
-			<section class="presentation-backup-note" aria-label="Presentation backup">
-				<div>
-					<strong>{backupHeading}</strong>
-					<p>
-						Browser saves are not synced. Clearing browser data can remove this work. Download a
-						portable copy you can restore here.
-					</p>
-				</div>
-				<button
-					type="button"
-					class={button}
-					disabled={exporting}
-					onclick={() => void exportController.exportDeck('backup')}
-					><Download size={16} aria-hidden="true" />{exporting && exportState.format === 'backup'
-						? 'Preparing backup…'
-						: 'Back up my work'}</button
-				>
-				{#if exporting && exportState.format === 'backup'}<p role="status">
-						Preparing your portable copy…
-					</p>{/if}
-				{#if exportState.format === 'backup' && exportState.phase === 'failed'}<p role="alert">
-						{exportState.message}
-					</p>{/if}
-			</section>
-		{/if}
 		{#if editorState.view.editingElementId}<TextFormatToolbar session={textSession} />{/if}
 		{#if insertError}<p class="asset-error" role="alert">{insertError}</p>{/if}
 		<div class="presentation-mobile-note [display:none]">
@@ -1530,35 +1454,6 @@
 		background: var(--warning-bg);
 		color: var(--warning-ink);
 		font-size: 12px;
-	}
-	.presentation-backup-note {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-		padding-block-start: 12px;
-		padding-block-end: 12px;
-		padding-inline-start: 18px;
-		padding-inline-end: 18px;
-		background: var(--pale);
-		border-block-end: 1px solid var(--mint-line);
-		font-size: 12px;
-	}
-	.presentation-backup-note > div {
-		flex: 1 1 270px;
-		min-inline-size: 0;
-	}
-	.presentation-backup-note p {
-		margin-block-start: 5px;
-		margin-block-end: 0;
-		margin-inline-start: 0;
-		margin-inline-end: 0;
-		line-height: 1.5;
-		color: var(--muted);
-	}
-	.presentation-backup-note > button {
-		flex: 0 0 auto;
 	}
 	.presentation-add-shape {
 		position: relative;

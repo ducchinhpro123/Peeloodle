@@ -100,12 +100,12 @@ test('keeps the library and the authoring preview contained on a phone', async (
 		'aria-current',
 		'true'
 	);
+	await page.getByRole('button', { name: 'Export', exact: true }).click();
 	const [backup] = await Promise.all([
 		page.waitForEvent('download'),
-		page.getByRole('button', { name: 'Back up my work', exact: true }).click()
+		page.getByRole('button', { name: 'Download backup (.zip)', exact: true }).click()
 	]);
 	await backup.saveAs(test.info().outputPath('phone-presentation.stickerlab.zip'));
-	await page.getByRole('button', { name: 'Export', exact: true }).click();
 	await expect(page.getByRole('dialog', { name: 'Export presentation' })).toContainText(
 		'For handing in'
 	);

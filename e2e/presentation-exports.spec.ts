@@ -20,7 +20,8 @@ const TEXT = 'Export journey text';
 // a PDF/PPTX is not restorable here; new edits and same-revision races must be stale.
 // Block the real browser image decoder during export (never a production seam).
 test('a backup describes the captured deck, not edits made while it is preparing', async ({
-	page
+	page,
+	context
 }, info) => {
 	await page.addInitScript(() => {
 		const decode = window.createImageBitmap.bind(window);
@@ -41,15 +42,25 @@ test('a backup describes the captured deck, not edits made while it is preparing
 		};
 	});
 	const id = await openBlankEditor(page);
+	await expect(page.getByRole('region', { name: 'Presentation backup', exact: true })).toHaveCount(
+		0
+	);
 	await page
 		.getByTestId('presentation-image-input')
 		.setInputFiles(path.resolve('static/samples/cat-in-console.png'));
 	await expect.poll(async () => (await readStoredPresentation(page, id))?.assets.length).toBe(1);
 	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
+	const otherTab = await context.newPage();
+	await otherTab.goto(page.url());
+	await expect(otherTab.getByTestId('presentation-canvas')).toHaveAttribute('data-ready', 'true');
 	await page.evaluate(() => Object.assign(window, { holdExportImage: true }));
-	await page.getByRole('button', { name: 'Back up my work', exact: true }).click();
+	const dialog = await exportDialog(page);
+	await dialog.getByRole('button', { name: 'Download backup (.zip)', exact: true }).click();
 	await expect.poll(() => page.evaluate(() => Reflect.get(window, 'exportImageHeld'))).toBe(true);
-	await page.getByRole('button', { name: 'Add slide', exact: true }).click();
+	// The export dialog owns this tab while preparing, but another tab can still
+	// save a newer version of the same presentation.
+	await otherTab.getByRole('button', { name: 'Add slide', exact: true }).click();
+	await expect.poll(async () => (await readStoredPresentation(page, id))?.slideCount).toBe(2);
 	const [download] = await Promise.all([
 		page.waitForEvent('download'),
 		page.evaluate(() => {
@@ -61,9 +72,14 @@ test('a backup describes the captured deck, not edits made while it is preparing
 	expect(JSON.parse(strFromU8(archive['document.json'])).slides).toHaveLength(1);
 	await download.saveAs(info.outputPath('captured-not-live.stickerlab.zip'));
 	await expect(
-		page.getByText('Your backup is older than your latest edits', { exact: true })
+		dialog.getByText('Export ready. Check your browser’s downloads for the file.')
 	).toBeVisible();
-	await page.screenshot({ path: info.outputPath('stale-backup.png') });
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('region', { name: 'Presentation backup', exact: true })).toHaveCount(
+		0
+	);
+	await expect.poll(async () => (await readStoredPresentation(page, id))?.slideCount).toBe(2);
+	await page.screenshot({ path: info.outputPath('editor-without-backup-banner.png') });
 });
 
 /** Opens the export dialog if it is not already showing. */
@@ -115,7 +131,9 @@ test('the editor writes a real PDF, an editable PPTX and a restorable backup', a
 	await expect(page.locator('.presentation-slide-card')).toHaveCount(2);
 	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
 
-	await expect(page.getByText('Back up your work before you leave', { exact: true })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Presentation backup', exact: true })).toHaveCount(
+		0
+	);
 
 	// PDF: one fixed page per slide, at the deck's own 16:9 size, carrying an image.
 	const pdfDownload = await exportVia(page, 'Export PDF');
@@ -146,10 +164,9 @@ test('the editor writes a real PDF, an editable PPTX and a restorable backup', a
 		'<p:sldSz cx="12192000" cy="6858000"/>'
 	);
 
-	// PDF/PPTX are handoff files, not this app's restorable backup.
-	await expect(
-		page.getByText('Back up your work before you leave', { exact: true })
-	).toBeAttached();
+	await expect(page.getByRole('region', { name: 'Presentation backup', exact: true })).toHaveCount(
+		0
+	);
 
 	// Backup: the manifest and the document travel together in the archive.
 	const backupDownload = await exportVia(page, 'Download backup (.zip)');
@@ -174,9 +191,9 @@ test('the editor writes a real PDF, an editable PPTX and a restorable backup', a
 	await page.getByRole('button', { name: 'Add text', exact: true }).click();
 	await page.keyboard.type('Edited after the backup');
 	await page.keyboard.press('Escape');
-	await expect(
-		page.getByText('Your backup is older than your latest edits', { exact: true })
-	).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Presentation backup', exact: true })).toHaveCount(
+		0
+	);
 
 	// The archive is restorable exactly as the dialog claims: the library reads it
 	// back as an independent deck that still holds the typed text.
