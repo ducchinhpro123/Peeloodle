@@ -8,7 +8,7 @@
  * LibreOffice round-trip script consumes:
  *
  *   P44_EVIDENCE=1 npx playwright test e2e/presentation-reader-fixture.spec.ts
- *   python3 proofs/readers/libreoffice_roundtrip.py \
+ *   python3 e2e/readers/libreoffice_roundtrip.py \
  *     --pptx proofs/out/p44-svelte-reader-fixture.pptx \
  *     --pdf proofs/out/p44-svelte-reader-fixture.pdf \
  *     --facts proofs/out/p44-svelte-reader-facts.json \
@@ -169,7 +169,7 @@ test('P44: the export dialog writes the reader fixture PPTX and PDF', async ({ p
 					pdfPages: pdfFacts.pages,
 					pdfPageSizePt: { width: 960, height: 540 },
 					notProvenHere:
-						'Reader open/edit/save/reopen behaviour is P44 evidence produced by proofs/readers/libreoffice_roundtrip.py, not by this spec.'
+						'Reader open/edit/save/reopen behaviour is P44 evidence produced by e2e/readers/libreoffice_roundtrip.py, not by this spec.'
 				},
 				null,
 				2

@@ -1,7 +1,7 @@
 /**
  * The three shipped presentation templates (P72–P74).
  *
- * Plain JavaScript (JSDoc-typed) so both the app and `scripts/seed-template-catalog.mjs`
+ * Plain JavaScript (JSDoc-typed) so both the app and `supabase/seed-template-catalog.mjs`
  * can import the same documents. Each template is a complete, editable
  * `PresentationDocument`: 16:9 slides built from ordinary text and shapes, with
  * no catalog assets, so cloning downloads nothing and every layout is editable.

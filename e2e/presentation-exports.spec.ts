@@ -163,9 +163,14 @@ test('the editor writes a real PDF, an editable PPTX and a restorable backup', a
 	const savedBackup = test.info().outputPath('export-journey.stickerlab.zip');
 	await backupDownload.saveAs(savedBackup);
 	await page.keyboard.press('Escape');
-	await expect(page.getByText('Backup download started', { exact: true })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Presentation backup', exact: true })).toBeHidden();
 	await page.reload();
-	await expect(page.getByText('Backup download started', { exact: true })).toBeVisible();
+	await expect(page.getByTestId('presentation-canvas')).toHaveAttribute('data-ready', 'true');
+	await expect(page.getByRole('region', { name: 'Presentation backup', exact: true })).toBeHidden();
+	await test.info().attach('Backed-up editor after reload', {
+		body: await page.screenshot(),
+		contentType: 'image/png'
+	});
 	await page.getByRole('button', { name: 'Add text', exact: true }).click();
 	await page.keyboard.type('Edited after the backup');
 	await page.keyboard.press('Escape');
@@ -176,6 +181,9 @@ test('the editor writes a real PDF, an editable PPTX and a restorable backup', a
 	// The archive is restorable exactly as the dialog claims: the library reads it
 	// back as an independent deck that still holds the typed text.
 	await page.goto('/presentations');
+	await expect(
+		page.getByRole('button', { name: 'Start a blank presentation', exact: true })
+	).toBeEnabled();
 	await page.getByTestId('presentation-restore-input').setInputFiles(savedBackup);
 	// The restore path names the copy from the archive it just wrote, so this is the
 	// app's own reading of the manifest and document, not a title the test supplied.

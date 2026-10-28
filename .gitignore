@@ -33,7 +33,20 @@ playwright-report/
 src/lib/paraglide
 project.inlang/cache/
 
-# Source-repo tooling artifacts (proofs/, scripts/)
+# Local artifacts and archived development material
+/proofs/
+/anti-slop/
+/scripts/
+/docs/*
+!/docs/assets-provenance.md
+/CONTEXT.md
+
+# Local editor and agent preferences
+/.claude/
+/.vscode/
+/.impeccable/
+
+# Tooling scratch state
 __pycache__/
 .pi/
 .worktrees/

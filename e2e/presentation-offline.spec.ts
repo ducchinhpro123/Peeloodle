@@ -250,6 +250,7 @@ test('a disconnect before the warm-up finishes is reported honestly and poisons 
 	await page.getByRole('button', { name: /Create your first presentation/ }).click();
 	await expect(page).toHaveURL(/\/presentations\/[^/]+$/);
 	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();
+	await expect(page.getByTestId('presentation-canvas')).toHaveAttribute('data-ready', 'true');
 	await page.getByRole('button', { name: 'Add text' }).click();
 	const field = page.getByTestId('text-edit-field');
 	await expect(field).toBeFocused();

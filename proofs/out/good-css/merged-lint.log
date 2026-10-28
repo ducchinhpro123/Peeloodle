@@ -1,9 +1,0 @@
-
-> peeloodle-svelte@0.0.1 lint
-> prettier --check . && oxlint
-
-Checking formatting...
-All matched files use Prettier code style!
-src/lib/presentations/rendering/decodedArtwork.ts:104:27: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
-src/routes/my-stickers/+page.svelte:31:22: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
-src/lib/components/KonvaArtboard.svelte:226:31: warning unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily. help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.

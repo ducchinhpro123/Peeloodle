@@ -3,8 +3,17 @@ import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import adapter from '@sveltejs/adapter-auto';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
+	resolve: {
+		alias: [
+			{
+				find: /^lucide-svelte$/,
+				replacement: fileURLToPath(new URL('./src/lib/ui/icons.js', import.meta.url))
+			}
+		]
+	},
 	// lucide-svelte ships Svelte dev-mode internals; compiling it from source keeps
 	// the dev element instrumentation consistent with the app's Svelte version.
 	optimizeDeps: { exclude: ['lucide-svelte'] },

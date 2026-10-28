@@ -1,4 +1,5 @@
 <script>
+	import { onMount } from 'svelte';
 	import { button, buttonDanger, buttonIcon, buttonPrimary } from '#lib/ui/styles.js';
 	import { asset } from '$app/paths';
 	import {
@@ -75,7 +76,7 @@
 			: items
 	);
 
-	$effect(() => {
+	onMount(() => {
 		void load();
 	});
 
@@ -223,9 +224,18 @@
 				<div
 					class="presentation-hero-actions [margin-block-start:var(--space-5)] [display:flex] [flex-wrap:wrap] [gap:var(--space-3)]"
 				>
-					<button class={buttonPrimary} onclick={createBlank} disabled={creatingBlank}>
+					<button
+						class={buttonPrimary}
+						onclick={createBlank}
+						disabled={loading || creatingBlank}
+						aria-busy={loading || creatingBlank}
+					>
 						<FilePlus2 size={18} />
-						{creatingBlank ? 'Creating…' : 'Start a blank presentation'}
+						{loading
+							? 'Loading presentations…'
+							: creatingBlank
+								? 'Creating…'
+								: 'Start a blank presentation'}
 					</button>
 
 					{#if items[0]}

@@ -253,9 +253,7 @@
 	);
 	const backupHeading = $derived(
 		backupReceipt
-			? currentBackup
-				? 'Backup download started'
-				: 'Your backup is older than your latest edits'
+			? 'Your backup is older than your latest edits'
 			: 'Back up your work before you leave'
 	);
 
@@ -1178,14 +1176,13 @@
 					{editorNote ?? saveState.message ?? saveStatus}
 				</p>{/if}
 		</header>
-		{#if !templateMode}
+		{#if !templateMode && !currentBackup}
 			<section class="presentation-backup-note" aria-label="Presentation backup">
 				<div>
 					<strong>{backupHeading}</strong>
 					<p>
-						{currentBackup
-							? 'Check your browser’s downloads and keep the .stickerlab.zip somewhere safe. Restore it from Presentations on another device.'
-							: 'Browser saves are not synced. Clearing browser data can remove this work. Download a portable copy you can restore here.'}
+						Browser saves are not synced. Clearing browser data can remove this work. Download a
+						portable copy you can restore here.
 					</p>
 				</div>
 				<button

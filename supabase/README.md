@@ -120,7 +120,7 @@ The production project (`StickerLab`, `ckmeozlmyvhjrzliwllz`) must never be used
   `peeloodle-catalog-user@example.com` (ordinary). Both have confirmed emails; the admin membership
   row is bootstrapped by operator SQL (`insert into public.catalog_admins (user_id) values (…)`), as
   above. Passwords live only in the gitignored `.env.catalog-test`, never in the repository.
-- Run: `node --env-file=.env.catalog-test scripts/verify-catalog.mjs` — 16 checks covering the admin
+- Run: `node --env-file=.env.catalog-test e2e/checks/verify-catalog.mjs` — 16 checks covering the admin
   predicate, denied admin RPCs (including the upload batch/claim RPCs), denied direct inserts and
   bucket writes, hidden membership/jobs/journal, published-only reads, draft→publish visibility, the
   one-conflict publish race, signed derivative reads as an ordinary and an anonymous client, archive
@@ -130,8 +130,7 @@ The production project (`StickerLab`, `ckmeozlmyvhjrzliwllz`) must never be used
   reports that create no version, and source objects that never sign for ordinary clients.
 - Role revocation is an operator cycle: `insert` the ordinary account into `catalog_admins`, verify
   its admin RPCs succeed, `delete` the row, and verify `catalog_is_admin()` is `false` and the RPC
-  is denied `42501` on a fresh sign-in. The full evidence is in
-  `proofs/p53-live-catalog-isolation.md`.
+  is denied `42501` on a fresh sign-in.
 - Secret/service credentials are used only to provision the accounts and seed a published fixture
   asset; the verifier itself signs in as the test users with the publishable key, so an ordinary
   user is never simulated with elevated credentials.

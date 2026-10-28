@@ -30,8 +30,8 @@
 	let slideIndex = $state(0);
 	let creating = $state(false);
 	let error = $state('');
-	let retry = $state(0);
 	let mounted = $state(false);
+	let cancelPreviews = () => {};
 	const selected = $derived(decks.find((deck) => deck.key === selectedKey));
 	const filtered = $derived(
 		decks.filter(
@@ -42,10 +42,16 @@
 	);
 	onMount(() => {
 		mounted = true;
+		refreshPreviews();
+		return () => cancelPreviews();
 	});
-	$effect(() => {
-		if (!mounted) return;
-		retry;
+
+	function refreshPreviews() {
+		cancelPreviews();
+		cancelPreviews = preparePreviews();
+	}
+
+	function preparePreviews() {
 		let live = true;
 		loading = true;
 		previewError = false;
@@ -96,7 +102,7 @@
 		return () => {
 			live = false;
 		};
-	});
+	}
 
 	async function useTemplate() {
 		if (!selected || creating) return;
@@ -142,7 +148,7 @@
 		<div class="categories" role="group" aria-label="Template category">
 			{#each categories as item (item)}
 				<button
-					class:active={category === item}
+					class={{ active: category === item }}
 					aria-pressed={category === item}
 					onclick={() => (category = item)}>{item}</button
 				>
@@ -150,9 +156,14 @@
 		</div>
 	</div>
 	<div class="template-grid">
-		<button class="blank-template" onclick={onblank} disabled={creatingBlank}>
+		<button
+			class="blank-template"
+			onclick={onblank}
+			disabled={!mounted || creatingBlank}
+			aria-busy={!mounted || creatingBlank}
+		>
 			<span class="blank-art"><Plus size={30} /></span>
-			<strong>{creatingBlank ? 'Creating…' : 'Start from scratch'}</strong>
+			<strong>{!mounted ? 'Loading…' : creatingBlank ? 'Creating…' : 'Start from scratch'}</strong>
 			<small>Blank 16:9 presentation</small>
 		</button>
 
@@ -200,7 +211,7 @@
 	{#if previewError}<p role="status">
 			Slide previews couldn’t load. You can still use a template. <button
 				class={button}
-				onclick={() => retry++}>Retry previews</button
+				onclick={refreshPreviews}>Retry previews</button
 			>
 		</p>{/if}
 </section>
