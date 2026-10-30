@@ -252,3 +252,36 @@ test('moves and nudges a multi-selection as one undo step', async ({ page }) => 
 		JSON.stringify({ deck: id, dragDelta: [dx, dy], final: await positions() }, null, 2)
 	);
 });
+
+test('empty text boxes show a placeholder that is never saved', async ({ page }) => {
+	const id = await openBlankEditor(page);
+	await page.getByRole('button', { name: 'Add heading', exact: true }).click();
+	await expect(page.getByTestId('text-edit-field')).toBeFocused();
+	await page.keyboard.press('Escape');
+	await page.getByRole('button', { name: 'Add body text', exact: true }).click();
+	await expect(page.getByTestId('text-edit-field')).toBeFocused();
+	await page.keyboard.press('Escape');
+
+	const placeholders = page.locator('.text-placeholder');
+	await expect(placeholders).toHaveCount(2);
+	await expect(placeholders.nth(0)).toHaveText('Click to add title');
+	await expect(placeholders.nth(1)).toHaveText('Click to add text');
+	await mkdir('proofs/out', { recursive: true });
+	await page.screenshot({ path: 'proofs/out/slide-editor-stage4-placeholders.png' });
+
+	// The prompt is the editor's, not the deck's: nothing of it reaches storage.
+	await expect
+		.poll(
+			async () => JSON.parse(await readStoredPresentationJson(page, id)).slides[0].elements.length
+		)
+		.toBe(2);
+	expect(await readStoredPresentationJson(page, id)).not.toContain('Click to add');
+
+	// Typing replaces the prompt.
+	await page.locator('.presentation-layer-select').filter({ hasText: 'Heading' }).click();
+	await page.getByRole('button', { name: 'Edit text: Heading' }).click();
+	await page.getByTestId('text-edit-field').fill('Quarterly review');
+	await page.keyboard.press('Escape');
+	await expect(placeholders).toHaveCount(1);
+	await expect(placeholders).toHaveText('Click to add text');
+});

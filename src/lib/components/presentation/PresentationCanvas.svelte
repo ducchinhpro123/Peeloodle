@@ -94,6 +94,30 @@
 			presentation?.slides[0]
 	);
 	const selectedElementId = $derived(selection.ids[0] ?? null);
+	/**
+	 * Prompts for empty text boxes, drawn by the editor over the canvas only: they
+	 * are never part of the document, the thumbnails or an export.
+	 */
+	const placeholders = $derived(
+		(activeSlide?.elements ?? []).flatMap((element) => {
+			if (element.kind !== 'text' || !element.visible || element.id === selection.editingId)
+				return [];
+			const empty = element.paragraphs.every((paragraph) =>
+				paragraph.runs.every((run) => run.text.trim() === '')
+			);
+			if (!empty) return [];
+			const size = element.paragraphs[0]?.runs[0]?.size ?? 28;
+			return [
+				{
+					id: element.id,
+					box: elementGeometry(element, null),
+					padding: element.padding,
+					size: Math.min(size, 44),
+					label: size >= 40 ? 'Click to add title' : 'Click to add text'
+				}
+			];
+		})
+	);
 	const selectedElement = $derived(
 		activeSlide?.elements.find((element) => element.id === selectedElementId)
 	);
@@ -761,6 +785,21 @@
 			tabindex="-1"
 			{@attach mountCanvas}
 		></div>
+		{#each placeholders as item (item.id)}
+			<div
+				class="text-placeholder"
+				aria-hidden="true"
+				style:left="{viewport.x + item.box.x * viewport.scale}px"
+				style:top="{viewport.y + item.box.y * viewport.scale}px"
+				style:width="{item.box.width * viewport.scale}px"
+				style:height="{item.box.height * viewport.scale}px"
+				style:transform="rotate({item.box.rotation}deg)"
+				style:padding="{item.padding * viewport.scale}px"
+				style:font-size="{item.size * viewport.scale}px"
+			>
+				{item.label}
+			</div>
+		{/each}
 		{#if marquee}<div
 				class="selection-marquee"
 				data-testid="selection-marquee"
@@ -913,6 +952,19 @@
 		color: var(--warning-ink);
 		font-size: 12px;
 		font-weight: 600;
+	}
+	.text-placeholder {
+		position: absolute;
+		z-index: 1;
+		display: flex;
+		align-items: center;
+		overflow: hidden;
+		border: 1px dashed oklch(0.75 0.01 264);
+		color: oklch(0.6 0.01 264);
+		line-height: 1.2;
+		transform-origin: top left;
+		white-space: nowrap;
+		pointer-events: none;
 	}
 	.selection-marquee {
 		position: absolute;
