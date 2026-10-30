@@ -67,8 +67,11 @@ export const editingActions: Action[] = [
 		shortcuts: [{ key: 'd', mod: true }],
 		enabled: (editor, args) => targetId(args, editor.selection.ids[0]) !== undefined,
 		run: (editor, args) => {
-			const id = targetId(args, editor.selection.ids[0]);
-			if (id) editor.doc.duplicateElement(id);
+			// A layer row names its own element; the keyboard and ribbon act on the
+			// whole selection.
+			if (typeof args?.elementId === 'string') editor.doc.duplicateElement(args.elementId);
+			else if (editor.selection.ids.length > 1) editor.doc.duplicateElements(editor.selection.ids);
+			else if (editor.selection.ids[0]) editor.doc.duplicateElement(editor.selection.ids[0]);
 			return OK;
 		}
 	},
@@ -83,8 +86,24 @@ export const editingActions: Action[] = [
 			typeof args?.elementId === 'string' ||
 			(editor.selection.ids.length > 0 && !editor.selection.editingId),
 		run: (editor, args) => {
-			const id = targetId(args, editor.selection.ids[0]);
-			if (id) editor.doc.removeElement(id);
+			if (typeof args?.elementId === 'string') editor.doc.removeElement(args.elementId);
+			else if (editor.selection.ids.length > 1) editor.doc.removeElements(editor.selection.ids);
+			else if (editor.selection.ids[0]) editor.doc.removeElement(editor.selection.ids[0]);
+			return OK;
+		}
+	},
+	{
+		id: 'selection.selectAll',
+		label: 'Select all',
+		shortcuts: [{ key: 'a', mod: true }],
+		enabled: (editor) =>
+			(editor.selection.activeSlide?.elements.length ?? 0) > 0 && !editor.selection.editingId,
+		run: (editor) => {
+			editor.selection.select(
+				(editor.selection.activeSlide?.elements ?? [])
+					.filter((element) => element.visible)
+					.map((element) => element.id)
+			);
 			return OK;
 		}
 	},

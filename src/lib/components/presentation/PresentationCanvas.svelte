@@ -64,6 +64,13 @@
 	let layer = null;
 	/** @type {PanGesture | null} */
 	let panGesture = null;
+	/**
+	 * A selection box being drawn from empty canvas, in host pixels.
+	 * @type {{ pointerId: number, origin: { x: number, y: number }, additive: boolean, base: string[], capture: HTMLElement | null } | null}
+	 */
+	let marqueeGesture = null;
+	/** @type {{ x: number, y: number, width: number, height: number } | null} */
+	let marquee = $state.raw(null);
 	/** @type {TransformGesture | null} */
 	let transformGesture = null;
 	/** The group a live preview was applied to, so it can be put back on cancel. @type {string | null} */
@@ -405,6 +412,8 @@
 				// Pointer capture already ended.
 			}
 		}
+		// A click without movement on one element of a multi-selection selects just it.
+		if (!gesture.current && selection.ids.length > 1) selection.select([gesture.elementId]);
 		const state = doc.snapshot();
 		// A click without movement leaves no undo entry and no revision behind.
 		if (commit && gesture.current) state.commitTransform(gesture.elementId, gesture.current);
@@ -437,13 +446,38 @@
 		}
 		if (event.button !== 0) return;
 		const element = elementAtPointer(event.clientX, event.clientY);
+		const additive = event.shiftKey || event.ctrlKey || event.metaKey;
+		if (element && additive) {
+			// Shift/Ctrl-click adds or removes one element, as in PowerPoint.
+			hostEl?.focus();
+			selection.toggle(element.id, true);
+			dropTrailingClick();
+			return;
+		}
 		if (element) {
 			hostEl?.focus();
-			selection.select([element.id]);
+			// Pressing on an element of a multi-selection keeps the selection so the
+			// gesture can move it; a click without movement narrows it afterwards.
+			if (!selection.ids.includes(element.id)) selection.select([element.id]);
 			// A locked element stays selectable so its properties are reachable,
 			// but no gesture may move, resize, or rotate it.
 			if (!element.locked) beginTransform(element, 'move', null, event);
 			return;
+		}
+		if (!hostEl) return;
+		const rect = hostEl.getBoundingClientRect();
+		const capture = captureTarget();
+		marqueeGesture = {
+			pointerId: event.pointerId,
+			origin: { x: event.clientX - rect.left, y: event.clientY - rect.top },
+			additive,
+			base: additive ? [...selection.ids] : [],
+			capture
+		};
+		try {
+			capture?.setPointerCapture(event.pointerId);
+		} catch {
+			// Window-level pointer events still reach the host.
 		}
 	}
 
@@ -463,6 +497,19 @@
 	/** @param {PointerEvent} event */
 	function handlePointerMove(event) {
 		if (applyGestureMove(event)) return;
+		if (marqueeGesture && marqueeGesture.pointerId === event.pointerId && hostEl) {
+			const rect = hostEl.getBoundingClientRect();
+			const x = event.clientX - rect.left;
+			const y = event.clientY - rect.top;
+			const { origin } = marqueeGesture;
+			marquee = {
+				x: Math.min(origin.x, x),
+				y: Math.min(origin.y, y),
+				width: Math.abs(x - origin.x),
+				height: Math.abs(y - origin.y)
+			};
+			return;
+		}
 		const gesture = panGesture;
 		if (!gesture || gesture.pointerId !== event.pointerId) return;
 		// A mouse drag whose button was released outside the window must not keep
@@ -530,6 +577,7 @@
 			// A click that only ends a transform gesture is not a click on the
 			// background: see `ignoreTrailingClick`.
 			if (ignoreTrailingClick) return;
+			if (event.evt?.shiftKey || event.evt?.ctrlKey || event.evt?.metaKey) return;
 			const id = elementIdFor(event.target);
 			selection.select(id ? [id] : []);
 		};
@@ -557,6 +605,24 @@
 		window.addEventListener('keydown', onKeyDown);
 		window.addEventListener('keyup', onKeyUp);
 		window.addEventListener('blur', onBlur);
+		// Tab and Shift+Tab walk the slide's elements while the canvas has focus;
+		// everywhere else Tab keeps moving focus between controls.
+		const onCanvasKeyDown = (/** @type {KeyboardEvent} */ event) => {
+			if (event.key !== 'Tab' || event.target !== node || event.ctrlKey || event.altKey) return;
+			const elements = (activeSlide?.elements ?? []).filter((element) => element.visible);
+			if (elements.length === 0) return;
+			event.preventDefault();
+			const current = elements.findIndex((element) => element.id === selection.ids[0]);
+			const step = event.shiftKey ? -1 : 1;
+			const next =
+				current === -1
+					? event.shiftKey
+						? elements.length - 1
+						: 0
+					: (current + step + elements.length) % elements.length;
+			selection.select([elements[next].id]);
+		};
+		node.addEventListener('keydown', onCanvasKeyDown);
 		node.addEventListener('wheel', handleWheel, { passive: false });
 		node.addEventListener('pointerdown', handlePointerDown);
 		node.addEventListener('pointermove', handlePointerMove);
@@ -568,6 +634,7 @@
 			window.removeEventListener('keydown', onKeyDown);
 			window.removeEventListener('keyup', onKeyUp);
 			window.removeEventListener('blur', onBlur);
+			node.removeEventListener('keydown', onCanvasKeyDown);
 			node.removeEventListener('wheel', handleWheel);
 			node.removeEventListener('pointerdown', handlePointerDown);
 			node.removeEventListener('pointermove', handlePointerMove);
@@ -581,14 +648,52 @@
 		};
 	};
 
+	/**
+	 * Ends a selection box: every visible element whose box lies fully inside it
+	 * is selected (added to the earlier selection when Shift/Ctrl was held). A
+	 * press without a real drag is left to the click handler, which clears.
+	 * @param {number} pointerId
+	 * @param {boolean} commit
+	 */
+	function endMarquee(pointerId, commit) {
+		const gesture = marqueeGesture;
+		if (gesture?.pointerId !== pointerId) return;
+		marqueeGesture = null;
+		const box = marquee;
+		marquee = null;
+		try {
+			gesture.capture?.releasePointerCapture(pointerId);
+		} catch {
+			// Pointer capture already ended.
+		}
+		const dragged = box !== null && (box.width > 4 || box.height > 4);
+		if (gesture.additive || dragged) dropTrailingClick();
+		if (!commit || !dragged || !box || !presentation || !activeSlide) return;
+		const from = documentPointFromView({ x: box.x, y: box.y }, viewport);
+		const to = documentPointFromView({ x: box.x + box.width, y: box.y + box.height }, viewport);
+		const inside = activeSlide.elements
+			.filter((element) => element.visible)
+			.filter(
+				(element) =>
+					element.x >= from.x &&
+					element.y >= from.y &&
+					element.x + element.width <= to.x &&
+					element.y + element.height <= to.y
+			)
+			.map((element) => element.id);
+		selection.select([...new Set([...gesture.base, ...inside])]);
+	}
+
 	/** @param {PointerEvent} event */
 	function handlePointerUp(event) {
+		endMarquee(event.pointerId, true);
 		endTransform(event.pointerId, true);
 		endPan(event.pointerId);
 	}
 
 	/** @param {PointerEvent} event */
 	function handlePointerCancel(event) {
+		endMarquee(event.pointerId, false);
 		endTransform(event.pointerId, false);
 		endPan(event.pointerId);
 	}
@@ -608,11 +713,32 @@
 			data-view-pan-x={view.pan.x}
 			data-view-pan-y={view.pan.y}
 			data-selected-element={selectedElementId ?? ''}
+			data-selected-count={selection.ids.length}
 			data-editing-element={selection.editingId ?? ''}
 			tabindex="-1"
 			{@attach mountCanvas}
 		></div>
-		{#if selectedElement && selectedGeometry && !editingElement}
+		{#if marquee}<div
+				class="selection-marquee"
+				data-testid="selection-marquee"
+				style:left="{marquee.x}px"
+				style:top="{marquee.y}px"
+				style:width="{marquee.width}px"
+				style:height="{marquee.height}px"
+			></div>{/if}
+		{#if selection.ids.length > 1}
+			{#each selection.elements as element (element.id)}
+				{@const box = elementGeometry(element, null)}
+				<div
+					class="multi-outline"
+					style:left="{viewport.x + box.x * viewport.scale}px"
+					style:top="{viewport.y + box.y * viewport.scale}px"
+					style:width="{box.width * viewport.scale}px"
+					style:height="{box.height * viewport.scale}px"
+					style:transform="rotate({box.rotation}deg)"
+				></div>
+			{/each}
+		{:else if selectedElement && selectedGeometry && !editingElement}
 			<PresentationSelectionFrame
 				geometry={selectedGeometry}
 				{viewport}
@@ -744,6 +870,20 @@
 		color: var(--warning-ink);
 		font-size: 12px;
 		font-weight: 600;
+	}
+	.selection-marquee {
+		position: absolute;
+		z-index: 3;
+		border: 1px solid var(--primary);
+		background: color-mix(in oklch, var(--primary) 10%, transparent);
+		pointer-events: none;
+	}
+	.multi-outline {
+		position: absolute;
+		z-index: 2;
+		outline: 1.5px solid var(--primary);
+		transform-origin: top left;
+		pointer-events: none;
 	}
 	.presentation-canvas.is-space-pan {
 		cursor: grab;

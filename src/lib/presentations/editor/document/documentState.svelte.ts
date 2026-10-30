@@ -133,6 +133,13 @@ export type PresentationStoreState = {
 		options?: { historyGroup?: string }
 	): void;
 	removeElement(elementId: string): void;
+	/** Removes every unlocked element of `ids` as one undo entry; locked ones stay. */
+	removeElements(ids: string[]): void;
+	/**
+	 * Copies the elements of `ids` on the active slide, offset and stacked above
+	 * their sources, as one undo entry; the copies become the selection.
+	 */
+	duplicateElements(ids: string[]): string[];
 	reorderElement(elementId: string, targetIndex: number): void;
 	toggleElementLocked(elementId: string): void;
 	toggleElementVisible(elementId: string): void;
@@ -898,6 +905,54 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 				get().updateElement(elementId, patch as Partial<Element>, {
 					historyGroup: options?.historyGroup ?? `transform:${elementId}`
 				});
+			},
+
+			removeElements(ids) {
+				const remove = new Set(
+					(activeSlide()?.elements ?? [])
+						.filter((element) => ids.includes(element.id) && !element.locked)
+						.map((element) => element.id)
+				);
+				if (remove.size === 0) return;
+				commit((draft) => {
+					for (const slide of draft.slides)
+						slide.elements = slide.elements.filter((element) => !remove.has(element.id));
+					return true;
+				});
+				set({
+					view: {
+						...get().view,
+						selectedElementIds: get().view.selectedElementIds.filter((id) => !remove.has(id)),
+						editingElementId: remove.has(get().view.editingElementId ?? '')
+							? null
+							: get().view.editingElementId
+					}
+				});
+			},
+
+			duplicateElements(ids) {
+				const slide = activeSlide();
+				if (!slide) return [];
+				const sources = slide.elements.filter((element) => ids.includes(element.id));
+				if (sources.length === 0) return [];
+				if (slide.elements.length + sources.length > PRESENTATION_LIMITS.maxElementsPerSlide)
+					return [];
+				const copies = sources.map((source) => {
+					const copy = cloneElementWithNewId(source);
+					copy.name = `${source.name} copy`.slice(0, 200);
+					copy.x = source.x + 24;
+					copy.y = source.y + 24;
+					return copy;
+				});
+				commit((draft) => {
+					const target = draft.slides.find((candidate) => candidate.id === slide.id);
+					if (!target) return false;
+					target.elements.push(...copies.map((copy) => structuredClone(copy)));
+					return true;
+				});
+				const copyIds = copies.map((copy) => copy.id);
+				set({ view: { ...get().view, selectedElementIds: copyIds, editingElementId: null } });
+				return copyIds;
 			},
 
 			removeElement(elementId) {

@@ -4,7 +4,15 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { openBlankEditor, readStoredPresentationJson } from './presentations';
+import {
+	addShape,
+	at,
+	canvasView,
+	clickAt,
+	drag,
+	openBlankEditor,
+	readStoredPresentationJson
+} from './presentations';
 
 const host = (page: Page) => page.getByTestId('presentation-canvas');
 
@@ -90,5 +98,96 @@ test('the slide stays fully visible and cannot be lost', async ({ page }) => {
 	await writeFile(
 		'proofs/out/slide-editor-stage4-fit-report.json',
 		JSON.stringify({ fits: report, panned }, null, 2)
+	);
+});
+
+/** Places the selected element through the Format pane's exact fields. */
+async function place(page: Page, x: number, y: number, width: number, height: number) {
+	const pane = page.getByRole('complementary', { name: 'Task pane' });
+	for (const [label, value] of [
+		['Width', width],
+		['Height', height],
+		['X position', x],
+		['Y position', y]
+	] as const) {
+		const field = pane.getByLabel(label, { exact: true });
+		await field.fill(String(value));
+		await field.press('Enter');
+	}
+}
+
+const selectedCount = (page: Page) =>
+	host(page).evaluate((node) => Number(node.getAttribute('data-selected-count')));
+const layerCount = (page: Page) => page.locator('.presentation-layer-item').count();
+
+test('selects several elements with a box, Shift-click and Ctrl+A', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	const id = await openBlankEditor(page);
+	await addShape(page, 'Rectangle');
+	await place(page, 40, 40, 200, 120);
+	await addShape(page, 'Ellipse');
+	await place(page, 300, 40, 200, 120);
+	await addShape(page, 'Rectangle');
+	await place(page, 900, 500, 200, 120);
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(3);
+	const view = await canvasView(page);
+
+	// A box around the top two selects exactly those two.
+	await drag(page, at(view, 20, 20), at(view, 560, 200));
+	await expect.poll(() => selectedCount(page)).toBe(2);
+	await expect(page.locator('.presentation-layer-item[data-selected="true"]')).toHaveCount(2);
+
+	// Shift-click adds and removes.
+	await page.keyboard.down('Shift');
+	await clickAt(page, at(view, 1000, 560));
+	await expect.poll(() => selectedCount(page)).toBe(3);
+	await clickAt(page, at(view, 400, 100));
+	await expect.poll(() => selectedCount(page)).toBe(2);
+	await page.keyboard.up('Shift');
+
+	// A click on empty slide clears; Ctrl+A selects everything on the slide.
+	await clickAt(page, at(view, 700, 330));
+	await expect.poll(() => selectedCount(page)).toBe(0);
+	await host(page).focus();
+	await page.keyboard.press('Control+a');
+	await expect.poll(() => selectedCount(page)).toBe(3);
+
+	// Delete and duplicate act on the whole selection, as one undo step each.
+	await page.keyboard.press('Delete');
+	await expect.poll(() => layerCount(page)).toBe(0);
+	await page.keyboard.press('Control+z');
+	await expect.poll(() => layerCount(page)).toBe(3);
+	await host(page).focus();
+	await page.keyboard.press('Control+a');
+	await page.keyboard.press('Control+d');
+	await expect.poll(() => layerCount(page)).toBe(6);
+	await page.keyboard.press('Control+z');
+	await expect.poll(() => layerCount(page)).toBe(3);
+
+	// Tab on the focused canvas walks the elements one at a time.
+	await clickAt(page, at(view, 700, 330));
+	await host(page).focus();
+	await page.keyboard.press('Tab');
+	await expect.poll(() => selectedCount(page)).toBe(1);
+	const first = await host(page).getAttribute('data-selected-element');
+	await page.keyboard.press('Tab');
+	await expect.poll(() => host(page).getAttribute('data-selected-element')).not.toBe(first);
+
+	// A locked element survives deleting the whole selection.
+	await page.getByRole('button', { name: 'Lock Rectangle', exact: true }).first().click();
+	await host(page).focus();
+	await page.keyboard.press('Control+a');
+	await page.keyboard.press('Delete');
+	await expect.poll(() => layerCount(page)).toBe(1);
+	await expect
+		.poll(
+			async () => JSON.parse(await readStoredPresentationJson(page, id)).slides[0].elements.length
+		)
+		.toBe(1);
+
+	await mkdir('proofs/out', { recursive: true });
+	await writeFile(
+		'proofs/out/slide-editor-stage4-selection-report.json',
+		JSON.stringify({ deck: id, remaining: await layerCount(page) }, null, 2)
 	);
 });
