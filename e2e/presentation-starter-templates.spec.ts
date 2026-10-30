@@ -50,13 +50,16 @@ test('creates a company-profile deck with editable text and self-contained artwo
 	await expect
 		.poll(async () => (await readStoredPresentation(page, id))?.text)
 		.toContain('MY COMPANY');
-	// Artwork is a background layer: dragging empty paper must still pan the canvas.
+	// Artwork is a background layer: Space+drag over empty paper must still pan.
 	const canvas = page.getByTestId('presentation-canvas');
 	const bounds = (await canvas.boundingBox())!;
+	await canvas.focus();
+	await page.keyboard.down('Space');
 	await page.mouse.move(bounds.x + 35, bounds.y + 35);
 	await page.mouse.down();
 	await page.mouse.move(bounds.x + 75, bounds.y + 65);
 	await page.mouse.up();
+	await page.keyboard.up('Space');
 	await expect(canvas).not.toHaveAttribute('data-view-pan-x', '0');
 	await page.getByRole('button', { name: 'Fit slide to window' }).click();
 	await page.reload();

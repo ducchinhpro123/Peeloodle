@@ -123,12 +123,11 @@ test('task pane shows format and selection, closes, and remembers it', async ({ 
 	await page.getByRole('button', { name: 'Format pane', exact: true }).click();
 	await expect(page.getByRole('complementary', { name: 'Task pane' })).toBeVisible();
 
-	// Between 1024 and 1279 px the pane floats over the canvas instead of taking a column.
+	// Between 1024 and 1279 px the pane stays docked beside the canvas, never over it.
 	await page.setViewportSize({ width: 1100, height: 800 });
-	const position = await page
-		.getByRole('complementary', { name: 'Task pane' })
-		.evaluate((node) => getComputedStyle(node).position);
-	expect(position).toBe('absolute');
+	const paneBox = (await page.getByRole('complementary', { name: 'Task pane' }).boundingBox())!;
+	const canvasBox = (await page.getByTestId('presentation-canvas').boundingBox())!;
+	expect(paneBox.x).toBeGreaterThanOrEqual(canvasBox.x + canvasBox.width - 1);
 });
 
 test('stage 3 evidence: the shell fits at laptop and tablet widths', async ({ page }) => {

@@ -56,15 +56,18 @@ test('paints the slide and keeps zoom, pan and slide changes view-only', async (
 	await page.getByRole('button', { name: 'Zoom in' }).click();
 	await expect(canvasHost(page)).toHaveAttribute('data-view-zoom', '1.25');
 
-	// Panning starts on the slide background above the artwork, and the canvas says
-	// so while the pointer is down.
+	// Space+drag pans (as in PowerPoint), and the canvas says so while the pointer
+	// is down.
 	const box = (await canvasHost(page).boundingBox())!;
 	const start = { x: box.x + box.width / 2, y: box.y + 12 };
+	await canvasHost(page).focus();
+	await page.keyboard.down('Space');
 	await page.mouse.move(start.x, start.y);
 	await page.mouse.down();
 	await page.mouse.move(start.x + 35, start.y + 20);
 	await expect(canvasHost(page)).toHaveClass(/is-panning/);
 	await page.mouse.up();
+	await page.keyboard.up('Space');
 	await expect(canvasHost(page)).not.toHaveClass(/is-panning/);
 	await expect(canvasHost(page)).not.toHaveAttribute('data-view-pan-x', '0');
 	await expect(canvasHost(page)).toHaveAttribute('data-view-zoom', '1.25');
@@ -116,10 +119,13 @@ test('the fit control returns the view to 100% without touching the document', a
 	const before = await readStoredPresentationJson(page, id);
 	const box = (await canvasHost(page).boundingBox())!;
 	const start = { x: box.x + box.width / 2, y: box.y + 12 };
+	await canvasHost(page).focus();
+	await page.keyboard.down('Space');
 	await page.mouse.move(start.x, start.y);
 	await page.mouse.down();
 	await page.mouse.move(start.x + 40, start.y + 24);
 	await page.mouse.up();
+	await page.keyboard.up('Space');
 	await page.getByRole('button', { name: 'Zoom in' }).click();
 	await expect(canvasHost(page)).not.toHaveAttribute('data-view-zoom', '1');
 	await expect(canvasHost(page)).not.toHaveAttribute('data-view-pan-x', '0');

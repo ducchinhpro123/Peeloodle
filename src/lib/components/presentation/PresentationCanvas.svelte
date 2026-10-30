@@ -3,6 +3,7 @@
 	import { Konva } from '#lib/presentations/rendering/konvaText.js';
 	import { renderSlide, renderText } from '#lib/presentations/rendering/renderSlide.js';
 	import {
+		clampPresentationPan,
 		clampPresentationZoom,
 		presentationViewport
 	} from '#lib/presentations/editor/viewGeometry.js';
@@ -75,6 +76,8 @@
 	let size = $state.raw({ width: 0, height: 0 });
 	let renderError = $state(false);
 	let panning = $state(false);
+	/** Space held over the editor turns a drag into a pan, as in PowerPoint. */
+	let spaceHeld = $state(false);
 
 	const editorState = $derived(doc.snapshot());
 	const presentation = $derived(editorState.document);
@@ -426,6 +429,12 @@
 
 	/** @param {PointerEvent} event */
 	function handlePointerDown(event) {
+		// Space+drag or a middle-button drag pans; a plain drag never moves the view.
+		if (event.button === 1 || (event.button === 0 && spaceHeld)) {
+			event.preventDefault();
+			startPan(event);
+			return;
+		}
 		if (event.button !== 0) return;
 		const element = elementAtPointer(event.clientX, event.clientY);
 		if (element) {
@@ -436,8 +445,11 @@
 			if (!element.locked) beginTransform(element, 'move', null, event);
 			return;
 		}
-		// Capture on the Konva container so Konva still sees pointerdown/up and can
-		// report click/dblclick for element selection.
+	}
+
+	/** @param {PointerEvent} event */
+	function startPan(event) {
+		// Capture on the Konva container so move/up arrive through the host handlers.
 		const capture = captureTarget();
 		panGesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, capture };
 		panning = true;
@@ -464,7 +476,13 @@
 		gesture.x = event.clientX;
 		gesture.y = event.clientY;
 		const state = doc.snapshot();
-		state.setPan({ x: state.view.pan.x + dx, y: state.view.pan.y + dy });
+		const pageSize = state.document?.pageSize ?? { width: 0, height: 0 };
+		state.setPan(
+			clampPresentationPan(size, pageSize, state.view.zoom, {
+				x: state.view.pan.x + dx,
+				y: state.view.pan.y + dy
+			})
+		);
 	}
 
 	/** @param {WheelEvent} event */
@@ -522,6 +540,23 @@
 		konvaStage.on('click tap', select);
 		konvaStage.on('dblclick dbltap', edit);
 
+		// Space is a pan modifier only outside fields, buttons and dialogs, where it
+		// keeps its own meaning.
+		const spaceExempt =
+			'input, textarea, select, button, a, [contenteditable="true"], [role="slider"], dialog, [role="dialog"]';
+		const onKeyDown = (/** @type {KeyboardEvent} */ event) => {
+			if (event.code !== 'Space' || event.ctrlKey || event.metaKey || event.altKey) return;
+			if (event.target instanceof HTMLElement && event.target.closest(spaceExempt)) return;
+			event.preventDefault();
+			spaceHeld = true;
+		};
+		const onKeyUp = (/** @type {KeyboardEvent} */ event) => {
+			if (event.code === 'Space') spaceHeld = false;
+		};
+		const onBlur = () => (spaceHeld = false);
+		window.addEventListener('keydown', onKeyDown);
+		window.addEventListener('keyup', onKeyUp);
+		window.addEventListener('blur', onBlur);
 		node.addEventListener('wheel', handleWheel, { passive: false });
 		node.addEventListener('pointerdown', handlePointerDown);
 		node.addEventListener('pointermove', handlePointerMove);
@@ -530,6 +565,9 @@
 
 		return () => {
 			observer.disconnect();
+			window.removeEventListener('keydown', onKeyDown);
+			window.removeEventListener('keyup', onKeyUp);
+			window.removeEventListener('blur', onBlur);
 			node.removeEventListener('wheel', handleWheel);
 			node.removeEventListener('pointerdown', handlePointerDown);
 			node.removeEventListener('pointermove', handlePointerMove);
@@ -559,8 +597,9 @@
 {#if presentation && activeSlide}
 	<section class="presentation-canvas-panel" aria-label="Slide canvas">
 		<div
-			class="presentation-canvas [position:absolute] [inset:0] [cursor:grab] [touch-action:none]"
+			class="presentation-canvas [position:absolute] [inset:0] [cursor:default] [touch-action:none]"
 			class:is-panning={panning}
+			class:is-space-pan={spaceHeld}
 			data-ready={ready}
 			data-testid="presentation-canvas"
 			data-document-width={presentation.pageSize.width}
@@ -705,6 +744,9 @@
 		color: var(--warning-ink);
 		font-size: 12px;
 		font-weight: 600;
+	}
+	.presentation-canvas.is-space-pan {
+		cursor: grab;
 	}
 	.presentation-canvas.is-panning {
 		cursor: grabbing;

@@ -1634,20 +1634,14 @@
 		margin-block-start: var(--space-5);
 		font-size: 12px;
 	}
-	/* Laptop and tablet widths: the task pane floats over the canvas instead of
-	 * taking a column, so the slide keeps its room. */
+	/* Laptop and tablet widths keep the task pane docked but narrower, so it
+	 * never covers the slide. */
 	@media (max-width: 1279px) {
-		.presentation-workspace,
-		.presentation-workspace.has-task-pane {
-			grid-template-columns: 200px minmax(0, 1fr);
+		.presentation-workspace {
+			grid-template-columns: 160px minmax(0, 1fr);
 		}
-		.presentation-workspace :global(.task-pane) {
-			position: absolute;
-			z-index: 3;
-			inset-block: 0;
-			inset-inline-end: 0;
-			inline-size: min(300px, 45vw);
-			box-shadow: -8px 0 24px color-mix(in oklch, var(--ink) 12%, transparent);
+		.presentation-workspace.has-task-pane {
+			grid-template-columns: 160px minmax(0, 1fr) clamp(240px, 26vw, 300px);
 		}
 	}
 	@media (max-width: 720px) {
