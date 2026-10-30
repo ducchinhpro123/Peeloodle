@@ -7,6 +7,7 @@
 	import PresentationEditorPage from '#lib/components/presentation/PresentationEditorPage.svelte';
 	import { getCatalogRepository } from '#lib/catalog/client.js';
 	import { getCloudWorkspace } from '#lib/cloud/workspace.svelte.js';
+	import { templatePolicy } from '#lib/presentations/editor/persistence/policies.js';
 	import { TemplateDraftRepository } from '#lib/presentations/templates/templateDraftRepository.js';
 
 	/**
@@ -106,7 +107,7 @@
 					presentationId={params.templateId}
 					repository={draftRepository}
 					catalogRepository={repository}
-					mode="template"
+					policy={templatePolicy}
 					{backhref}
 					onback={() => goto(backhref)}
 					onreload={reloadDraft}

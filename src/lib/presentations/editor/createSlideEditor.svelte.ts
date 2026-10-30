@@ -8,7 +8,10 @@
 
 import type { PresentationRepository } from '../persistence/repository';
 import { createPresentationExport, type PresentationExportController } from './exportController';
-import { createPresentationSaving, type PresentationSaving } from './presentationSaving';
+import {
+	createPresentationSaving,
+	type PresentationSaving
+} from './persistence/persistence.svelte';
 import { createDocumentState, type DocumentState } from './document/documentState.svelte';
 import { createTextEditSession, type TextEditSession } from './textEditSession.svelte';
 import { createSelection, type SelectionState } from './selection.svelte';

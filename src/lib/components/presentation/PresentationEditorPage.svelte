@@ -47,10 +47,7 @@
 	import ExportDialog from './ExportDialog.svelte';
 	import SaveAsTemplateDialog from './SaveAsTemplateDialog.svelte';
 	import { saveAsTemplateDraft } from '#lib/presentations/templates/saveAsTemplateDraft.js';
-	import {
-		describeTemplateSaveFailure,
-		TEMPLATE_SAVE_CONFLICT_MESSAGE
-	} from '#lib/presentations/templates/templateDraftRepository.js';
+	import { localPolicy } from '#lib/presentations/editor/persistence/policies.js';
 	import { loadTemplateLayout } from '#lib/presentations/templates/templateLayout.js';
 	import InsertTemplateDialog from './InsertTemplateDialog.svelte';
 
@@ -73,7 +70,7 @@
 	 *   catalogAdminRepository?: import('#lib/catalog/repository.js').CatalogAdminRepository | null,
 	 *   backhref: string,
 	 *   onback: () => void | Promise<void>,
-	 *   mode?: 'local' | 'template',
+	 *   policy?: import('#lib/presentations/editor/persistence/policies.js').EditorPolicy,
 	 *   onreload?: (() => void) | null,
 	 *   leaveguard?: {
 	 *     hasUnsavedWork: () => boolean,
@@ -94,15 +91,13 @@
 		catalogAdminRepository = null,
 		backhref,
 		onback,
-		mode = 'local',
+		policy = localPolicy,
 		onreload = null,
 		// `$bindable` compiles to a prop getter/setter, so this component only ever
 		// publishes the guard; the route reads it back through the binding, which
 		// leaves the initial value unread here.
 		leaveguard = $bindable(null)
 	} = $props();
-
-	const templateMode = $derived(mode === 'template');
 
 	// The route keys this page on the presentation id, so a different document
 	// remounts the component (and creates a fresh editor) instead of reassigning props.
@@ -112,12 +107,8 @@
 		repository,
 		// Template mode writes catalog versions, so a local-storage failure message
 		// would be wrong: the adapter's own wording is shown instead.
-		...(mode === 'template'
-			? {
-					describeFailure: describeTemplateSaveFailure,
-					conflictMessage: TEMPLATE_SAVE_CONFLICT_MESSAGE
-				}
-			: {})
+		describeFailure: policy.describeFailure,
+		conflictMessage: policy.conflictMessage
 	});
 	setSlideEditor(editor);
 	const {
@@ -206,14 +197,10 @@
 			: saveState.status === 'failed'
 				? 'Save failed'
 				: saveState.status === 'saving'
-					? templateMode
-						? 'Saving version…'
-						: 'Saving…'
+					? policy.labels.saving
 					: editorState.dirty
 						? 'Unsaved changes'
-						: templateMode
-							? 'Draft saved'
-							: 'Saved in this browser'
+						: policy.labels.saved
 	);
 	// A failure is shown in words, not only in a tooltip: what happened and that
 	// the edit is still here with a way to retry it.
@@ -234,7 +221,7 @@
 		// Template mode has no autosave: every write creates an immutable version,
 		// so a version is only ever created by an explicit Save (or a held
 		// navigation the leave guard commits).
-		const autosave = templateMode ? null : saving.attachAutosave();
+		const autosave = policy.capabilities.autosave ? saving.attachAutosave() : null;
 		return () => {
 			unsubscribe();
 			autosave?.detach();
@@ -264,13 +251,11 @@
 			saveBeforeLeave: async () => {
 				// A conflict needs a deliberate answer from the administrator;
 				// navigating away must not replace the other tab's version.
-				if (templateMode && saving.getStatus().status === 'conflict') return false;
+				if (policy.conflictRecovery === 'reload-draft' && saving.getStatus().status === 'conflict')
+					return false;
 				return saving.saveBeforeLeave();
 			},
-			reportFailure: () =>
-				(editorNote = templateMode
-					? 'This draft could not be saved, so it is still open. Press Save version to try again — or reload the draft to discard these changes.'
-					: 'This presentation could not be saved, so it is still open. Press Save to try again — or press Keep my copy if another tab or window has a newer version.')
+			reportFailure: () => (editorNote = policy.labels.leaveFailure)
 		};
 		return () => {
 			// The guard must not outlive the editor it speaks for.
@@ -584,7 +569,7 @@
 	 * Shared by insertion and replacement so neither path can report success for
 	 * a half-written change.
 	 * @param {() => Promise<import('#lib/presentations/editor/insertImageAsset.js').PreparedPresentationImage>} prepare
-	 * @param {(prepared: import('#lib/presentations/editor/insertImageAsset.js').PreparedPresentationImage) => Promise<import('#lib/presentations/editor/presentationSaving.js').PersistInsertOutcome>} write
+	 * @param {(prepared: import('#lib/presentations/editor/insertImageAsset.js').PreparedPresentationImage) => Promise<import('#lib/presentations/editor/persistence/persistence.svelte.js').PersistInsertOutcome>} write
 	 * @param {string} fallback
 	 */
 	async function runImageWrite(prepare, write, fallback) {
@@ -691,7 +676,7 @@
 	async function requestSave() {
 		editorNote = null;
 		const result = await saving.save();
-		if (templateMode && result === 'saved') editorNote = 'Saved as a new draft version.';
+		if (result === 'saved' && policy.labels.savedNote) editorNote = policy.labels.savedNote;
 	}
 
 	/**
@@ -868,7 +853,7 @@
 	onpagehide={() => {
 		// A template version is only ever created deliberately (or by the leave
 		// guard, which can report back); the unload path cannot.
-		if (!templateMode) void saving.save();
+		if (policy.capabilities.autosave) void saving.save();
 	}}
 />
 
@@ -917,14 +902,14 @@
 					><ArrowLeft size={19} /></a
 				>
 				<div class="presentation-editor-title">
-					<p>{templateMode ? 'Template draft' : 'Presentation'}</p>
+					<p>{policy.labels.heading}</p>
 					<h1 title={presentation.title}>{presentation.title}</h1>
 				</div>
 				<p class="presentation-local-status" role="status" title={saveState.message ?? undefined}>
 					{saveLabel}
 				</p>
 				<button type="button" class={button} onclick={requestSave}
-					><Save size={16} aria-hidden="true" /> {templateMode ? 'Save version' : 'Save'}</button
+					><Save size={16} aria-hidden="true" /> {policy.labels.save}</button
 				>
 			</div>
 			<div class="presentation-editor-actions" role="group" aria-label="Presentation tools">
@@ -962,7 +947,7 @@
 						!!selection.editingId}
 					onclick={pasteCopiedElement}><ClipboardPaste size={16} aria-hidden="true" /> Paste</button
 				>
-				{#if !templateMode}
+				{#if policy.capabilities.export}
 					<ExportDialog
 						{exportState}
 						offline={offline.snapshot}
@@ -1004,7 +989,7 @@
 						><Type size={16} aria-hidden="true" /> Add text</button
 					>
 				</span>
-				{#if !templateMode}
+				{#if policy.capabilities.localMedia}
 					<button
 						type="button"
 						class={button}
@@ -1022,12 +1007,12 @@
 						disabled={inserting}
 						oninsert={addCatalogImage}
 					/>{/if}
-				{#if catalogRepository && !templateMode}<InsertTemplateDialog
+				{#if catalogRepository && policy.capabilities.templateSlides}<InsertTemplateDialog
 						repository={catalogRepository}
 						disabled={inserting}
 						oninsert={insertTemplateLayout}
 					/>{/if}
-				{#if catalogAdminRepository && !templateMode}<SaveAsTemplateDialog
+				{#if catalogAdminRepository && policy.capabilities.saveAsTemplate}<SaveAsTemplateDialog
 						repository={catalogAdminRepository}
 						needsCollection={presentation.assets.some(
 							(asset) => asset.provenance.source !== 'catalog'
@@ -1035,12 +1020,12 @@
 						defaultTitle={presentation.title}
 						onsave={(input) => saveAsTemplate(input)}
 					/>{/if}
-				{#if stickerRepository && !templateMode}<StickerPickerDialog
+				{#if stickerRepository && policy.capabilities.stickers}<StickerPickerDialog
 						repository={stickerRepository}
 						disabled={inserting}
 						onpick={(projectId) => void addSticker(projectId)}
 					/>{/if}
-				{#if !templateMode}
+				{#if policy.capabilities.localMedia}
 					<input
 						bind:this={imageInput}
 						class="sr-only"
@@ -1081,7 +1066,7 @@
 					bind:this={themeOpener}
 					onclick={() => (themeOpen = true)}>Theme</button
 				>
-				{#if saveState.status === 'conflict' && templateMode}
+				{#if saveState.status === 'conflict' && policy.conflictRecovery === 'reload-draft'}
 					<button
 						type="button"
 						class={button}
@@ -1097,7 +1082,7 @@
 						>{recovering ? 'Keeping your copy…' : 'Keep my copy'}</button
 					>
 				{/if}
-				{#if saveReported && !templateMode}
+				{#if saveReported && policy.capabilities.export}
 					<!-- Recovery guidance: if the local write fails, the work can still leave
 					     the browser as a backup archive. -->
 					<button
@@ -1262,7 +1247,7 @@
 					<p>{selectedElement.name || 'Element'}</p>
 					<ElementGeometryInspector
 						element={selectedElement}
-						onreplaceimage={templateMode ? undefined : beginReplaceImage}
+						onreplaceimage={policy.capabilities.localMedia ? beginReplaceImage : undefined}
 					/>
 				{/if}
 				<p class="muted [color:var(--muted)]">
@@ -1283,7 +1268,7 @@
 	>
 		{#if selectedElement}<ElementGeometryInspector
 				element={selectedElement}
-				onreplaceimage={templateMode ? undefined : beginReplaceImage}
+				onreplaceimage={policy.capabilities.localMedia ? beginReplaceImage : undefined}
 			/>{/if}
 	</Modal>
 

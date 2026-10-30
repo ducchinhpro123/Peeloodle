@@ -43,7 +43,7 @@ const TEMPLATE_SAVE_FAILED_MESSAGE =
 
 /**
  * The message a failed template-mode save shows. The local-storage wording of
- * `presentationSaving` would be wrong here, so the page passes this instead.
+ * `persistence.svelte.ts` would be wrong here, so the page passes this instead.
  */
 export function describeTemplateSaveFailure(error: unknown): string {
 	if (isPersistenceError(error)) {

@@ -22,23 +22,23 @@
  */
 
 import { isPersistenceError } from '#lib/persistence/repository.js';
-import type { PresentationMediaRecord, PresentationRepository } from '../persistence/repository';
-import { clonePresentationDocumentWithNewIds } from '../model/factories';
-import { PRESENTATION_LIMITS } from '../model/limits';
-import type { PresentationAsset, PresentationDocument, Slide } from '../model/types';
-import type { PreparedPresentationImage } from './insertImageAsset';
+import type { PresentationMediaRecord, PresentationRepository } from '../../persistence/repository';
+import { clonePresentationDocumentWithNewIds } from '../../model/factories';
+import { PRESENTATION_LIMITS } from '../../model/limits';
+import type { PresentationAsset, PresentationDocument, Slide } from '../../model/types';
+import type { PreparedPresentationImage } from '../insertImageAsset';
 import {
 	imageReplaceRefusal,
 	slideInsertionRefusal,
 	type ImageInsertRefusalReason,
 	type SlideInsertionRefusalReason
-} from './document/rules';
+} from '../document/rules';
 import {
 	planImageInsert,
 	planImageReplacement,
 	planSlideInsertion
-} from './document/commands/images';
-import type { DocumentState } from './document/documentState.svelte';
+} from '../document/commands/images';
+import type { DocumentState } from '../document/documentState.svelte';
 
 export type PresentationSaveStatus = 'clean' | 'saving' | 'saved' | 'failed' | 'conflict';
 export type PresentationSaveState = { status: PresentationSaveStatus; message: string | null };
