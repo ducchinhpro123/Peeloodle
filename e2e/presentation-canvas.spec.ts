@@ -191,3 +191,64 @@ test('selects several elements with a box, Shift-click and Ctrl+A', async ({ pag
 		JSON.stringify({ deck: id, remaining: await layerCount(page) }, null, 2)
 	);
 });
+
+test('moves and nudges a multi-selection as one undo step', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	const id = await openBlankEditor(page);
+	await addShape(page, 'Rectangle');
+	await place(page, 100, 100, 200, 120);
+	await addShape(page, 'Ellipse');
+	await place(page, 500, 300, 200, 120);
+	const positions = async () =>
+		JSON.parse(await readStoredPresentationJson(page, id)).slides[0].elements.map(
+			(element: { x: number; y: number }) => [Math.round(element.x), Math.round(element.y)]
+		);
+	await expect.poll(positions).toEqual([
+		[100, 100],
+		[500, 300]
+	]);
+
+	// Drag one element of the selection: both move by the same distance.
+	await host(page).focus();
+	await page.keyboard.press('Control+a');
+	const view = await canvasView(page);
+	await drag(page, at(view, 200, 160), at(view, 280, 210));
+	// The move reaches storage after the autosave pause.
+	await expect.poll(async () => (await positions())[1][0]).not.toBe(500);
+	const moved = await positions();
+	const dx = moved[0][0] - 100;
+	const dy = moved[0][1] - 100;
+	expect(Math.abs(dx - 80)).toBeLessThanOrEqual(10);
+	expect(Math.abs(dy - 50)).toBeLessThanOrEqual(10);
+	expect(moved[1]).toEqual([500 + dx, 300 + dy]);
+	await expect.poll(() => selectedCount(page)).toBe(2);
+
+	// One undo puts both back.
+	await page.keyboard.press('Control+z');
+	await expect.poll(positions).toEqual([
+		[100, 100],
+		[500, 300]
+	]);
+
+	// Arrow keys nudge the selection by 8 units, Ctrl+arrow by 1; a run of nudges is one step.
+	await host(page).focus();
+	await page.keyboard.press('Control+a');
+	await page.keyboard.press('ArrowRight');
+	await page.keyboard.press('ArrowRight');
+	await page.keyboard.press('Control+ArrowDown');
+	await expect.poll(positions).toEqual([
+		[116, 101],
+		[516, 301]
+	]);
+	await page.waitForTimeout(1000);
+	await page.keyboard.press('Control+z');
+	await expect.poll(positions).toEqual([
+		[100, 100],
+		[500, 300]
+	]);
+
+	await writeFile(
+		'proofs/out/slide-editor-stage4-move-report.json',
+		JSON.stringify({ deck: id, dragDelta: [dx, dy], final: await positions() }, null, 2)
+	);
+});

@@ -45,7 +45,8 @@
 	 *   current: TransformGeometry | null,
 	 *   pointerAngle: number,
 	 *   rotationTurn: number,
-	 *   capture: HTMLElement | null
+	 *   capture: HTMLElement | null,
+	 *   companions: { id: string, start: TransformGeometry }[]
 	 * }} TransformGesture
 	 */
 
@@ -304,7 +305,14 @@
 			// Rotation measures the pointer angle around the element's visual centre.
 			pointerAngle: kind === 'rotate' ? rotationFromPoint(elementWorldCenter(start), origin) : 0,
 			rotationTurn: 0,
-			capture
+			capture,
+			// Moving one element of a multi-selection carries the other unlocked ones.
+			companions:
+				kind === 'move' && selection.ids.length > 1 && selection.ids.includes(element.id)
+					? selection.elements
+							.filter((other) => other.id !== element.id && !other.locked)
+							.map((other) => ({ id: other.id, start: elementGeometry(other, null) }))
+					: []
 		};
 		try {
 			capture?.setPointerCapture(event.pointerId);
@@ -380,9 +388,28 @@
 			nextGuides = snapped.guides;
 		}
 		gesture.current = current;
+		moveCompanions(gesture, current);
 		state.setTransformPreview({ elementId: gesture.elementId, ...current });
 		state.setGuides(nextGuides);
 		return true;
+	}
+
+	/**
+	 * Shows the rest of a multi-selection following the dragged element, on the
+	 * rendering layer only; the document changes once, when the gesture commits.
+	 * @param {TransformGesture} gesture
+	 * @param {TransformGeometry | null} current
+	 */
+	function moveCompanions(gesture, current) {
+		if (!layer || gesture.companions.length === 0) return;
+		const dx = current ? current.x - gesture.start.x : 0;
+		const dy = current ? current.y - gesture.start.y : 0;
+		for (const companion of gesture.companions) {
+			layer
+				.findOne(`#${companion.id}`)
+				?.position({ x: companion.start.x + dx, y: companion.start.y + dy });
+		}
+		layer.batchDraw();
 	}
 
 	/**
@@ -416,8 +443,24 @@
 		if (!gesture.current && selection.ids.length > 1) selection.select([gesture.elementId]);
 		const state = doc.snapshot();
 		// A click without movement leaves no undo entry and no revision behind.
-		if (commit && gesture.current) state.commitTransform(gesture.elementId, gesture.current);
-		else if (gesture.current) state.setTransformPreview(null);
+		if (commit && gesture.current && gesture.companions.length > 0) {
+			const { current } = gesture;
+			const dx = current.x - gesture.start.x;
+			const dy = current.y - gesture.start.y;
+			state.commitTransforms({
+				[gesture.elementId]: current,
+				...Object.fromEntries(
+					gesture.companions.map((companion) => [
+						companion.id,
+						{ ...companion.start, x: companion.start.x + dx, y: companion.start.y + dy }
+					])
+				)
+			});
+		} else if (commit && gesture.current) state.commitTransform(gesture.elementId, gesture.current);
+		else if (gesture.current) {
+			moveCompanions(gesture, null);
+			state.setTransformPreview(null);
+		}
 		state.setGuides([]);
 	}
 

@@ -135,6 +135,10 @@ export type PresentationStoreState = {
 	removeElement(elementId: string): void;
 	/** Removes every unlocked element of `ids` as one undo entry; locked ones stay. */
 	removeElements(ids: string[]): void;
+	/** Ends a multi-element gesture: every unlocked element's geometry as one undo entry. */
+	commitTransforms(geometries: Record<string, TransformGeometry>): void;
+	/** Moves every unlocked element of `ids`; nudges share one open history group. */
+	nudgeElements(ids: string[], dx: number, dy: number, options?: { historyGroup?: string }): void;
 	/**
 	 * Copies the elements of `ids` on the active slide, offset and stacked above
 	 * their sources, as one undo entry; the copies become the selection.
@@ -905,6 +909,49 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 				get().updateElement(elementId, patch as Partial<Element>, {
 					historyGroup: options?.historyGroup ?? `transform:${elementId}`
 				});
+			},
+
+			commitTransforms(geometries) {
+				const clean = new Map<string, TransformGeometry>();
+				for (const [id, geometry] of Object.entries(geometries)) {
+					const normalized = normalizeTransform(geometry);
+					if (normalized) clean.set(id, normalized);
+				}
+				if (clean.size > 0) {
+					commit((draft) => {
+						let changed = false;
+						for (const slide of draft.slides) {
+							for (const element of slide.elements) {
+								const geometry = clean.get(element.id);
+								if (!geometry || element.locked) continue;
+								element.x = geometry.x;
+								element.y = geometry.y;
+								element.width = geometry.width;
+								element.height = geometry.height;
+								element.rotation = geometry.rotation;
+								changed = true;
+							}
+						}
+						return changed;
+					});
+				}
+				get().endHistoryGroup();
+				set({ view: { ...get().view, transformPreview: null, guides: [] } });
+			},
+
+			nudgeElements(ids, dx, dy, options) {
+				commit((draft) => {
+					let changed = false;
+					for (const slide of draft.slides) {
+						for (const element of slide.elements) {
+							if (!ids.includes(element.id) || element.locked) continue;
+							element.x += dx;
+							element.y += dy;
+							changed = true;
+						}
+					}
+					return changed;
+				}, options);
 			},
 
 			removeElements(ids) {

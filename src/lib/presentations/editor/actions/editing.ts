@@ -2,11 +2,55 @@
 
 import { ClipboardPaste, Copy, Redo2, Trash2, Undo2 } from 'lucide-svelte';
 import { OK, type Action } from './registry';
+import type { SlideEditor } from '../createSlideEditor.svelte';
+
+/** Consecutive nudges share one undo entry until the keys rest for this long. */
+const NUDGE_IDLE_MS = 800;
+const nudgeTimers = new WeakMap<SlideEditor, ReturnType<typeof setTimeout>>();
+
+function nudge(editor: SlideEditor, dx: number, dy: number) {
+	editor.doc.nudgeElements(editor.selection.ids, dx, dy, { historyGroup: 'nudge' });
+	clearTimeout(nudgeTimers.get(editor));
+	nudgeTimers.set(
+		editor,
+		setTimeout(() => {
+			if (editor.doc.lastHistoryGroup === 'nudge') editor.doc.endHistoryGroup();
+		}, NUDGE_IDLE_MS)
+	);
+}
+
+const nudgeDirections = [
+	['Left', 'ArrowLeft', -1, 0],
+	['Right', 'ArrowRight', 1, 0],
+	['Up', 'ArrowUp', 0, -1],
+	['Down', 'ArrowDown', 0, 1]
+] as const;
+
+/** Arrow keys move the selection 8 units, Ctrl+arrow 1 unit. */
+const nudgeActions: Action[] = nudgeDirections.flatMap(([name, key, x, y]) =>
+	(
+		[
+			[8, false],
+			[1, true]
+		] as const
+	).map(([step, fine]) => ({
+		id: `element.nudge${name}${fine ? 'Fine' : ''}`,
+		label: `Nudge ${name.toLowerCase()}${fine ? ' by one unit' : ''}`,
+		shortcuts: [{ key, mod: fine }],
+		enabled: (editor: SlideEditor) =>
+			editor.selection.ids.length > 0 && !editor.selection.editingId,
+		run: (editor: SlideEditor) => {
+			nudge(editor, x * step, y * step);
+			return OK;
+		}
+	}))
+);
 
 const targetId = (args: Record<string, unknown> | undefined, fallback: string | undefined) =>
 	typeof args?.elementId === 'string' ? args.elementId : fallback;
 
 export const editingActions: Action[] = [
+	...nudgeActions,
 	{
 		id: 'history.undo',
 		label: 'Undo',
