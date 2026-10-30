@@ -97,7 +97,7 @@
 
 <svelte:head><title>Presentation — StickerLab</title></svelte:head>
 
-<AppShell editor pathname={page.url.pathname} search={page.url.search}>
+<AppShell editor fullscreen pathname={page.url.pathname} search={page.url.search}>
 	{#key params.presentationId}
 		<PresentationEditorPage
 			presentationId={params.presentationId}

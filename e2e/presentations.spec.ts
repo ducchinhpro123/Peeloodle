@@ -65,8 +65,9 @@ test('moves a shape in document units and undoes the move', async ({ page }) => 
 	await drag(page, centre, { x: centre.x + 120, y: centre.y + 60 });
 
 	const moved = await readGeometry(page);
-	expect(moved.x - inserted.x).toBeCloseTo(120 / view.scale, 1);
-	expect(moved.y - inserted.y).toBeCloseTo(60 / view.scale, 1);
+	// The inspector shows whole document units, so the readout resolves ±0.5.
+	expect(Math.abs(moved.x - inserted.x - 120 / view.scale)).toBeLessThanOrEqual(0.5);
+	expect(Math.abs(moved.y - inserted.y - 60 / view.scale)).toBeLessThanOrEqual(0.5);
 	// A move must not resize.
 	expect(moved.width).toBe(inserted.width);
 	expect(moved.height).toBe(inserted.height);

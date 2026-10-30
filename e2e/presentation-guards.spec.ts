@@ -13,7 +13,7 @@ import { openBlankEditor, readStoredPresentation } from './presentations';
  * shell's navigation and the browser Back button.
  */
 
-test('a shell nav link writes the pending edit before it leaves the editor', async ({ page }) => {
+test('an in-app link writes the pending edit before it leaves the editor', async ({ page }) => {
 	const presentationId = await openBlankEditor(page);
 
 	// The text session is open and the autosave debounce is still counting, so
@@ -23,7 +23,10 @@ test('a shell nav link writes the pending edit before it leaves the editor', asy
 	await expect(field).toBeFocused();
 	await page.keyboard.type('Home must not lose this');
 
-	await page.locator('.topnav').getByRole('link', { name: 'Home' }).click();
+	await page
+		.getByRole('banner', { name: 'Presentation title bar' })
+		.getByRole('link', { name: 'Home' })
+		.click();
 
 	// The route change is the proof the write finished first; the row then proves
 	// it landed.
@@ -36,11 +39,14 @@ test('a shell nav link writes the pending edit before it leaves the editor', asy
 	await expect(page.getByTestId('presentation-canvas')).toHaveCount(0);
 });
 
-test('a clean editor follows a shell nav link immediately', async ({ page }) => {
+test('a clean editor follows an in-app link immediately', async ({ page }) => {
 	await openBlankEditor(page);
 
 	// No edits: the guard must be invisible.
-	await page.locator('.topnav').getByRole('link', { name: 'Home' }).click();
+	await page
+		.getByRole('banner', { name: 'Presentation title bar' })
+		.getByRole('link', { name: 'Home' })
+		.click();
 
 	await expect(page).toHaveURL('/');
 	await expect(page.getByRole('heading', { name: /Your next big idea/ })).toBeVisible();

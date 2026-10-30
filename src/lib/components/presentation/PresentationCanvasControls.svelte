@@ -28,35 +28,26 @@
 		class={buttonIcon}
 		aria-label="Zoom out"
 		onclick={() => zoomBy(0.8)}
-		disabled={zoom <= PRESENTATION_MIN_ZOOM}><Minus size={17} /></button
+		disabled={zoom <= PRESENTATION_MIN_ZOOM}><Minus size={15} /></button
 	>
 	<output aria-label="Canvas zoom">{Math.round(zoom * 100)}%</output>
 	<button
 		class={buttonIcon}
 		aria-label="Zoom in"
 		onclick={() => zoomBy(1.25)}
-		disabled={zoom >= PRESENTATION_MAX_ZOOM}><Plus size={17} /></button
+		disabled={zoom >= PRESENTATION_MAX_ZOOM}><Plus size={15} /></button
 	>
 	<button class={buttonIcon} aria-label="Fit slide to window" onclick={fit}
-		><Scan size={17} /></button
+		><Scan size={15} /></button
 	>
 </div>
 
 <style>
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
 	.presentation-canvas-controls {
-		position: absolute;
-		z-index: 2;
-		inset-inline-end: var(--space-4);
-		inset-block-end: var(--space-4);
 		display: flex;
 		align-items: center;
 		gap: 2px;
-		padding: var(--space-1);
-		border: 1px solid var(--line);
-		border-radius: var(--radius-sm);
-		background: color-mix(in oklch, oklch(1 0 none) 94.902%, transparent);
-		box-shadow: var(--shadow);
 	}
 	.presentation-canvas-controls output {
 		min-inline-size: 48px;
@@ -65,14 +56,8 @@
 		font-weight: 800;
 		text-align: center;
 	}
-	.presentation-canvas-controls .button.icon {
-		inline-size: 36px;
-		min-block-size: 36px;
-	}
-	@media (max-width: 720px) {
-		.presentation-canvas-controls {
-			inset-inline-end: var(--space-3);
-			inset-block-end: var(--space-3);
-		}
+	.presentation-canvas-controls :global(.button.icon) {
+		inline-size: 28px;
+		min-block-size: 24px;
 	}
 </style>

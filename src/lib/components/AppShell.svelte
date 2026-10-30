@@ -11,21 +11,30 @@
 	 * @type {{
 	 *   children: import('svelte').Snippet,
 	 *   editor?: boolean,
+	 *   fullscreen?: boolean,
 	 *   pathname?: string,
 	 *   search?: string,
 	 * }}
 	 */
-	let { children, editor = false, pathname = '/', search = '' } = $props();
+	let { children, editor = false, fullscreen = false, pathname = '/', search = '' } = $props();
 </script>
 
-<Header {pathname} {search} />
-<div class={editor ? 'layout editor-layout' : 'layout'}>
-	<Sidebar {pathname} {search} />
-	<main>
-		<CloudBanner />
+{#if fullscreen}
+	<!-- Full-screen editors bring their own title bar and way back; the site
+	     header and sidebar would only take space from the canvas. -->
+	<main class="fullscreen-main">
 		{@render children()}
 	</main>
-</div>
+{:else}
+	<Header {pathname} {search} />
+	<div class={editor ? 'layout editor-layout' : 'layout'}>
+		<Sidebar {pathname} {search} />
+		<main>
+			<CloudBanner />
+			{@render children()}
+		</main>
+	</div>
+{/if}
 
 <style>
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
@@ -46,6 +55,14 @@
 		min-inline-size: 0;
 		flex: 1;
 		padding: var(--page-gutter);
+	}
+	.fullscreen-main {
+		display: flex;
+		block-size: 100dvh;
+		min-block-size: 0;
+		flex-direction: column;
+		padding: 0;
+		overflow: hidden;
 	}
 	:global(main > section) {
 		min-inline-size: 0;

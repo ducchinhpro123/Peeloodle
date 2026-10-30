@@ -17,7 +17,6 @@
 		rotateTransform,
 		rotationFromPoint
 	} from '#lib/presentations/editor/transformGeometry.js';
-	import PresentationCanvasControls from './PresentationCanvasControls.svelte';
 	import PresentationSelectionFrame from './PresentationSelectionFrame.svelte';
 	import TextEditOverlay from './TextEditOverlay.svelte';
 
@@ -559,7 +558,6 @@
 
 {#if presentation && activeSlide}
 	<section class="presentation-canvas-panel" aria-label="Slide canvas">
-		<PresentationCanvasControls />
 		<div
 			class="presentation-canvas [position:absolute] [inset:0] [cursor:grab] [touch-action:none]"
 			class:is-panning={panning}

@@ -2,6 +2,7 @@
 	import { button, buttonIcon, buttonPrimary } from '#lib/ui/styles.js';
 	import {
 		ArrowLeft,
+		Home,
 		Copy,
 		GripVertical,
 		ImagePlus,
@@ -14,6 +15,7 @@
 		Type
 	} from 'lucide-svelte';
 	import Modal from '#lib/components/Modal.svelte';
+	import { shellHref } from '#lib/app/navigation.js';
 	import { isPersistenceError } from '#lib/persistence/repository.js';
 	import { isPresentationParseError } from '#lib/presentations/model/parse.js';
 	import { createPresetText } from '#lib/presentations/editor/textPresets.js';
@@ -32,6 +34,7 @@
 	import { setSlideEditor } from '#lib/presentations/editor/context.js';
 	import { attachKeymap } from '#lib/presentations/editor/actions/keymap.js';
 	import ActionButton from './shell/ActionButton.svelte';
+	import StatusBar from './shell/StatusBar.svelte';
 	import { usePresentationOfflineReadiness } from '#lib/presentations/presentationOffline.svelte.js';
 	import ElementLayerList from './ElementLayerList.svelte';
 	import ElementGeometryInspector from './ElementGeometryInspector.svelte';
@@ -795,10 +798,13 @@
 	</section>
 {:else}
 	<div class="presentation-editor">
-		<header class="presentation-editor-bar">
+		<div class="presentation-editor-bar" role="banner" aria-label="Presentation title bar">
 			<div class="presentation-editor-heading">
 				<a class={buttonIcon} aria-label="Back to presentations" href={backhref} onclick={leave}
 					><ArrowLeft size={19} /></a
+				>
+				<a class={buttonIcon} aria-label="Home" title="StickerLab home" href={shellHref('/')}
+					><Home size={18} aria-hidden="true" /></a
 				>
 				<div class="presentation-editor-title">
 					<p>{policy.labels.heading}</p>
@@ -967,7 +973,7 @@
 				>
 					{editorNote ?? saveState.message ?? saveStatus}
 				</p>{/if}
-		</header>
+		</div>
 		{#if selection.editingId}<TextFormatToolbar session={textSession} />{/if}
 		{#if editor.messages.current}<p class="asset-error" role="alert">
 				{editor.messages.current}
@@ -1128,6 +1134,7 @@
 				</p>
 			</aside>
 		</div>
+		<StatusBar />
 	</div>
 
 	<Modal

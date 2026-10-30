@@ -94,7 +94,7 @@
 
 <svelte:head><title>Edit template draft — StickerLab</title></svelte:head>
 
-<AppShell editor pathname={page.url.pathname} search={page.url.search}>
+<AppShell editor fullscreen pathname={page.url.pathname} search={page.url.search}>
 	<AdminGuard
 		configured={workspace.configured}
 		sessionEmail={workspace.session?.user.email ?? null}
