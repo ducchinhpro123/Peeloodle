@@ -24,6 +24,8 @@ import { editingActions } from './actions/editing';
 import { arrangeActions } from './actions/arrange';
 import { viewActions } from './actions/view';
 import { createEditorUi, type EditorUi } from './ui.svelte';
+import { createEditorArtwork, type EditorArtwork } from './artwork.svelte';
+import { createEditorInserts, type EditorInserts, type EditorServices } from './inserts.svelte';
 
 export type SlideEditor = {
 	doc: DocumentState;
@@ -35,6 +37,10 @@ export type SlideEditor = {
 	actions: ActionRegistry;
 	/** Ribbon, task pane and context menu state for this editor. */
 	ui: EditorUi;
+	/** The open deck's decoded pictures. */
+	artwork: EditorArtwork;
+	/** Text, shape, layout, picture and template-slide insertion. */
+	inserts: EditorInserts;
 	/** The editor that opens a text session owns it; saves and exports flush through it. */
 	text: TextEditSession;
 	persistence: PresentationSaving;
@@ -47,6 +53,8 @@ export type SlideEditorInput = {
 	/** Overrides the local-storage failure copy (template mode supplies one). */
 	describeFailure?: (error: unknown) => string;
 	conflictMessage?: string;
+	/** Repositories that may arrive after mount; read through getters. */
+	services: EditorServices;
 };
 
 export function createSlideEditor(input: SlideEditorInput): SlideEditor {
@@ -76,6 +84,7 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 	});
 	const selection = createSelection(doc);
 	const messages = createMessages();
+	const artwork = createEditorArtwork(repository);
 	const editor: SlideEditor = {
 		doc,
 		selection,
@@ -89,6 +98,17 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 		}),
 		messages,
 		ui: createEditorUi(selection),
+		artwork,
+		inserts: createEditorInserts({
+			repository,
+			doc,
+			selection,
+			text,
+			messages,
+			persistence,
+			artwork,
+			services: input.services
+		}),
 		// Assigned below: actions receive the finished editor.
 		actions: undefined!,
 		text,

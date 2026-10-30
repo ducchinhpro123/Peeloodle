@@ -20,17 +20,9 @@
 	import { isPersistenceError } from '#lib/persistence/repository.js';
 	import { isPresentationParseError } from '#lib/presentations/model/parse.js';
 	import { createPresetText } from '#lib/presentations/editor/textPresets.js';
-	import { createBuiltinLayout } from '#lib/presentations/templates/builtinLayouts.js';
 	import BuiltinLayoutDialog from './BuiltinLayoutDialog.svelte';
 	import SlideRailPreview from './SlideRailPreview.svelte';
 	import { ensurePresentationFonts } from '#lib/presentations/rendering/fonts.js';
-	import { createDecodedArtwork } from '#lib/presentations/rendering/decodedArtwork.js';
-	import {
-		preparePresentationImage,
-		PrepareImageError
-	} from '#lib/presentations/editor/insertImageAsset.js';
-	import { prepareStickerSnapshot } from '#lib/presentations/editor/insertStickerSnapshot.js';
-	import { createSlideShape } from '#lib/presentations/editor/shapeTools.js';
 	import { createSlideEditor } from '#lib/presentations/editor/createSlideEditor.svelte.js';
 	import { setSlideEditor } from '#lib/presentations/editor/context.js';
 	import { attachKeymap } from '#lib/presentations/editor/actions/keymap.js';
@@ -54,15 +46,9 @@
 	import ThemeControls from './ThemeControls.svelte';
 	import StickerPickerDialog from './StickerPickerDialog.svelte';
 	import CatalogPickerDialog from './CatalogPickerDialog.svelte';
-	import {
-		prepareCatalogAsset,
-		CatalogInsertError
-	} from '#lib/presentations/editor/insertCatalogAsset.js';
 	import ExportDialog from './ExportDialog.svelte';
 	import SaveAsTemplateDialog from './SaveAsTemplateDialog.svelte';
-	import { saveAsTemplateDraft } from '#lib/presentations/templates/saveAsTemplateDraft.js';
 	import { localPolicy } from '#lib/presentations/editor/persistence/policies.js';
-	import { loadTemplateLayout } from '#lib/presentations/templates/templateLayout.js';
 	import InsertTemplateDialog from './InsertTemplateDialog.svelte';
 
 	/**
@@ -123,12 +109,23 @@
 		// Template mode writes catalog versions, so a local-storage failure message
 		// would be wrong: the adapter's own wording is shown instead.
 		describeFailure: policy.describeFailure,
-		conflictMessage: policy.conflictMessage
+		conflictMessage: policy.conflictMessage,
+		services: {
+			get stickers() {
+				return stickerRepository;
+			},
+			get catalog() {
+				return catalogRepository;
+			},
+			get catalogAdmin() {
+				return catalogAdminRepository;
+			}
+		}
 	});
 	setSlideEditor(editor);
 	$effect(() => attachKeymap(editor.actions, window, { exempt: SHORTCUT_EXEMPT }));
 
-	const { ui } = editor;
+	const { ui, artwork, inserts } = editor;
 	const {
 		doc,
 		selection,
@@ -264,7 +261,7 @@
 				editor.messages.show('Paste images from the catalog when editing a template.');
 				return;
 			}
-			return addImage(file);
+			return inserts.addImage(file);
 		}
 	});
 
@@ -291,9 +288,9 @@
 				policy.capabilities.localMedia &&
 				selection.ids.length === 1 &&
 				selection.primary?.kind === 'image',
-			enabled: () => !selection.primary?.locked && !inserting,
+			enabled: () => !selection.primary?.locked && !inserts.inserting,
 			run: () => {
-				if (selection.primary) beginReplaceImage(selection.primary.id);
+				if (selection.primary) inserts.beginReplaceImage(selection.primary.id);
 				return OK;
 			}
 		},
@@ -359,8 +356,6 @@
 	/** @type {Error | null} */
 	let loadFailure = $state(null);
 	let attempt = $state(0);
-	/** @type {import('#lib/presentations/rendering/renderSlide.js').PresentationImageSources} */
-	let images = $state.raw(new Map());
 	/**
 	 * Konva's Node entry hard-requires the native `canvas` package, so the slide
 	 * canvas is client-only — the same seam `EditorCanvas` uses for the artboard.
@@ -369,16 +364,7 @@
 	 * @type {typeof import('./PresentationCanvas.svelte').default | null}
 	 */
 	let PresentationCanvas = $state(null);
-	/** @type {import('#lib/presentations/rendering/decodedArtwork.js').DecodedArtwork | null} */
-	let decodedArtwork = null;
-	let inserting = $state(false);
-	/** @type {string | null} */
-	let editorNote = $state(null);
 	let recovering = $state(false);
-	/** @type {string | null} */
-	let replaceTargetId = $state(null);
-	/** @type {HTMLInputElement | null} */
-	let imageInput = $state(null);
 	/** @type {string | null} */
 	let focusSlideId = $state(null);
 	/** @type {{ id: string, pointerId: number, x: number, y: number } | null} */
@@ -466,24 +452,13 @@
 				return current.dirty && current.document?.id === presentationId;
 			},
 			saveBeforeLeave: saveBeforeLeaving,
-			reportFailure: () => (editorNote = policy.labels.leaveFailure)
+			reportFailure: () => editor.messages.showNotice(policy.labels.leaveFailure)
 		};
 		return () => {
 			// The guard must not outlive the editor it speaks for.
 			leaveguard = null;
 		};
 	});
-
-	/**
-	 * Decodes one document's artwork; the caller owns disposal of the result.
-	 * @param {import('#lib/presentations/model/types.js').PresentationDocument} loaded
-	 */
-	async function decodeDocumentMedia(loaded) {
-		const media = await Promise.all(loaded.assets.map((asset) => repository.getMedia(asset.id)));
-		const decoded = createDecodedArtwork();
-		await decoded.add(media);
-		return decoded;
-	}
 
 	/**
 	 * Opens the routed presentation: loads its fonts and artwork, then adopts the
@@ -503,11 +478,7 @@
 				const loaded = await repository.getPresentation(presentationId);
 				let decoded;
 				try {
-					const media = await Promise.all(
-						loaded.assets.map((asset) => repository.getMedia(asset.id))
-					);
-					decoded = createDecodedArtwork();
-					await decoded.add(media);
+					decoded = await artwork.decode(loaded);
 				} catch (mediaError) {
 					// The document exists but its artwork does not: do not report the whole
 					// presentation as deleted, and keep retry available.
@@ -523,9 +494,7 @@
 					decoded.dispose();
 					return;
 				}
-				decodedArtwork?.dispose();
-				decodedArtwork = decoded;
-				images = new Map(decoded.images);
+				artwork.adopt(decoded);
 				doc.loadDocument(loaded, { saved: true });
 				loadState = 'ready';
 			} catch (error) {
@@ -546,48 +515,15 @@
 
 		return () => {
 			live = false;
-			decodedArtwork?.dispose();
-			decodedArtwork = null;
+			artwork.dispose();
 		};
 	});
 
-	/** The newer stored revision's artwork, after a conflict copy was kept. */
-	async function reloadStoredArtwork() {
-		const loaded = await repository.getPresentation(presentationId);
-		const decoded = await decodeDocumentMedia(loaded);
-		decodedArtwork?.dispose();
-		decodedArtwork = decoded;
-		images = new Map(decoded.images);
-	}
-
-	/** @param {import('#lib/presentations/editor/textPresets.js').TextPreset} [preset] */
-	function addTextBox(preset = 'body') {
-		const state = doc.snapshot();
-		if (!state.document || !activeSlide) return;
-		// A preset box is ordinary editable text: theme fonts/colors, the preset's
-		// size, and automatic growth so the store can fit it as the text changes.
-		textSession.flush();
-		const id = doc.addElement(createPresetText(preset, state.document.theme));
-		// Open the editor straight away so the new box can be typed into immediately.
-		if (id) selection.startTextEdit(id);
-		else editor.messages.show('This slide cannot hold another text box. Remove an element first.');
-	}
-
 	/** @param {import('#lib/presentations/templates/builtinLayouts.js').BuiltinLayoutId} layoutId */
 	function addBuiltinLayout(layoutId) {
-		textSession.flush();
-		selection.endTextEdit();
-		doc.endHistoryGroup();
-		const current = doc.document;
-		if (!current) return { ok: false, message: 'Open a presentation before adding a layout.' };
-		const slide = createBuiltinLayout(layoutId, current.theme);
-		const id = doc.insertSlide(slide);
-		if (!id)
-			return { ok: false, message: 'This presentation has reached its slide or element limit.' };
-		// In template mode the existing saver still requires an explicit Save, so a
-		// local layout insertion never publishes a draft version by itself.
-		focusSlideId = id;
-		return { ok: true };
+		const result = inserts.addBuiltinLayout(layoutId);
+		if (result.ok && result.slideId) focusSlideId = result.slideId;
+		return result;
 	}
 
 	function addSlide() {
@@ -786,140 +722,11 @@
 		};
 	}
 
-	/** @param {import('#lib/presentations/editor/shapeTools.js').ShapeInsertKind} kind */
-	function addShape(kind) {
-		const state = doc.snapshot();
-		if (!state.document || !kind) return;
-		const element = createSlideShape(kind, state.document.pageSize);
-		// Blocks take the document's accent; linear kinds keep their stroke colour.
-		if (element.shape !== 'line' && element.shape !== 'arrow')
-			element.fill = state.document.theme.colors.accent ?? element.fill;
-		state.addElement(element);
-	}
-
-	/**
-	 * Persist, then adopt: the repository writes the document and this image's
-	 * bytes in one transaction, and only then does the editor show the artwork.
-	 * Shared by insertion and replacement so neither path can report success for
-	 * a half-written change.
-	 * @param {() => Promise<import('#lib/presentations/editor/insertImageAsset.js').PreparedPresentationImage>} prepare
-	 * @param {(prepared: import('#lib/presentations/editor/insertImageAsset.js').PreparedPresentationImage) => Promise<import('#lib/presentations/editor/persistence/persistence.svelte.js').PersistInsertOutcome>} write
-	 * @param {string} fallback
-	 */
-	async function runImageWrite(prepare, write, fallback) {
-		// One image write at a time: a second one would plan against the same
-		// revision and could store a deck without the first image.
-		if (inserting) {
-			editor.messages.show('Wait for the current image to finish adding, then try again.');
-			return;
-		}
-		const state = doc.snapshot();
-		if (!state.document) return;
-		if (!decodedArtwork) {
-			editor.messages.show(
-				'This presentation is still opening its artwork, so the image was not added. Try again once the slide appears.'
-			);
-			return;
-		}
-		editor.messages.clear();
-		inserting = true;
-		// Past the write the element, its asset and its bytes are stored, so a later
-		// display failure must not be reported as a failed write.
-		let persisted = false;
-		try {
-			const prepared = await prepare();
-			const outcome = await write(prepared);
-			if (!outcome.ok) {
-				// A failed or conflicting write is reported by the save status instead.
-				if (outcome.reason === 'failed' || outcome.reason === 'conflict') editor.messages.clear();
-				else editor.messages.show(outcome.message);
-				return;
-			}
-			persisted = true;
-			const media = decodedArtwork;
-			if (!media) {
-				editor.messages.show(
-					'This image was saved, but this editor can no longer display it. Reopen the presentation to see it.'
-				);
-				return;
-			}
-			await media.add([prepared.media]);
-			// A fresh Map so the canvas re-renders with the new artwork.
-			images = new Map(media.images);
-		} catch (error) {
-			if (error instanceof PrepareImageError || error instanceof CatalogInsertError)
-				editor.messages.show(error.message);
-			else if (persisted)
-				editor.messages.show(
-					'This image was saved, but it cannot be displayed here yet. Reopen the presentation to see it.'
-				);
-			else editor.messages.show(fallback);
-		} finally {
-			inserting = false;
-		}
-	}
-
-	/** @param {File} file */
-	function addImage(file) {
-		return runImageWrite(
-			() => preparePresentationImage(file),
-			(prepared) => saving.persistInsert(prepared),
-			'This image could not be added.'
-		);
-	}
-
-	/** @param {string} elementId */
-	function beginReplaceImage(elementId) {
-		replaceTargetId = elementId;
-		imageInput?.click();
-	}
-
-	/** @param {File} file */
-	function replacePhoto(file) {
-		const target = replaceTargetId;
-		if (!target) return;
-		replaceTargetId = null;
-		return runImageWrite(
-			() => preparePresentationImage(file),
-			(prepared) => saving.persistReplace(target, prepared),
-			'This photo could not be replaced.'
-		);
-	}
-
-	/**
-	 * Copies a published catalog image: the bytes are downloaded and validated
-	 * *before* the document is written (P63), so a failed download leaves the deck
-	 * untouched and the stored copy no longer depends on the catalog.
-	 * @param {import('#lib/presentations/editor/insertCatalogAsset.js').CatalogInsertSource} source
-	 */
-	function addCatalogImage(source) {
-		return runImageWrite(
-			() => prepareCatalogAsset(catalogRepository, source),
-			(prepared) => saving.persistInsert(prepared),
-			'This catalog image could not be added.'
-		);
-	}
-
-	/**
-	 * Composes a saved sticker once and places the snapshot as an immutable image.
-	 * @param {string} projectId
-	 */
-	function addSticker(projectId) {
-		if (!stickerRepository) {
-			editor.messages.show('Saved stickers are not available in this session.');
-			return;
-		}
-		return runImageWrite(
-			() => prepareStickerSnapshot(stickerRepository, projectId),
-			(prepared) => saving.persistInsert(prepared),
-			'This sticker could not be added.'
-		);
-	}
-
 	async function requestSave() {
-		editorNote = null;
+		editor.messages.clearNotice();
 		const result = await saving.save();
-		if (result === 'saved' && policy.labels.savedNote) editorNote = policy.labels.savedNote;
+		if (result === 'saved' && policy.labels.savedNote)
+			editor.messages.showNotice(policy.labels.savedNote);
 	}
 
 	/**
@@ -928,61 +735,8 @@
 	 */
 	function reloadDraft() {
 		if (!onreload) return;
-		editorNote = null;
+		editor.messages.clearNotice();
 		onreload();
-	}
-
-	/**
-	 * Captures one snapshot for the template draft: pending text is flushed first,
-	 * then the service runs against the flushed document. The local save path is
-	 * untouched — the local deck is a read-only source for the copy.
-	 * @param {{ metadata: import('#lib/catalog/repository.js').CatalogTemplateInput, collectionId: string | null }} input
-	 */
-	async function saveAsTemplate(input) {
-		if (!catalogAdminRepository) return;
-		await textSession.flush();
-		const document = doc.document;
-		if (!document) return;
-		const draft = await saveAsTemplateDraft({
-			sourceDocument: document,
-			presentationRepository: repository,
-			catalogRepository: catalogAdminRepository,
-			collectionId: input.collectionId,
-			metadata: input.metadata
-		});
-		editorNote = `Template draft “${draft.template.title}” created.`;
-	}
-
-	/**
-	 * Downloads the chosen slides from a published template and writes them into
-	 * this deck as one persisted, undoable insertion (P71). A failure leaves the
-	 * deck untouched; the dialog shows the staged message.
-	 * @param {string} templateId
-	 * @param {number[]} slideOrdinals
-	 */
-	async function insertTemplateLayout(templateId, slideOrdinals) {
-		if (!catalogRepository)
-			return { ok: false, message: 'The catalog is not configured for this site.' };
-		try {
-			const layout = await loadTemplateLayout({
-				catalogRepository,
-				templateId,
-				slideOrdinals
-			});
-			const outcome = await saving.persistSlides({
-				slides: layout.slides,
-				assets: layout.assets,
-				media: layout.media
-			});
-			if (!outcome.ok) return { ok: false, message: outcome.message };
-			editorNote = 'Template slides inserted.';
-			return { ok: true };
-		} catch (error) {
-			return {
-				ok: false,
-				message: error instanceof Error ? error.message : 'The slides could not be inserted.'
-			};
-		}
 	}
 
 	/**
@@ -991,23 +745,26 @@
 	 */
 	async function recoverFromConflict() {
 		recovering = true;
-		editorNote = null;
+		editor.messages.clearNotice();
 		let reopened = false;
 		try {
 			const outcome = await saving.keepMineAsCopy();
 			if (!outcome.ok) {
-				editorNote = outcome.message;
+				editor.messages.showNotice(outcome.message);
 				return;
 			}
 			// The store holds the newer revision from here on; only its artwork is left.
 			reopened = true;
-			await reloadStoredArtwork();
-			editorNote =
-				'Your work was saved as a separate conflict copy. The newer saved version is open now.';
+			await artwork.reload(presentationId);
+			editor.messages.showNotice(
+				'Your work was saved as a separate conflict copy. The newer saved version is open now.'
+			);
 		} catch {
-			editorNote = reopened
-				? 'Your work was saved as a separate conflict copy, and the newer saved version is open — but its artwork could not be shown yet. Reload this page to see it.'
-				: 'The newer version could not be reopened. Reload this page to continue.';
+			editor.messages.showNotice(
+				reopened
+					? 'Your work was saved as a separate conflict copy, and the newer saved version is open — but its artwork could not be shown yet. Reload this page to see it.'
+					: 'The newer version could not be reopened. Reload this page to continue.'
+			);
 		} finally {
 			recovering = false;
 		}
@@ -1027,9 +784,9 @@
 	/** @param {MouseEvent} event */
 	async function leave(event) {
 		event.preventDefault();
-		editorNote = null;
+		editor.messages.clearNotice();
 		if (await saveBeforeLeaving()) await onback();
-		else editorNote = policy.labels.leaveFailure;
+		else editor.messages.showNotice(policy.labels.leaveFailure);
 	}
 
 	/** @param {KeyboardEvent} event */
@@ -1121,7 +878,7 @@
 							(asset) => asset.provenance.source !== 'catalog'
 						)}
 						defaultTitle={presentation.title}
-						onsave={(input) => saveAsTemplate(input)}
+						onsave={(input) => inserts.saveAsTemplate(input)}
 					/>{/if}
 				{#if saveState.status === 'conflict' && policy.conflictRecovery === 'reload-draft'}
 					<button
@@ -1152,7 +909,10 @@
 		</div>
 		{#if policy.capabilities.localMedia}
 			<input
-				bind:this={imageInput}
+				{@attach (/** @type {HTMLInputElement} */ node) => {
+					inserts.registerImageInput(node);
+					return () => inserts.registerImageInput(null);
+				}}
 				class="sr-only"
 				type="file"
 				accept="image/png,image/jpeg,image/webp"
@@ -1163,8 +923,7 @@
 					const file = input.files?.[0];
 					input.value = '';
 					if (!file) return;
-					if (replaceTargetId) void replacePhoto(file);
-					else void addImage(file);
+					void inserts.acceptPickedFile(file);
 				}}
 			/>
 		{/if}
@@ -1175,10 +934,10 @@
 			onselect={(id) => ui.ribbon.select(id)}
 			panel={ribbonPanel}
 		/>
-		{#if saveReported || editorNote}<MessageBar
+		{#if saveReported || editor.messages.notice}<MessageBar
 				tone={saveReported ? 'warning' : 'info'}
 				role={saveReported ? 'alert' : 'status'}
-				>{editorNote ?? saveState.message ?? saveStatus}</MessageBar
+				>{editor.messages.notice ?? saveState.message ?? saveStatus}</MessageBar
 			>{/if}
 		{#if editor.messages.current}<MessageBar tone="error" role="alert" class="asset-error"
 				>{editor.messages.current}</MessageBar
@@ -1235,7 +994,11 @@
 								}}
 								{@attach registerSlideButton(slide.id)}
 							>
-								<SlideRailPreview {slide} pageSize={presentation.pageSize} {images} />
+								<SlideRailPreview
+									{slide}
+									pageSize={presentation.pageSize}
+									images={artwork.images}
+								/>
 								<b>{slide.name}</b>
 							</button>
 							<button
@@ -1263,7 +1026,11 @@
 				</div>
 			</aside>
 			{#if PresentationCanvas}
-				<PresentationCanvas {images} session={textSession} oncontextrequest={openCanvasMenu} />
+				<PresentationCanvas
+					images={artwork.images}
+					session={textSession}
+					oncontextrequest={openCanvasMenu}
+				/>
 			{:else}
 				<!-- Holds the canvas track and its panel tone until Konva arrives. -->
 				<div
@@ -1299,7 +1066,9 @@
 								<p>{selectedElement.name || 'Element'}</p>
 								<ElementGeometryInspector
 									element={selectedElement}
-									onreplaceimage={policy.capabilities.localMedia ? beginReplaceImage : undefined}
+									onreplaceimage={policy.capabilities.localMedia
+										? inserts.beginReplaceImage
+										: undefined}
 								/>
 							{/if}
 						</div>
@@ -1328,7 +1097,7 @@
 		>
 		<BuiltinLayoutDialog
 			theme={presentation.theme}
-			disabled={inserting}
+			disabled={inserts.inserting}
 			oninsert={addBuiltinLayout}
 		/>
 		<button
@@ -1343,12 +1112,16 @@
 {/snippet}
 
 {#snippet textButtons()}
-	<button type="button" class={button} onclick={() => addTextBox('heading')}>Add heading</button>
-	<button type="button" class={button} onclick={() => addTextBox('subheading')}
+	<button type="button" class={button} onclick={() => inserts.addTextBox('heading')}
+		>Add heading</button
+	>
+	<button type="button" class={button} onclick={() => inserts.addTextBox('subheading')}
 		>Add subheading</button
 	>
-	<button type="button" class={button} onclick={() => addTextBox('body')}>Add body text</button>
-	<button type="button" class={button} onclick={() => addTextBox()}
+	<button type="button" class={button} onclick={() => inserts.addTextBox('body')}
+		>Add body text</button
+	>
+	<button type="button" class={button} onclick={() => inserts.addTextBox()}
 		><Type size={16} aria-hidden="true" /> Add text</button
 	>
 {/snippet}
@@ -1364,7 +1137,7 @@
 						event.currentTarget.value
 					);
 				event.currentTarget.value = '';
-				if (kind) addShape(kind);
+				if (kind) inserts.addShape(kind);
 			}}
 			><option value="">Add shape…</option><option value="rectangle">Rectangle</option><option
 				value="rounded-rectangle">Rounded rectangle</option
@@ -1422,8 +1195,8 @@
 			>
 			{#if catalogRepository && policy.capabilities.templateSlides}<InsertTemplateDialog
 					repository={catalogRepository}
-					disabled={inserting}
-					oninsert={insertTemplateLayout}
+					disabled={inserts.inserting}
+					oninsert={inserts.insertTemplateLayout}
 				/>{/if}
 		</RibbonGroup>
 		<RibbonGroup label="Text">{@render textButtons()}</RibbonGroup>
@@ -1432,24 +1205,21 @@
 				<button
 					type="button"
 					class={button}
-					disabled={inserting}
-					onclick={() => {
-						replaceTargetId = null;
-						imageInput?.click();
-					}}
+					disabled={inserts.inserting}
+					onclick={() => inserts.pickImage()}
 					><ImagePlus size={16} aria-hidden="true" />
-					{inserting ? 'Adding image…' : 'Add image'}</button
+					{inserts.inserting ? 'Adding image…' : 'Add image'}</button
 				>
 			{/if}
 			{#if stickerRepository && policy.capabilities.stickers}<StickerPickerDialog
 					repository={stickerRepository}
-					disabled={inserting}
-					onpick={(projectId) => void addSticker(projectId)}
+					disabled={inserts.inserting}
+					onpick={(projectId) => void inserts.addSticker(projectId)}
 				/>{/if}
 			{#if catalogRepository}<CatalogPickerDialog
 					repository={catalogRepository}
-					disabled={inserting}
-					oninsert={addCatalogImage}
+					disabled={inserts.inserting}
+					oninsert={inserts.addCatalogImage}
 				/>{/if}
 		</RibbonGroup>
 		<RibbonGroup label="Illustrations">{@render shapePicker()}</RibbonGroup>
@@ -1500,7 +1270,7 @@
 		<RibbonGroup label="Picture">
 			<ImageAdjustInspector
 				element={selectedElement}
-				onreplace={policy.capabilities.localMedia ? beginReplaceImage : undefined}
+				onreplace={policy.capabilities.localMedia ? inserts.beginReplaceImage : undefined}
 			/>
 		</RibbonGroup>
 	{/if}
