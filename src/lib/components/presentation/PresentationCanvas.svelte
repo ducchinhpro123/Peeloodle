@@ -54,7 +54,7 @@
 	 *   session: import('#lib/presentations/editor/textEditSession.svelte.js').TextEditSession
 	 * }} */
 	let { images, session } = $props();
-	const { doc } = getSlideEditor();
+	const { doc, selection, viewport: view, interaction } = getSlideEditor();
 
 	/** @type {HTMLDivElement | null} */
 	let hostEl = null;
@@ -80,36 +80,34 @@
 	const editorState = $derived(doc.snapshot());
 	const presentation = $derived(editorState.document);
 	const activeSlide = $derived(
-		presentation?.slides.find((slide) => slide.id === editorState.view.activeSlideId) ??
+		presentation?.slides.find((slide) => slide.id === selection.activeSlideId) ??
 			presentation?.slides[0]
 	);
-	const selectedElementId = $derived(editorState.view.selectedElementIds[0] ?? null);
+	const selectedElementId = $derived(selection.ids[0] ?? null);
 	const selectedElement = $derived(
 		activeSlide?.elements.find((element) => element.id === selectedElementId)
 	);
-	const editingElementId = $derived(editorState.view.editingElementId);
+	const editingElementId = $derived(selection.editingId);
 	const editingElement = $derived(
 		activeSlide?.elements.find((element) => element.id === editingElementId)
 	);
 	// The two view numbers are read through their own deriveds: a selection change
 	// replaces the store object, and an effect reading `editorState` directly would
 	// re-render the layer for it, destroying the hit graph mid-click.
-	const viewZoom = $derived(editorState.view.zoom);
-	const viewPan = $derived(editorState.view.pan);
+	const viewZoom = $derived(view.zoom);
+	const viewPan = $derived(view.pan);
 	const viewport = $derived(
 		presentationViewport(
 			size,
 			presentation?.pageSize ?? { width: 0, height: 0 },
-			editorState.view.zoom,
-			editorState.view.pan
+			view.zoom,
+			view.pan
 		)
 	);
 	// While a gesture runs, the frame and its handles describe the previewed
 	// geometry; the document only changes when the gesture is committed.
 	const selectedGeometry = $derived(
-		selectedElement
-			? elementGeometry(selectedElement, editorState.view.transformPreview ?? null)
-			: null
+		selectedElement ? elementGeometry(selectedElement, interaction.preview ?? null) : null
 	);
 
 	// The stage's size, scale and position follow the viewport alone, so panning and
@@ -171,7 +169,7 @@
 	// cancelled gesture puts the node back where the document says it is.
 	$effect(() => {
 		const konvaLayer = layer;
-		const preview = editorState.view.transformPreview;
+		const preview = interaction.preview;
 		const id = preview?.elementId ?? previewedNodeId;
 		if (!konvaLayer || !id) return;
 		const element = activeSlide?.elements.find((candidate) => candidate.id === id);
@@ -214,7 +212,7 @@
 
 	// Keep focus in the editor when the text overlay closes, but never steal it.
 	$effect(() => {
-		const editingId = editorState.view.editingElementId;
+		const editingId = selection.editingId;
 		if (editingId) {
 			wasEditing = true;
 			return;
@@ -433,7 +431,7 @@
 		const element = elementAtPointer(event.clientX, event.clientY);
 		if (element) {
 			hostEl?.focus();
-			doc.selectElements([element.id]);
+			selection.select([element.id]);
 			// A locked element stays selectable so its properties are reachable,
 			// but no gesture may move, resize, or rotate it.
 			if (!element.locked) beginTransform(element, 'move', null, event);
@@ -474,12 +472,12 @@
 	function handleWheel(event) {
 		if (event.deltaY === 0) return;
 		event.preventDefault();
-		const current = doc.view.zoom;
+		const current = view.zoom;
 		// Wheel events vary from tiny trackpad pixels to full mouse notches. Scale
 		// with their magnitude instead of applying 10% for every event.
 		const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 120 : 1);
 		const step = Math.max(-120, Math.min(120, pixels));
-		doc.setZoom(clampPresentationZoom(current * Math.exp(-step * 0.0008)));
+		view.setZoom(clampPresentationZoom(current * Math.exp(-step * 0.0008)));
 	}
 
 	/** @type {import('svelte/attachments').Attachment<HTMLDivElement>} */
@@ -516,11 +514,11 @@
 			// background: see `ignoreTrailingClick`.
 			if (ignoreTrailingClick) return;
 			const id = elementIdFor(event.target);
-			doc.selectElements(id ? [id] : []);
+			selection.select(id ? [id] : []);
 		};
 		const edit = (/** @type {any} */ event) => {
 			const id = elementIdFor(event.target);
-			if (id) doc.startTextEdit(id);
+			if (id) selection.startTextEdit(id);
 		};
 		konvaStage.on('click tap', select);
 		konvaStage.on('dblclick dbltap', edit);
@@ -569,11 +567,11 @@
 			data-testid="presentation-canvas"
 			data-document-width={presentation.pageSize.width}
 			data-document-height={presentation.pageSize.height}
-			data-view-zoom={editorState.view.zoom}
-			data-view-pan-x={editorState.view.pan.x}
-			data-view-pan-y={editorState.view.pan.y}
+			data-view-zoom={view.zoom}
+			data-view-pan-x={view.pan.x}
+			data-view-pan-y={view.pan.y}
 			data-selected-element={selectedElementId ?? ''}
-			data-editing-element={editorState.view.editingElementId ?? ''}
+			data-editing-element={selection.editingId ?? ''}
 			tabindex="-1"
 			{@attach mountCanvas}
 		></div>
@@ -609,7 +607,7 @@
 			>
 				Blank slide
 			</p>{/if}
-		{#each editorState.view.guides as guide, index (`${guide.axis}-${guide.position}-${index}`)}
+		{#each interaction.guides as guide, index (`${guide.axis}-${guide.position}-${index}`)}
 			<div
 				class="presentation-guide is-{guide.axis}"
 				data-testid="presentation-guide-{guide.axis}"

@@ -11,9 +11,15 @@ import { createPresentationExport, type PresentationExportController } from './e
 import { createPresentationSaving, type PresentationSaving } from './presentationSaving';
 import { createDocumentState, type DocumentState } from './document/documentState.svelte';
 import { createTextEditSession, type TextEditSession } from './textEditSession.svelte';
+import { createSelection, type SelectionState } from './selection.svelte';
+import { createViewport, type ViewportState } from './viewport.svelte';
+import { createInteraction, type InteractionState } from './interaction.svelte';
 
 export type SlideEditor = {
 	doc: DocumentState;
+	selection: SelectionState;
+	viewport: ViewportState;
+	interaction: InteractionState;
 	/** The editor that opens a text session owns it; saves and exports flush through it. */
 	text: TextEditSession;
 	persistence: PresentationSaving;
@@ -53,5 +59,13 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 			};
 		}
 	});
-	return { doc, text, persistence, exports };
+	return {
+		doc,
+		selection: createSelection(doc),
+		viewport: createViewport(doc),
+		interaction: createInteraction(doc),
+		text,
+		persistence,
+		exports
+	};
 }

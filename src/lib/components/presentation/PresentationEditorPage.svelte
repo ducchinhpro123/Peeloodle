@@ -120,7 +120,15 @@
 			: {})
 	});
 	setSlideEditor(editor);
-	const { doc, persistence: saving, exports: exportController, text: textSession } = editor;
+	const {
+		doc,
+		selection,
+		viewport,
+		interaction,
+		persistence: saving,
+		exports: exportController,
+		text: textSession
+	} = editor;
 	let saveState = $state.raw(saving.getStatus());
 	let exportState = $state.raw(exportController.getState());
 	// A deep link straight into the editor still prepares offline use for this session.
@@ -182,11 +190,11 @@
 	const editorState = $derived(doc.snapshot());
 	const presentation = $derived(editorState.document);
 	const activeSlide = $derived(
-		presentation?.slides.find((slide) => slide.id === editorState.view.activeSlideId) ??
+		presentation?.slides.find((slide) => slide.id === selection.activeSlideId) ??
 			presentation?.slides[0]
 	);
 	const selectedElement = $derived(
-		activeSlide?.elements.find((element) => element.id === editorState.view.selectedElementIds[0])
+		activeSlide?.elements.find((element) => element.id === selection.ids[0])
 	);
 	const selectedText = $derived(selectedElement?.kind === 'text' ? selectedElement : null);
 	const canUndo = $derived(editorState.past.length > 0);
@@ -365,14 +373,14 @@
 		textSession.flush();
 		const id = doc.addElement(createPresetText(preset, state.document.theme));
 		// Open the editor straight away so the new box can be typed into immediately.
-		if (id) doc.startTextEdit(id);
+		if (id) selection.startTextEdit(id);
 		else insertError = 'This slide cannot hold another text box. Remove an element first.';
 	}
 
 	/** @param {import('#lib/presentations/templates/builtinLayouts.js').BuiltinLayoutId} layoutId */
 	function addBuiltinLayout(layoutId) {
 		textSession.flush();
-		doc.endTextEdit();
+		selection.endTextEdit();
 		doc.endHistoryGroup();
 		const current = doc.document;
 		if (!current) return { ok: false, message: 'Open a presentation before adding a layout.' };
@@ -392,7 +400,7 @@
 	}
 
 	function duplicateActiveSlide() {
-		const activeId = doc.view.activeSlideId;
+		const activeId = selection.activeSlideId;
 		if (!activeId) return;
 		const id = doc.duplicateSlide(activeId);
 		if (id) focusSlideId = id;
@@ -533,7 +541,7 @@
 	/** @param {string} slideId */
 	function deleteSlide(slideId) {
 		if (!doc.removeSlide(slideId)) return;
-		const survivor = doc.view.activeSlideId;
+		const survivor = selection.activeSlideId;
 		if (survivor) focusSlideId = survivor;
 	}
 
@@ -941,7 +949,7 @@
 					class={button}
 					aria-label="Copy element"
 					title="Copy element (Ctrl+C)"
-					disabled={!selectedElement || !!editorState.view.editingElementId}
+					disabled={!selectedElement || !!selection.editingId}
 					onclick={copySelectedElement}><Copy size={16} aria-hidden="true" /> Copy</button
 				>
 				<button
@@ -951,7 +959,7 @@
 					title="Paste element (Ctrl+V)"
 					disabled={!copiedElement ||
 						copiedElement.documentId !== presentation.id ||
-						!!editorState.view.editingElementId}
+						!!selection.editingId}
 					onclick={pasteCopiedElement}><ClipboardPaste size={16} aria-hidden="true" /> Paste</button
 				>
 				{#if !templateMode}
@@ -1054,7 +1062,7 @@
 						type="button"
 						class={button}
 						aria-label="Edit text: {selectedText.name}"
-						onclick={() => doc.startTextEdit(selectedText.id)}
+						onclick={() => selection.startTextEdit(selectedText.id)}
 						><PenLine size={16} aria-hidden="true" /> Edit text</button
 					>{/if}
 				{#if selectedElement}
@@ -1106,7 +1114,7 @@
 					{editorNote ?? saveState.message ?? saveStatus}
 				</p>{/if}
 		</header>
-		{#if editorState.view.editingElementId}<TextFormatToolbar session={textSession} />{/if}
+		{#if selection.editingId}<TextFormatToolbar session={textSession} />{/if}
 		{#if insertError}<p class="asset-error" role="alert">{insertError}</p>{/if}
 		<div class="presentation-mobile-note [display:none]">
 			<MonitorUp size={18} aria-hidden="true" />
@@ -1173,7 +1181,7 @@
 								onpointercancel={(event) => finishSlideDrag(event, false)}
 								onkeydown={(event) => slideKeyDown(slide.id, event)}
 								onclick={() => {
-									if (!suppressSlideClick) doc.selectSlide(slide.id);
+									if (!suppressSlideClick) selection.selectSlide(slide.id);
 								}}
 								{@attach registerSlideButton(slide.id)}
 							>

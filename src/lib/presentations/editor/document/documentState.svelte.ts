@@ -1001,7 +1001,7 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 					future: step.history.future,
 					lastHistoryGroup: null,
 					dirty: step.restored.revision !== get().savedRevision,
-					view: ensureView(step.restored, get().view)
+					view: ensureView(step.restored, withTouchedSlide(document, step.restored, get().view))
 				});
 			},
 
@@ -1016,11 +1016,35 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 					future: step.history.future,
 					lastHistoryGroup: null,
 					dirty: step.restored.revision !== get().savedRevision,
-					view: ensureView(step.restored, get().view)
+					view: ensureView(step.restored, withTouchedSlide(document, step.restored, get().view))
 				});
 			}
 		};
 	});
+}
+
+/**
+ * The first slide an undo/redo step added or changed, so history jumps to where
+ * the change happened. Null when the step only removed or reordered slides (or
+ * touched document-wide data); the current slide is kept if it still exists.
+ */
+function touchedSlideId(before: PresentationDocument, after: PresentationDocument): string | null {
+	const previous = new Map(before.slides.map((slide) => [slide.id, slide]));
+	for (const slide of after.slides) {
+		const old = previous.get(slide.id);
+		if (!old || JSON.stringify(old) !== JSON.stringify(slide)) return slide.id;
+	}
+	return null;
+}
+
+function withTouchedSlide(
+	before: PresentationDocument,
+	after: PresentationDocument,
+	view: PresentationViewState
+): PresentationViewState {
+	const touched = touchedSlideId(before, after);
+	if (!touched || touched === view.activeSlideId) return view;
+	return { ...view, activeSlideId: touched, selectedElementIds: [], editingElementId: null };
 }
 
 function ensureView(

@@ -23,7 +23,7 @@
 	 * }}
 	 */
 	let { element } = $props();
-	const { doc } = getSlideEditor();
+	const { doc, selection } = getSlideEditor();
 
 	const layout = $derived(layoutTextElement(element, measureTextWidth));
 	const boxHeight = $derived(Math.max(0, element.height - element.padding * 2));
@@ -65,7 +65,7 @@
 		// Normal pointer focus/blur ends editing first; only a session that is still
 		// open after that tick may not be shrunk from under its uncommitted runs.
 		await tick();
-		if (doc.view.editingElementId === id) {
+		if (selection.editingId === id) {
 			fitError = 'Finish editing this text before shrinking it.';
 			return;
 		}

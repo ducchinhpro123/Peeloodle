@@ -21,7 +21,7 @@
 	 * }}
 	 */
 	let { element, onreplaceimage = undefined } = $props();
-	const { doc } = getSlideEditor();
+	const { doc, interaction } = getSlideEditor();
 
 	/** @type {Array<{ key: 'x' | 'y' | 'width' | 'height' | 'rotation', label: string, step: number }>} */
 	const FIELDS = [
@@ -41,7 +41,7 @@
 		{ key: 'bottom', label: 'Bottom' }
 	];
 
-	const transformPreview = $derived(doc.view.transformPreview);
+	const transformPreview = $derived(interaction.preview);
 	const pageSize = $derived(doc.document?.pageSize);
 	const geometry = $derived(elementGeometry(element, transformPreview ?? null));
 

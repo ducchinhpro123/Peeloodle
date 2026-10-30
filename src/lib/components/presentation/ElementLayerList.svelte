@@ -3,7 +3,7 @@
 	import { buttonIcon } from '#lib/ui/styles.js';
 	import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Lock, Trash2, Unlock } from 'lucide-svelte';
 
-	const { doc } = getSlideEditor();
+	const { doc, selection } = getSlideEditor();
 	let state = $derived(doc.snapshot());
 	let slide = $derived(
 		state.document?.slides.find((item) => item.id === state.view.activeSlideId) ??
@@ -19,7 +19,7 @@
 				class="presentation-layer-item"
 				data-selected={state.view.selectedElementIds.includes(element.id)}
 			>
-				<button class="presentation-layer-select" onclick={() => doc.selectElements([element.id])}
+				<button class="presentation-layer-select" onclick={() => selection.select([element.id])}
 					><span>{element.kind}</span><b>{element.name}</b></button
 				>
 				<div

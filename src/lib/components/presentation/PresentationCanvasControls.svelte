@@ -8,18 +8,18 @@
 		PRESENTATION_MIN_ZOOM
 	} from '#lib/presentations/editor/viewGeometry.js';
 
-	const { doc } = getSlideEditor();
-	let zoom = $derived(doc.view.zoom);
+	const { viewport } = getSlideEditor();
+	let zoom = $derived(viewport.zoom);
 
 	/** @param {number} factor */
 	function zoomBy(factor) {
-		const current = doc.view.zoom;
-		doc.setZoom(clampPresentationZoom(current * factor));
+		const current = viewport.zoom;
+		viewport.setZoom(clampPresentationZoom(current * factor));
 	}
 
 	function fit() {
-		doc.setZoom(1);
-		doc.setPan({ x: 0, y: 0 });
+		viewport.setZoom(1);
+		viewport.setPan({ x: 0, y: 0 });
 	}
 </script>
 
