@@ -1,4 +1,5 @@
 <script>
+	import { getSlideEditor } from '#lib/presentations/editor/context.js';
 	import { untrack } from 'svelte';
 	import { fontStackFor } from '#lib/presentations/rendering/fonts.js';
 	import { safeLink } from '#lib/presentations/model/links.js';
@@ -40,10 +41,10 @@
 	 *   offsetY: number,
 	 *   theme: import('#lib/presentations/model/types.js').Theme,
 	 *   session: import('#lib/presentations/editor/textEditSession.svelte.js').TextEditSession,
-	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore
 	 * }}
 	 */
-	let { element, scale, offsetX, offsetY, theme, session, store } = $props();
+	let { element, scale, offsetX, offsetY, theme, session } = $props();
+	const { doc } = getSlideEditor();
 
 	/** @type {HTMLDivElement | null} */
 	let field = null;
@@ -128,7 +129,7 @@
 			if (paragraphs.every((paragraph) => paragraph.runs.every((run) => run.text === ''))) {
 				paragraphs[0].runs = [{ text: '', ...defaults() }];
 			}
-			store.getState().updateText(element.id, paragraphs, {
+			doc.updateText(element.id, paragraphs, {
 				historyGroup: textHistoryGroup(element.id)
 			});
 			commitError = null;
@@ -156,9 +157,8 @@
 	function reseed(paragraphIndex, offset) {
 		const host = field;
 		if (!host) return;
-		const updated = store
-			.getState()
-			.document?.slides.flatMap((slide) => slide.elements)
+		const updated = doc.document?.slides
+			.flatMap((slide) => slide.elements)
 			.find((candidate) => candidate.id === element.id);
 		const source = updated?.kind === 'text' ? updated : element;
 		host.innerHTML = paragraphsToHtml(source.paragraphs, { lineHeight: source.lineHeight });
@@ -173,7 +173,7 @@
 		try {
 			commit(host);
 		} finally {
-			const state = store.getState();
+			const state = doc.snapshot();
 			state.endHistoryGroup();
 			state.endTextEdit();
 		}
@@ -298,7 +298,7 @@
 				const next = Math.min(3, Math.max(0.8, Math.round(value * 100) / 100));
 				if (!host || next === element.lineHeight) return;
 				const position = caretPosition();
-				store.getState().updateElement(
+				doc.updateElement(
 					element.id,
 					{ lineHeight: next },
 					{
@@ -368,7 +368,7 @@
 			const host = field;
 			if (finished || !host) return;
 			commit(host);
-			store.getState().endHistoryGroup();
+			doc.endHistoryGroup();
 		};
 	});
 

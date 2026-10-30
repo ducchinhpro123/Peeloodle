@@ -1,4 +1,5 @@
 <script>
+	import { getSlideEditor } from '#lib/presentations/editor/context.js';
 	import { button } from '#lib/ui/styles.js';
 	import { alignToSlide } from '#lib/presentations/editor/alignmentGuides.js';
 	import { elementGeometry, withRotation } from '#lib/presentations/editor/transformGeometry.js';
@@ -16,11 +17,11 @@
 	 *
 	 * @type {{
 	 *   element: import('#lib/presentations/model/types.js').Element,
-	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore,
 	 *   onreplaceimage?: (elementId: string) => void
 	 * }}
 	 */
-	let { element, store, onreplaceimage = undefined } = $props();
+	let { element, onreplaceimage = undefined } = $props();
+	const { doc } = getSlideEditor();
 
 	/** @type {Array<{ key: 'x' | 'y' | 'width' | 'height' | 'rotation', label: string, step: number }>} */
 	const FIELDS = [
@@ -40,26 +41,24 @@
 		{ key: 'bottom', label: 'Bottom' }
 	];
 
-	const transformPreview = $derived(store.current.view.transformPreview);
-	const pageSize = $derived(store.current.document?.pageSize);
+	const transformPreview = $derived(doc.view.transformPreview);
+	const pageSize = $derived(doc.document?.pageSize);
 	const geometry = $derived(elementGeometry(element, transformPreview ?? null));
 
 	/** @param {'x' | 'y' | 'width' | 'height' | 'rotation'} key @param {number} value */
 	function commitField(key, value) {
 		// Rotation keeps the visual centre: the stored origin moves with the angle,
 		// so the frame does not jump when the number changes.
-		store
-			.getState()
-			.commitTransform(
-				element.id,
-				key === 'rotation' ? withRotation(geometry, value) : { ...geometry, [key]: value }
-			);
+		doc.commitTransform(
+			element.id,
+			key === 'rotation' ? withRotation(geometry, value) : { ...geometry, [key]: value }
+		);
 	}
 
 	/** @param {import('#lib/presentations/editor/alignmentGuides.js').SlideAlignment} alignment */
 	function align(alignment) {
 		if (!pageSize) return;
-		const state = store.getState();
+		const state = doc.snapshot();
 		const current = elementGeometry(element, state.view.transformPreview ?? null);
 		state.commitTransform(element.id, {
 			...current,
@@ -101,9 +100,9 @@
 		This element is locked, so it ignores moves, resizes, and rotations.
 	</p>{/if}
 {#if element.kind === 'text'}
-	<TextOverflowNotice {element} {store} />
+	<TextOverflowNotice {element} />
 {:else if element.kind === 'shape'}
-	<ShapeStyleInspector {element} {store} />
+	<ShapeStyleInspector {element} />
 	{#if onreplaceimage && (element.shape === 'rectangle' || element.shape === 'rounded-rectangle')}
 		<button
 			type="button"
@@ -113,7 +112,7 @@
 		>
 	{/if}
 {:else if element.kind === 'image'}
-	<ImageAdjustInspector {element} {store} onreplace={onreplaceimage} />
+	<ImageAdjustInspector {element} onreplace={onreplaceimage} />
 {/if}
 
 <style>

@@ -120,7 +120,7 @@
 			: {})
 	});
 	setSlideEditor(editor);
-	const { store, persistence: saving, exports: exportController, text: textSession } = editor;
+	const { doc, persistence: saving, exports: exportController, text: textSession } = editor;
 	let saveState = $state.raw(saving.getStatus());
 	let exportState = $state.raw(exportController.getState());
 	// A deep link straight into the editor still prepares offline use for this session.
@@ -179,7 +179,7 @@
 	// read from the template, so they stay out of the reactive graph.
 	const slideButtons = new Map();
 
-	const editorState = $derived(store.current);
+	const editorState = $derived(doc.snapshot());
 	const presentation = $derived(editorState.document);
 	const activeSlide = $derived(
 		presentation?.slides.find((slide) => slide.id === editorState.view.activeSlideId) ??
@@ -250,7 +250,7 @@
 		// object rather than have a placeholder mutated.
 		leaveguard = {
 			hasUnsavedWork: () => {
-				const current = store.getState();
+				const current = doc.snapshot();
 				return current.dirty && current.document?.id === presentationId;
 			},
 			saveBeforeLeave: async () => {
@@ -322,7 +322,7 @@
 				decodedArtwork?.dispose();
 				decodedArtwork = decoded;
 				images = new Map(decoded.images);
-				store.getState().loadDocument(loaded, { saved: true });
+				doc.loadDocument(loaded, { saved: true });
 				loadState = 'ready';
 			} catch (error) {
 				if (!live) return;
@@ -358,26 +358,26 @@
 
 	/** @param {import('#lib/presentations/editor/textPresets.js').TextPreset} [preset] */
 	function addTextBox(preset = 'body') {
-		const state = store.getState();
+		const state = doc.snapshot();
 		if (!state.document || !activeSlide) return;
 		// A preset box is ordinary editable text: theme fonts/colors, the preset's
 		// size, and automatic growth so the store can fit it as the text changes.
 		textSession.flush();
-		const id = store.getState().addElement(createPresetText(preset, state.document.theme));
+		const id = doc.addElement(createPresetText(preset, state.document.theme));
 		// Open the editor straight away so the new box can be typed into immediately.
-		if (id) store.getState().startTextEdit(id);
+		if (id) doc.startTextEdit(id);
 		else insertError = 'This slide cannot hold another text box. Remove an element first.';
 	}
 
 	/** @param {import('#lib/presentations/templates/builtinLayouts.js').BuiltinLayoutId} layoutId */
 	function addBuiltinLayout(layoutId) {
 		textSession.flush();
-		store.getState().endTextEdit();
-		store.getState().endHistoryGroup();
-		const current = store.getState().document;
+		doc.endTextEdit();
+		doc.endHistoryGroup();
+		const current = doc.document;
 		if (!current) return { ok: false, message: 'Open a presentation before adding a layout.' };
 		const slide = createBuiltinLayout(layoutId, current.theme);
-		const id = store.getState().insertSlide(slide);
+		const id = doc.insertSlide(slide);
 		if (!id)
 			return { ok: false, message: 'This presentation has reached its slide or element limit.' };
 		// In template mode the existing saver still requires an explicit Save, so a
@@ -387,20 +387,20 @@
 	}
 
 	function addSlide() {
-		const id = store.getState().addSlide();
+		const id = doc.addSlide();
 		if (id) focusSlideId = id;
 	}
 
 	function duplicateActiveSlide() {
-		const activeId = store.getState().view.activeSlideId;
+		const activeId = doc.view.activeSlideId;
 		if (!activeId) return;
-		const id = store.getState().duplicateSlide(activeId);
+		const id = doc.duplicateSlide(activeId);
 		if (id) focusSlideId = id;
 	}
 
 	function copySelectedElement() {
 		textSession.flush();
-		const state = store.getState();
+		const state = doc.snapshot();
 		const slide = state.document?.slides.find((item) => item.id === state.view.activeSlideId);
 		const element = slide?.elements.find((item) => item.id === state.view.selectedElementIds[0]);
 		if (!state.document || !slide || !element || state.view.editingElementId) return;
@@ -414,7 +414,7 @@
 
 	function pasteCopiedElement() {
 		const clipboard = copiedElement;
-		const state = store.getState();
+		const state = doc.snapshot();
 		if (!clipboard || !state.document || clipboard.documentId !== state.document.id) return;
 		const slideId = state.view.activeSlideId;
 		if (!slideId || state.view.editingElementId) return;
@@ -442,7 +442,7 @@
 	 * @param {number} targetIndex
 	 */
 	function moveSlide(slideId, targetIndex) {
-		store.getState().reorderSlide(slideId, targetIndex);
+		doc.reorderSlide(slideId, targetIndex);
 	}
 
 	/** @param {string} id @param {PointerEvent} event */
@@ -503,7 +503,7 @@
 			suppressSlideClick = true;
 			setTimeout(() => (suppressSlideClick = false), 0);
 			if (commit && dropSlideId && dropPosition) {
-				const slides = store.getState().document?.slides ?? [];
+				const slides = doc.document?.slides ?? [];
 				const source = slides.findIndex((item) => item.id === drag.id);
 				const target = slides.findIndex((item) => item.id === dropSlideId);
 				if (source !== -1 && target !== -1) {
@@ -521,7 +521,7 @@
 	/** @param {string} id @param {KeyboardEvent} event */
 	function slideKeyDown(id, event) {
 		if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
-		const slides = store.getState().document?.slides ?? [];
+		const slides = doc.document?.slides ?? [];
 		const index = slides.findIndex((slide) => slide.id === id);
 		const next = index + (event.key === 'ArrowUp' ? -1 : 1);
 		if (index < 0 || next < 0 || next >= slides.length) return;
@@ -532,8 +532,8 @@
 
 	/** @param {string} slideId */
 	function deleteSlide(slideId) {
-		if (!store.getState().removeSlide(slideId)) return;
-		const survivor = store.getState().view.activeSlideId;
+		if (!doc.removeSlide(slideId)) return;
+		const survivor = doc.view.activeSlideId;
 		if (survivor) focusSlideId = survivor;
 	}
 
@@ -561,7 +561,7 @@
 
 	/** @param {import('#lib/presentations/editor/shapeTools.js').ShapeInsertKind} kind */
 	function addShape(kind) {
-		const state = store.getState();
+		const state = doc.snapshot();
 		if (!state.document || !kind) return;
 		const element = createSlideShape(kind, state.document.pageSize);
 		// Blocks take the document's accent; linear kinds keep their stroke colour.
@@ -580,7 +580,7 @@
 	 * @param {string} fallback
 	 */
 	async function runImageWrite(prepare, write, fallback) {
-		const state = store.getState();
+		const state = doc.snapshot();
 		if (!state.document) return;
 		if (!decodedArtwork) {
 			insertError =
@@ -705,7 +705,7 @@
 	async function saveAsTemplate(input) {
 		if (!catalogAdminRepository) return;
 		await textSession.flush();
-		const document = store.getState().document;
+		const document = doc.document;
 		if (!document) return;
 		const draft = await saveAsTemplateDraft({
 			sourceDocument: document,
@@ -799,7 +799,7 @@
 			!event.altKey &&
 			!event.shiftKey
 		) {
-			const state = store.getState();
+			const state = doc.snapshot();
 			const id = state.view.selectedElementIds[0];
 			if (!id || state.view.editingElementId) return;
 			event.preventDefault();
@@ -807,7 +807,7 @@
 			return;
 		}
 		if (event.key === 'Escape' && !event.metaKey && !event.ctrlKey && !event.altKey) {
-			const state = store.getState();
+			const state = doc.snapshot();
 			if (state.view.selectedElementIds.length === 0) return;
 			event.preventDefault();
 			state.selectElements([]);
@@ -815,7 +815,7 @@
 		}
 		if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
 		const key = event.key.toLowerCase();
-		const state = store.getState();
+		const state = doc.snapshot();
 		if (
 			key === 'c' &&
 			!event.shiftKey &&
@@ -852,7 +852,7 @@
 <svelte:window
 	onkeydown={handleKeydown}
 	onbeforeunload={(event) => {
-		const state = store.getState();
+		const state = doc.snapshot();
 		if (!state.dirty || state.document?.id !== presentationId) return;
 		event.preventDefault();
 		event.returnValue = '';
@@ -926,7 +926,7 @@
 					aria-label="Undo"
 					title="Undo (Ctrl+Z)"
 					disabled={!canUndo}
-					onclick={() => store.getState().undo()}><Undo2 size={17} aria-hidden="true" /></button
+					onclick={() => doc.undo()}><Undo2 size={17} aria-hidden="true" /></button
 				>
 				<button
 					type="button"
@@ -934,7 +934,7 @@
 					aria-label="Redo"
 					title="Redo (Ctrl+Shift+Z)"
 					disabled={!canRedo}
-					onclick={() => store.getState().redo()}><Redo2 size={17} aria-hidden="true" /></button
+					onclick={() => doc.redo()}><Redo2 size={17} aria-hidden="true" /></button
 				>
 				<button
 					type="button"
@@ -1054,7 +1054,7 @@
 						type="button"
 						class={button}
 						aria-label="Edit text: {selectedText.name}"
-						onclick={() => store.getState().startTextEdit(selectedText.id)}
+						onclick={() => doc.startTextEdit(selectedText.id)}
 						><PenLine size={16} aria-hidden="true" /> Edit text</button
 					>{/if}
 				{#if selectedElement}
@@ -1173,7 +1173,7 @@
 								onpointercancel={(event) => finishSlideDrag(event, false)}
 								onkeydown={(event) => slideKeyDown(slide.id, event)}
 								onclick={() => {
-									if (!suppressSlideClick) store.getState().selectSlide(slide.id);
+									if (!suppressSlideClick) doc.selectSlide(slide.id);
 								}}
 								{@attach registerSlideButton(slide.id)}
 							>
@@ -1204,10 +1204,10 @@
 					{/each}
 				</div>
 				<p>Elements</p>
-				<ElementLayerList {store} />
+				<ElementLayerList />
 			</aside>
 			{#if PresentationCanvas}
-				<PresentationCanvas {store} {images} session={textSession} />
+				<PresentationCanvas {images} session={textSession} />
 			{:else}
 				<!-- Holds the canvas track and its panel tone until Konva arrives. -->
 				<div
@@ -1243,10 +1243,10 @@
 							aria-label="Slide background"
 							value={activeSlide.background}
 							oninput={(event) =>
-								store.getState().setSlideBackground(activeSlide.id, event.currentTarget.value, {
+								doc.setSlideBackground(activeSlide.id, event.currentTarget.value, {
 									historyGroup: `slide-bg:${activeSlide.id}`
 								})}
-							onblur={() => store.getState().endHistoryGroup()}
+							onblur={() => doc.endHistoryGroup()}
 						/>
 					</label>
 				{/if}
@@ -1254,7 +1254,6 @@
 					<p>{selectedElement.name || 'Element'}</p>
 					<ElementGeometryInspector
 						element={selectedElement}
-						{store}
 						onreplaceimage={templateMode ? undefined : beginReplaceImage}
 					/>
 				{/if}
@@ -1276,7 +1275,6 @@
 	>
 		{#if selectedElement}<ElementGeometryInspector
 				element={selectedElement}
-				{store}
 				onreplaceimage={templateMode ? undefined : beginReplaceImage}
 			/>{/if}
 	</Modal>
@@ -1290,8 +1288,8 @@
 	>
 		<ThemeControls
 			theme={presentation.theme}
-			onchange={(next) => store.getState().setTheme(next, { historyGroup: 'theme' })}
-			onendgroup={() => store.getState().endHistoryGroup()}
+			onchange={(next) => doc.setTheme(next, { historyGroup: 'theme' })}
+			onendgroup={() => doc.endHistoryGroup()}
 		/>
 	</Modal>
 {/if}

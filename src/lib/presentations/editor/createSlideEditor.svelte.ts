@@ -9,11 +9,11 @@
 import type { PresentationRepository } from '../persistence/repository';
 import { createPresentationExport, type PresentationExportController } from './exportController';
 import { createPresentationSaving, type PresentationSaving } from './presentationSaving';
-import { createPresentationStore, type PresentationStore } from './store.svelte';
+import { createDocumentState, type DocumentState } from './document/documentState.svelte';
 import { createTextEditSession, type TextEditSession } from './textEditSession.svelte';
 
 export type SlideEditor = {
-	store: PresentationStore;
+	doc: DocumentState;
 	/** The editor that opens a text session owns it; saves and exports flush through it. */
 	text: TextEditSession;
 	persistence: PresentationSaving;
@@ -30,28 +30,28 @@ export type SlideEditorInput = {
 
 export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 	const { presentationId, repository } = input;
-	const store = createPresentationStore();
+	const doc = createDocumentState();
 	const text = createTextEditSession();
 	const persistence = createPresentationSaving({
 		repository,
 		documentId: presentationId,
 		flushText: () => text.flush(),
-		store,
+		doc,
 		describeFailure: input.describeFailure,
 		conflictMessage: input.conflictMessage
 	});
 	const exports = createPresentationExport({
 		repository,
-		getDocument: () => store.getState().document,
+		getDocument: () => doc.document,
 		flushText: () => text.flush(),
 		// Read at failure time: whether a reload is safe depends on the live write state.
 		reloadSafety: () => {
 			const status = persistence.getStatus().status;
 			return {
-				unsavedWork: store.getState().dirty,
+				unsavedWork: doc.dirty,
 				saveFailed: status === 'failed' || status === 'conflict'
 			};
 		}
 	});
-	return { store, text, persistence, exports };
+	return { doc, text, persistence, exports };
 }

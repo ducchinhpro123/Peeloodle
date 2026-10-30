@@ -1,4 +1,5 @@
 <script>
+	import { getSlideEditor } from '#lib/presentations/editor/context.js';
 	import { button, buttonIcon } from '#lib/ui/styles.js';
 	import { FlipHorizontal2, FlipVertical2, RefreshCw } from 'lucide-svelte';
 
@@ -11,11 +12,11 @@
 	 *
 	 * @type {{
 	 *   element: import('#lib/presentations/model/types.js').ImageElement,
-	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore,
 	 *   onreplace?: (elementId: string) => void
 	 * }}
 	 */
-	let { element, store, onreplace = undefined } = $props();
+	let { element, onreplace = undefined } = $props();
+	const { doc } = getSlideEditor();
 
 	const CROP_FIELDS = /** @type {const} */ (['left', 'top', 'right', 'bottom']);
 	/** @param {number} value */
@@ -23,13 +24,11 @@
 
 	/** @param {Partial<import('#lib/presentations/model/types.js').ImageElement>} update */
 	function patch(update) {
-		store
-			.getState()
-			.updateElement(element.id, update, { historyGroup: `image-adjust:${element.id}` });
+		doc.updateElement(element.id, update, { historyGroup: `image-adjust:${element.id}` });
 	}
 
 	function endGroup() {
-		store.getState().endHistoryGroup();
+		doc.endHistoryGroup();
 	}
 
 	const values = $derived({

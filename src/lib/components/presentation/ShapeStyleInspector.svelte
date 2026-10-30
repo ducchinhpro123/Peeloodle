@@ -1,9 +1,10 @@
 <script>
+	import { getSlideEditor } from '#lib/presentations/editor/context.js';
 	/** @type {{
 	 *   element: import('#lib/presentations/model/types.js').ShapeElement,
-	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore
 	 * }} */
-	let { element, store } = $props();
+	let { element } = $props();
+	const { doc } = getSlideEditor();
 
 	const DEFAULT_FILL = '#08b879';
 	const DEFAULT_STROKE = '#08152f';
@@ -14,13 +15,11 @@
 	 * @param {Partial<import('#lib/presentations/model/types.js').ShapeElement>} update
 	 */
 	function patch(update) {
-		store
-			.getState()
-			.updateElement(element.id, update, { historyGroup: `shape-style:${element.id}` });
+		doc.updateElement(element.id, update, { historyGroup: `shape-style:${element.id}` });
 	}
 
 	function endGroup() {
-		store.getState().endHistoryGroup();
+		doc.endHistoryGroup();
 	}
 </script>
 

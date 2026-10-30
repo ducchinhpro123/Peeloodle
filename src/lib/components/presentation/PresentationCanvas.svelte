@@ -1,4 +1,5 @@
 <script>
+	import { getSlideEditor } from '#lib/presentations/editor/context.js';
 	import { Konva } from '#lib/presentations/rendering/konvaText.js';
 	import { renderSlide, renderText } from '#lib/presentations/rendering/renderSlide.js';
 	import {
@@ -49,11 +50,11 @@
 	 */
 
 	/** @type {{
-	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore,
 	 *   images: import('#lib/presentations/rendering/renderSlide.js').PresentationImageSources,
 	 *   session: import('#lib/presentations/editor/textEditSession.svelte.js').TextEditSession
 	 * }} */
-	let { store, images, session } = $props();
+	let { images, session } = $props();
+	const { doc } = getSlideEditor();
 
 	/** @type {HTMLDivElement | null} */
 	let hostEl = null;
@@ -76,7 +77,7 @@
 	let renderError = $state(false);
 	let panning = $state(false);
 
-	const editorState = $derived(store.current);
+	const editorState = $derived(doc.snapshot());
 	const presentation = $derived(editorState.document);
 	const activeSlide = $derived(
 		presentation?.slides.find((slide) => slide.id === editorState.view.activeSlideId) ??
@@ -232,7 +233,7 @@
 	function pointFromClient(clientX, clientY) {
 		if (!hostEl) return null;
 		const rect = hostEl.getBoundingClientRect();
-		const current = store.getState();
+		const current = doc.snapshot();
 		const pageSize = current.document?.pageSize ?? { width: 0, height: 0 };
 		const currentViewport = presentationViewport(
 			size,
@@ -252,7 +253,7 @@
 	 * @param {number} clientY
 	 */
 	function elementAtPointer(clientX, clientY) {
-		const current = store.getState();
+		const current = doc.snapshot();
 		const slide =
 			current.document?.slides.find((item) => item.id === current.view.activeSlideId) ??
 			current.document?.slides[0];
@@ -352,7 +353,7 @@
 		let nextGuides = [];
 		// Move gestures snap to other visible elements and the page axes, and show
 		// the matched lines. Resize and rotate keep exact pointer geometry.
-		const state = store.getState();
+		const state = doc.snapshot();
 		const slide =
 			state.document?.slides.find((item) => item.id === state.view.activeSlideId) ??
 			state.document?.slides[0];
@@ -404,7 +405,7 @@
 				// Pointer capture already ended.
 			}
 		}
-		const state = store.getState();
+		const state = doc.snapshot();
 		// A click without movement leaves no undo entry and no revision behind.
 		if (commit && gesture.current) state.commitTransform(gesture.elementId, gesture.current);
 		else if (gesture.current) state.setTransformPreview(null);
@@ -432,7 +433,7 @@
 		const element = elementAtPointer(event.clientX, event.clientY);
 		if (element) {
 			hostEl?.focus();
-			store.getState().selectElements([element.id]);
+			doc.selectElements([element.id]);
 			// A locked element stays selectable so its properties are reachable,
 			// but no gesture may move, resize, or rotate it.
 			if (!element.locked) beginTransform(element, 'move', null, event);
@@ -465,7 +466,7 @@
 		const dy = event.clientY - gesture.y;
 		gesture.x = event.clientX;
 		gesture.y = event.clientY;
-		const state = store.getState();
+		const state = doc.snapshot();
 		state.setPan({ x: state.view.pan.x + dx, y: state.view.pan.y + dy });
 	}
 
@@ -473,12 +474,12 @@
 	function handleWheel(event) {
 		if (event.deltaY === 0) return;
 		event.preventDefault();
-		const current = store.getState().view.zoom;
+		const current = doc.view.zoom;
 		// Wheel events vary from tiny trackpad pixels to full mouse notches. Scale
 		// with their magnitude instead of applying 10% for every event.
 		const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 120 : 1);
 		const step = Math.max(-120, Math.min(120, pixels));
-		store.getState().setZoom(clampPresentationZoom(current * Math.exp(-step * 0.0008)));
+		doc.setZoom(clampPresentationZoom(current * Math.exp(-step * 0.0008)));
 	}
 
 	/** @type {import('svelte/attachments').Attachment<HTMLDivElement>} */
@@ -515,11 +516,11 @@
 			// background: see `ignoreTrailingClick`.
 			if (ignoreTrailingClick) return;
 			const id = elementIdFor(event.target);
-			store.getState().selectElements(id ? [id] : []);
+			doc.selectElements(id ? [id] : []);
 		};
 		const edit = (/** @type {any} */ event) => {
 			const id = elementIdFor(event.target);
-			if (id) store.getState().startTextEdit(id);
+			if (id) doc.startTextEdit(id);
 		};
 		konvaStage.on('click tap', select);
 		konvaStage.on('dblclick dbltap', edit);
@@ -560,7 +561,7 @@
 
 {#if presentation && activeSlide}
 	<section class="presentation-canvas-panel" aria-label="Slide canvas">
-		<PresentationCanvasControls {store} />
+		<PresentationCanvasControls />
 		<div
 			class="presentation-canvas [position:absolute] [inset:0] [cursor:grab] [touch-action:none]"
 			class:is-panning={panning}
@@ -597,7 +598,6 @@
 				offsetY={viewport.y}
 				theme={presentation.theme}
 				{session}
-				{store}
 			/>
 		{/if}
 		{#if renderError}<p class="presentation-canvas-error" role="alert">

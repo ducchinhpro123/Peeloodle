@@ -1,4 +1,5 @@
 <script>
+	import { getSlideEditor } from '#lib/presentations/editor/context.js';
 	import { buttonIcon } from '#lib/ui/styles.js';
 	import { Minus, Plus, Scan } from 'lucide-svelte';
 	import {
@@ -7,19 +8,18 @@
 		PRESENTATION_MIN_ZOOM
 	} from '#lib/presentations/editor/viewGeometry.js';
 
-	/** @type {{ store: import('#lib/presentations/editor/store.svelte.js').PresentationStore }} */
-	let { store } = $props();
-	let zoom = $derived(store.current.view.zoom);
+	const { doc } = getSlideEditor();
+	let zoom = $derived(doc.view.zoom);
 
 	/** @param {number} factor */
 	function zoomBy(factor) {
-		const current = store.getState().view.zoom;
-		store.getState().setZoom(clampPresentationZoom(current * factor));
+		const current = doc.view.zoom;
+		doc.setZoom(clampPresentationZoom(current * factor));
 	}
 
 	function fit() {
-		store.getState().setZoom(1);
-		store.getState().setPan({ x: 0, y: 0 });
+		doc.setZoom(1);
+		doc.setPan({ x: 0, y: 0 });
 	}
 </script>
 

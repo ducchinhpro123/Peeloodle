@@ -1,4 +1,5 @@
 <script>
+	import { getSlideEditor } from '#lib/presentations/editor/context.js';
 	import { tick } from 'svelte';
 	import { button } from '#lib/ui/styles.js';
 	import { layoutTextElement } from '#lib/presentations/rendering/textLayout.js';
@@ -19,10 +20,10 @@
 	 *
 	 * @type {{
 	 *   element: import('#lib/presentations/model/types.js').TextElement,
-	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore
 	 * }}
 	 */
-	let { element, store } = $props();
+	let { element } = $props();
+	const { doc } = getSlideEditor();
 
 	const layout = $derived(layoutTextElement(element, measureTextWidth));
 	const boxHeight = $derived(Math.max(0, element.height - element.padding * 2));
@@ -32,7 +33,7 @@
 	let grownFor = $state(/** @type {string | null} */ (null));
 	/** @type {string} */
 	let fitError = $state('');
-	const pageSize = $derived(store.current.document?.pageSize);
+	const pageSize = $derived(doc.document?.pageSize);
 	// A box that already starts off the slide is never grown, so "reaches the slide
 	// edge" would be the wrong explanation; it gets its own message instead.
 	const offPage = $derived(pageSize !== undefined && !textBoxInsidePage(element, pageSize));
@@ -45,17 +46,17 @@
 		fitError = '';
 		grownFor = null;
 		const select = /** @type {HTMLSelectElement} */ (event.currentTarget);
-		store.getState().updateElement(element.id, { autoGrow: select.value === 'grow' });
-		store.getState().endHistoryGroup();
+		doc.updateElement(element.id, { autoGrow: select.value === 'grow' });
+		doc.endHistoryGroup();
 	}
 
 	function grow() {
-		const document = store.getState().document;
+		const document = doc.document;
 		if (!document) return;
 		grownFor = element.id;
 		const grown = growTextToFit(element, document.pageSize, measureTextWidth);
 		if (grown.height !== element.height) {
-			store.getState().updateElement(element.id, { height: grown.height });
+			doc.updateElement(element.id, { height: grown.height });
 		}
 	}
 
@@ -64,11 +65,11 @@
 		// Normal pointer focus/blur ends editing first; only a session that is still
 		// open after that tick may not be shrunk from under its uncommitted runs.
 		await tick();
-		if (store.getState().view.editingElementId === id) {
+		if (doc.view.editingElementId === id) {
 			fitError = 'Finish editing this text before shrinking it.';
 			return;
 		}
-		fitError = store.getState().shrinkText(id)
+		fitError = doc.shrinkText(id)
 			? ''
 			: 'This text cannot fit at a readable size. Enlarge the box or shorten the text.';
 	}

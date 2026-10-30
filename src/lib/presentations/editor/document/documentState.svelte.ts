@@ -1,20 +1,24 @@
 /**
- * Presentation command store (P11).
+ * Document state for one mounted slide editor.
  *
  * The serializable document is the single source of truth; Konva/DOM layers
  * read from it. All document mutations go through commands that create a new
  * validated revision and one undo entry (optionally grouped so one drag or
  * slider gesture produces one entry). Selection, zoom, pan and slide navigation
  * live in `view` and never dirty the document.
+ *
+ * Components read fields directly (`doc.document`, `doc.dirty`); they are
+ * reactive getters over one `$state.raw` record. Persistence listens through
+ * `onChange`, the only notification seam.
  */
 
-import { PRESENTATION_LIMITS } from '../model/limits';
+import { PRESENTATION_LIMITS } from '../../model/limits';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { serializePresentationDocument } from '../model/parse';
-import { createSlide, nextSlideName } from '../model/factories';
-import { recordHistory, stepBack, stepForward, withRevision, type HistoryEntry } from './history';
-import type { PreparedPresentationImage } from './insertImageAsset';
-import { imageInsertRefusal, slideInsertionRefusal, type ImageInsertCheck } from './document/rules';
+import { serializePresentationDocument } from '../../model/parse';
+import { createSlide, nextSlideName } from '../../model/factories';
+import { recordHistory, stepBack, stepForward, withRevision, type HistoryEntry } from '../history';
+import type { PreparedPresentationImage } from '../insertImageAsset';
+import { imageInsertRefusal, slideInsertionRefusal, type ImageInsertCheck } from './rules';
 import {
 	planImageInsert,
 	planImageReplacement,
@@ -22,13 +26,13 @@ import {
 	type ImageInsertPlan,
 	type ImageReplacePlan,
 	type SlideInsertionPlan
-} from './document/commands/images';
-import { normalizeTransform, type TransformGeometry } from './transformGeometry';
-import { measureTextWidth } from './textMeasure';
-import { growTextToFit, shrinkTextToFit } from './textFit';
-import type { MeasureText } from '../rendering/textLayout';
-import type { AlignmentGuide } from './alignmentGuides';
-import type { Element, PresentationDocument, Slide, TextParagraph, Theme } from '../model/types';
+} from './commands/images';
+import { normalizeTransform, type TransformGeometry } from '../transformGeometry';
+import { measureTextWidth } from '../textMeasure';
+import { growTextToFit, shrinkTextToFit } from '../textFit';
+import type { MeasureText } from '../../rendering/textLayout';
+import type { AlignmentGuide } from '../alignmentGuides';
+import type { Element, PresentationDocument, Slide, TextParagraph, Theme } from '../../model/types';
 
 /** Geometry a gesture is previewing for one element; never part of the document. */
 export type TransformPreview = TransformGeometry & { elementId: string };
@@ -59,7 +63,6 @@ export type PresentationStoreState = {
 	lastHistoryGroup: string | null;
 
 	loadDocument(document: PresentationDocument, options?: { saved?: boolean }): void;
-	closeDocument(): void;
 	markSaving(): void;
 	markSaved(revision: number): void;
 	markSaveFailed(message: string): void;
@@ -147,55 +150,73 @@ export type PresentationStoreState = {
 	redo(): void;
 };
 
-export type PresentationStore = {
-	readonly current: PresentationStoreState;
-	getState(): PresentationStoreState;
-	setState(
-		update:
-			| Partial<PresentationStoreState>
-			| PresentationStoreState
-			| ((
-					state: PresentationStoreState
-			  ) => Partial<PresentationStoreState> | PresentationStoreState),
-		replace?: boolean
-	): void;
-	subscribe(
-		listener: (state: PresentationStoreState, previous: PresentationStoreState) => void
-	): () => void;
+/** Every field and command of the editor's document record. */
+type DocumentRecord = PresentationStoreState;
+
+export type DocumentChangeListener = (next: DocumentRecord, previous: DocumentRecord) => void;
+
+export type DocumentState = Readonly<DocumentRecord> & {
+	readonly canUndo: boolean;
+	readonly canRedo: boolean;
+	/**
+	 * The current record as an immutable value: later commands replace it rather
+	 * than mutate it, so code that compares "before" and "after" across an
+	 * `await` keeps a stable reference.
+	 */
+	snapshot(): DocumentRecord;
+	/** Called once per state change with the next and previous records. */
+	onChange(listener: DocumentChangeListener): () => void;
 };
 
-type StoreSet = PresentationStore['setState'];
-type StoreGet = PresentationStore['getState'];
+type RecordSet = (patch: Partial<DocumentRecord>) => void;
+type RecordGet = () => DocumentRecord;
 
-/** Svelte-owned command store with a small imperative seam for saving and tests. */
-function createStore(
-	initialize: (set: StoreSet, get: StoreGet) => PresentationStoreState
-): PresentationStore {
-	let state = $state.raw<PresentationStoreState>(undefined!);
-	const listeners = new SvelteSet<
-		(state: PresentationStoreState, previous: PresentationStoreState) => void
-	>();
+/**
+ * Exposes the record as reactive getters plus its commands. Commands keep
+ * calling each other through `get()`, so they always act on the live record.
+ */
+function createDocumentRecord(
+	initialize: (set: RecordSet, get: RecordGet) => DocumentRecord
+): DocumentState {
+	let state = $state.raw<DocumentRecord>(undefined!);
+	const listeners = new SvelteSet<DocumentChangeListener>();
 
-	const setState: StoreSet = (update, replace = false) => {
+	const set: RecordSet = (patch) => {
 		const previous = state;
-		const patch = typeof update === 'function' ? update(state) : update;
-		state = replace ? (patch as PresentationStoreState) : { ...state, ...patch };
+		state = { ...state, ...patch };
 		for (const listener of listeners) listener(state, previous);
 	};
-	const getState: StoreGet = () => state;
-	state = initialize(setState, getState);
+	const get: RecordGet = () => state;
+	state = initialize(set, get);
 
-	return {
-		get current() {
-			return state;
+	const facade = {
+		get canUndo() {
+			return state.past.length > 0;
 		},
-		getState,
-		setState,
-		subscribe(listener) {
+		get canRedo() {
+			return state.future.length > 0;
+		},
+		snapshot: get,
+		onChange(listener: DocumentChangeListener) {
 			listeners.add(listener);
-			return () => listeners.delete(listener);
+			return () => {
+				listeners.delete(listener);
+			};
 		}
 	};
+	// The record's keys never change, so the facade is built once from the initial record.
+	const initial = get();
+	for (const key of Object.keys(initial) as (keyof DocumentRecord)[]) {
+		if (typeof initial[key] === 'function') {
+			Object.defineProperty(facade, key, {
+				enumerable: true,
+				value: (...args: unknown[]) => (get()[key] as (...input: unknown[]) => unknown)(...args)
+			});
+		} else {
+			Object.defineProperty(facade, key, { enumerable: true, get: () => get()[key] });
+		}
+	}
+	return facade as DocumentState;
 }
 
 const initialView: PresentationViewState = {
@@ -225,15 +246,13 @@ function sameValue(a: unknown, b: unknown): boolean {
 	}
 }
 
-export function createPresentationStore(
-	options: { measureText?: MeasureText } = {}
-): PresentationStore {
+export function createDocumentState(options: { measureText?: MeasureText } = {}): DocumentState {
 	const measure = options.measureText ?? measureTextWidth;
 
 	/** Sizing/text patches refused on a locked element; lock toggling is its own command. */
 	const lockedPatchKeys = ['paragraphs', 'width', 'height', 'padding', 'lineHeight', 'autoGrow'];
 
-	return createStore((set, get) => {
+	return createDocumentRecord((set, get) => {
 		/** Validates, bumps the revision and records one undo entry. Updaters return
 		 * `false` for a no-op so redo history and the revision are left untouched. */
 		const commit = (
@@ -430,20 +449,6 @@ export function createPresentationStore(
 					view: { ...initialView, activeSlideId: clean.slides[0]?.id ?? null },
 					savedRevision: saved ? clean.revision : -1,
 					dirty: !saved,
-					saving: false,
-					saveError: null,
-					past: [],
-					future: [],
-					lastHistoryGroup: null
-				});
-			},
-
-			closeDocument() {
-				set({
-					document: null,
-					view: initialView,
-					savedRevision: -1,
-					dirty: false,
 					saving: false,
 					saveError: null,
 					past: [],

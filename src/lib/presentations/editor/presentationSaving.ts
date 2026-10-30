@@ -38,7 +38,7 @@ import {
 	planImageReplacement,
 	planSlideInsertion
 } from './document/commands/images';
-import type { PresentationStore } from './store.svelte';
+import type { DocumentState } from './document/documentState.svelte';
 
 export type PresentationSaveStatus = 'clean' | 'saving' | 'saved' | 'failed' | 'conflict';
 export type PresentationSaveState = { status: PresentationSaveStatus; message: string | null };
@@ -69,8 +69,6 @@ const SAVE_CONFLICT_MESSAGE =
 
 const CONFLICT_COPY_SUFFIX = ' (conflict copy)';
 
-type PresentationStoreSource = Pick<PresentationStore, 'getState' | 'subscribe'>;
-
 export type PresentationSaving = ReturnType<typeof createPresentationSaving>;
 
 export function createPresentationSaving(input: {
@@ -78,14 +76,14 @@ export function createPresentationSaving(input: {
 	documentId: string | null;
 	/** Commits text that is still only on screen before a save reads the store. */
 	flushText: () => void;
-	store: PresentationStoreSource;
+	doc: DocumentState;
 	/** Overrides the local-storage failure copy (template mode supplies one). */
 	describeFailure?: (error: unknown) => string;
 	/** The message a revision conflict is reported with. */
 	conflictMessage?: string;
 }) {
 	const { repository, documentId, flushText } = input;
-	const store = input.store;
+	const doc = input.doc;
 	const conflictMessage = input.conflictMessage ?? SAVE_CONFLICT_MESSAGE;
 	const describeFailure = input.describeFailure ?? describeSaveFailure;
 
@@ -127,13 +125,13 @@ export function createPresentationSaving(input: {
 		return run;
 	};
 
-	const stillCurrent = () => documentId !== null && store.getState().document?.id === documentId;
+	const stillCurrent = () => documentId !== null && doc.document?.id === documentId;
 
 	const performSave = async (): Promise<SaveResult> => {
 		// Commit anything still on screen before the clean check, so an explicit Save can
 		// never report "saved" for text the user can see but that was never written.
 		flushText();
-		const start = store.getState();
+		const start = doc.snapshot();
 		if (documentId === null || start.document?.id !== documentId) return 'skipped';
 		// An unchanged revision is never re-submitted, so a clean document is not re-written.
 		if (!start.dirty || start.document.revision === start.savedRevision) {
@@ -141,7 +139,7 @@ export function createPresentationSaving(input: {
 			return 'skipped';
 		}
 
-		const pending = store.getState();
+		const pending = doc.snapshot();
 		const document = pending.document;
 		if (!document || document.id !== documentId) return 'skipped';
 		if (!pending.dirty || document.revision === pending.savedRevision) {
@@ -160,7 +158,7 @@ export function createPresentationSaving(input: {
 			await repository.savePresentation(document, [], { baseRevision });
 		} catch (error) {
 			if (!stillCurrent()) return 'skipped';
-			const failed = store.getState();
+			const failed = doc.snapshot();
 			if (isPersistenceError(error) && error.code === 'revision_conflict') {
 				failed.markSaveFailed(conflictMessage);
 				publish({ status: 'conflict', message: conflictMessage });
@@ -173,7 +171,7 @@ export function createPresentationSaving(input: {
 		}
 
 		if (!stillCurrent()) return 'saved';
-		const stored = store.getState();
+		const stored = doc.snapshot();
 		// The revision that was written, not the latest one: edits made while the
 		// write was in flight must keep the document dirty.
 		stored.markSaved(document.revision);
@@ -200,15 +198,15 @@ export function createPresentationSaving(input: {
 			// Read the base revision here, inside the serialized task, not at click time:
 			// a save that completes while this task waits in the queue advances the stored
 			// revision, and a stale base would then report a conflict for our own write.
-			const baseRevision = store.getState().savedRevision;
-			store.getState().markSaving();
+			const baseRevision = doc.savedRevision;
+			doc.markSaving();
 			publish({ status: 'saving', message: null });
 			try {
 				await repository.savePresentation(next, media, { baseRevision });
 				return { ok: true as const };
 			} catch (error) {
 				if (isPersistenceError(error) && error.code === 'revision_conflict') {
-					store.getState().markSaveFailed(conflictMessage);
+					doc.markSaveFailed(conflictMessage);
 					publish({ status: 'conflict', message: conflictMessage });
 					return {
 						ok: false as const,
@@ -217,7 +215,7 @@ export function createPresentationSaving(input: {
 					};
 				}
 				const message = describeFailure(error);
-				store.getState().markSaveFailed(message);
+				doc.markSaveFailed(message);
 				publish({ status: 'failed', message });
 				return { ok: false as const, reason: 'failed' as const, message };
 			}
@@ -233,7 +231,7 @@ export function createPresentationSaving(input: {
 		image: PreparedPresentationImage,
 		options?: { slideId?: string }
 	): Promise<PersistInsertOutcome> => {
-		const current = store.getState();
+		const current = doc.snapshot();
 		const document = current.document;
 		if (!document || document.id !== documentId) {
 			return {
@@ -246,7 +244,7 @@ export function createPresentationSaving(input: {
 		if (!check.ok) return { ok: false, reason: check.reason, message: check.message };
 
 		const plan = planImageInsert(document, image, {
-			slideId: options?.slideId ?? store.getState().view.activeSlideId
+			slideId: options?.slideId ?? doc.view.activeSlideId
 		});
 		if (!plan)
 			return { ok: false, reason: 'no-slide', message: 'There is no slide to add this image to.' };
@@ -255,7 +253,7 @@ export function createPresentationSaving(input: {
 		const outcome = await persistDocument(plan.document, media);
 		if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message };
 
-		store.getState().adoptPersistedInsert(plan, image);
+		doc.adoptPersistedInsert(plan, image);
 		publish({ status: 'saved', message: null });
 		return { ok: true, elementId: plan.elementId };
 	};
@@ -269,7 +267,7 @@ export function createPresentationSaving(input: {
 		elementId: string,
 		image: PreparedPresentationImage
 	): Promise<PersistInsertOutcome> => {
-		const current = store.getState();
+		const current = doc.snapshot();
 		const document = current.document;
 		if (!document || document.id !== documentId) {
 			return {
@@ -289,7 +287,7 @@ export function createPresentationSaving(input: {
 		const outcome = await persistDocument(plan.document, media);
 		if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message };
 
-		store.getState().adoptPersistedReplacement(plan, image);
+		doc.adoptPersistedReplacement(plan, image);
 		publish({ status: 'saved', message: null });
 		return { ok: true, elementId: plan.elementId };
 	};
@@ -305,7 +303,7 @@ export function createPresentationSaving(input: {
 		media: PresentationMediaRecord[];
 		afterSlideId?: string | null;
 	}): Promise<PersistSlidesOutcome> => {
-		const current = store.getState();
+		const current = doc.snapshot();
 		const document = current.document;
 		if (!document || document.id !== documentId) {
 			return {
@@ -317,7 +315,7 @@ export function createPresentationSaving(input: {
 		const refusal = slideInsertionRefusal(document, input.slides, input.assets);
 		if (refusal) return { ok: false, reason: refusal.reason, message: refusal.message };
 		const plan = planSlideInsertion(document, input.slides, input.assets, {
-			afterSlideId: input.afterSlideId ?? store.getState().view.activeSlideId
+			afterSlideId: input.afterSlideId ?? doc.view.activeSlideId
 		});
 		if (!plan)
 			return {
@@ -327,7 +325,7 @@ export function createPresentationSaving(input: {
 			};
 		const outcome = await persistDocument(plan.document, input.media);
 		if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message };
-		store.getState().adoptPersistedSlideInsertion(plan);
+		doc.adoptPersistedSlideInsertion(plan);
 		publish({ status: 'saved', message: null });
 		return { ok: true, slideId: plan.slideIds[0] ?? null };
 	};
@@ -338,12 +336,12 @@ export function createPresentationSaving(input: {
 	 * longer editing something that can never be written.
 	 */
 	const keepMineAsCopy = async (): Promise<ConflictRecoveryOutcome> => {
-		const source = store.getState().document;
+		const source = doc.document;
 		if (!source || source.id !== documentId)
 			return { ok: false, message: 'There is no open presentation to copy.' };
 		flushText();
 
-		const local = store.getState().document;
+		const local = doc.document;
 		if (!local || local.id !== documentId)
 			return { ok: false, message: 'There is no open presentation to copy.' };
 		const copy = clonePresentationDocumentWithNewIds(local, {
@@ -363,7 +361,7 @@ export function createPresentationSaving(input: {
 		});
 
 		if (!outcome.ok) {
-			store.getState().markSaveFailed(outcome.message);
+			doc.markSaveFailed(outcome.message);
 			publish({ status: 'failed', message: outcome.message });
 			return outcome;
 		}
@@ -371,13 +369,13 @@ export function createPresentationSaving(input: {
 		// Reopen the newer stored revision; the user's own work is safe in the copy.
 		try {
 			const newer = await repository.getPresentation(documentId!);
-			if (store.getState().document?.id === documentId) {
-				store.getState().loadDocument(newer, { saved: true });
+			if (doc.document?.id === documentId) {
+				doc.loadDocument(newer, { saved: true });
 				publish({ status: 'clean', message: null });
 			}
 		} catch (error) {
 			const message = describeFailure(error);
-			store.getState().markSaveFailed(message);
+			doc.markSaveFailed(message);
 			publish({ status: 'failed', message });
 			return { ok: false, message };
 		}
@@ -396,7 +394,7 @@ export function createPresentationSaving(input: {
 		for (let pass = 0; pass < 2; pass += 1) {
 			const result = await save();
 			if (result === 'failed' || result === 'conflict') return false;
-			const current = store.getState();
+			const current = doc.snapshot();
 			// Nothing open: leaving cannot lose this document's work.
 			if (documentId === null || current.document?.id !== documentId) return true;
 			// An edit that landed while the write was in flight keeps this dirty; one
@@ -415,7 +413,7 @@ export function createPresentationSaving(input: {
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const schedule = () => {
 			clearTimeout(timer);
-			const current = store.getState();
+			const current = doc.snapshot();
 			if (current.document?.id !== documentId || !current.dirty) return;
 			// An open history group is a gesture in progress (a text session today).
 			if (current.lastHistoryGroup !== null) return;
@@ -423,7 +421,7 @@ export function createPresentationSaving(input: {
 				void save();
 			}, AUTOSAVE_DELAY_MS);
 		};
-		const unsubscribe = store.subscribe((next, previous) => {
+		const unsubscribe = doc.onChange((next, previous) => {
 			if (
 				next.document?.id !== previous.document?.id ||
 				next.document?.revision !== previous.document?.revision ||
@@ -436,7 +434,7 @@ export function createPresentationSaving(input: {
 		schedule();
 		return {
 			shouldWarnBeforeUnload: () => {
-				const current = store.getState();
+				const current = doc.snapshot();
 				return current.dirty && current.document?.id === documentId;
 			},
 			detach: () => {
