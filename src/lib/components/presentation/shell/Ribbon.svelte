@@ -127,6 +127,7 @@
 		outline-offset: -2px;
 	}
 	.ribbon-panel {
+		container-type: inline-size;
 		display: flex;
 		min-block-size: 68px;
 		align-items: stretch;

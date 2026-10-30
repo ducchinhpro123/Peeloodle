@@ -31,7 +31,11 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 4px;
-		max-inline-size: 460px;
+		max-inline-size: 360px;
+	}
+	.ribbon-group-controls :global(select) {
+		min-block-size: 28px;
+		font-size: 12px;
 	}
 	.ribbon-group-label {
 		color: var(--muted);
@@ -39,14 +43,29 @@
 		text-align: center;
 	}
 	.ribbon-group-controls :global(.button) {
-		min-block-size: 30px;
-		padding-inline: 8px;
+		min-block-size: 28px;
+		padding-block: 2px;
+		padding-inline: 7px;
+		gap: 5px;
+		font-weight: 600;
 		border-radius: 5px;
-		font-size: 12.5px;
+		font-size: 12px;
 		box-shadow: none;
 	}
 	.ribbon-group-controls :global(.button.icon) {
-		inline-size: 30px;
+		inline-size: 28px;
 		padding: 0;
+	}
+	/* Narrow ribbons keep every control: icon buttons drop their visible text
+	 * (the accessible name stays) and hints give way, as PowerPoint's ribbon
+	 * scales its groups down. */
+	@container (max-width: 1300px) {
+		.ribbon-group-controls :global(.ribbon-label),
+		.ribbon-group-controls :global(.ribbon-hint) {
+			display: none;
+		}
+		.ribbon-group-controls {
+			max-inline-size: 380px;
+		}
 	}
 </style>

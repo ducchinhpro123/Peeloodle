@@ -176,6 +176,8 @@ test('inserts a built-in layout offline without replacing existing content', asy
 }) => {
 	const id = await openBlankEditor(page);
 	await page.getByRole('button', { name: 'Add heading', exact: true }).click();
+	// Type only once the new box's field has focus, as the other text journeys do.
+	await expect(page.getByTestId('text-edit-field')).toBeFocused();
 	await page.keyboard.type('Keep my original');
 	await page.keyboard.press('Escape');
 	await expect(page.getByText('Saved in this browser', { exact: true })).toBeVisible();

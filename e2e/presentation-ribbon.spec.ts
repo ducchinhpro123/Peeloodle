@@ -130,3 +130,49 @@ test('task pane shows format and selection, closes, and remembers it', async ({ 
 		.evaluate((node) => getComputedStyle(node).position);
 	expect(position).toBe('absolute');
 });
+
+test('stage 3 evidence: the shell fits at laptop and tablet widths', async ({ page }) => {
+	await openBlankEditor(page);
+	await page.getByRole('button', { name: 'Add heading', exact: true }).click();
+	await page.getByTestId('text-edit-field').fill('Quarterly review');
+	await page.keyboard.press('Escape');
+	await page.getByRole('button', { name: 'Add slide', exact: true }).click();
+	await page.getByRole('button', { name: 'Add slide', exact: true }).click();
+	await page.getByRole('button', { name: /^Show slide 1:/ }).click();
+	await page.getByLabel('Add shape', { exact: true }).selectOption('Rounded rectangle');
+
+	const report: Record<string, unknown>[] = [];
+	await mkdir('proofs/out', { recursive: true });
+	for (const [width, height] of [
+		[1440, 900],
+		[1280, 800],
+		[1024, 768]
+	]) {
+		await page.setViewportSize({ width, height });
+		await page.waitForTimeout(300);
+		const overflow = await page.evaluate(() => {
+			const measure = (selector: string) => {
+				const node = document.querySelector(selector);
+				return node ? node.scrollWidth - node.clientWidth : null;
+			};
+			return {
+				titleBar: measure('[aria-label="Presentation title bar"]'),
+				ribbonPanel: measure('[role="tabpanel"]'),
+				page: document.documentElement.scrollWidth - document.documentElement.clientWidth
+			};
+		});
+		expect(overflow.titleBar).toBeLessThanOrEqual(1);
+		expect(overflow.ribbonPanel).toBeLessThanOrEqual(1);
+		expect(overflow.page).toBeLessThanOrEqual(1);
+		const tabs = await page
+			.getByRole('tablist', { name: 'Ribbon' })
+			.getByRole('tab')
+			.allTextContents();
+		await page.screenshot({ path: `proofs/out/slide-editor-stage3-${width}.png` });
+		report.push({ width, height, overflow, tabs });
+	}
+	await writeFile(
+		'proofs/out/slide-editor-stage3-evidence-report.json',
+		JSON.stringify(report, null, 2)
+	);
+});

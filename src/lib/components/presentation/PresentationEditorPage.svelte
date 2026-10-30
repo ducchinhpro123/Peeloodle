@@ -40,6 +40,7 @@
 	import ShapeStyleInspector from './ShapeStyleInspector.svelte';
 	import ImageAdjustInspector from './ImageAdjustInspector.svelte';
 	import TaskPane from './panes/TaskPane.svelte';
+	import MessageBar from './shell/MessageBar.svelte';
 	import { OK } from '#lib/presentations/editor/actions/registry.js';
 	import { usePresentationOfflineReadiness } from '#lib/presentations/presentationOffline.svelte.js';
 	import ElementLayerList from './ElementLayerList.svelte';
@@ -976,12 +977,6 @@
 					>
 				{/if}
 			</div>
-			{#if saveReported || editorNote}<p
-					class="presentation-editor-feedback"
-					role={saveReported ? 'alert' : 'status'}
-				>
-					{editorNote ?? saveState.message ?? saveStatus}
-				</p>{/if}
 		</div>
 		{#if policy.capabilities.localMedia}
 			<input
@@ -1008,9 +1003,14 @@
 			onselect={selectRibbonTab}
 			panel={ribbonPanel}
 		/>
-		{#if editor.messages.current}<p class="asset-error" role="alert">
-				{editor.messages.current}
-			</p>{/if}
+		{#if saveReported || editorNote}<MessageBar
+				tone={saveReported ? 'warning' : 'info'}
+				role={saveReported ? 'alert' : 'status'}
+				>{editorNote ?? saveState.message ?? saveStatus}</MessageBar
+			>{/if}
+		{#if editor.messages.current}<MessageBar tone="error" role="alert" class="asset-error"
+				>{editor.messages.current}</MessageBar
+			>{/if}
 		<div class="presentation-mobile-note [display:none]">
 			<MonitorUp size={18} aria-hidden="true" />
 			<span
@@ -1141,7 +1141,7 @@
 {#snippet slideActions()}
 	{#if presentation}
 		<button type="button" class={button} aria-label="Add slide" title="Add slide" onclick={addSlide}
-			><Plus size={16} aria-hidden="true" /><span>Add slide</span></button
+			><Plus size={16} aria-hidden="true" /><span class="ribbon-label">Add slide</span></button
 		>
 		<BuiltinLayoutDialog
 			theme={presentation.theme}
@@ -1154,7 +1154,7 @@
 			aria-label="Duplicate active slide"
 			title="Duplicate active slide"
 			onclick={duplicateActiveSlide}
-			><Copy size={16} aria-hidden="true" /><span>Duplicate</span></button
+			><Copy size={16} aria-hidden="true" /><span class="ribbon-label">Duplicate</span></button
 		>
 	{/if}
 {/snippet}
@@ -1208,22 +1208,24 @@
 			{#if selection.editingId}<TextFormatToolbar session={textSession} />{:else}<p
 					class="ribbon-hint"
 				>
-					Double-click a text box to format its text.
+					Double-click text to format it.
 				</p>{/if}
 		</RibbonGroup>
 		<RibbonGroup label="Drawing">
 			{@render shapePicker()}
 			{@render textButtons()}
 		</RibbonGroup>
-		<RibbonGroup label="Editing">
-			{#if selectedText}<button
+		{#if selectedText}
+			<RibbonGroup label="Editing">
+				<button
 					type="button"
 					class={button}
 					aria-label="Edit text: {selectedText.name}"
 					onclick={() => selection.startTextEdit(selectedText.id)}
 					><PenLine size={16} aria-hidden="true" /> Edit text</button
-				>{/if}
-		</RibbonGroup>
+				>
+			</RibbonGroup>
+		{/if}
 	{:else if tab === 'insert'}
 		<RibbonGroup label="Slides">
 			<button
@@ -1231,7 +1233,8 @@
 				class={button}
 				aria-label="Add slide"
 				title="Add slide"
-				onclick={addSlide}><Plus size={16} aria-hidden="true" /><span>Add slide</span></button
+				onclick={addSlide}
+				><Plus size={16} aria-hidden="true" /><span class="ribbon-label">Add slide</span></button
 			>
 			{#if catalogRepository && policy.capabilities.templateSlides}<InsertTemplateDialog
 					repository={catalogRepository}
@@ -1314,14 +1317,6 @@
 		border-radius: var(--radius);
 		background: oklch(1 0 none);
 	}
-	.asset-error {
-		margin-block-end: var(--space-3);
-		padding: var(--space-3);
-		border-radius: var(--radius-sm);
-		background: var(--cream);
-		color: var(--ink);
-		font-size: 13px;
-	}
 
 	.presentation-route-state {
 		display: grid;
@@ -1362,42 +1357,34 @@
 	.presentation-editor-heading {
 		display: flex;
 		min-inline-size: 0;
-		min-block-size: 52px;
+		min-block-size: 44px;
 		align-items: center;
-		gap: var(--space-3);
-		padding-block-start: 5px;
-		padding-block-end: 5px;
-		padding-inline-start: var(--space-4);
-		padding-inline-end: var(--space-4);
+		gap: var(--space-2);
+		padding-block: 4px;
+		padding-inline: var(--space-2) var(--space-3);
+		background: oklch(0.968 0.003 264);
+	}
+	.presentation-editor-heading :global(.button) {
+		min-block-size: 32px;
+		padding-inline: 12px;
+		padding-block: 4px;
+		border-radius: 5px;
+		font-size: 13px;
+		box-shadow: none;
+	}
+	.presentation-editor-heading :global(.button.icon) {
+		inline-size: 32px;
+		padding: 0;
+	}
+	.ribbon-hint {
+		max-inline-size: 15ch;
+		margin: 0;
+		color: var(--muted);
+		font-size: 11px;
+		line-height: 1.35;
 	}
 	.presentation-editor-heading > .button {
 		flex: none;
-	}
-	.presentation-editor-actions {
-		display: flex;
-		min-inline-size: 0;
-		inline-size: 100%;
-		align-items: center;
-		gap: var(--space-2);
-		overflow-x: auto;
-		overflow-y: hidden;
-		padding-block-start: 5px;
-		padding-block-end: 8px;
-		padding-inline-start: var(--space-4);
-		padding-inline-end: var(--space-4);
-		border-block-start: 1px solid var(--line);
-		scrollbar-width: thin;
-	}
-	.presentation-editor-actions > :global(*) {
-		flex: none;
-	}
-	.presentation-editor-actions :global(.button) {
-		white-space: nowrap;
-	}
-	.presentation-add-text {
-		display: inline-flex;
-		flex: none;
-		gap: var(--space-2);
 	}
 	.presentation-editor-title {
 		flex: 1 1 auto;
@@ -1419,8 +1406,8 @@
 	.presentation-editor-title h1 {
 		max-inline-size: 100%;
 		overflow: hidden;
-		font-size: 18px;
-		line-height: 1.3;
+		font-size: 15px;
+		line-height: 1.25;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -1436,21 +1423,11 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.presentation-editor-feedback {
-		margin: 0;
-		padding-block-start: 8px;
-		padding-block-end: 8px;
-		padding-inline-start: var(--space-4);
-		padding-inline-end: var(--space-4);
-		background: var(--warning-bg);
-		color: var(--warning-ink);
-		font-size: 12px;
-	}
 	.presentation-add-shape {
 		position: relative;
 	}
 	.presentation-add-shape select {
-		min-block-size: 36px;
+		min-block-size: 30px;
 		padding-block-start: 6px;
 		padding-block-end: 6px;
 		padding-inline-start: 8px;

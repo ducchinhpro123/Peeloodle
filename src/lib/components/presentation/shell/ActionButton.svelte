@@ -30,6 +30,7 @@
 				size={iconSize}
 				aria-hidden="true"
 			/>{/if}{#if variant === 'label'}
-			{action.shortLabel ?? name}{/if}</button
+			<span class={{ 'ribbon-label': !!action.icon }}>{action.shortLabel ?? name}</span
+			>{/if}</button
 	>
 {/if}
