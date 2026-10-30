@@ -86,3 +86,47 @@ test('ribbon tabs work like PowerPoint', async ({ page }) => {
 	await page.keyboard.press('Control+F1');
 	await expect(page.getByRole('tabpanel', { name: 'Home' })).toBeVisible();
 });
+
+test('task pane shows format and selection, closes, and remembers it', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await openBlankEditor(page);
+	const pane = page.getByRole('complementary', { name: 'Task pane' });
+	await expect(pane.getByRole('region', { name: 'Format' })).toBeVisible();
+	await expect(pane.getByRole('region', { name: 'Selection' })).toBeVisible();
+	// The left panel holds slides only.
+	const slides = page.getByRole('complementary', { name: 'Slides' });
+	await expect(slides.locator('.presentation-layer-item')).toHaveCount(0);
+	await expect(pane.getByText('Drag an element to move it.')).toHaveCount(0);
+
+	await page.getByLabel('Add shape', { exact: true }).selectOption('Rectangle');
+	await expect(pane.getByLabel('X position', { exact: true })).toBeVisible();
+	await expect(pane.locator('.presentation-layer-item')).toHaveCount(1);
+
+	// View › Selection pane hides and shows the element list.
+	await page.getByRole('tab', { name: 'View', exact: true }).click();
+	await page.getByRole('button', { name: 'Selection pane', exact: true }).click();
+	await expect(pane.getByRole('region', { name: 'Selection' })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Selection pane', exact: true }).click();
+	await expect(pane.getByRole('region', { name: 'Selection' })).toBeVisible();
+
+	// Closing the pane gives the canvas the room and survives a reload.
+	const before = (await page.getByTestId('presentation-canvas').boundingBox())!.width;
+	await pane.getByRole('button', { name: 'Close task pane', exact: true }).click();
+	await expect(pane).toHaveCount(0);
+	await expect
+		.poll(async () => (await page.getByTestId('presentation-canvas').boundingBox())!.width)
+		.toBeGreaterThan(before + 200);
+	await page.reload();
+	await expect(page.getByTestId('presentation-canvas')).toBeVisible();
+	await expect(page.getByRole('complementary', { name: 'Task pane' })).toHaveCount(0);
+	await page.getByRole('tab', { name: 'View', exact: true }).click();
+	await page.getByRole('button', { name: 'Format pane', exact: true }).click();
+	await expect(page.getByRole('complementary', { name: 'Task pane' })).toBeVisible();
+
+	// Between 1024 and 1279 px the pane floats over the canvas instead of taking a column.
+	await page.setViewportSize({ width: 1100, height: 800 });
+	const position = await page
+		.getByRole('complementary', { name: 'Task pane' })
+		.evaluate((node) => getComputedStyle(node).position);
+	expect(position).toBe('absolute');
+});

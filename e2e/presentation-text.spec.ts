@@ -278,7 +278,7 @@ test('applies paragraph formatting and links, and reports text overflow', async 
 	// element really grows and the notice goes away. New text now grows
 	// automatically, so this manual workflow explicitly chooses a fixed box first.
 	await page
-		.getByRole('complementary', { name: 'Presentation details' })
+		.getByRole('complementary', { name: 'Task pane' })
 		.getByLabel('Text sizing')
 		.selectOption('fixed');
 	await startEditing(page);
@@ -289,7 +289,7 @@ test('applies paragraph formatting and links, and reports text overflow', async 
 	// The element-properties modal mounts a second copy of the same notice, closed
 	// and hidden, so the claim is scoped to the panel the user is actually looking at.
 	const panelNotice = page
-		.getByRole('complementary', { name: 'Presentation details' })
+		.getByRole('complementary', { name: 'Task pane' })
 		.getByText(/Text overflows this box/);
 	await expect(panelNotice).toBeVisible();
 	await page.getByRole('button', { name: 'Grow box to fit' }).click();

@@ -39,6 +39,7 @@
 	import RibbonGroup from './shell/RibbonGroup.svelte';
 	import ShapeStyleInspector from './ShapeStyleInspector.svelte';
 	import ImageAdjustInspector from './ImageAdjustInspector.svelte';
+	import TaskPane from './panes/TaskPane.svelte';
 	import { OK } from '#lib/presentations/editor/actions/registry.js';
 	import { usePresentationOfflineReadiness } from '#lib/presentations/presentationOffline.svelte.js';
 	import ElementLayerList from './ElementLayerList.svelte';
@@ -133,6 +134,47 @@
 
 	let ribbonTab = $state('home');
 	let ribbonCollapsed = $state(false);
+
+	const PANE_KEY = 'stickerlab_slide_editor_pane';
+	/** @typedef {{ open: boolean, format: boolean, selection: boolean }} PaneState */
+	/** @returns {PaneState} */
+	function readPaneState() {
+		const fallback = { open: true, format: true, selection: true };
+		if (typeof localStorage === 'undefined') return fallback;
+		try {
+			const stored = JSON.parse(localStorage.getItem(PANE_KEY) ?? 'null');
+			if (
+				stored &&
+				typeof stored.open === 'boolean' &&
+				typeof stored.format === 'boolean' &&
+				typeof stored.selection === 'boolean'
+			)
+				return stored;
+		} catch {
+			// A corrupt preference falls back to the default layout.
+		}
+		return fallback;
+	}
+	let paneState = $state(readPaneState());
+	/** @param {PaneState} next */
+	function setPaneState(next) {
+		paneState = next;
+		try {
+			localStorage.setItem(PANE_KEY, JSON.stringify(next));
+		} catch {
+			// Storage can be unavailable (private mode); the layout still applies now.
+		}
+	}
+	/** Shows a closed pane section, or hides an open one; no sections left closes the pane. */
+	/** @param {'format' | 'selection'} section */
+	function togglePaneSection(section) {
+		if (!paneState.open) {
+			setPaneState({ ...paneState, open: true, [section]: true });
+			return;
+		}
+		const next = { ...paneState, [section]: !paneState[section] };
+		setPaneState({ ...next, open: next.format || next.selection });
+	}
 	/** Contextual tabs exist only while their kind of element is selected. */
 	const ribbonTabs = $derived([
 		{ id: 'home', label: 'Home' },
@@ -172,6 +214,24 @@
 			run: () => {
 				viewport.setZoom(1);
 				viewport.setPan({ x: 0, y: 0 });
+				return OK;
+			}
+		},
+		{
+			id: 'view.formatPane',
+			label: 'Format pane',
+			enabled: () => true,
+			run: () => {
+				togglePaneSection('format');
+				return OK;
+			}
+		},
+		{
+			id: 'view.selectionPane',
+			label: 'Selection pane',
+			enabled: () => true,
+			run: () => {
+				togglePaneSection('selection');
 				return OK;
 			}
 		},
@@ -219,9 +279,6 @@
 	let replaceTargetId = $state(null);
 	/** @type {HTMLInputElement | null} */
 	let imageInput = $state(null);
-	/** @type {HTMLButtonElement | null} */
-	let propertiesOpener = $state(null);
-	let propertiesOpen = $state(false);
 	/** @type {string | null} */
 	let focusSlideId = $state(null);
 	/** @type {{ id: string, pointerId: number, x: number, y: number } | null} */
@@ -649,7 +706,6 @@
 
 	/** @param {string} elementId */
 	function beginReplaceImage(elementId) {
-		propertiesOpen = false;
 		replaceTargetId = elementId;
 		imageInput?.click();
 	}
@@ -963,7 +1019,10 @@
 			>
 		</div>
 		<div
-			class="presentation-workspace [display:grid] [flex:1] [grid-template-columns:168px_minmax(0,_1fr)_220px] [min-block-size:0] [min-inline-size:0]"
+			class={[
+				'presentation-workspace [display:grid] [flex:1] [min-block-size:0] [min-inline-size:0]',
+				{ 'has-task-pane': paneState.open }
+			]}
 		>
 			<aside
 				class="presentation-slide-rail [border-inline-end:1px_solid_var(--line)]"
@@ -1026,8 +1085,6 @@
 						</div>
 					{/each}
 				</div>
-				<p>Elements</p>
-				<ElementLayerList />
 			</aside>
 			{#if PresentationCanvas}
 				<PresentationCanvas {images} session={textSession} />
@@ -1037,71 +1094,48 @@
 					class="presentation-canvas-placeholder [background:oklch(0.923614_0.009985_181.3932)] [min-block-size:0] [min-inline-size:0]"
 				></div>
 			{/if}
-			<aside
-				class="presentation-inspector [border-inline-start:1px_solid_var(--line)]"
-				aria-label="Presentation details"
-			>
-				<p>Page</p>
-				<dl>
-					<div>
-						<dt>Size</dt>
-						<dd>{presentation.pageSize.width} × {presentation.pageSize.height}</dd>
-					</div>
-					<div>
-						<dt>Slides</dt>
-						<dd>{presentation.slides.length}</dd>
-					</div>
-					<div>
-						<dt>Elements</dt>
-						<dd>{activeSlide?.elements.length ?? 0}</dd>
-					</div>
-				</dl>
-				{#if activeSlide}
-					<label
-						class="presentation-slide-background [margin-block-end:var(--space-5)] [display:grid] [gap:var(--space-1)] [font-size:11px] [font-weight:700] [color:var(--muted)]"
-					>
-						Slide background
-						<input
-							type="color"
-							aria-label="Slide background"
-							value={activeSlide.background}
-							oninput={(event) =>
-								doc.setSlideBackground(activeSlide.id, event.currentTarget.value, {
-									historyGroup: `slide-bg:${activeSlide.id}`
-								})}
-							onblur={() => doc.endHistoryGroup()}
-						/>
-					</label>
-				{/if}
-				{#if selectedElement}
-					<p>{selectedElement.name || 'Element'}</p>
-					<ElementGeometryInspector
-						element={selectedElement}
-						onreplaceimage={policy.capabilities.localMedia ? beginReplaceImage : undefined}
-					/>
-				{/if}
-				<p class="muted [color:var(--muted)]">
-					Drag an element to move it. Use a corner handle to resize and the round handle to rotate.
-					Delete removes it, Ctrl+D duplicates it, and Escape clears the selection. Type a value
-					above for exact placement.
-				</p>
-			</aside>
+			{#if paneState.open}
+				<TaskPane
+					showFormat={paneState.format}
+					showSelection={paneState.selection}
+					onclose={() => setPaneState({ ...paneState, open: false })}
+				>
+					{#snippet format()}
+						<div class="presentation-inspector">
+							{#if activeSlide}
+								<label
+									class="presentation-slide-background [margin-block-end:var(--space-5)] [display:grid] [gap:var(--space-1)] [font-size:11px] [font-weight:700] [color:var(--muted)]"
+								>
+									Slide background
+									<input
+										type="color"
+										aria-label="Slide background"
+										value={activeSlide.background}
+										oninput={(event) =>
+											doc.setSlideBackground(activeSlide.id, event.currentTarget.value, {
+												historyGroup: `slide-bg:${activeSlide.id}`
+											})}
+										onblur={() => doc.endHistoryGroup()}
+									/>
+								</label>
+							{/if}
+							{#if selectedElement}
+								<p>{selectedElement.name || 'Element'}</p>
+								<ElementGeometryInspector
+									element={selectedElement}
+									onreplaceimage={policy.capabilities.localMedia ? beginReplaceImage : undefined}
+								/>
+							{/if}
+						</div>
+					{/snippet}
+					{#snippet selection()}
+						<ElementLayerList />
+					{/snippet}
+				</TaskPane>
+			{/if}
 		</div>
 		<StatusBar />
 	</div>
-
-	<Modal
-		open={propertiesOpen}
-		title="Element properties"
-		description="Exact document values for the selected element. Typing here is the keyboard path to the same numbers the canvas handles produce."
-		onclose={() => (propertiesOpen = false)}
-		onclosed={() => propertiesOpener?.focus()}
-	>
-		{#if selectedElement}<ElementGeometryInspector
-				element={selectedElement}
-				onreplaceimage={policy.capabilities.localMedia ? beginReplaceImage : undefined}
-			/>{/if}
-	</Modal>
 {/if}
 
 {#snippet slideActions()}
@@ -1189,16 +1223,6 @@
 					onclick={() => selection.startTextEdit(selectedText.id)}
 					><PenLine size={16} aria-hidden="true" /> Edit text</button
 				>{/if}
-			{#if selectedElement}
-				<!-- The wide pane is hidden from 1150px down, so the same numeric fields
-				     stay reachable through the shared dialog at tablet and phone widths. -->
-				<button
-					type="button"
-					class={[button, 'properties-toggle']}
-					bind:this={propertiesOpener}
-					onclick={() => (propertiesOpen = true)}>Element properties</button
-				>
-			{/if}
 		</RibbonGroup>
 	{:else if tab === 'insert'}
 		<RibbonGroup label="Slides">
@@ -1263,6 +1287,10 @@
 	{:else if tab === 'view'}
 		<RibbonGroup label="Zoom">
 			<ActionButton id="view.fit" />
+		</RibbonGroup>
+		<RibbonGroup label="Show">
+			<ActionButton id="view.formatPane" />
+			<ActionButton id="view.selectionPane" />
 		</RibbonGroup>
 		<RibbonGroup label="Ribbon">
 			<ActionButton id="view.toggleRibbon" />
@@ -1450,9 +1478,13 @@
 	}
 	.presentation-inspector {
 		min-block-size: 0;
-		padding: var(--space-4);
-		overflow: auto;
-		background: var(--surface);
+	}
+	.presentation-workspace {
+		position: relative;
+		grid-template-columns: 200px minmax(0, 1fr);
+	}
+	.presentation-workspace.has-task-pane {
+		grid-template-columns: 200px minmax(0, 1fr) 300px;
 	}
 	.presentation-slide-rail > p {
 		margin-block-start: 0;
@@ -1621,39 +1653,24 @@
 			opacity: 1;
 		}
 	}
-	.presentation-inspector dl {
-		display: grid;
-		gap: var(--space-3);
-		margin-block-start: 0;
-		margin-block-end: var(--space-5);
-		margin-inline-start: 0;
-		margin-inline-end: 0;
-	}
-	.presentation-inspector dl div {
-		display: flex;
-		justify-content: space-between;
-		gap: var(--space-3);
-		padding-block-end: var(--space-2);
-		border-block-end: 1px solid var(--line);
-		font-size: 12px;
-	}
-	.presentation-inspector dt {
-		color: var(--muted);
-	}
-	.presentation-inspector dd {
-		margin: 0;
-		font-weight: 800;
-	}
 	.presentation-inspector .muted {
 		margin-block-start: var(--space-5);
 		font-size: 12px;
 	}
-	@media (max-width: 1150px) {
-		.presentation-workspace {
-			grid-template-columns: 148px minmax(0, 1fr);
+	/* Laptop and tablet widths: the task pane floats over the canvas instead of
+	 * taking a column, so the slide keeps its room. */
+	@media (max-width: 1279px) {
+		.presentation-workspace,
+		.presentation-workspace.has-task-pane {
+			grid-template-columns: 200px minmax(0, 1fr);
 		}
-		.presentation-inspector {
-			display: none;
+		.presentation-workspace :global(.task-pane) {
+			position: absolute;
+			z-index: 3;
+			inset-block: 0;
+			inset-inline-end: 0;
+			inline-size: min(300px, 45vw);
+			box-shadow: -8px 0 24px color-mix(in oklch, var(--ink) 12%, transparent);
 		}
 	}
 	@media (max-width: 720px) {
@@ -1712,7 +1729,7 @@
 			border-inline-end: 0;
 			border-block-end: 1px solid var(--line);
 		}
-		.presentation-inspector {
+		.presentation-workspace :global(.task-pane) {
 			display: none;
 		}
 		.presentation-slide-list {

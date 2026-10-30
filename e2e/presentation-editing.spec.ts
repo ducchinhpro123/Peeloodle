@@ -4,7 +4,7 @@ import { openBlankEditor, readStoredPresentationJson } from './presentations';
 
 const evidence = process.env.LAYOUT_EVIDENCE === '1';
 
-const panel = (page: Page) => page.getByRole('complementary', { name: 'Presentation details' });
+const panel = (page: Page) => page.getByRole('complementary', { name: 'Task pane' });
 const textField = (page: Page) => page.getByTestId('text-edit-field');
 const storedRow = async (page: Page, id: string) =>
 	JSON.parse(await readStoredPresentationJson(page, id));
