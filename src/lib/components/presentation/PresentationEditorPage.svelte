@@ -1,4 +1,5 @@
 <script>
+	import { tick } from 'svelte';
 	import { button, buttonIcon, buttonPrimary } from '#lib/ui/styles.js';
 	import {
 		ArrowLeft,
@@ -33,6 +34,10 @@
 	import { createSlideEditor } from '#lib/presentations/editor/createSlideEditor.svelte.js';
 	import { setSlideEditor } from '#lib/presentations/editor/context.js';
 	import { attachKeymap } from '#lib/presentations/editor/actions/keymap.js';
+	import { attachFocusNavigation } from '#lib/presentations/editor/focusNavigation.js';
+	import { PRESENTATION_LIMITS } from '#lib/presentations/model/limits.js';
+	import ActionMenu from './shell/ActionMenu.svelte';
+	import AlignMenu from './shell/AlignMenu.svelte';
 	import ActionButton from './shell/ActionButton.svelte';
 	import StatusBar from './shell/StatusBar.svelte';
 	import Ribbon from './shell/Ribbon.svelte';
@@ -70,7 +75,7 @@
 
 	// Native <dialog> elements have no role attribute, so they are listed by tag.
 	const SHORTCUT_EXEMPT =
-		'input, textarea, select, [contenteditable="true"], [role="slider"], [data-slot="slider"], [role="dialog"], dialog';
+		'input, textarea, select, [contenteditable="true"], [role="slider"], [data-slot="slider"], [role="dialog"], dialog, [role="menu"]';
 
 	/** @type {{
 	 *   presentationId: string,
@@ -132,6 +137,159 @@
 		exports: exportController,
 		text: textSession
 	} = editor;
+
+	/** @type {{ x: number, y: number, trigger: HTMLElement, items: string[], label: string } | null} */
+	let contextMenu = $state(null);
+	const elementMenuItems = [
+		'clipboard.cut',
+		'clipboard.copy',
+		'clipboard.paste',
+		'element.duplicate',
+		'element.delete',
+		'arrange.bringForward',
+		'arrange.sendBackward',
+		'element.toggleLock',
+		'element.editText',
+		'element.replacePicture',
+		'element.format',
+		'align.left',
+		'align.center-horizontal',
+		'align.right',
+		'align.top',
+		'align.middle-vertical',
+		'align.bottom',
+		'distribute.horizontal',
+		'distribute.vertical'
+	];
+	/** @param {number} x @param {number} y @param {HTMLElement} trigger */
+	function openCanvasMenu(x, y, trigger) {
+		contextMenu = {
+			x,
+			y,
+			trigger,
+			items: selection.ids.length
+				? elementMenuItems
+				: ['clipboard.paste', 'selection.selectAll', 'slide.add', 'slide.formatBackground'],
+			label: selection.ids.length ? 'Element actions' : 'Canvas actions'
+		};
+	}
+	/** @param {boolean} background */
+	function showFormat(background = false) {
+		setPaneState({ ...paneState, open: true, format: true });
+		void tick().then(() => {
+			const selector = background
+				? '.presentation-slide-background input'
+				: '.presentation-geometry-fields input';
+			/** @type {HTMLInputElement | null} */ (document.querySelector(selector))?.focus();
+		});
+	}
+
+	function closeContextMenu(restore = true) {
+		const trigger = contextMenu?.trigger;
+		contextMenu = null;
+		if (restore) {
+			if (trigger?.isConnected) trigger.focus();
+			else
+				/** @type {HTMLButtonElement | null} */ (
+					document.querySelector('.presentation-slide-card[aria-current="true"]')
+				)?.focus();
+		}
+	}
+	/** @param {HTMLDivElement} root */
+	function editorInteractions(root) {
+		const detachFocus = attachFocusNavigation(root, () => {
+			closeContextMenu(false);
+			textSession.flush();
+			selection.endTextEdit();
+		});
+		/** @param {EventTarget | null} target */
+		const belongsToEditor = (target) =>
+			target instanceof Node && (target === document.body || root.contains(target));
+		/** @param {ClipboardEvent} event */
+		const paste = (event) => {
+			if (event.defaultPrevented || !belongsToEditor(event.target)) return;
+			if (event.target instanceof HTMLElement && event.target.closest(SHORTCUT_EXEMPT)) return;
+			if (!event.clipboardData) return;
+			event.preventDefault();
+			editor.messages.clear();
+			editor.clipboard.pasteData(event.clipboardData);
+		};
+		/** @param {MouseEvent | KeyboardEvent} event */
+		const menu = (event) => {
+			if (event.defaultPrevented || !(event.target instanceof HTMLElement)) return;
+			if (
+				event instanceof KeyboardEvent &&
+				event.key !== 'ContextMenu' &&
+				!(event.key === 'F10' && event.shiftKey)
+			)
+				return;
+			const slide = event.target.closest('.presentation-slide-card');
+			const layer = event.target.closest('.presentation-layer-item');
+			if (!slide && !layer) return;
+			event.preventDefault();
+			const trigger = /** @type {HTMLElement} */ (
+				slide ?? layer?.querySelector('.presentation-layer-select')
+			);
+			if (slide) {
+				const id = slide.getAttribute('data-slide-id');
+				if (id) selection.selectSlide(id);
+			} else {
+				const id = layer?.getAttribute('data-element-id');
+				if (id && !selection.ids.includes(id)) selection.select([id]);
+			}
+			const rect = trigger.getBoundingClientRect();
+			const pointer = event instanceof MouseEvent && event.button === 2;
+			contextMenu = {
+				x: pointer ? event.clientX : rect.left + 12,
+				y: pointer ? event.clientY : rect.top + 12,
+				trigger,
+				items: slide
+					? ['slide.add', 'slide.duplicate', 'slide.delete', 'slide.moveUp', 'slide.moveDown']
+					: elementMenuItems,
+				label: slide ? 'Slide actions' : 'Element actions'
+			};
+		};
+		/** @param {ClipboardEvent} event */
+		const copy = (event) => {
+			if (event.defaultPrevented || !belongsToEditor(event.target)) return;
+			if (event.target instanceof HTMLElement && event.target.closest(SHORTCUT_EXEMPT)) return;
+			if (event.clipboardData && editor.clipboard.copy(event.type === 'cut', event.clipboardData))
+				event.preventDefault();
+		};
+		document.addEventListener('copy', copy);
+		document.addEventListener('cut', copy);
+		document.addEventListener('paste', paste);
+		root.addEventListener('contextmenu', menu);
+		root.addEventListener('keydown', menu);
+		return () => {
+			detachFocus();
+			document.removeEventListener('copy', copy);
+			document.removeEventListener('cut', copy);
+			document.removeEventListener('paste', paste);
+			root.removeEventListener('contextmenu', menu);
+			root.removeEventListener('keydown', menu);
+		};
+	}
+	editor.clipboard.configure({
+		text(value) {
+			const document = doc.document;
+			if (!document || !activeSlide) return;
+			try {
+				const id = doc.addElement(createPresetText('body', document.theme, value));
+				if (!id)
+					editor.messages.show('This slide cannot hold another text box. Remove an element first.');
+			} catch {
+				editor.messages.show('This text could not be pasted. Try copying a shorter passage.');
+			}
+		},
+		image(file) {
+			if (!policy.capabilities.localMedia) {
+				editor.messages.show('Paste images from the catalog when editing a template.');
+				return;
+			}
+			return addImage(file);
+		}
+	});
 
 	let ribbonTab = $state('home');
 	let ribbonCollapsed = $state(false);
@@ -208,6 +366,94 @@
 	});
 
 	editor.actions.register([
+		{
+			id: 'element.editText',
+			label: 'Edit text',
+			available: () => selection.ids.length === 1 && selection.primary?.kind === 'text',
+			enabled: () => !selection.primary?.locked && !selection.editingId,
+			run: () => {
+				if (selection.primary) selection.startTextEdit(selection.primary.id);
+				return OK;
+			}
+		},
+		{
+			id: 'element.replacePicture',
+			label: 'Replace picture',
+			available: () =>
+				policy.capabilities.localMedia &&
+				selection.ids.length === 1 &&
+				selection.primary?.kind === 'image',
+			enabled: () => !selection.primary?.locked && !inserting,
+			run: () => {
+				if (selection.primary) beginReplaceImage(selection.primary.id);
+				return OK;
+			}
+		},
+		{
+			id: 'element.format',
+			label: 'Format…',
+			enabled: () => selection.primary !== null,
+			run: () => {
+				showFormat();
+				return OK;
+			}
+		},
+		{
+			id: 'slide.formatBackground',
+			label: 'Format background…',
+			enabled: () => selection.activeSlide !== undefined,
+			run: () => {
+				showFormat(true);
+				return OK;
+			}
+		},
+		...['up', 'down'].map((direction) => ({
+			id: direction === 'up' ? 'slide.moveUp' : 'slide.moveDown',
+			label: direction === 'up' ? 'Move up' : 'Move down',
+			enabled: () => {
+				const slides = doc.document?.slides ?? [];
+				const index = slides.findIndex((slide) => slide.id === selection.activeSlideId);
+				return index >= 0 && (direction === 'up' ? index > 0 : index < slides.length - 1);
+			},
+			run: () => {
+				const id = selection.activeSlideId;
+				const index = doc.document?.slides.findIndex((slide) => slide.id === id) ?? -1;
+				if (id && index >= 0) {
+					moveSlide(id, index + (direction === 'up' ? -1 : 1));
+					focusSlideId = id;
+				}
+				return OK;
+			}
+		})),
+		{
+			id: 'slide.add',
+			label: 'Add slide',
+			enabled: () => (doc.document?.slides.length ?? 0) < PRESENTATION_LIMITS.maxSlides,
+			run: () => {
+				addSlide();
+				return OK;
+			}
+		},
+		{
+			id: 'slide.duplicate',
+			label: 'Duplicate slide',
+			enabled: () =>
+				selection.activeSlide !== undefined &&
+				(doc.document?.slides.length ?? 0) < PRESENTATION_LIMITS.maxSlides,
+			run: () => {
+				duplicateActiveSlide();
+				return OK;
+			}
+		},
+		{
+			id: 'slide.delete',
+			label: 'Delete slide',
+			enabled: () => (doc.document?.slides.length ?? 0) > 1,
+			run: () => {
+				if (selection.activeSlideId) deleteSlide(selection.activeSlideId);
+				return OK;
+			}
+		},
 		{
 			id: 'view.fit',
 			label: 'Fit to window',
@@ -590,14 +836,76 @@
 
 	/** @param {string} id @param {KeyboardEvent} event */
 	function slideKeyDown(id, event) {
-		if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+		if (
+			event.defaultPrevented ||
+			(event.target instanceof HTMLElement &&
+				event.target.closest('input, textarea, select, [contenteditable], [role="menu"], dialog'))
+		)
+			return;
 		const slides = doc.document?.slides ?? [];
 		const index = slides.findIndex((slide) => slide.id === id);
-		const next = index + (event.key === 'ArrowUp' ? -1 : 1);
-		if (index < 0 || next < 0 || next >= slides.length) return;
+		if (index < 0) return;
+		if (
+			(event.ctrlKey || event.metaKey) &&
+			!event.altKey &&
+			!event.shiftKey &&
+			event.key.toLowerCase() === 'd'
+		) {
+			event.preventDefault();
+			selection.selectSlide(id);
+			editor.actions.run('slide.duplicate');
+			return;
+		}
+		if (
+			!event.ctrlKey &&
+			!event.metaKey &&
+			!event.altKey &&
+			!event.shiftKey &&
+			(event.key === 'Delete' || event.key === 'Backspace')
+		) {
+			event.preventDefault();
+			selection.selectSlide(id);
+			editor.actions.run('slide.delete');
+			return;
+		}
+		if (
+			event.ctrlKey ||
+			event.metaKey ||
+			event.shiftKey ||
+			!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key) ||
+			(event.altKey && event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
+		)
+			return;
 		event.preventDefault();
-		moveSlide(id, next);
-		focusSlideId = id;
+		if (event.altKey) {
+			selection.selectSlide(id);
+			editor.actions.run(event.key === 'ArrowUp' ? 'slide.moveUp' : 'slide.moveDown');
+			return;
+		}
+		const next =
+			event.key === 'Home'
+				? 0
+				: event.key === 'End'
+					? slides.length - 1
+					: Math.max(0, Math.min(slides.length - 1, index + (event.key === 'ArrowUp' ? -1 : 1)));
+		const target = slides[next];
+		if (target) {
+			selection.selectSlide(target.id);
+			focusSlideId = target.id;
+		}
+	}
+
+	/** @param {HTMLElement} node */
+	function slideKeyboard(node) {
+		/** @param {KeyboardEvent} event */
+		const onkeydown = (event) => {
+			const item =
+				event.target instanceof HTMLElement ? event.target.closest('[data-slide-row]') : null;
+			const id = item?.getAttribute('data-slide-row') ?? selection.activeSlideId;
+			if (id) slideKeyDown(id, event);
+		};
+		node.addEventListener('keydown', onkeydown);
+		return () => node.removeEventListener('keydown', onkeydown);
 	}
 
 	/** @param {string} slideId */
@@ -915,7 +1223,7 @@
 		</div>
 	</section>
 {:else}
-	<div class="presentation-editor">
+	<div class="presentation-editor" {@attach editorInteractions}>
 		<div class="presentation-editor-bar" role="banner" aria-label="Presentation title bar">
 			<div class="presentation-editor-heading">
 				<a class={buttonIcon} aria-label="Back to presentations" href={backhref} onclick={leave}
@@ -1027,9 +1335,10 @@
 			<aside
 				class="presentation-slide-rail [border-inline-end:1px_solid_var(--line)]"
 				aria-label="Slides"
+				{@attach slideKeyboard}
 			>
 				<p>Slides</p>
-				<p class="slide-order-hint">Drag · Alt+↑/↓</p>
+				<p class="slide-order-hint">↑/↓ to select · Alt+↑/↓ to reorder</p>
 				<span id="slide-order-hint" class="sr-only"
 					>Drag to reorder. On touchscreens, use the handle at the top left of a slide. Or focus the
 					slide and press Alt plus the up or down arrow key.</span
@@ -1038,6 +1347,7 @@
 					{#each presentation.slides as slide, index (slide.id)}
 						<div
 							class="presentation-slide-item [min-inline-size:0]"
+							data-slide-row={slide.id}
 							class:is-dragging={draggingSlideId === slide.id}
 						>
 							<button
@@ -1053,9 +1363,11 @@
 								onpointermove={moveSlideDrag}
 								onpointerup={(event) => finishSlideDrag(event, true)}
 								onpointercancel={(event) => finishSlideDrag(event, false)}
-								onkeydown={(event) => slideKeyDown(slide.id, event)}
 								onclick={() => {
-									if (!suppressSlideClick) selection.selectSlide(slide.id);
+									if (!suppressSlideClick) {
+										selection.selectSlide(slide.id);
+										focusSlideId = slide.id;
+									}
 								}}
 								{@attach registerSlideButton(slide.id)}
 							>
@@ -1087,7 +1399,7 @@
 				</div>
 			</aside>
 			{#if PresentationCanvas}
-				<PresentationCanvas {images} session={textSession} />
+				<PresentationCanvas {images} session={textSession} oncontextrequest={openCanvasMenu} />
 			{:else}
 				<!-- Holds the canvas track and its panel tone until Konva arrives. -->
 				<div
@@ -1134,6 +1446,13 @@
 				</TaskPane>
 			{/if}
 		</div>
+		{#if contextMenu}<ActionMenu
+				items={contextMenu.items}
+				x={contextMenu.x}
+				y={contextMenu.y}
+				label={contextMenu.label}
+				onclose={closeContextMenu}
+			/>{/if}
 		<StatusBar />
 	</div>
 {/if}
@@ -1201,6 +1520,7 @@
 		<RibbonGroup label="Clipboard">
 			<ActionButton id="clipboard.paste" />
 			<ActionButton id="clipboard.copy" />
+			<ActionButton id="clipboard.cut" />
 			<ActionButton id="element.duplicate" />
 		</RibbonGroup>
 		<RibbonGroup label="Slides">{@render slideActions()}</RibbonGroup>
@@ -1278,6 +1598,12 @@
 			/>
 		</RibbonGroup>
 	{:else if tab === 'arrange'}
+		<RibbonGroup label="Align"><AlignMenu /></RibbonGroup>
+		<RibbonGroup label="Distribute"
+			><ActionButton id="distribute.horizontal" /><ActionButton
+				id="distribute.vertical"
+			/></RibbonGroup
+		>
 		<RibbonGroup label="Order">
 			<ActionButton id="arrange.bringForward" />
 			<ActionButton id="arrange.sendBackward" />

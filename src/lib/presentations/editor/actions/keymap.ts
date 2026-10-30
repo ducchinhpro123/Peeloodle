@@ -1,4 +1,4 @@
-/** The editor's single keydown handler: a pressed shortcut runs its registry action. */
+/** Registry keyboard actions; native clipboard events provide copy, cut and paste data. */
 
 import type { ActionRegistry } from './registry';
 
@@ -13,6 +13,8 @@ export function attachKeymap(
 		if (event.target instanceof HTMLElement && event.target.closest(options.exempt)) return;
 		const action = registry.match(event);
 		if (!action || !registry.isAvailable(action.id)) return;
+		// Native clipboard events preserve system formats without read permission.
+		if (action.id.startsWith('clipboard.')) return;
 		if (!registry.isEnabled(action.id)) {
 			if (action.claimsShortcut) event.preventDefault();
 			return;

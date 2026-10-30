@@ -1,6 +1,6 @@
 /**
  * One registry for every editor command that a button, a keyboard shortcut or
- * (later) a context menu can trigger, so all three share the same label,
+ * a context menu can trigger, so all three share the same label,
  * shortcut and enabled state.
  */
 

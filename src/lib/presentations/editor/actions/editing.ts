@@ -1,6 +1,6 @@
 /** History, clipboard and element actions shared by the toolbar, the layer list and the keyboard. */
 
-import { ClipboardPaste, Copy, Redo2, Trash2, Undo2 } from 'lucide-svelte';
+import { ClipboardPaste, Copy, Scissors, Redo2, Trash2, Undo2 } from 'lucide-svelte';
 import { OK, type Action } from './registry';
 import type { SlideEditor } from '../createSlideEditor.svelte';
 
@@ -92,6 +92,23 @@ export const editingActions: Action[] = [
 		}
 	},
 	{
+		id: 'clipboard.cut',
+		label: 'Cut element',
+		shortLabel: 'Cut',
+		icon: Scissors,
+		shortcuts: [{ key: 'x', mod: true }],
+		enabled: (editor) =>
+			!editor.selection.editingId &&
+			(editor.selection.activeSlide?.elements.some(
+				(element) => editor.selection.ids.includes(element.id) && !element.locked
+			) ??
+				false),
+		run: (editor) => {
+			editor.clipboard.copy(true);
+			return OK;
+		}
+	},
+	{
 		id: 'clipboard.paste',
 		label: 'Paste element',
 		shortLabel: 'Paste',
@@ -99,9 +116,9 @@ export const editingActions: Action[] = [
 		shortcuts: [{ key: 'v', mod: true }],
 		enabled: (editor) => editor.clipboard.canPaste && !editor.selection.editingId,
 		run: (editor) => {
-			const result = editor.clipboard.paste();
-			if (result.ok) editor.messages.clear();
-			return result;
+			editor.messages.clear();
+			void editor.clipboard.paste();
+			return OK;
 		}
 	},
 	{

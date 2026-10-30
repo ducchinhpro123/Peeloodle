@@ -103,6 +103,8 @@ export type PresentationStoreState = {
 	duplicateElement(elementId: string): string | null;
 	/** Pastes a snapshot on the active slide, reusing document-local artwork. One undo entry. */
 	pasteElement(element: Element, offset: number): string | null;
+	/** Atomically pastes a selection, preserving relative geometry and stacking. */
+	pasteElements(elements: Element[], offset: number): string[];
 	/** The refusal an insert would hit, resolved before anything is mutated. */
 	checkImageInsert(
 		image: PreparedPresentationImage,
@@ -145,6 +147,8 @@ export type PresentationStoreState = {
 	 */
 	duplicateElements(ids: string[]): string[];
 	reorderElement(elementId: string, targetIndex: number): void;
+	/** Move a selection one stacking step, preserving relative order in one undo entry. */
+	reorderElements(ids: string[], direction: 'forward' | 'backward'): void;
 	toggleElementLocked(elementId: string): void;
 	toggleElementVisible(elementId: string): void;
 	updateText(
@@ -754,44 +758,58 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 			},
 
 			pasteElement(element, offset) {
+				return get().pasteElements([element], offset)[0] ?? null;
+			},
+
+			pasteElements(elements, offset) {
 				const document = get().document;
 				const slide = activeSlide();
-				if (!document || !slide || slide.elements.length >= PRESENTATION_LIMITS.maxElementsPerSlide)
-					return null;
+				if (!document || !slide || elements.length === 0) return [];
+				if (slide.elements.length + elements.length > PRESENTATION_LIMITS.maxElementsPerSlide)
+					return [];
 				if (
-					document.slides.reduce((total, item) => total + item.elements.length, 0) >=
+					document.slides.reduce((total, item) => total + item.elements.length, 0) +
+						elements.length >
 					PRESENTATION_LIMITS.maxElements
 				)
-					return null;
+					return [];
 				if (
-					element.kind === 'image' &&
-					!document.assets.some((asset) => asset.id === element.assetId)
+					elements.some(
+						(element) =>
+							element.kind === 'image' &&
+							!document.assets.some((asset) => asset.id === element.assetId)
+					)
 				)
-					return null;
-				const copy = cloneElementWithNewId(element);
-				copy.name = `${element.name} copy`.slice(0, 200);
-				copy.locked = false;
-				copy.visible = true;
-				const axis = (position: number, length: number, pageLength: number) => {
-					if (!offset) return position;
-					const max = pageLength - length;
-					if (position + offset <= max) return position + offset;
-					if (position - offset >= 0) return position - offset;
-					return position;
+					return [];
+				// Move the entire selection together, including when it is near an edge.
+				const delta = (axis: 'x' | 'y', size: 'width' | 'height') => {
+					const start = Math.min(...elements.map((element) => element[axis]));
+					const end = Math.max(...elements.map((element) => element[axis] + element[size]));
+					if (end + offset <= document.pageSize[size]) return offset;
+					return start - offset >= 0 ? -offset : 0;
 				};
-				copy.x = axis(element.x, element.width, document.pageSize.width);
-				copy.y = axis(element.y, element.height, document.pageSize.height);
+				const dx = delta('x', 'width');
+				const dy = delta('y', 'height');
+				const copies = elements.map((element) => ({
+					...cloneElementWithNewId(element),
+					name: `${element.name} copy`.slice(0, 200),
+					locked: false,
+					visible: true,
+					x: element.x + dx,
+					y: element.y + dy
+				}));
 				if (
 					!commit((draft) => {
 						const target = draft.slides.find((candidate) => candidate.id === slide.id);
 						if (!target) return false;
-						target.elements.push(copy);
+						target.elements.push(...copies);
 						return true;
 					})
 				)
-					return null;
-				set({ view: { ...get().view, selectedElementIds: [copy.id], editingElementId: null } });
-				return copy.id;
+					return [];
+				const ids = copies.map((copy) => copy.id);
+				set({ view: { ...get().view, selectedElementIds: ids, editingElementId: null } });
+				return ids;
 			},
 
 			checkImageInsert(image, options) {
@@ -1019,6 +1037,35 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 						editingElementId:
 							get().view.editingElementId === elementId ? null : get().view.editingElementId
 					}
+				});
+			},
+
+			reorderElements(ids, direction) {
+				const slide = activeSlide();
+				if (!slide) return;
+				const selected = new SvelteSet(ids);
+				const order = slide.elements.map((element) => element.id);
+				let changed = false;
+				const step = direction === 'forward' ? -1 : 1;
+				for (
+					let i = direction === 'forward' ? order.length - 2 : 1;
+					i >= 0 && i < order.length;
+					i += step
+				) {
+					const adjacent = i - step;
+					if (selected.has(order[i]!) && !selected.has(order[adjacent]!)) {
+						[order[i], order[adjacent]] = [order[adjacent]!, order[i]!];
+						changed = true;
+					}
+				}
+				if (!changed) return;
+				commit((draft) => {
+					const target = draft.slides.find((item) => item.id === slide.id);
+					if (!target) return false;
+					target.elements = order.map((id) =>
+						target.elements.find((element) => element.id === id)!
+					);
+					return true;
 				});
 			},
 

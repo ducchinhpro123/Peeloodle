@@ -1,7 +1,6 @@
 <script>
 	import { getSlideEditor } from '#lib/presentations/editor/context.js';
 	import { button } from '#lib/ui/styles.js';
-	import { alignToSlide } from '#lib/presentations/editor/alignmentGuides.js';
 	import { elementGeometry, withRotation } from '#lib/presentations/editor/transformGeometry.js';
 	import GeometryField from './GeometryField.svelte';
 	import TextOverflowNotice from './TextOverflowNotice.svelte';
@@ -19,7 +18,7 @@
 	 * }}
 	 */
 	let { element, onreplaceimage = undefined } = $props();
-	const { doc, interaction } = getSlideEditor();
+	const { doc, interaction, actions } = getSlideEditor();
 
 	/** @type {Array<{ key: 'x' | 'y' | 'width' | 'height' | 'rotation', label: string, step: number }>} */
 	const FIELDS = [
@@ -40,7 +39,6 @@
 	];
 
 	const transformPreview = $derived(interaction.preview);
-	const pageSize = $derived(doc.document?.pageSize);
 	const geometry = $derived(elementGeometry(element, transformPreview ?? null));
 
 	/** @param {'x' | 'y' | 'width' | 'height' | 'rotation'} key @param {number} value */
@@ -51,17 +49,6 @@
 			element.id,
 			key === 'rotation' ? withRotation(geometry, value) : { ...geometry, [key]: value }
 		);
-	}
-
-	/** @param {import('#lib/presentations/editor/alignmentGuides.js').SlideAlignment} alignment */
-	function align(alignment) {
-		if (!pageSize) return;
-		const state = doc.snapshot();
-		const current = elementGeometry(element, state.view.transformPreview ?? null);
-		state.commitTransform(element.id, {
-			...current,
-			...alignToSlide(current, pageSize, alignment)
-		});
 	}
 </script>
 
@@ -90,7 +77,9 @@
 			aria-label="Align {action.label}"
 			title="Align {action.label}"
 			disabled={element.locked}
-			onclick={() => align(action.key)}>{action.label}</button
+			onclick={() =>
+				actions.run(`align.${action.key}`, { elementId: element.id, reference: 'slide' })}
+			>{action.label}</button
 		>
 	{/each}
 </div>

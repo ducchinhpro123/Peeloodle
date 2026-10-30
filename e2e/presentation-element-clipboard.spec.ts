@@ -12,12 +12,14 @@ const stored = async (page: import('@playwright/test').Page, id: string) =>
 	JSON.parse(await readStoredPresentationJson(page, id));
 
 test('copies editable elements across slides and keeps artwork and undo intact', async ({
-	page
+	page,
+	context
 }, testInfo) => {
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 	const id = await openBlankEditor(page);
 	const paste = page.getByRole('button', { name: 'Paste element', exact: true });
 	const copy = page.getByRole('button', { name: 'Copy element', exact: true });
-	await expect(paste).toBeDisabled();
+	await expect(paste).toBeEnabled();
 	await page.getByRole('button', { name: 'Add heading', exact: true }).click();
 	await expect(copy).toBeDisabled();
 	await page.getByTestId('text-edit-field').fill('Reusable heading');
@@ -63,7 +65,7 @@ test('copies editable elements across slides and keeps artwork and undo intact',
 	await page.keyboard.press('Escape');
 
 	// A hidden, locked shape's styling survives copying after source removal,
-	// but the paste is visible and editable. The clipboard does not survive reload.
+	// but the paste is visible and editable. The system clipboard can also be used after reload.
 	await page.getByRole('button', { name: 'Show slide 1: Slide 1' }).click();
 	await page.getByLabel('Add shape', { exact: true }).selectOption('rectangle');
 	await expect.poll(async () => (await stored(page, id)).slides[0]?.elements.length).toBe(2);
@@ -128,7 +130,7 @@ test('copies editable elements across slides and keeps artwork and undo intact',
 	await expect.poll(async () => (await stored(page, id)).slides[1].elements.length).toBe(3);
 	await page.reload();
 	await expect(page.getByTestId('presentation-canvas')).toHaveAttribute('data-ready', 'true');
-	await expect(paste).toBeDisabled();
+	await expect(paste).toBeEnabled();
 	await page.getByRole('button', { name: 'Show slide 2: Slide 2' }).click();
 	const reopened = await stored(page, id);
 	expect(reopened.slides[1].elements).toEqual(deck.slides[1].elements);

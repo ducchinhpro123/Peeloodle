@@ -17,6 +17,7 @@
 			{@const index = slide.elements.length - 1 - reverseIndex}
 			<li
 				class="presentation-layer-item"
+				data-element-id={element.id}
 				data-selected={state.view.selectedElementIds.includes(element.id)}
 			>
 				<button class="presentation-layer-select" onclick={() => selection.select([element.id])}

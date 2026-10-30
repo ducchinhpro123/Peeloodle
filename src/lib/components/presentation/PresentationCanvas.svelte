@@ -51,10 +51,11 @@
 	 */
 
 	/** @type {{
+	 *   oncontextrequest?: (x: number, y: number, trigger: HTMLElement) => void,
 	 *   images: import('#lib/presentations/rendering/renderSlide.js').PresentationImageSources,
 	 *   session: import('#lib/presentations/editor/textEditSession.svelte.js').TextEditSession
 	 * }} */
-	let { images, session } = $props();
+	let { images, session, oncontextrequest = undefined } = $props();
 	const { doc, selection, viewport: view, interaction } = getSlideEditor();
 
 	/** @type {HTMLDivElement | null} */
@@ -675,6 +676,12 @@
 		// Tab and Shift+Tab walk the slide's elements while the canvas has focus;
 		// everywhere else Tab keeps moving focus between controls.
 		const onCanvasKeyDown = (/** @type {KeyboardEvent} */ event) => {
+			if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+				event.preventDefault();
+				const rect = node.getBoundingClientRect();
+				oncontextrequest?.(rect.left + rect.width / 2, rect.top + rect.height / 2, node);
+				return;
+			}
 			if (event.key !== 'Tab' || event.target !== node || event.ctrlKey || event.altKey) return;
 			const elements = (activeSlide?.elements ?? []).filter((element) => element.visible);
 			if (elements.length === 0) return;
@@ -689,6 +696,16 @@
 					: (current + step + elements.length) % elements.length;
 			selection.select([elements[next].id]);
 		};
+		const contextmenu = (/** @type {MouseEvent} */ event) => {
+			if (selection.editingId) return;
+			event.preventDefault();
+			const element = elementAtPointer(event.clientX, event.clientY);
+			if (element && !selection.ids.includes(element.id)) selection.select([element.id]);
+			else if (!element) selection.clear();
+			node.focus();
+			oncontextrequest?.(event.clientX, event.clientY, node);
+		};
+		node.addEventListener('contextmenu', contextmenu);
 		node.addEventListener('keydown', onCanvasKeyDown);
 		node.addEventListener('wheel', handleWheel, { passive: false });
 		node.addEventListener('pointerdown', handlePointerDown);
@@ -701,6 +718,7 @@
 			window.removeEventListener('keydown', onKeyDown);
 			window.removeEventListener('keyup', onKeyUp);
 			window.removeEventListener('blur', onBlur);
+			node.removeEventListener('contextmenu', contextmenu);
 			node.removeEventListener('keydown', onCanvasKeyDown);
 			node.removeEventListener('wheel', handleWheel);
 			node.removeEventListener('pointerdown', handlePointerDown);

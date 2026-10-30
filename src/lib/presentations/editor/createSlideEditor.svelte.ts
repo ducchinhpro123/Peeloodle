@@ -77,7 +77,12 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 		selection,
 		viewport: createViewport(doc),
 		interaction: createInteraction(doc),
-		clipboard: createClipboard({ doc, selection, text }),
+		clipboard: createClipboard({
+			doc,
+			selection,
+			text,
+			report: (message) => messages.show(message)
+		}),
 		messages,
 		// Assigned below: actions receive the finished editor.
 		actions: undefined!,
