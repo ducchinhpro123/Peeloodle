@@ -10,7 +10,7 @@
 	/** @type {import('./$types').PageProps} */
 	let { params } = $props();
 
-	const { presentationRepository, presentationStore, repository } = getAppContext();
+	const { presentationRepository, repository } = getAppContext();
 
 	/**
 	 * The route owns history, the page owns the write. The page publishes this
@@ -105,7 +105,6 @@
 			stickerRepository={repository}
 			{catalogRepository}
 			{catalogAdminRepository}
-			store={presentationStore}
 			backhref={resolve('presentations')}
 			onback={() => goto(resolve('presentations'))}
 			bind:leaveguard

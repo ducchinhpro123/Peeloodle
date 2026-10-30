@@ -24,14 +24,12 @@
 	import { createDraftSaving } from '#lib/editor/draftSaving.js';
 	import { EditorState } from '#lib/editor/editorState.svelte.js';
 	import { IdbPresentationRepository } from '#lib/presentations/persistence/idb.js';
-	import { createPresentationStore } from '#lib/presentations/editor/store.svelte.js';
 
 	const workspace = new CloudWorkspace();
 	setCloudWorkspaceContext(workspace);
 	const editor = new EditorState();
 	const saving = createDraftSaving(editor);
 	const presentationRepository = new IdbPresentationRepository();
-	const presentationStore = createPresentationStore();
 
 	/** Retry re-runs the whole restore after a failed local flush. */
 	let retry = $state(0);
@@ -93,7 +91,7 @@
 	{/if}
 
 	{#key workspace.epoch}
-		<AppScope {editor} {saving} {presentationRepository} {presentationStore}>
+		<AppScope {editor} {saving} {presentationRepository}>
 			{@render children()}
 		</AppScope>
 	{/key}

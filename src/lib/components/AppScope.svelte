@@ -14,10 +14,9 @@
 	 *   editor: import('#lib/editor/editorState.svelte.js').EditorState,
 	 *   saving: import('#lib/editor/draftSaving.js').DraftSaving,
 	 *   presentationRepository: import('#lib/presentations/persistence/repository.js').PresentationRepository,
-	 *   presentationStore: import('#lib/presentations/editor/store.svelte.js').PresentationStore,
 	 *   children: import('svelte').Snippet,
 	 * }} */
-	let { editor, saving, presentationRepository, presentationStore, children } = $props();
+	let { editor, saving, presentationRepository, children } = $props();
 
 	const workspace = getCloudWorkspace();
 	// One instance per workspace epoch, so the props never change inside it; the
@@ -27,8 +26,7 @@
 			repository: workspace.repository,
 			editor,
 			saving,
-			presentationRepository,
-			presentationStore
+			presentationRepository
 		})
 	);
 </script>

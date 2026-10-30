@@ -31,10 +31,9 @@
 	} from '#lib/presentations/editor/insertImageAsset.js';
 	import { prepareStickerSnapshot } from '#lib/presentations/editor/insertStickerSnapshot.js';
 	import { createSlideShape } from '#lib/presentations/editor/shapeTools.js';
-	import { createPresentationSaving } from '#lib/presentations/editor/presentationSaving.js';
-	import { createPresentationExport } from '#lib/presentations/editor/exportController.js';
+	import { createSlideEditor } from '#lib/presentations/editor/createSlideEditor.svelte.js';
+	import { setSlideEditor } from '#lib/presentations/editor/context.js';
 	import { usePresentationOfflineReadiness } from '#lib/presentations/presentationOffline.svelte.js';
-	import { createTextEditSession } from '#lib/presentations/editor/textEditSession.svelte.js';
 	import ElementLayerList from './ElementLayerList.svelte';
 	import ElementGeometryInspector from './ElementGeometryInspector.svelte';
 	import TextFormatToolbar from './TextFormatToolbar.svelte';
@@ -72,7 +71,6 @@
 	 *   stickerRepository?: import('#lib/persistence/repository.js').StickerLabRepository | null,
 	 *   catalogRepository?: import('#lib/catalog/repository.js').CatalogRepository | null,
 	 *   catalogAdminRepository?: import('#lib/catalog/repository.js').CatalogAdminRepository | null,
-	 *   store: import('#lib/presentations/editor/store.svelte.js').PresentationStore,
 	 *   backhref: string,
 	 *   onback: () => void | Promise<void>,
 	 *   mode?: 'local' | 'template',
@@ -94,7 +92,6 @@
 		stickerRepository = null,
 		catalogRepository = null,
 		catalogAdminRepository = null,
-		store,
 		backhref,
 		onback,
 		mode = 'local',
@@ -107,17 +104,12 @@
 
 	const templateMode = $derived(mode === 'template');
 
-	/** The editor that opens a text session owns it; save flushes through it. */
-	const textSession = createTextEditSession();
-
 	// The route keys this page on the presentation id, so a different document
-	// remounts the component instead of reassigning these props.
+	// remounts the component (and creates a fresh editor) instead of reassigning props.
 	// svelte-ignore state_referenced_locally
-	const saving = createPresentationSaving({
+	const editor = createSlideEditor({
+		presentationId,
 		repository,
-		documentId: presentationId,
-		flushText: () => textSession.flush(),
-		store,
 		// Template mode writes catalog versions, so a local-storage failure message
 		// would be wrong: the adapter's own wording is shown instead.
 		...(mode === 'template'
@@ -127,20 +119,9 @@
 				}
 			: {})
 	});
+	setSlideEditor(editor);
+	const { store, persistence: saving, exports: exportController, text: textSession } = editor;
 	let saveState = $state.raw(saving.getStatus());
-
-	/**
-	 * The reload guidance both the readiness line and a failed export use: the page
-	 * holds the write state, so it — not the offline module — decides whether a reload
-	 * is safe to suggest. `dirty` is read live from the store at failure time.
-	 */
-	// svelte-ignore state_referenced_locally
-	const exportController = createPresentationExport({
-		repository,
-		getDocument: () => store.getState().document,
-		flushText: () => textSession.flush(),
-		reloadSafety: () => ({ unsavedWork: store.getState().dirty, saveFailed: saveReported })
-	});
 	let exportState = $state.raw(exportController.getState());
 	// A deep link straight into the editor still prepares offline use for this session.
 	const offline = usePresentationOfflineReadiness();
@@ -363,7 +344,6 @@
 			live = false;
 			decodedArtwork?.dispose();
 			decodedArtwork = null;
-			if (store.getState().document?.id === presentationId) store.getState().closeDocument();
 		};
 	});
 

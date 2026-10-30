@@ -45,6 +45,7 @@ project.inlang/cache/
 /.claude/
 /.vscode/
 /.impeccable/
+/.superpowers/
 
 # Tooling scratch state
 __pycache__/

@@ -1,0 +1,57 @@
+/**
+ * Composition root for one mounted slide editor.
+ *
+ * The page creates exactly one editor per opened deck and drops it on unmount,
+ * so a document, its selection and its undo history can never outlive the deck
+ * they belong to or be seen by the next one.
+ */
+
+import type { PresentationRepository } from '../persistence/repository';
+import { createPresentationExport, type PresentationExportController } from './exportController';
+import { createPresentationSaving, type PresentationSaving } from './presentationSaving';
+import { createPresentationStore, type PresentationStore } from './store.svelte';
+import { createTextEditSession, type TextEditSession } from './textEditSession.svelte';
+
+export type SlideEditor = {
+	store: PresentationStore;
+	/** The editor that opens a text session owns it; saves and exports flush through it. */
+	text: TextEditSession;
+	persistence: PresentationSaving;
+	exports: PresentationExportController;
+};
+
+export type SlideEditorInput = {
+	presentationId: string;
+	repository: PresentationRepository;
+	/** Overrides the local-storage failure copy (template mode supplies one). */
+	describeFailure?: (error: unknown) => string;
+	conflictMessage?: string;
+};
+
+export function createSlideEditor(input: SlideEditorInput): SlideEditor {
+	const { presentationId, repository } = input;
+	const store = createPresentationStore();
+	const text = createTextEditSession();
+	const persistence = createPresentationSaving({
+		repository,
+		documentId: presentationId,
+		flushText: () => text.flush(),
+		store,
+		describeFailure: input.describeFailure,
+		conflictMessage: input.conflictMessage
+	});
+	const exports = createPresentationExport({
+		repository,
+		getDocument: () => store.getState().document,
+		flushText: () => text.flush(),
+		// Read at failure time: whether a reload is safe depends on the live write state.
+		reloadSafety: () => {
+			const status = persistence.getStatus().status;
+			return {
+				unsavedWork: store.getState().dirty,
+				saveFailed: status === 'failed' || status === 'conflict'
+			};
+		}
+	});
+	return { store, text, persistence, exports };
+}

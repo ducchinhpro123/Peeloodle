@@ -5,7 +5,6 @@
 	import AppShell from '#lib/components/AppShell.svelte';
 	import AdminGuard from '#lib/components/catalog/AdminGuard.svelte';
 	import PresentationEditorPage from '#lib/components/presentation/PresentationEditorPage.svelte';
-	import { getAppContext } from '#lib/app/context.js';
 	import { getCatalogRepository } from '#lib/catalog/client.js';
 	import { getCloudWorkspace } from '#lib/cloud/workspace.svelte.js';
 	import { TemplateDraftRepository } from '#lib/presentations/templates/templateDraftRepository.js';
@@ -20,7 +19,6 @@
 	/** @type {import('./$types').PageProps} */
 	let { params } = $props();
 
-	const { presentationStore } = getAppContext();
 	const workspace = getCloudWorkspace();
 
 	/** @type {import('#lib/catalog/remote.js').SupabaseCatalog | null} */
@@ -108,7 +106,6 @@
 					presentationId={params.templateId}
 					repository={draftRepository}
 					catalogRepository={repository}
-					store={presentationStore}
 					mode="template"
 					{backhref}
 					onback={() => goto(backhref)}
