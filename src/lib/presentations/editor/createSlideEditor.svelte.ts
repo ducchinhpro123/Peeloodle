@@ -23,6 +23,7 @@ import { createActionRegistry, type ActionRegistry } from './actions/registry';
 import { editingActions } from './actions/editing';
 import { arrangeActions } from './actions/arrange';
 import { viewActions } from './actions/view';
+import { slideActions } from './actions/slides';
 import { createEditorUi, type EditorUi } from './ui.svelte';
 import { createEditorArtwork, type EditorArtwork } from './artwork.svelte';
 import { createEditorInserts, type EditorInserts, type EditorServices } from './inserts.svelte';
@@ -117,7 +118,7 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 	};
 	editor.actions = createActionRegistry(
 		editor,
-		[...editingActions, ...arrangeActions, ...viewActions],
+		[...editingActions, ...arrangeActions, ...viewActions, ...slideActions],
 		(message) => messages.show(message)
 	);
 	return editor;

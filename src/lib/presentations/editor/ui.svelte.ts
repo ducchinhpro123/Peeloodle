@@ -35,6 +35,10 @@ export type EditorUi = {
 		/** Opens the Format section and focuses its first field (or the slide background). */
 		showFormat(background?: boolean): void;
 	};
+	/** The slide whose panel button should take focus next (added, moved, survivor). */
+	readonly slideFocusRequest: string | null;
+	focusSlide(slideId: string): void;
+	clearSlideFocus(): void;
 	menu: {
 		readonly current: ContextMenu | null;
 		open(menu: ContextMenu): void;
@@ -68,6 +72,7 @@ export function createEditorUi(selection: SelectionState): EditorUi {
 	let collapsed = $state(false);
 	let panes = $state<PaneState>(readPaneState());
 	let menu = $state<ContextMenu | null>(null);
+	let slideFocus = $state<string | null>(null);
 
 	const setPanes = (next: PaneState) => {
 		panes = next;
@@ -136,6 +141,15 @@ export function createEditorUi(selection: SelectionState): EditorUi {
 					document.querySelector<HTMLInputElement>(selector)?.focus();
 				});
 			}
+		},
+		get slideFocusRequest() {
+			return slideFocus;
+		},
+		focusSlide(slideId) {
+			slideFocus = slideId;
+		},
+		clearSlideFocus() {
+			slideFocus = null;
 		},
 		menu: {
 			get current() {

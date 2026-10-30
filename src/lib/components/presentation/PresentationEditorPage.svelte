@@ -37,6 +37,7 @@
 	import ShapeStyleInspector from './ShapeStyleInspector.svelte';
 	import ImageAdjustInspector from './ImageAdjustInspector.svelte';
 	import TaskPane from './panes/TaskPane.svelte';
+	import SlidePanel from './slides/SlidePanel.svelte';
 	import MessageBar from './shell/MessageBar.svelte';
 	import { OK } from '#lib/presentations/editor/actions/registry.js';
 	import { usePresentationOfflineReadiness } from '#lib/presentations/presentationOffline.svelte.js';
@@ -125,7 +126,7 @@
 	setSlideEditor(editor);
 	$effect(() => attachKeymap(editor.actions, window, { exempt: SHORTCUT_EXEMPT }));
 
-	const { ui, artwork, inserts } = editor;
+	const { ui, artwork, inserts, actions } = editor;
 	const {
 		doc,
 		selection,
@@ -293,55 +294,6 @@
 				if (selection.primary) inserts.beginReplaceImage(selection.primary.id);
 				return OK;
 			}
-		},
-		...['up', 'down'].map((direction) => ({
-			id: direction === 'up' ? 'slide.moveUp' : 'slide.moveDown',
-			label: direction === 'up' ? 'Move up' : 'Move down',
-			enabled: () => {
-				const slides = doc.document?.slides ?? [];
-				const index = slides.findIndex((slide) => slide.id === selection.activeSlideId);
-				return index >= 0 && (direction === 'up' ? index > 0 : index < slides.length - 1);
-			},
-			run: () => {
-				const id = selection.activeSlideId;
-				const index = doc.document?.slides.findIndex((slide) => slide.id === id) ?? -1;
-				if (id && index >= 0) {
-					moveSlide(id, index + (direction === 'up' ? -1 : 1));
-					focusSlideId = id;
-				}
-				return OK;
-			}
-		})),
-		{
-			id: 'slide.add',
-			label: 'Add slide',
-			shortcuts: [{ key: 'm', mod: true }],
-			claimsShortcut: true,
-			enabled: () => (doc.document?.slides.length ?? 0) < PRESENTATION_LIMITS.maxSlides,
-			run: () => {
-				addSlide();
-				return OK;
-			}
-		},
-		{
-			id: 'slide.duplicate',
-			label: 'Duplicate slide',
-			enabled: () =>
-				selection.activeSlide !== undefined &&
-				(doc.document?.slides.length ?? 0) < PRESENTATION_LIMITS.maxSlides,
-			run: () => {
-				duplicateActiveSlide();
-				return OK;
-			}
-		},
-		{
-			id: 'slide.delete',
-			label: 'Delete slide',
-			enabled: () => (doc.document?.slides.length ?? 0) > 1,
-			run: () => {
-				if (selection.activeSlideId) deleteSlide(selection.activeSlideId);
-				return OK;
-			}
 		}
 	]);
 	let saveState = $state.raw(saving.getStatus());
@@ -365,21 +317,6 @@
 	 */
 	let PresentationCanvas = $state(null);
 	let recovering = $state(false);
-	/** @type {string | null} */
-	let focusSlideId = $state(null);
-	/** @type {{ id: string, pointerId: number, x: number, y: number } | null} */
-	let slideDrag = null;
-	/** @type {string | null} */
-	let draggingSlideId = $state(null);
-	/** @type {string | null} */
-	let dropSlideId = $state(null);
-	/** @type {'before' | 'after' | null} */
-	let dropPosition = $state(null);
-	let suppressSlideClick = false;
-	/** @type {Map<string, HTMLButtonElement>} */
-	// Slide buttons are addressed imperatively by the focus effect below and never
-	// read from the template, so they stay out of the reactive graph.
-	const slideButtons = new Map();
 
 	const editorState = $derived(doc.snapshot());
 	const presentation = $derived(editorState.document);
@@ -522,204 +459,8 @@
 	/** @param {import('#lib/presentations/templates/builtinLayouts.js').BuiltinLayoutId} layoutId */
 	function addBuiltinLayout(layoutId) {
 		const result = inserts.addBuiltinLayout(layoutId);
-		if (result.ok && result.slideId) focusSlideId = result.slideId;
+		if (result.ok && result.slideId) ui.focusSlide(result.slideId);
 		return result;
-	}
-
-	function addSlide() {
-		const id = doc.addSlide();
-		if (id) focusSlideId = id;
-	}
-
-	function duplicateActiveSlide() {
-		const activeId = selection.activeSlideId;
-		if (!activeId) return;
-		const id = doc.duplicateSlide(activeId);
-		if (id) focusSlideId = id;
-	}
-
-	/**
-	 * @param {string} slideId
-	 * @param {number} targetIndex
-	 */
-	function moveSlide(slideId, targetIndex) {
-		doc.reorderSlide(slideId, targetIndex);
-	}
-
-	/** @param {string} id @param {PointerEvent} event */
-	function startSlideDrag(id, event) {
-		if (
-			event.button !== 0 ||
-			(event.pointerType === 'touch' &&
-				/** @type {HTMLElement} */ (event.currentTarget).classList.contains(
-					'presentation-slide-card'
-				))
-		)
-			return;
-		event.preventDefault();
-		slideDrag = { id, pointerId: event.pointerId, x: event.clientX, y: event.clientY };
-		/** @type {HTMLButtonElement} */ (event.currentTarget).setPointerCapture(event.pointerId);
-	}
-
-	/** @param {PointerEvent} event */
-	function moveSlideDrag(event) {
-		const drag = slideDrag;
-		if (!drag || drag.pointerId !== event.pointerId) return;
-		if (!draggingSlideId && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6) return;
-		draggingSlideId = drag.id;
-		// Pointer capture keeps events on the source even above another card.
-		// Use the pointer's geometry rather than elementFromPoint's captured hit.
-		const target = [...document.querySelectorAll('.presentation-slide-card')].find((card) => {
-			const rect = card.getBoundingClientRect();
-			return (
-				event.clientX >= rect.left &&
-				event.clientX <= rect.right &&
-				event.clientY >= rect.top &&
-				event.clientY <= rect.bottom
-			);
-		});
-		const id = target?.getAttribute('data-slide-id');
-		if (!target || !id || id === drag.id) {
-			dropSlideId = null;
-			dropPosition = null;
-			return;
-		}
-		const rect = target.getBoundingClientRect();
-		const horizontal = window.matchMedia('(max-width: 720px)').matches;
-		dropSlideId = id;
-		dropPosition = horizontal
-			? event.clientX < rect.left + rect.width / 2
-				? 'before'
-				: 'after'
-			: event.clientY < rect.top + rect.height / 2
-				? 'before'
-				: 'after';
-	}
-
-	/** @param {PointerEvent} event @param {boolean} commit */
-	function finishSlideDrag(event, commit) {
-		const drag = slideDrag;
-		if (!drag || drag.pointerId !== event.pointerId) return;
-		if (draggingSlideId) {
-			suppressSlideClick = true;
-			setTimeout(() => (suppressSlideClick = false), 0);
-			if (commit && dropSlideId && dropPosition) {
-				const slides = doc.document?.slides ?? [];
-				const source = slides.findIndex((item) => item.id === drag.id);
-				const target = slides.findIndex((item) => item.id === dropSlideId);
-				if (source !== -1 && target !== -1) {
-					const index = target + (dropPosition === 'after' ? 1 : 0) - (source < target ? 1 : 0);
-					moveSlide(drag.id, index);
-				}
-			}
-		}
-		slideDrag = null;
-		draggingSlideId = null;
-		dropSlideId = null;
-		dropPosition = null;
-	}
-
-	/** @param {string} id @param {KeyboardEvent} event */
-	function slideKeyDown(id, event) {
-		if (
-			event.defaultPrevented ||
-			(event.target instanceof HTMLElement &&
-				event.target.closest('input, textarea, select, [contenteditable], [role="menu"], dialog'))
-		)
-			return;
-		const slides = doc.document?.slides ?? [];
-		const index = slides.findIndex((slide) => slide.id === id);
-		if (index < 0) return;
-		if (
-			(event.ctrlKey || event.metaKey) &&
-			!event.altKey &&
-			!event.shiftKey &&
-			event.key.toLowerCase() === 'd'
-		) {
-			event.preventDefault();
-			selection.selectSlide(id);
-			editor.actions.run('slide.duplicate');
-			return;
-		}
-		if (
-			!event.ctrlKey &&
-			!event.metaKey &&
-			!event.altKey &&
-			!event.shiftKey &&
-			(event.key === 'Delete' || event.key === 'Backspace')
-		) {
-			event.preventDefault();
-			selection.selectSlide(id);
-			editor.actions.run('slide.delete');
-			return;
-		}
-		if (
-			event.ctrlKey ||
-			event.metaKey ||
-			event.shiftKey ||
-			!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key) ||
-			(event.altKey && event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
-		)
-			return;
-		event.preventDefault();
-		if (event.altKey) {
-			selection.selectSlide(id);
-			editor.actions.run(event.key === 'ArrowUp' ? 'slide.moveUp' : 'slide.moveDown');
-			return;
-		}
-		const next =
-			event.key === 'Home'
-				? 0
-				: event.key === 'End'
-					? slides.length - 1
-					: Math.max(0, Math.min(slides.length - 1, index + (event.key === 'ArrowUp' ? -1 : 1)));
-		const target = slides[next];
-		if (target) {
-			selection.selectSlide(target.id);
-			focusSlideId = target.id;
-		}
-	}
-
-	/** @param {HTMLElement} node */
-	function slideKeyboard(node) {
-		/** @param {KeyboardEvent} event */
-		const onkeydown = (event) => {
-			const item =
-				event.target instanceof HTMLElement ? event.target.closest('[data-slide-row]') : null;
-			const id = item?.getAttribute('data-slide-row') ?? selection.activeSlideId;
-			if (id) slideKeyDown(id, event);
-		};
-		node.addEventListener('keydown', onkeydown);
-		return () => node.removeEventListener('keydown', onkeydown);
-	}
-
-	/** @param {string} slideId */
-	function deleteSlide(slideId) {
-		if (!doc.removeSlide(slideId)) return;
-		const survivor = selection.activeSlideId;
-		if (survivor) focusSlideId = survivor;
-	}
-
-	$effect(() => {
-		const target = focusSlideId;
-		if (!target) return;
-		focusSlideId = null;
-		const button = slideButtons.get(target);
-		if (button) button.focus();
-	});
-
-	/**
-	 * Keeps every slide's button addressable for the focus effect above. `bind:this`
-	 * cannot take a per-item computed expression, so the button registers itself
-	 * through an attachment and unregisters when it leaves the DOM.
-	 * @param {string} id
-	 * @returns {import('svelte/attachments').Attachment<HTMLButtonElement>}
-	 */
-	function registerSlideButton(id) {
-		return (node) => {
-			slideButtons.set(id, node);
-			return () => slideButtons.delete(id);
-		};
 	}
 
 	async function requestSave() {
@@ -955,76 +696,7 @@
 				{ 'has-task-pane': ui.panes.state.open }
 			]}
 		>
-			<aside
-				class="presentation-slide-rail [border-inline-end:1px_solid_var(--line)]"
-				aria-label="Slides"
-				{@attach slideKeyboard}
-			>
-				<p>Slides</p>
-				<p class="slide-order-hint">↑/↓ to select · Alt+↑/↓ to reorder</p>
-				<span id="slide-order-hint" class="sr-only"
-					>Drag to reorder. On touchscreens, use the handle at the top left of a slide. Or focus the
-					slide and press Alt plus the up or down arrow key.</span
-				>
-				<div class="presentation-slide-list">
-					{#each presentation.slides as slide, index (slide.id)}
-						<div
-							class="presentation-slide-item [min-inline-size:0]"
-							data-slide-row={slide.id}
-							class:is-dragging={draggingSlideId === slide.id}
-						>
-							<button
-								type="button"
-								class="presentation-slide-card"
-								data-slide-id={slide.id}
-								data-drop-position={dropSlideId === slide.id ? dropPosition : undefined}
-								aria-current={slide.id === activeSlide?.id ? 'true' : undefined}
-								aria-label="Show slide {index + 1}: {slide.name}"
-								aria-describedby="slide-order-hint"
-								ondragstart={(event) => event.preventDefault()}
-								onpointerdown={(event) => startSlideDrag(slide.id, event)}
-								onpointermove={moveSlideDrag}
-								onpointerup={(event) => finishSlideDrag(event, true)}
-								onpointercancel={(event) => finishSlideDrag(event, false)}
-								onclick={() => {
-									if (!suppressSlideClick) {
-										selection.selectSlide(slide.id);
-										focusSlideId = slide.id;
-									}
-								}}
-								{@attach registerSlideButton(slide.id)}
-							>
-								<SlideRailPreview
-									{slide}
-									pageSize={presentation.pageSize}
-									images={artwork.images}
-								/>
-								<b>{slide.name}</b>
-							</button>
-							<button
-								type="button"
-								class="presentation-slide-grip"
-								aria-label="Drag slide {index + 1} to reorder"
-								aria-describedby="slide-order-hint"
-								onpointerdown={(event) => startSlideDrag(slide.id, event)}
-								onpointermove={moveSlideDrag}
-								onpointerup={(event) => finishSlideDrag(event, true)}
-								onpointercancel={(event) => finishSlideDrag(event, false)}
-								><GripVertical size={16} aria-hidden="true" /></button
-							>
-							<button
-								type="button"
-								class="presentation-slide-delete"
-								aria-label="Delete slide {index + 1}"
-								title="Delete slide {index + 1}"
-								disabled={presentation.slides.length <= 1}
-								onclick={() => deleteSlide(slide.id)}
-								><Trash2 size={16} aria-hidden="true" /></button
-							>
-						</div>
-					{/each}
-				</div>
-			</aside>
+			<SlidePanel />
 			{#if PresentationCanvas}
 				<PresentationCanvas
 					images={artwork.images}
@@ -1092,7 +764,12 @@
 
 {#snippet slideActions()}
 	{#if presentation}
-		<button type="button" class={button} aria-label="Add slide" title="Add slide" onclick={addSlide}
+		<button
+			type="button"
+			class={button}
+			aria-label="Add slide"
+			title="Add slide"
+			onclick={() => actions.run('slide.add')}
 			><Plus size={16} aria-hidden="true" /><span class="ribbon-label">Add slide</span></button
 		>
 		<BuiltinLayoutDialog
@@ -1105,7 +782,7 @@
 			class={button}
 			aria-label="Duplicate active slide"
 			title="Duplicate active slide"
-			onclick={duplicateActiveSlide}
+			onclick={() => actions.run('slide.duplicate')}
 			><Copy size={16} aria-hidden="true" /><span class="ribbon-label">Duplicate</span></button
 		>
 	{/if}
@@ -1190,7 +867,7 @@
 				class={button}
 				aria-label="Add slide"
 				title="Add slide"
-				onclick={addSlide}
+				onclick={() => actions.run('slide.add')}
 				><Plus size={16} aria-hidden="true" /><span class="ribbon-label">Add slide</span></button
 			>
 			{#if catalogRepository && policy.capabilities.templateSlides}<InsertTemplateDialog
@@ -1283,7 +960,6 @@
 		border-radius: var(--radius);
 		background: oklch(1 0 none);
 	}
-
 	.presentation-route-state {
 		display: grid;
 		min-block-size: 100%;
@@ -1317,7 +993,6 @@
 		outline: 3px solid var(--primary);
 		outline-offset: -3px;
 	}
-
 	/* Keep the deck title and Save fixed. Tools have their own single scrollable
 	 * row so selecting an element or changing the save status never shifts the slide. */
 	.presentation-editor-bar {
@@ -1420,12 +1095,6 @@
 		border-radius: 8px;
 		background: var(--surface);
 	}
-	.presentation-slide-rail {
-		min-block-size: 0;
-		padding: var(--space-4);
-		overflow: auto;
-		background: var(--surface);
-	}
 	.presentation-inspector {
 		min-block-size: 0;
 	}
@@ -1435,23 +1104,6 @@
 	}
 	.presentation-workspace.has-task-pane {
 		grid-template-columns: 200px minmax(0, 1fr) 300px;
-	}
-	.presentation-slide-rail > p {
-		margin-block-start: 0;
-		margin-block-end: var(--space-3);
-		margin-inline-start: 0;
-		margin-inline-end: 0;
-		color: var(--muted);
-		font-size: 11px;
-		font-weight: 800;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-	.presentation-slide-rail > .slide-order-hint {
-		font-weight: 500;
-		letter-spacing: 0;
-		line-height: 1.4;
-		text-transform: none;
 	}
 	.presentation-inspector > p:not(.muted) {
 		margin-block-start: 0;
@@ -1464,151 +1116,10 @@
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 	}
-	.presentation-slide-list {
-		display: grid;
-		gap: var(--space-3);
-	}
-	.presentation-slide-item {
-		position: relative;
-	}
-	.presentation-slide-item.is-dragging {
-		opacity: 0.6;
-	}
-	.presentation-slide-card {
-		display: grid;
-		inline-size: 100%;
-		gap: var(--space-2);
-		padding: var(--space-2);
-		border: 2px solid var(--line);
-		border-radius: var(--radius-sm);
-		background: var(--surface);
-		color: var(--ink);
-		text-align: start;
-		cursor: grab;
-		touch-action: pan-x pan-y;
-	}
-	.presentation-slide-card:active {
-		cursor: grabbing;
-	}
-	.presentation-slide-card[data-drop-position='before'] {
-		box-shadow: 0 -4px 0 var(--mint);
-	}
-	.presentation-slide-card[data-drop-position='after'] {
-		box-shadow: 0 4px 0 var(--mint);
-	}
-	@media (hover: hover) and (pointer: fine) {
-		.presentation-slide-card:hover {
-			border-color: var(--mint);
-		}
-	}
-	.presentation-slide-card[aria-current] {
-		border-color: var(--mint);
-		background: var(--pale);
-	}
-	.presentation-slide-card:focus-visible {
-		outline: 2px solid var(--mint);
-		outline-offset: 2px;
-	}
-
-	.presentation-slide-card b {
-		overflow: hidden;
-		font-size: 12px;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.presentation-slide-grip {
-		position: absolute;
-		inset-block-start: 5px;
-		inset-inline-start: 5px;
-		display: grid;
-		inline-size: 32px;
-		block-size: 32px;
-		place-items: center;
-		border: 1px solid var(--line);
-		border-radius: 8px;
-		background: var(--surface);
-		color: var(--muted);
-		box-shadow: var(--shadow);
-		cursor: grab;
-		touch-action: none;
-		opacity: 0;
-		transition: opacity 150ms ease-out;
-	}
-	@media (hover: hover) and (pointer: fine) {
-		.presentation-slide-item:hover .presentation-slide-grip {
-			opacity: 1;
-		}
-	}
-
-	.presentation-slide-item:focus-within .presentation-slide-grip {
-		opacity: 1;
-	}
-	.presentation-slide-grip:focus-visible {
-		opacity: 1;
-		outline: 2px solid var(--mint);
-		outline-offset: 2px;
-	}
-	.presentation-slide-delete {
-		position: absolute;
-		inset-block-start: 5px;
-		inset-inline-end: 5px;
-		display: grid;
-		inline-size: 32px;
-		block-size: 32px;
-		place-items: center;
-		border: 1px solid var(--danger-line);
-		border-radius: 8px;
-		background: var(--surface);
-		color: var(--danger);
-		box-shadow: var(--shadow);
-		cursor: pointer;
-		opacity: 0;
-		transition: opacity 150ms ease-out;
-	}
-	@media (hover: hover) and (pointer: fine) {
-		.presentation-slide-item:hover .presentation-slide-delete {
-			opacity: 1;
-		}
-	}
-
-	.presentation-slide-item:focus-within .presentation-slide-delete {
-		opacity: 1;
-	}
-	.presentation-slide-delete:focus-visible {
-		opacity: 1;
-		outline: 2px solid var(--mint);
-		outline-offset: 2px;
-	}
-	@media (hover: hover) and (pointer: fine) {
-		.presentation-slide-delete:hover:not(:disabled) {
-			background: var(--danger-tint);
-			color: var(--danger-strong);
-		}
-	}
-	.presentation-slide-delete:disabled {
-		cursor: not-allowed;
-	}
-	@media (hover: hover) and (pointer: fine) {
-		.presentation-slide-item:hover .presentation-slide-delete:disabled {
-			opacity: 0.5;
-		}
-	}
-
-	.presentation-slide-item:focus-within .presentation-slide-delete:disabled {
-		opacity: 0.5;
-	}
-	@media (hover: none) {
-		.presentation-slide-grip,
-		.presentation-slide-card[aria-current] ~ .presentation-slide-delete {
-			opacity: 1;
-		}
-	}
 	.presentation-inspector .muted {
 		margin-block-start: var(--space-5);
 		font-size: 12px;
 	}
-	/* Laptop and tablet widths keep the task pane docked but narrower, so it
-	 * never covers the slide. */
 	@media (max-width: 1279px) {
 		.presentation-workspace {
 			grid-template-columns: 160px minmax(0, 1fr);
@@ -1650,7 +1161,6 @@
 		.presentation-editor-heading > :global(button) {
 			grid-row: 2;
 		}
-
 		.presentation-editor-heading > .button {
 			min-block-size: 40px;
 			padding-inline: var(--space-2);
@@ -1685,37 +1195,8 @@
 			min-block-size: 0;
 			flex: 1;
 		}
-		.presentation-slide-rail {
-			display: block;
-			padding-block-start: var(--space-3);
-			padding-block-end: var(--space-3);
-			padding-inline-start: var(--space-4);
-			padding-inline-end: var(--space-4);
-			border-inline-end: 0;
-			border-block-end: 1px solid var(--line);
-		}
 		.presentation-workspace :global(.task-pane) {
 			display: none;
-		}
-		.presentation-slide-list {
-			display: flex;
-			min-inline-size: 0;
-			gap: var(--space-3);
-			overflow-x: auto;
-			padding-block-end: var(--space-1);
-			scrollbar-width: thin;
-		}
-		.presentation-slide-item {
-			flex: 0 0 144px;
-		}
-		.presentation-slide-grip {
-			opacity: 1;
-		}
-		.presentation-slide-card[data-drop-position='before'] {
-			box-shadow: -4px 0 0 var(--mint);
-		}
-		.presentation-slide-card[data-drop-position='after'] {
-			box-shadow: 4px 0 0 var(--mint);
 		}
 	}
 </style>
