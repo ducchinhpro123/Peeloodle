@@ -36,7 +36,9 @@ test('reduced motion removes the dialog animation and leaves the dialog usable',
 	page
 }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
-	await page.goto('/my-stickers');
+	// This route is server-rendered before its dialog handler is hydrated.
+	// Wait for the local page's script/image requests to settle before keyboard activation.
+	await page.goto('/my-stickers', { waitUntil: 'networkidle' });
 	expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(
 		true
 	);
@@ -59,7 +61,9 @@ test('reduced motion removes the dialog animation and leaves the dialog usable',
 
 test('the same dialog reveals through the keyframes when motion is allowed', async ({ page }) => {
 	await page.emulateMedia({ reducedMotion: 'no-preference' });
-	await page.goto('/my-stickers');
+	// This route is server-rendered before its dialog handler is hydrated.
+	// Wait for the local page's script/image requests to settle before keyboard activation.
+	await page.goto('/my-stickers', { waitUntil: 'networkidle' });
 	await page.getByRole('button', { name: 'New Pack' }).click();
 	await expect(page.getByRole('dialog', { name: 'Create New Pack' })).toBeVisible();
 	await page.waitForTimeout(60);
@@ -82,7 +86,9 @@ test('primary navigation and the pack flow are operable with the keyboard alone'
 
 	// The library's create-pack dialog is reachable, its first field takes focus,
 	// and Enter creates the pack: no pointer anywhere in this journey.
-	await page.goto('/my-stickers');
+	// This route is server-rendered before its dialog handler is hydrated.
+	// Wait for the local page's script/image requests to settle before keyboard activation.
+	await page.goto('/my-stickers', { waitUntil: 'networkidle' });
 	await expect(page.getByRole('heading', { level: 1 })).toContainText('Your little world.');
 	await tabTo(page, (name) => name === 'New Pack');
 	await page.keyboard.press('Enter');

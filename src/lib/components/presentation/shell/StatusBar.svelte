@@ -17,7 +17,7 @@
 </script>
 
 <div class="editor-status-bar" role="contentinfo" aria-label="Editor status">
-	<p>Slide {position} of {slides.length}</p>
+	<p role="status" aria-live="polite" aria-atomic="true">Slide {position} of {slides.length}</p>
 	<PresentationCanvasControls />
 </div>
 

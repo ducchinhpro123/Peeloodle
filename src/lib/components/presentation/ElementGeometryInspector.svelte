@@ -123,7 +123,7 @@
 		font-weight: 700;
 	}
 	:global(.presentation-geometry-fields input):focus-visible {
-		outline: 2px solid var(--mint);
+		outline: 2px solid var(--primary);
 		outline-offset: 1px;
 	}
 	.presentation-align-controls .button {

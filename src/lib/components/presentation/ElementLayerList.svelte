@@ -112,7 +112,7 @@
 		white-space: nowrap;
 	}
 	.presentation-layer-select:focus-visible {
-		outline: 2px solid var(--mint);
+		outline: 2px solid var(--primary);
 		outline-offset: 1px;
 	}
 	.presentation-layer-actions .button.icon {

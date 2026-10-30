@@ -23,7 +23,7 @@
 	}
 </script>
 
-<div class="presentation-canvas-controls" aria-label="Canvas view controls">
+<div class="presentation-canvas-controls" role="group" aria-label="Canvas view controls">
 	<button
 		class={buttonIcon}
 		aria-label="Zoom out"

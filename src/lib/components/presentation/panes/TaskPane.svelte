@@ -46,6 +46,7 @@
 		background: var(--surface);
 		overflow-y: auto;
 		scrollbar-width: thin;
+		scroll-padding-block-start: 44px;
 	}
 	.task-pane-header {
 		position: sticky;

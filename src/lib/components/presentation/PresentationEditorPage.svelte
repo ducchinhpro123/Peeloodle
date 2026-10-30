@@ -484,7 +484,7 @@
 		},
 		{
 			id: 'view.toggleRibbon',
-			label: 'Collapse or expand the ribbon',
+			label: 'Collapse ribbon',
 			shortLabel: 'Collapse ribbon',
 			shortcuts: [{ key: 'F1', mod: true }],
 			enabled: () => true,
@@ -1664,6 +1664,7 @@
 		color: var(--muted);
 	}
 	.presentation-editor {
+		--muted: oklch(0.49 0.035 264);
 		display: flex;
 		min-inline-size: 0;
 		min-block-size: 0;
@@ -1671,6 +1672,12 @@
 		flex-direction: column;
 		background: oklch(0.969839 0.004443 179.7348);
 	}
+	.presentation-editor
+		:global(:is(button, a, input, select, textarea, [tabindex], [contenteditable]):focus-visible) {
+		outline: 3px solid var(--primary);
+		outline-offset: -3px;
+	}
+
 	/* Keep the deck title and Save fixed. Tools have their own single scrollable
 	 * row so selecting an element or changing the save status never shifts the slide. */
 	.presentation-editor-bar {
@@ -1975,9 +1982,35 @@
 			min-block-size: calc(100dvh - var(--header-height));
 		}
 		.presentation-editor-heading {
-			gap: var(--space-2);
-			padding-inline: var(--space-3);
+			display: grid;
+			grid-template-columns: 40px 40px minmax(0, 1fr) auto auto;
+			gap: 4px;
+			padding-inline: var(--space-2);
 		}
+		.presentation-editor-heading > a:nth-child(1) {
+			grid-column: 1;
+			grid-row: 1;
+		}
+		.presentation-editor-heading > a:nth-child(2) {
+			grid-column: 2;
+			grid-row: 1;
+		}
+		.presentation-editor-title {
+			grid-column: 3 / -1;
+			grid-row: 1;
+		}
+		.presentation-editor-title p {
+			display: none;
+		}
+		.presentation-local-status {
+			grid-column: 1 / 4;
+			grid-row: 2;
+			text-align: start;
+		}
+		.presentation-editor-heading > :global(button) {
+			grid-row: 2;
+		}
+
 		.presentation-editor-heading > .button {
 			min-block-size: 40px;
 			padding-inline: var(--space-2);
@@ -1990,13 +2023,8 @@
 			padding-inline: var(--space-3);
 		}
 		.presentation-editor-title h1 {
-			display: -webkit-box;
-			overflow: hidden;
-			white-space: normal;
-			overflow-wrap: anywhere;
-			-webkit-box-orient: vertical;
-			line-clamp: 2;
-			-webkit-line-clamp: 2;
+			display: block;
+			white-space: nowrap;
 		}
 		.presentation-mobile-note {
 			display: flex;

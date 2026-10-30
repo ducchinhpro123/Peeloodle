@@ -23,6 +23,7 @@
 	],
 	"type": "module",
 	"devDependencies": {
+		"@axe-core/playwright": "^4.14.0",
 		"@inlang/paraglide-js": "^2.18.2",
 		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-auto": "^8.0.0",

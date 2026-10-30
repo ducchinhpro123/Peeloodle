@@ -792,6 +792,9 @@
 			class:is-space-pan={spaceHeld}
 			data-ready={ready}
 			data-testid="presentation-canvas"
+			role="group"
+			aria-label="Slide editing area"
+			aria-describedby="slide-canvas-keyboard-help"
 			data-document-width={presentation.pageSize.width}
 			data-document-height={presentation.pageSize.height}
 			data-view-zoom={view.zoom}
@@ -803,6 +806,22 @@
 			tabindex="-1"
 			{@attach mountCanvas}
 		></div>
+		<p id="slide-canvas-keyboard-help" class="sr-only">
+			Tab and Shift+Tab select slide objects. Shift+F10 opens object actions. Arrow keys move
+			selected objects. Space+drag pans. Press F6 to move to another editor area.
+		</p>
+		<p
+			class="sr-only"
+			role="status"
+			aria-live="polite"
+			aria-atomic="true"
+			data-testid="canvas-selection-announcement"
+		>
+			{selection.ids.length
+				? `${selection.ids.length} selected: ${selection.elements.map((element) => element.name).join(', ')}`
+				: 'No objects selected'}
+		</p>
+
 		{#each placeholders as item (item.id)}
 			<div
 				class="text-placeholder"
@@ -978,7 +997,7 @@
 		align-items: center;
 		overflow: hidden;
 		border: 1px dashed oklch(0.75 0.01 264);
-		color: oklch(0.6 0.01 264);
+		color: oklch(0.5 0.01 264);
 		line-height: 1.2;
 		transform-origin: top left;
 		white-space: nowrap;
@@ -997,6 +1016,10 @@
 		outline: 1.5px solid var(--primary);
 		transform-origin: top left;
 		pointer-events: none;
+	}
+	.presentation-canvas:focus-visible {
+		outline: 3px solid var(--primary);
+		outline-offset: -3px;
 	}
 	.presentation-canvas.is-space-pan {
 		cursor: grab;
@@ -1024,8 +1047,9 @@
 	}
 	@media (max-width: 720px) {
 		.presentation-canvas-panel {
-			min-height: min(62dvh, 560px);
-			height: 100%;
+			min-block-size: 0;
+			block-size: auto;
+			aspect-ratio: 16 / 9;
 		}
 	}
 </style>
