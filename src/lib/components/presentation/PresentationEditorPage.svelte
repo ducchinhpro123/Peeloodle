@@ -1,4 +1,5 @@
 <script>
+	import { untrack } from 'svelte';
 	import { tick } from 'svelte';
 	import { button, buttonIcon, buttonPrimary } from '#lib/ui/styles.js';
 	import {
@@ -428,6 +429,8 @@
 		{
 			id: 'slide.add',
 			label: 'Add slide',
+			shortcuts: [{ key: 'm', mod: true }],
+			claimsShortcut: true,
 			enabled: () => (doc.document?.slides.length ?? 0) < PRESENTATION_LIMITS.maxSlides,
 			run: () => {
 				addSlide();
@@ -583,7 +586,9 @@
 		// Template mode has no autosave: every write creates an immutable version,
 		// so a version is only ever created by an explicit Save (or a held
 		// navigation the leave guard commits).
-		const autosave = policy.capabilities.autosave ? saving.attachAutosave() : null;
+		// Attaching reads the document; untracked so the effect does not re-run (and
+		// restart the autosave timer) on every state change.
+		const autosave = policy.capabilities.autosave ? untrack(() => saving.attachAutosave()) : null;
 		return () => {
 			unsubscribe();
 			autosave?.detach();
@@ -610,13 +615,7 @@
 				const current = doc.snapshot();
 				return current.dirty && current.document?.id === presentationId;
 			},
-			saveBeforeLeave: async () => {
-				// A conflict needs a deliberate answer from the administrator;
-				// navigating away must not replace the other tab's version.
-				if (policy.conflictRecovery === 'reload-draft' && saving.getStatus().status === 'conflict')
-					return false;
-				return saving.saveBeforeLeave();
-			},
+			saveBeforeLeave: saveBeforeLeaving,
 			reportFailure: () => (editorNote = policy.labels.leaveFailure)
 		};
 		return () => {
@@ -958,6 +957,12 @@
 	 * @param {string} fallback
 	 */
 	async function runImageWrite(prepare, write, fallback) {
+		// One image write at a time: a second one would plan against the same
+		// revision and could store a deck without the first image.
+		if (inserting) {
+			editor.messages.show('Wait for the current image to finish adding, then try again.');
+			return;
+		}
 		const state = doc.snapshot();
 		if (!state.document) return;
 		if (!decodedArtwork) {
@@ -1158,14 +1163,23 @@
 		}
 	}
 
+	/**
+	 * The one save-before-leaving rule for every way out (route guard and the
+	 * Back button): a template conflict needs a deliberate answer from the
+	 * administrator, so leaving must not replace the other tab's version.
+	 */
+	async function saveBeforeLeaving() {
+		if (policy.conflictRecovery === 'reload-draft' && saving.getStatus().status === 'conflict')
+			return false;
+		return saving.saveBeforeLeave();
+	}
+
 	/** @param {MouseEvent} event */
 	async function leave(event) {
 		event.preventDefault();
 		editorNote = null;
-		if (await saving.saveBeforeLeave()) await onback();
-		else
-			editorNote =
-				'This presentation could not be saved, so it is still open. Press Save to try again — or press Keep my copy if another tab or window has a newer version.';
+		if (await saveBeforeLeaving()) await onback();
+		else editorNote = policy.labels.leaveFailure;
 	}
 
 	/** @param {KeyboardEvent} event */
@@ -1607,6 +1621,12 @@
 		<RibbonGroup label="Order">
 			<ActionButton id="arrange.bringForward" />
 			<ActionButton id="arrange.sendBackward" />
+			<ActionButton id="arrange.bringToFront" />
+			<ActionButton id="arrange.sendToBack" />
+		</RibbonGroup>
+		<RibbonGroup label="Rotate">
+			<ActionButton id="element.rotateLeft" />
+			<ActionButton id="element.rotateRight" />
 		</RibbonGroup>
 		<RibbonGroup label="Element">
 			<ActionButton id="element.toggleLock" />

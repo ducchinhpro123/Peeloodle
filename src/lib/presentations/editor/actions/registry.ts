@@ -28,6 +28,8 @@ export type Action = {
 	 * disabled (Ctrl+Y and Ctrl+Z have no useful default in the editor).
 	 */
 	claimsShortcut?: boolean;
+	/** Narrows where the shortcut applies (for example, only on the canvas). */
+	when?(event: KeyboardEvent): boolean;
 	/** Hidden when false: the editor's policy does not offer it. */
 	available?(editor: SlideEditor): boolean;
 	/** Disabled when false: not possible in the current state. */
@@ -96,7 +98,10 @@ export function createActionRegistry(
 			return result;
 		},
 		match(event) {
-			return all.find((action) => action.shortcuts?.some((s) => pressed(s, event)));
+			return all.find(
+				(action) =>
+					action.shortcuts?.some((s) => pressed(s, event)) && (action.when?.(event) ?? true)
+			);
 		},
 		register(more) {
 			for (const action of more) {

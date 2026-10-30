@@ -148,7 +148,7 @@ export type PresentationStoreState = {
 	duplicateElements(ids: string[]): string[];
 	reorderElement(elementId: string, targetIndex: number): void;
 	/** Move a selection one stacking step, preserving relative order in one undo entry. */
-	reorderElements(ids: string[], direction: 'forward' | 'backward'): void;
+	reorderElements(ids: string[], direction: 'forward' | 'backward' | 'front' | 'back'): void;
 	toggleElementLocked(elementId: string): void;
 	toggleElementVisible(elementId: string): void;
 	updateText(
@@ -1043,19 +1043,28 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 			reorderElements(ids, direction) {
 				const slide = activeSlide();
 				if (!slide) return;
-				const selected = new SvelteSet(ids);
-				const order = slide.elements.map((element) => element.id);
+				const selected = new Set(ids);
+				let order = slide.elements.map((element) => element.id);
 				let changed = false;
-				const step = direction === 'forward' ? -1 : 1;
-				for (
-					let i = direction === 'forward' ? order.length - 2 : 1;
-					i >= 0 && i < order.length;
-					i += step
-				) {
-					const adjacent = i - step;
-					if (selected.has(order[i]!) && !selected.has(order[adjacent]!)) {
-						[order[i], order[adjacent]] = [order[adjacent]!, order[i]!];
-						changed = true;
+				if (direction === 'front' || direction === 'back') {
+					// Front/back keep the selection's own stacking order.
+					const picked = order.filter((id) => selected.has(id));
+					const rest = order.filter((id) => !selected.has(id));
+					const next = direction === 'front' ? [...rest, ...picked] : [...picked, ...rest];
+					changed = next.some((id, index) => id !== order[index]);
+					order = next;
+				} else {
+					const step = direction === 'forward' ? -1 : 1;
+					for (
+						let i = direction === 'forward' ? order.length - 2 : 1;
+						i >= 0 && i < order.length;
+						i += step
+					) {
+						const adjacent = i - step;
+						if (selected.has(order[i]!) && !selected.has(order[adjacent]!)) {
+							[order[i], order[adjacent]] = [order[adjacent]!, order[i]!];
+							changed = true;
+						}
 					}
 				}
 				if (!changed) return;

@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp, Eye, Lock } from 'lucide-svelte';
 import { alignToSlide } from '../alignmentGuides';
-import { elementGeometry } from '../transformGeometry';
+import { elementGeometry, rotateTransform } from '../transformGeometry';
 import { OK, type Action } from './registry';
 import type { SlideEditor } from '../createSlideEditor.svelte';
 
@@ -41,6 +41,50 @@ export const arrangeActions: Action[] = [
 			return OK;
 		}
 	},
+	{
+		id: 'arrange.bringToFront',
+		label: 'Bring to front',
+		icon: ArrowUp,
+		enabled: (editor) => canReorder(editor, 1),
+		run: (editor) => {
+			editor.doc.reorderElements(editor.selection.ids, 'front');
+			return OK;
+		}
+	},
+	{
+		id: 'arrange.sendToBack',
+		label: 'Send to back',
+		icon: ArrowDown,
+		enabled: (editor) => canReorder(editor, -1),
+		run: (editor) => {
+			editor.doc.reorderElements(editor.selection.ids, 'back');
+			return OK;
+		}
+	},
+	...(
+		[
+			['right', 90],
+			['left', -90]
+		] as const
+	).map(([side, degrees]): Action => ({
+		id: `element.rotate${side === 'right' ? 'Right' : 'Left'}`,
+		label: `Rotate ${side} 90°`,
+		enabled: (editor) =>
+			!editor.selection.editingId && editor.selection.elements.some((element) => !element.locked),
+		run: (editor) => {
+			editor.doc.commitTransforms(
+				Object.fromEntries(
+					editor.selection.elements
+						.filter((element) => !element.locked)
+						.map((element) => {
+							const turned = rotateTransform(elementGeometry(element, null), degrees);
+							return [element.id, { ...turned, rotation: ((turned.rotation % 360) + 360) % 360 }];
+						})
+				)
+			);
+			return OK;
+		}
+	})),
 	{
 		id: 'element.toggleLock',
 		label: 'Lock or unlock',

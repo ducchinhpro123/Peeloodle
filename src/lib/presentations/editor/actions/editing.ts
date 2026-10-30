@@ -2,6 +2,21 @@
 
 import { ClipboardPaste, Copy, Scissors, Redo2, Trash2, Undo2 } from 'lucide-svelte';
 import { OK, type Action } from './registry';
+import { clampPresentationZoom } from '../viewGeometry';
+
+/** Keys like Enter belong to a focused button or field; they act on the canvas only from there or the page. */
+const onCanvas = (event: KeyboardEvent) =>
+	event.target === document.body ||
+	(event.target instanceof HTMLElement &&
+		event.target.matches('[data-testid="presentation-canvas"]'));
+
+const stepSlide = (editor: SlideEditor, step: 1 | -1) => {
+	const slides = editor.doc.document?.slides ?? [];
+	const index = slides.findIndex((slide) => slide.id === editor.selection.activeSlide?.id);
+	const next = slides[index + step];
+	if (next) editor.selection.selectSlide(next.id);
+	return OK;
+};
 import type { SlideEditor } from '../createSlideEditor.svelte';
 
 /** Consecutive nudges share one undo entry until the keys rest for this long. */
@@ -9,12 +24,14 @@ const NUDGE_IDLE_MS = 800;
 const nudgeTimers = new WeakMap<SlideEditor, ReturnType<typeof setTimeout>>();
 
 function nudge(editor: SlideEditor, dx: number, dy: number) {
-	editor.doc.nudgeElements(editor.selection.ids, dx, dy, { historyGroup: 'nudge' });
+	// The group names the selection, so nudging a different selection is its own undo step.
+	const group = `nudge:${[...editor.selection.ids].sort().join(',')}`;
+	editor.doc.nudgeElements(editor.selection.ids, dx, dy, { historyGroup: group });
 	clearTimeout(nudgeTimers.get(editor));
 	nudgeTimers.set(
 		editor,
 		setTimeout(() => {
-			if (editor.doc.lastHistoryGroup === 'nudge') editor.doc.endHistoryGroup();
+			if (editor.doc.lastHistoryGroup === group) editor.doc.endHistoryGroup();
 		}, NUDGE_IDLE_MS)
 	);
 }
@@ -51,6 +68,67 @@ const targetId = (args: Record<string, unknown> | undefined, fallback: string | 
 
 export const editingActions: Action[] = [
 	...nudgeActions,
+	{
+		id: 'slide.previous',
+		label: 'Previous slide',
+		shortcuts: [{ key: 'PageUp' }],
+		enabled: (editor) =>
+			(editor.doc.document?.slides.findIndex(
+				(slide) => slide.id === editor.selection.activeSlide?.id
+			) ?? 0) > 0,
+		run: (editor) => stepSlide(editor, -1)
+	},
+	{
+		id: 'slide.next',
+		label: 'Next slide',
+		shortcuts: [{ key: 'PageDown' }],
+		enabled: (editor) => {
+			const slides = editor.doc.document?.slides ?? [];
+			const index = slides.findIndex((slide) => slide.id === editor.selection.activeSlide?.id);
+			return index !== -1 && index < slides.length - 1;
+		},
+		run: (editor) => stepSlide(editor, 1)
+	},
+	{
+		id: 'text.editSelected',
+		label: 'Edit text',
+		shortcuts: [{ key: 'Enter' }, { key: 'F2' }],
+		when: onCanvas,
+		enabled: (editor) =>
+			editor.selection.ids.length === 1 &&
+			editor.selection.primary?.kind === 'text' &&
+			!editor.selection.primary.locked &&
+			!editor.selection.editingId,
+		run: (editor) => {
+			editor.selection.startTextEdit(editor.selection.ids[0]!);
+			return OK;
+		}
+	},
+	{
+		id: 'view.zoomIn',
+		label: 'Zoom in',
+		shortcuts: [
+			{ key: '=', mod: true },
+			{ key: '+', mod: true, shift: true }
+		],
+		claimsShortcut: true,
+		enabled: (editor) => editor.doc.document !== null,
+		run: (editor) => {
+			editor.viewport.setZoom(clampPresentationZoom(editor.viewport.zoom * 1.25));
+			return OK;
+		}
+	},
+	{
+		id: 'view.zoomOut',
+		label: 'Zoom out',
+		shortcuts: [{ key: '-', mod: true }],
+		claimsShortcut: true,
+		enabled: (editor) => editor.doc.document !== null,
+		run: (editor) => {
+			editor.viewport.setZoom(clampPresentationZoom(editor.viewport.zoom * 0.8));
+			return OK;
+		}
+	},
 	{
 		id: 'history.undo',
 		label: 'Undo',

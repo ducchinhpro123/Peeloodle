@@ -199,6 +199,17 @@
 		konvaLayer.batchDraw();
 	});
 
+	// The pan limit holds after zooming and resizing too, not only while
+	// dragging: whatever changed, at least a quarter of the slide stays in view.
+	$effect(() => {
+		const page = presentation?.pageSize;
+		if (!page || size.width === 0 || size.height === 0) return;
+		const pan = view.pan;
+		const clamped = clampPresentationPan(size, page, view.zoom, pan);
+		if (Math.abs(clamped.x - pan.x) > 0.5 || Math.abs(clamped.y - pan.y) > 0.5)
+			view.setPan(clamped);
+	});
+
 	// Live gesture feedback on the rendering layer only: the group follows the
 	// pointer, and the committed document redraws it at its real geometry. A
 	// cancelled gesture puts the node back where the document says it is.
