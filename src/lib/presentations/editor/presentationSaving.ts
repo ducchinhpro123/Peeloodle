@@ -29,14 +29,16 @@ import type { PresentationAsset, PresentationDocument, Slide } from '../model/ty
 import type { PreparedPresentationImage } from './insertImageAsset';
 import {
 	imageReplaceRefusal,
-	planImageInsert,
-	planImageReplacement,
-	planSlideInsertion,
 	slideInsertionRefusal,
-	type PresentationStore,
 	type ImageInsertRefusalReason,
 	type SlideInsertionRefusalReason
-} from './store.svelte';
+} from './document/rules';
+import {
+	planImageInsert,
+	planImageReplacement,
+	planSlideInsertion
+} from './document/commands/images';
+import type { PresentationStore } from './store.svelte';
 
 export type PresentationSaveStatus = 'clean' | 'saving' | 'saved' | 'failed' | 'conflict';
 export type PresentationSaveState = { status: PresentationSaveStatus; message: string | null };
