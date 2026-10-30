@@ -24,7 +24,9 @@ import { editingActions } from './actions/editing';
 import { arrangeActions } from './actions/arrange';
 import { viewActions } from './actions/view';
 import { slideActions } from './actions/slides';
+import { contentActions } from './actions/content';
 import { createEditorUi, type EditorUi } from './ui.svelte';
+import type { EditorPolicy } from './persistence/policies';
 import { createEditorArtwork, type EditorArtwork } from './artwork.svelte';
 import { createEditorInserts, type EditorInserts, type EditorServices } from './inserts.svelte';
 
@@ -38,6 +40,10 @@ export type SlideEditor = {
 	actions: ActionRegistry;
 	/** Ribbon, task pane and context menu state for this editor. */
 	ui: EditorUi;
+	/** What this editor may do and how it words saving (local deck or template draft). */
+	policy: EditorPolicy;
+	/** Repositories that may arrive after mount. */
+	services: EditorServices;
 	/** The open deck's decoded pictures. */
 	artwork: EditorArtwork;
 	/** Text, shape, layout, picture and template-slide insertion. */
@@ -56,6 +62,7 @@ export type SlideEditorInput = {
 	conflictMessage?: string;
 	/** Repositories that may arrive after mount; read through getters. */
 	services: EditorServices;
+	policy: EditorPolicy;
 };
 
 export function createSlideEditor(input: SlideEditorInput): SlideEditor {
@@ -99,6 +106,8 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 		}),
 		messages,
 		ui: createEditorUi(selection),
+		policy: input.policy,
+		services: input.services,
 		artwork,
 		inserts: createEditorInserts({
 			repository,
@@ -118,7 +127,7 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 	};
 	editor.actions = createActionRegistry(
 		editor,
-		[...editingActions, ...arrangeActions, ...viewActions, ...slideActions],
+		[...editingActions, ...arrangeActions, ...viewActions, ...slideActions, ...contentActions],
 		(message) => messages.show(message)
 	);
 	return editor;

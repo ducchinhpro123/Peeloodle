@@ -1,56 +1,37 @@
 <script>
 	import { untrack } from 'svelte';
-	import { button, buttonIcon, buttonPrimary } from '#lib/ui/styles.js';
-	import {
-		ArrowLeft,
-		Home,
-		Copy,
-		GripVertical,
-		ImagePlus,
-		MonitorUp,
-		PenLine,
-		Plus,
-		Save,
-		ShieldAlert,
-		Trash2,
-		Type
-	} from 'lucide-svelte';
-	import Modal from '#lib/components/Modal.svelte';
-	import { shellHref } from '#lib/app/navigation.js';
+	import { button, buttonPrimary } from '#lib/ui/styles.js';
+	import { MonitorUp, ShieldAlert } from 'lucide-svelte';
 	import { isPersistenceError } from '#lib/persistence/repository.js';
 	import { isPresentationParseError } from '#lib/presentations/model/parse.js';
-	import { createPresetText } from '#lib/presentations/editor/textPresets.js';
-	import BuiltinLayoutDialog from './BuiltinLayoutDialog.svelte';
-	import SlideRailPreview from './SlideRailPreview.svelte';
 	import { ensurePresentationFonts } from '#lib/presentations/rendering/fonts.js';
 	import { createSlideEditor } from '#lib/presentations/editor/createSlideEditor.svelte.js';
 	import { setSlideEditor } from '#lib/presentations/editor/context.js';
 	import { attachKeymap } from '#lib/presentations/editor/actions/keymap.js';
-	import { attachFocusNavigation } from '#lib/presentations/editor/focusNavigation.js';
-	import { PRESENTATION_LIMITS } from '#lib/presentations/model/limits.js';
+	import {
+		attachEditorInteractions,
+		configureClipboardPaste,
+		openCanvasMenu,
+		SHORTCUT_EXEMPT
+	} from '#lib/presentations/editor/interactions.js';
 	import ActionMenu from './shell/ActionMenu.svelte';
-	import AlignMenu from './shell/AlignMenu.svelte';
-	import ActionButton from './shell/ActionButton.svelte';
 	import StatusBar from './shell/StatusBar.svelte';
 	import Ribbon from './shell/Ribbon.svelte';
-	import RibbonGroup from './shell/RibbonGroup.svelte';
-	import ShapeStyleInspector from './ShapeStyleInspector.svelte';
-	import ImageAdjustInspector from './ImageAdjustInspector.svelte';
 	import TaskPane from './panes/TaskPane.svelte';
 	import SlidePanel from './slides/SlidePanel.svelte';
+	import TitleBar from './shell/TitleBar.svelte';
+	import FormatPane from './panes/FormatPane.svelte';
+	import HomeTab from './shell/tabs/HomeTab.svelte';
+	import InsertTab from './shell/tabs/InsertTab.svelte';
+	import DesignTab from './shell/tabs/DesignTab.svelte';
+	import ArrangeTab from './shell/tabs/ArrangeTab.svelte';
+	import ViewTab from './shell/tabs/ViewTab.svelte';
+	import ShapeFormatTab from './shell/tabs/ShapeFormatTab.svelte';
+	import PictureFormatTab from './shell/tabs/PictureFormatTab.svelte';
 	import MessageBar from './shell/MessageBar.svelte';
-	import { OK } from '#lib/presentations/editor/actions/registry.js';
 	import { usePresentationOfflineReadiness } from '#lib/presentations/presentationOffline.svelte.js';
 	import ElementLayerList from './ElementLayerList.svelte';
-	import ElementGeometryInspector from './ElementGeometryInspector.svelte';
-	import TextFormatToolbar from './TextFormatToolbar.svelte';
-	import ThemeControls from './ThemeControls.svelte';
-	import StickerPickerDialog from './StickerPickerDialog.svelte';
-	import CatalogPickerDialog from './CatalogPickerDialog.svelte';
-	import ExportDialog from './ExportDialog.svelte';
-	import SaveAsTemplateDialog from './SaveAsTemplateDialog.svelte';
 	import { localPolicy } from '#lib/presentations/editor/persistence/policies.js';
-	import InsertTemplateDialog from './InsertTemplateDialog.svelte';
 
 	/**
 	 * @typedef {(
@@ -59,10 +40,6 @@
 	 *   event: PointerEvent
 	 * ) => void} GestureStarter
 	 */
-
-	// Native <dialog> elements have no role attribute, so they are listed by tag.
-	const SHORTCUT_EXEMPT =
-		'input, textarea, select, [contenteditable="true"], [role="slider"], [data-slot="slider"], [role="dialog"], dialog, [role="menu"]';
 
 	/** @type {{
 	 *   presentationId: string,
@@ -111,6 +88,7 @@
 		// would be wrong: the adapter's own wording is shown instead.
 		describeFailure: policy.describeFailure,
 		conflictMessage: policy.conflictMessage,
+		policy,
 		services: {
 			get stickers() {
 				return stickerRepository;
@@ -125,177 +103,22 @@
 	});
 	setSlideEditor(editor);
 	$effect(() => attachKeymap(editor.actions, window, { exempt: SHORTCUT_EXEMPT }));
+	configureClipboardPaste(editor);
 
-	const { ui, artwork, inserts, actions } = editor;
+	const { ui, artwork, inserts } = editor;
 	const {
 		doc,
 		selection,
-		viewport,
-		interaction,
 		persistence: saving,
 		exports: exportController,
 		text: textSession
 	} = editor;
-
-	const elementMenuItems = [
-		'clipboard.cut',
-		'clipboard.copy',
-		'clipboard.paste',
-		'element.duplicate',
-		'element.delete',
-		'arrange.bringForward',
-		'arrange.sendBackward',
-		'element.toggleLock',
-		'element.editText',
-		'element.replacePicture',
-		'element.format',
-		'align.left',
-		'align.center-horizontal',
-		'align.right',
-		'align.top',
-		'align.middle-vertical',
-		'align.bottom',
-		'distribute.horizontal',
-		'distribute.vertical'
-	];
-	/** @param {number} x @param {number} y @param {HTMLElement} trigger */
-	function openCanvasMenu(x, y, trigger) {
-		ui.menu.open({
-			x,
-			y,
-			trigger,
-			items: selection.ids.length
-				? elementMenuItems
-				: ['clipboard.paste', 'selection.selectAll', 'slide.add', 'slide.formatBackground'],
-			label: selection.ids.length ? 'Element actions' : 'Canvas actions'
-		});
-	}
-	/** @param {HTMLDivElement} root */
-	function editorInteractions(root) {
-		const detachFocus = attachFocusNavigation(root, () => {
-			ui.menu.close(false);
-			textSession.flush();
-			selection.endTextEdit();
-		});
-		/** @param {EventTarget | null} target */
-		const belongsToEditor = (target) =>
-			target instanceof Node && (target === document.body || root.contains(target));
-		/** @param {ClipboardEvent} event */
-		const paste = (event) => {
-			if (event.defaultPrevented || !belongsToEditor(event.target)) return;
-			if (event.target instanceof HTMLElement && event.target.closest(SHORTCUT_EXEMPT)) return;
-			if (!event.clipboardData) return;
-			event.preventDefault();
-			editor.messages.clear();
-			editor.clipboard.pasteData(event.clipboardData);
-		};
-		/** @param {MouseEvent | KeyboardEvent} event */
-		const menu = (event) => {
-			if (event.defaultPrevented || !(event.target instanceof HTMLElement)) return;
-			if (
-				event instanceof KeyboardEvent &&
-				event.key !== 'ContextMenu' &&
-				!(event.key === 'F10' && event.shiftKey)
-			)
-				return;
-			const slide = event.target.closest('.presentation-slide-card');
-			const layer = event.target.closest('.presentation-layer-item');
-			if (!slide && !layer) return;
-			event.preventDefault();
-			const trigger = /** @type {HTMLElement} */ (
-				slide ?? layer?.querySelector('.presentation-layer-select')
-			);
-			if (slide) {
-				const id = slide.getAttribute('data-slide-id');
-				if (id) selection.selectSlide(id);
-			} else {
-				const id = layer?.getAttribute('data-element-id');
-				if (id && !selection.ids.includes(id)) selection.select([id]);
-			}
-			const rect = trigger.getBoundingClientRect();
-			const pointer = event instanceof MouseEvent && event.button === 2;
-			ui.menu.open({
-				x: pointer ? event.clientX : rect.left + 12,
-				y: pointer ? event.clientY : rect.top + 12,
-				trigger,
-				items: slide
-					? ['slide.add', 'slide.duplicate', 'slide.delete', 'slide.moveUp', 'slide.moveDown']
-					: elementMenuItems,
-				label: slide ? 'Slide actions' : 'Element actions'
-			});
-		};
-		/** @param {ClipboardEvent} event */
-		const copy = (event) => {
-			if (event.defaultPrevented || !belongsToEditor(event.target)) return;
-			if (event.target instanceof HTMLElement && event.target.closest(SHORTCUT_EXEMPT)) return;
-			if (event.clipboardData && editor.clipboard.copy(event.type === 'cut', event.clipboardData))
-				event.preventDefault();
-		};
-		document.addEventListener('copy', copy);
-		document.addEventListener('cut', copy);
-		document.addEventListener('paste', paste);
-		root.addEventListener('contextmenu', menu);
-		root.addEventListener('keydown', menu);
-		return () => {
-			detachFocus();
-			document.removeEventListener('copy', copy);
-			document.removeEventListener('cut', copy);
-			document.removeEventListener('paste', paste);
-			root.removeEventListener('contextmenu', menu);
-			root.removeEventListener('keydown', menu);
-		};
-	}
-	editor.clipboard.configure({
-		text(value) {
-			const document = doc.document;
-			if (!document || !activeSlide) return;
-			try {
-				const id = doc.addElement(createPresetText('body', document.theme, value));
-				if (!id)
-					editor.messages.show('This slide cannot hold another text box. Remove an element first.');
-			} catch {
-				editor.messages.show('This text could not be pasted. Try copying a shorter passage.');
-			}
-		},
-		image(file) {
-			if (!policy.capabilities.localMedia) {
-				editor.messages.show('Paste images from the catalog when editing a template.');
-				return;
-			}
-			return inserts.addImage(file);
-		}
-	});
 
 	// Text formatting lives on Home, so starting a text edit brings Home forward.
 	$effect(() => {
 		if (selection.editingId) ui.ribbon.select('home');
 	});
 
-	editor.actions.register([
-		{
-			id: 'element.editText',
-			label: 'Edit text',
-			available: () => selection.ids.length === 1 && selection.primary?.kind === 'text',
-			enabled: () => !selection.primary?.locked && !selection.editingId,
-			run: () => {
-				if (selection.primary) selection.startTextEdit(selection.primary.id);
-				return OK;
-			}
-		},
-		{
-			id: 'element.replacePicture',
-			label: 'Replace picture',
-			available: () =>
-				policy.capabilities.localMedia &&
-				selection.ids.length === 1 &&
-				selection.primary?.kind === 'image',
-			enabled: () => !selection.primary?.locked && !inserts.inserting,
-			run: () => {
-				if (selection.primary) inserts.beginReplaceImage(selection.primary.id);
-				return OK;
-			}
-		}
-	]);
 	let saveState = $state.raw(saving.getStatus());
 	let exportState = $state.raw(exportController.getState());
 	// A deep link straight into the editor still prepares offline use for this session.
@@ -324,10 +147,6 @@
 		presentation?.slides.find((slide) => slide.id === selection.activeSlideId) ??
 			presentation?.slides[0]
 	);
-	const selectedElement = $derived(
-		activeSlide?.elements.find((element) => element.id === selection.ids[0])
-	);
-	const selectedText = $derived(selectedElement?.kind === 'text' ? selectedElement : null);
 	const saveReported = $derived(saveState.status === 'failed' || saveState.status === 'conflict');
 	const saveLabel = $derived(
 		saveState.status === 'conflict'
@@ -456,13 +275,6 @@
 		};
 	});
 
-	/** @param {import('#lib/presentations/templates/builtinLayouts.js').BuiltinLayoutId} layoutId */
-	function addBuiltinLayout(layoutId) {
-		const result = inserts.addBuiltinLayout(layoutId);
-		if (result.ok && result.slideId) ui.focusSlide(result.slideId);
-		return result;
-	}
-
 	async function requestSave() {
 		editor.messages.clearNotice();
 		const result = await saving.save();
@@ -585,69 +397,21 @@
 		</div>
 	</section>
 {:else}
-	<div class="presentation-editor" {@attach editorInteractions}>
-		<div class="presentation-editor-bar" role="banner" aria-label="Presentation title bar">
-			<div class="presentation-editor-heading">
-				<a class={buttonIcon} aria-label="Back to presentations" href={backhref} onclick={leave}
-					><ArrowLeft size={19} /></a
-				>
-				<a class={buttonIcon} aria-label="Home" title="StickerLab home" href={shellHref('/')}
-					><Home size={18} aria-hidden="true" /></a
-				>
-				<div class="presentation-editor-title">
-					<p>{policy.labels.heading}</p>
-					<h1 title={presentation.title}>{presentation.title}</h1>
-				</div>
-				<p class="presentation-local-status" role="status" title={saveState.message ?? undefined}>
-					{saveLabel}
-				</p>
-				<button type="button" class={button} onclick={requestSave}
-					><Save size={16} aria-hidden="true" /> {policy.labels.save}</button
-				>
-				{#if policy.capabilities.export}
-					<ExportDialog
-						{exportState}
-						offline={offline.snapshot}
-						reloadSafety={{ unsavedWork: editorState.dirty, saveFailed: saveReported }}
-						onexport={(format) => void exportController.exportDeck(format)}
-						oncancel={() => exportController.cancel()}
-					/>
-				{/if}
-				{#if catalogAdminRepository && policy.capabilities.saveAsTemplate}<SaveAsTemplateDialog
-						repository={catalogAdminRepository}
-						needsCollection={presentation.assets.some(
-							(asset) => asset.provenance.source !== 'catalog'
-						)}
-						defaultTitle={presentation.title}
-						onsave={(input) => inserts.saveAsTemplate(input)}
-					/>{/if}
-				{#if saveState.status === 'conflict' && policy.conflictRecovery === 'reload-draft'}
-					<button
-						type="button"
-						class={button}
-						title="Discard your changes and load the newest saved draft"
-						onclick={reloadDraft}>Reload draft (discards my changes)</button
-					>
-				{:else if saveState.status === 'conflict'}
-					<button
-						type="button"
-						class={button}
-						disabled={recovering}
-						onclick={() => void recoverFromConflict()}
-						>{recovering ? 'Keeping your copy…' : 'Keep my copy'}</button
-					>
-				{/if}
-				{#if saveReported && policy.capabilities.export}
-					<!-- Recovery guidance: if the local write fails, the work can still leave
-					     the browser as a backup archive. -->
-					<button
-						type="button"
-						class={button}
-						onclick={() => void exportController.exportDeck('backup')}>Download backup</button
-					>
-				{/if}
-			</div>
-		</div>
+	<div class="presentation-editor" {@attach (node) => attachEditorInteractions(node, editor)}>
+		<TitleBar
+			{backhref}
+			onleave={leave}
+			{saveLabel}
+			saveMessage={saveState.message}
+			saveStatus={saveState.status}
+			{saveReported}
+			onsave={requestSave}
+			{exportState}
+			offline={offline.snapshot}
+			{recovering}
+			onreloaddraft={reloadDraft}
+			onkeepcopy={() => void recoverFromConflict()}
+		/>
 		{#if policy.capabilities.localMedia}
 			<input
 				{@attach (/** @type {HTMLInputElement} */ node) => {
@@ -701,7 +465,7 @@
 				<PresentationCanvas
 					images={artwork.images}
 					session={textSession}
-					oncontextrequest={openCanvasMenu}
+					oncontextrequest={(x, y, trigger) => openCanvasMenu(editor, x, y, trigger)}
 				/>
 			{:else}
 				<!-- Holds the canvas track and its panel tone until Konva arrives. -->
@@ -716,34 +480,7 @@
 					onclose={() => ui.panes.set({ ...ui.panes.state, open: false })}
 				>
 					{#snippet format()}
-						<div class="presentation-inspector">
-							{#if activeSlide}
-								<label
-									class="presentation-slide-background [margin-block-end:var(--space-5)] [display:grid] [gap:var(--space-1)] [font-size:11px] [font-weight:700] [color:var(--muted)]"
-								>
-									Slide background
-									<input
-										type="color"
-										aria-label="Slide background"
-										value={activeSlide.background}
-										oninput={(event) =>
-											doc.setSlideBackground(activeSlide.id, event.currentTarget.value, {
-												historyGroup: `slide-bg:${activeSlide.id}`
-											})}
-										onblur={() => doc.endHistoryGroup()}
-									/>
-								</label>
-							{/if}
-							{#if selectedElement}
-								<p>{selectedElement.name || 'Element'}</p>
-								<ElementGeometryInspector
-									element={selectedElement}
-									onreplaceimage={policy.capabilities.localMedia
-										? inserts.beginReplaceImage
-										: undefined}
-								/>
-							{/if}
-						</div>
+						<FormatPane />
 					{/snippet}
 					{#snippet selection()}
 						<ElementLayerList />
@@ -762,194 +499,14 @@
 	</div>
 {/if}
 
-{#snippet slideActions()}
-	{#if presentation}
-		<button
-			type="button"
-			class={button}
-			aria-label="Add slide"
-			title="Add slide"
-			onclick={() => actions.run('slide.add')}
-			><Plus size={16} aria-hidden="true" /><span class="ribbon-label">Add slide</span></button
-		>
-		<BuiltinLayoutDialog
-			theme={presentation.theme}
-			disabled={inserts.inserting}
-			oninsert={addBuiltinLayout}
-		/>
-		<button
-			type="button"
-			class={button}
-			aria-label="Duplicate active slide"
-			title="Duplicate active slide"
-			onclick={() => actions.run('slide.duplicate')}
-			><Copy size={16} aria-hidden="true" /><span class="ribbon-label">Duplicate</span></button
-		>
-	{/if}
-{/snippet}
-
-{#snippet textButtons()}
-	<button type="button" class={button} onclick={() => inserts.addTextBox('heading')}
-		>Add heading</button
-	>
-	<button type="button" class={button} onclick={() => inserts.addTextBox('subheading')}
-		>Add subheading</button
-	>
-	<button type="button" class={button} onclick={() => inserts.addTextBox('body')}
-		>Add body text</button
-	>
-	<button type="button" class={button} onclick={() => inserts.addTextBox()}
-		><Type size={16} aria-hidden="true" /> Add text</button
-	>
-{/snippet}
-
-{#snippet shapePicker()}
-	<label class="presentation-add-shape"
-		><span class="sr-only">Add shape</span><select
-			aria-label="Add shape"
-			value=""
-			onchange={(event) => {
-				const kind =
-					/** @type {import('#lib/presentations/editor/shapeTools.js').ShapeInsertKind | ''} */ (
-						event.currentTarget.value
-					);
-				event.currentTarget.value = '';
-				if (kind) inserts.addShape(kind);
-			}}
-			><option value="">Add shape…</option><option value="rectangle">Rectangle</option><option
-				value="rounded-rectangle">Rounded rectangle</option
-			><option value="ellipse">Ellipse</option><option value="line">Line</option><option
-				value="arrow">Arrow</option
-			></select
-		></label
-	>
-{/snippet}
-
 {#snippet ribbonPanel(/** @type {string} */ tab)}
-	{#if tab === 'home'}
-		<RibbonGroup label="Undo">
-			<ActionButton id="history.undo" variant="icon" iconSize={17} />
-			<ActionButton id="history.redo" variant="icon" iconSize={17} />
-		</RibbonGroup>
-		<RibbonGroup label="Clipboard">
-			<ActionButton id="clipboard.paste" />
-			<ActionButton id="clipboard.copy" />
-			<ActionButton id="clipboard.cut" />
-			<ActionButton id="element.duplicate" />
-		</RibbonGroup>
-		<RibbonGroup label="Slides">{@render slideActions()}</RibbonGroup>
-		<RibbonGroup label="Font and paragraph">
-			{#if selection.editingId}<TextFormatToolbar session={textSession} />{:else}<p
-					class="ribbon-hint"
-				>
-					Double-click text to format it.
-				</p>{/if}
-		</RibbonGroup>
-		<RibbonGroup label="Drawing">
-			{@render shapePicker()}
-			{@render textButtons()}
-		</RibbonGroup>
-		{#if selectedText}
-			<RibbonGroup label="Editing">
-				<button
-					type="button"
-					class={button}
-					aria-label="Edit text: {selectedText.name}"
-					onclick={() => selection.startTextEdit(selectedText.id)}
-					><PenLine size={16} aria-hidden="true" /> Edit text</button
-				>
-			</RibbonGroup>
-		{/if}
-	{:else if tab === 'insert'}
-		<RibbonGroup label="Slides">
-			<button
-				type="button"
-				class={button}
-				aria-label="Add slide"
-				title="Add slide"
-				onclick={() => actions.run('slide.add')}
-				><Plus size={16} aria-hidden="true" /><span class="ribbon-label">Add slide</span></button
-			>
-			{#if catalogRepository && policy.capabilities.templateSlides}<InsertTemplateDialog
-					repository={catalogRepository}
-					disabled={inserts.inserting}
-					oninsert={inserts.insertTemplateLayout}
-				/>{/if}
-		</RibbonGroup>
-		<RibbonGroup label="Text">{@render textButtons()}</RibbonGroup>
-		<RibbonGroup label="Images">
-			{#if policy.capabilities.localMedia}
-				<button
-					type="button"
-					class={button}
-					disabled={inserts.inserting}
-					onclick={() => inserts.pickImage()}
-					><ImagePlus size={16} aria-hidden="true" />
-					{inserts.inserting ? 'Adding image…' : 'Add image'}</button
-				>
-			{/if}
-			{#if stickerRepository && policy.capabilities.stickers}<StickerPickerDialog
-					repository={stickerRepository}
-					disabled={inserts.inserting}
-					onpick={(projectId) => void inserts.addSticker(projectId)}
-				/>{/if}
-			{#if catalogRepository}<CatalogPickerDialog
-					repository={catalogRepository}
-					disabled={inserts.inserting}
-					oninsert={inserts.addCatalogImage}
-				/>{/if}
-		</RibbonGroup>
-		<RibbonGroup label="Illustrations">{@render shapePicker()}</RibbonGroup>
-	{:else if tab === 'design' && presentation}
-		<RibbonGroup label="Theme">
-			<ThemeControls
-				theme={presentation.theme}
-				onchange={(next) => doc.setTheme(next, { historyGroup: 'theme' })}
-				onendgroup={() => doc.endHistoryGroup()}
-			/>
-		</RibbonGroup>
-	{:else if tab === 'arrange'}
-		<RibbonGroup label="Align"><AlignMenu /></RibbonGroup>
-		<RibbonGroup label="Distribute"
-			><ActionButton id="distribute.horizontal" /><ActionButton
-				id="distribute.vertical"
-			/></RibbonGroup
-		>
-		<RibbonGroup label="Order">
-			<ActionButton id="arrange.bringForward" />
-			<ActionButton id="arrange.sendBackward" />
-			<ActionButton id="arrange.bringToFront" />
-			<ActionButton id="arrange.sendToBack" />
-		</RibbonGroup>
-		<RibbonGroup label="Rotate">
-			<ActionButton id="element.rotateLeft" />
-			<ActionButton id="element.rotateRight" />
-		</RibbonGroup>
-		<RibbonGroup label="Element">
-			<ActionButton id="element.toggleLock" />
-			<ActionButton id="element.toggleVisible" />
-			<ActionButton id="element.delete" />
-		</RibbonGroup>
-	{:else if tab === 'view'}
-		<RibbonGroup label="Zoom">
-			<ActionButton id="view.fit" />
-		</RibbonGroup>
-		<RibbonGroup label="Show">
-			<ActionButton id="view.formatPane" />
-			<ActionButton id="view.selectionPane" />
-		</RibbonGroup>
-		<RibbonGroup label="Ribbon">
-			<ActionButton id="view.toggleRibbon" />
-		</RibbonGroup>
-	{:else if tab === 'shapeFormat' && selectedElement?.kind === 'shape'}
-		<RibbonGroup label="Shape style"><ShapeStyleInspector element={selectedElement} /></RibbonGroup>
-	{:else if tab === 'pictureFormat' && selectedElement?.kind === 'image'}
-		<RibbonGroup label="Picture">
-			<ImageAdjustInspector
-				element={selectedElement}
-				onreplace={policy.capabilities.localMedia ? inserts.beginReplaceImage : undefined}
-			/>
-		</RibbonGroup>
+	{#if tab === 'home'}<HomeTab />
+	{:else if tab === 'insert'}<InsertTab />
+	{:else if tab === 'design'}<DesignTab />
+	{:else if tab === 'arrange'}<ArrangeTab />
+	{:else if tab === 'view'}<ViewTab />
+	{:else if tab === 'shapeFormat'}<ShapeFormatTab />
+	{:else if tab === 'pictureFormat'}<PictureFormatTab />
 	{/if}
 {/snippet}
 
@@ -993,132 +550,12 @@
 		outline: 3px solid var(--primary);
 		outline-offset: -3px;
 	}
-	/* Keep the deck title and Save fixed. Tools have their own single scrollable
-	 * row so selecting an element or changing the save status never shifts the slide. */
-	.presentation-editor-bar {
-		display: flex;
-		min-inline-size: 0;
-		flex-direction: column;
-		border-block-end: 1px solid var(--line);
-		background: var(--surface);
-	}
-	.presentation-editor-heading {
-		display: flex;
-		min-inline-size: 0;
-		min-block-size: 44px;
-		align-items: center;
-		gap: var(--space-2);
-		padding-block: 4px;
-		padding-inline: var(--space-2) var(--space-3);
-		background: oklch(0.968 0.003 264);
-	}
-	.presentation-editor-heading :global(.button) {
-		min-block-size: 32px;
-		padding-inline: 12px;
-		padding-block: 4px;
-		border-radius: 5px;
-		font-size: 13px;
-		box-shadow: none;
-	}
-	.presentation-editor-heading :global(.button.icon) {
-		inline-size: 32px;
-		padding: 0;
-	}
-	.ribbon-hint {
-		max-inline-size: 15ch;
-		margin: 0;
-		color: var(--muted);
-		font-size: 11px;
-		line-height: 1.35;
-	}
-	.presentation-editor-heading > .button {
-		flex: none;
-	}
-	.presentation-editor-title {
-		flex: 1 1 auto;
-		min-inline-size: 0;
-	}
-	.presentation-editor-title p {
-		margin: 0;
-	}
-	.presentation-editor-title h1 {
-		margin: 0;
-	}
-	.presentation-editor-title p {
-		color: var(--muted);
-		font-size: 10px;
-		font-weight: 800;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-	}
-	.presentation-editor-title h1 {
-		max-inline-size: 100%;
-		overflow: hidden;
-		font-size: 15px;
-		line-height: 1.25;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.presentation-local-status {
-		flex: 0 1 30ch;
-		min-inline-size: 0;
-		margin: 0;
-		overflow: hidden;
-		color: oklch(0.515677 0.11125 163.1262);
-		font-size: 12px;
-		font-weight: 800;
-		text-align: end;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.presentation-add-shape {
-		position: relative;
-	}
-	.presentation-add-shape select {
-		min-block-size: 30px;
-		padding-block-start: 6px;
-		padding-block-end: 6px;
-		padding-inline-start: 8px;
-		padding-inline-end: 8px;
-		border: 1px solid var(--line);
-		border-radius: 8px;
-		background: var(--surface);
-		color: var(--ink);
-		font-size: 12px;
-		font-weight: 700;
-	}
-	.presentation-slide-background input {
-		inline-size: 100%;
-		min-block-size: 36px;
-		padding: 2px;
-		border: 1px solid var(--line);
-		border-radius: 8px;
-		background: var(--surface);
-	}
-	.presentation-inspector {
-		min-block-size: 0;
-	}
 	.presentation-workspace {
 		position: relative;
 		grid-template-columns: 200px minmax(0, 1fr);
 	}
 	.presentation-workspace.has-task-pane {
 		grid-template-columns: 200px minmax(0, 1fr) 300px;
-	}
-	.presentation-inspector > p:not(.muted) {
-		margin-block-start: 0;
-		margin-block-end: var(--space-3);
-		margin-inline-start: 0;
-		margin-inline-end: 0;
-		color: var(--muted);
-		font-size: 11px;
-		font-weight: 800;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-	.presentation-inspector .muted {
-		margin-block-start: var(--space-5);
-		font-size: 12px;
 	}
 	@media (max-width: 1279px) {
 		.presentation-workspace {
@@ -1132,49 +569,8 @@
 		.presentation-editor {
 			min-block-size: calc(100dvh - var(--header-height));
 		}
-		.presentation-editor-heading {
-			display: grid;
-			grid-template-columns: 40px 40px minmax(0, 1fr) auto auto;
-			gap: 4px;
-			padding-inline: var(--space-2);
-		}
-		.presentation-editor-heading > a:nth-child(1) {
-			grid-column: 1;
-			grid-row: 1;
-		}
-		.presentation-editor-heading > a:nth-child(2) {
-			grid-column: 2;
-			grid-row: 1;
-		}
-		.presentation-editor-title {
-			grid-column: 3 / -1;
-			grid-row: 1;
-		}
-		.presentation-editor-title p {
-			display: none;
-		}
-		.presentation-local-status {
-			grid-column: 1 / 4;
-			grid-row: 2;
-			text-align: start;
-		}
-		.presentation-editor-heading > :global(button) {
-			grid-row: 2;
-		}
-		.presentation-editor-heading > .button {
-			min-block-size: 40px;
-			padding-inline: var(--space-2);
-		}
-		.presentation-local-status {
-			flex-basis: 7ch;
-			font-size: 10px;
-		}
 		.presentation-editor-actions {
 			padding-inline: var(--space-3);
-		}
-		.presentation-editor-title h1 {
-			display: block;
-			white-space: nowrap;
 		}
 		.presentation-mobile-note {
 			display: flex;
