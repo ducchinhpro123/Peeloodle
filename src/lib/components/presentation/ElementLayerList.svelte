@@ -3,7 +3,7 @@
 	import { buttonIcon } from '#lib/ui/styles.js';
 	import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Lock, Trash2, Unlock } from 'lucide-svelte';
 
-	const { doc, selection } = getSlideEditor();
+	const { doc, selection, actions } = getSlideEditor();
 	let state = $derived(doc.snapshot());
 	let slide = $derived(
 		state.document?.slides.find((item) => item.id === state.view.activeSlideId) ??
@@ -54,12 +54,14 @@
 					<button
 						class={buttonIcon}
 						aria-label={`Duplicate ${element.name}`}
-						onclick={() => doc.duplicateElement(element.id)}><Copy size={14} /></button
+						onclick={() => actions.run('element.duplicate', { elementId: element.id })}
+						><Copy size={14} /></button
 					>
 					<button
 						class={[buttonIcon, 'presentation-layer-delete']}
 						aria-label={`Delete ${element.name}`}
-						onclick={() => doc.removeElement(element.id)}><Trash2 size={14} /></button
+						onclick={() => actions.run('element.delete', { elementId: element.id })}
+						><Trash2 size={14} /></button
 					>
 				</div>
 			</li>

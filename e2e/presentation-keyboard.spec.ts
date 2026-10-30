@@ -6,7 +6,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { openBlankEditor, readStoredPresentationJson } from './presentations';
+import { addShape, openBlankEditor, readStoredPresentationJson } from './presentations';
 
 const stored = async (page: Page, id: string) =>
 	JSON.parse(await readStoredPresentationJson(page, id));
@@ -51,6 +51,64 @@ test('undo after deleting the active slide lands on that slide with nothing sele
 				deck: id,
 				restoredSlide: slideTwoId,
 				finalSlides: (await stored(page, id)).slides.length
+			},
+			null,
+			2
+		)
+	);
+});
+
+test('shortcuts do not fire inside inputs and dialogs', async ({ page }) => {
+	const id = await openBlankEditor(page);
+	await addShape(page, 'Rectangle');
+	await expect.poll(async () => (await stored(page, id)).slides[0]?.elements.length).toBe(1);
+	const before = await stored(page, id);
+
+	const x = page.locator('.presentation-inspector').getByLabel('X position');
+	await x.focus();
+	await page.keyboard.press('d');
+	await page.keyboard.press('Delete');
+	await page.keyboard.press('Control+d');
+	await page.keyboard.press('Control+z');
+	await x.press('Escape');
+	await page.getByRole('button', { name: 'Theme', exact: true }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog).toBeVisible();
+	await dialog.getByLabel('Heading font').focus();
+	await page.keyboard.press('Delete');
+	await page.keyboard.press('Control+d');
+
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(1);
+	const after = await stored(page, id);
+	expect(after.slides[0].elements).toHaveLength(1);
+	expect(after.slides[0].elements[0].id).toBe(before.slides[0].elements[0].id);
+});
+
+test('toolbar and keyboard run the same action', async ({ page }) => {
+	const id = await openBlankEditor(page);
+	await addShape(page, 'Rectangle');
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(1);
+
+	await page.keyboard.press('Control+d');
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(2);
+	await page.getByRole('button', { name: 'Duplicate Rectangle', exact: true }).click();
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(3);
+	await expect.poll(async () => (await stored(page, id)).slides[0]?.elements.length).toBe(3);
+
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(2);
+	await page.keyboard.press('Control+z');
+	await expect(page.locator('.presentation-layer-item')).toHaveCount(1);
+	await expect.poll(async () => (await stored(page, id)).slides[0]?.elements.length).toBe(1);
+
+	await mkdir('proofs/out', { recursive: true });
+	await writeFile(
+		'proofs/out/slide-editor-stage2-actions-report.json',
+		JSON.stringify(
+			{
+				test: 'toolbar and keyboard run the same action',
+				deck: id,
+				elementsAfterUndo: (await stored(page, id)).slides[0].elements.length
 			},
 			null,
 			2

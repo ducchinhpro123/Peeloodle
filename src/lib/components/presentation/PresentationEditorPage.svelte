@@ -3,18 +3,15 @@
 	import {
 		ArrowLeft,
 		Copy,
-		ClipboardPaste,
 		GripVertical,
 		ImagePlus,
 		MonitorUp,
 		PenLine,
 		Plus,
-		Redo2,
 		Save,
 		ShieldAlert,
 		Trash2,
-		Type,
-		Undo2
+		Type
 	} from 'lucide-svelte';
 	import Modal from '#lib/components/Modal.svelte';
 	import { isPersistenceError } from '#lib/persistence/repository.js';
@@ -33,6 +30,8 @@
 	import { createSlideShape } from '#lib/presentations/editor/shapeTools.js';
 	import { createSlideEditor } from '#lib/presentations/editor/createSlideEditor.svelte.js';
 	import { setSlideEditor } from '#lib/presentations/editor/context.js';
+	import { attachKeymap } from '#lib/presentations/editor/actions/keymap.js';
+	import ActionButton from './shell/ActionButton.svelte';
 	import { usePresentationOfflineReadiness } from '#lib/presentations/presentationOffline.svelte.js';
 	import ElementLayerList from './ElementLayerList.svelte';
 	import ElementGeometryInspector from './ElementGeometryInspector.svelte';
@@ -111,6 +110,7 @@
 		conflictMessage: policy.conflictMessage
 	});
 	setSlideEditor(editor);
+	$effect(() => attachKeymap(editor.actions, window, { exempt: SHORTCUT_EXEMPT }));
 	const {
 		doc,
 		selection,
@@ -160,8 +160,6 @@
 	let themeOpener = $state(null);
 	let propertiesOpen = $state(false);
 	let themeOpen = $state(false);
-	/** @type {{ documentId: string, slideId: string, element: import('#lib/presentations/model/types.js').Element, pastesBySlide: Record<string, number> } | null} */
-	let copiedElement = $state.raw(null);
 	/** @type {string | null} */
 	let focusSlideId = $state(null);
 	/** @type {{ id: string, pointerId: number, x: number, y: number } | null} */
@@ -188,8 +186,6 @@
 		activeSlide?.elements.find((element) => element.id === selection.ids[0])
 	);
 	const selectedText = $derived(selectedElement?.kind === 'text' ? selectedElement : null);
-	const canUndo = $derived(editorState.past.length > 0);
-	const canRedo = $derived(editorState.future.length > 0);
 	const saveReported = $derived(saveState.status === 'failed' || saveState.status === 'conflict');
 	const saveLabel = $derived(
 		saveState.status === 'conflict'
@@ -389,45 +385,6 @@
 		if (!activeId) return;
 		const id = doc.duplicateSlide(activeId);
 		if (id) focusSlideId = id;
-	}
-
-	function copySelectedElement() {
-		textSession.flush();
-		const state = doc.snapshot();
-		const slide = state.document?.slides.find((item) => item.id === state.view.activeSlideId);
-		const element = slide?.elements.find((item) => item.id === state.view.selectedElementIds[0]);
-		if (!state.document || !slide || !element || state.view.editingElementId) return;
-		copiedElement = {
-			documentId: state.document.id,
-			slideId: slide.id,
-			element: structuredClone(element),
-			pastesBySlide: {}
-		};
-	}
-
-	function pasteCopiedElement() {
-		const clipboard = copiedElement;
-		const state = doc.snapshot();
-		if (!clipboard || !state.document || clipboard.documentId !== state.document.id) return;
-		const slideId = state.view.activeSlideId;
-		if (!slideId || state.view.editingElementId) return;
-		const previousPastes = clipboard.pastesBySlide[slideId] ?? 0;
-		const offset = 24 * (previousPastes + (slideId === clipboard.slideId ? 1 : 0));
-		try {
-			const id = state.pasteElement(clipboard.element, offset);
-			if (!id) {
-				insertError =
-					'The element could not be pasted. Check the slide capacity and that its artwork is still in this deck.';
-				return;
-			}
-			insertError = null;
-			copiedElement = {
-				...clipboard,
-				pastesBySlide: { ...clipboard.pastesBySlide, [slideId]: previousPastes + 1 }
-			};
-		} catch {
-			insertError = 'The element could not be pasted into this slide.';
-		}
 	}
 
 	/**
@@ -781,69 +738,9 @@
 	}
 
 	/** @param {KeyboardEvent} event */
-	function handleKeydown(event) {
-		if (event.defaultPrevented) return;
-		const target = event.target;
-		if (target instanceof HTMLElement && target.closest(SHORTCUT_EXEMPT)) return;
-		if (
-			(event.key === 'Delete' || event.key === 'Backspace') &&
-			!event.metaKey &&
-			!event.ctrlKey &&
-			!event.altKey &&
-			!event.shiftKey
-		) {
-			const state = doc.snapshot();
-			const id = state.view.selectedElementIds[0];
-			if (!id || state.view.editingElementId) return;
-			event.preventDefault();
-			state.removeElement(id);
-			return;
-		}
-		if (event.key === 'Escape' && !event.metaKey && !event.ctrlKey && !event.altKey) {
-			const state = doc.snapshot();
-			if (state.view.selectedElementIds.length === 0) return;
-			event.preventDefault();
-			state.selectElements([]);
-			return;
-		}
-		if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
-		const key = event.key.toLowerCase();
-		const state = doc.snapshot();
-		if (
-			key === 'c' &&
-			!event.shiftKey &&
-			state.view.selectedElementIds[0] &&
-			!state.view.editingElementId
-		) {
-			event.preventDefault();
-			copySelectedElement();
-			return;
-		}
-		if (
-			key === 'v' &&
-			!event.shiftKey &&
-			copiedElement?.documentId === state.document?.id &&
-			!state.view.editingElementId
-		) {
-			event.preventDefault();
-			pasteCopiedElement();
-			return;
-		}
-		if (key === 'd' && !event.shiftKey && state.view.selectedElementIds[0]) {
-			event.preventDefault();
-			state.duplicateElement(state.view.selectedElementIds[0]);
-			return;
-		}
-		if (key !== 'z' && key !== 'y') return;
-		event.preventDefault();
-		// Ctrl/Cmd+Shift+Z and Ctrl+Y both redo; plain Ctrl/Cmd+Z undoes.
-		if (key === 'y' || event.shiftKey) state.redo();
-		else state.undo();
-	}
 </script>
 
 <svelte:window
-	onkeydown={handleKeydown}
 	onbeforeunload={(event) => {
 		const state = doc.snapshot();
 		if (!state.dirty || state.document?.id !== presentationId) return;
@@ -913,40 +810,10 @@
 				>
 			</div>
 			<div class="presentation-editor-actions" role="group" aria-label="Presentation tools">
-				<button
-					type="button"
-					class={buttonIcon}
-					aria-label="Undo"
-					title="Undo (Ctrl+Z)"
-					disabled={!canUndo}
-					onclick={() => doc.undo()}><Undo2 size={17} aria-hidden="true" /></button
-				>
-				<button
-					type="button"
-					class={buttonIcon}
-					aria-label="Redo"
-					title="Redo (Ctrl+Shift+Z)"
-					disabled={!canRedo}
-					onclick={() => doc.redo()}><Redo2 size={17} aria-hidden="true" /></button
-				>
-				<button
-					type="button"
-					class={button}
-					aria-label="Copy element"
-					title="Copy element (Ctrl+C)"
-					disabled={!selectedElement || !!selection.editingId}
-					onclick={copySelectedElement}><Copy size={16} aria-hidden="true" /> Copy</button
-				>
-				<button
-					type="button"
-					class={button}
-					aria-label="Paste element"
-					title="Paste element (Ctrl+V)"
-					disabled={!copiedElement ||
-						copiedElement.documentId !== presentation.id ||
-						!!selection.editingId}
-					onclick={pasteCopiedElement}><ClipboardPaste size={16} aria-hidden="true" /> Paste</button
-				>
+				<ActionButton id="history.undo" variant="icon" iconSize={17} />
+				<ActionButton id="history.redo" variant="icon" iconSize={17} />
+				<ActionButton id="clipboard.copy" />
+				<ActionButton id="clipboard.paste" />
 				{#if policy.capabilities.export}
 					<ExportDialog
 						{exportState}
@@ -1100,7 +967,9 @@
 				</p>{/if}
 		</header>
 		{#if selection.editingId}<TextFormatToolbar session={textSession} />{/if}
-		{#if insertError}<p class="asset-error" role="alert">{insertError}</p>{/if}
+		{#if insertError || editor.messages.current}<p class="asset-error" role="alert">
+				{insertError ?? editor.messages.current}
+			</p>{/if}
 		<div class="presentation-mobile-note [display:none]">
 			<MonitorUp size={18} aria-hidden="true" />
 			<span

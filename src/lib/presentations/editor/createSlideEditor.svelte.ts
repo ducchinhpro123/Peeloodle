@@ -17,12 +17,19 @@ import { createTextEditSession, type TextEditSession } from './textEditSession.s
 import { createSelection, type SelectionState } from './selection.svelte';
 import { createViewport, type ViewportState } from './viewport.svelte';
 import { createInteraction, type InteractionState } from './interaction.svelte';
+import { createClipboard, type Clipboard } from './clipboard.svelte';
+import { createMessages, type MessageBar } from './messages.svelte';
+import { createActionRegistry, type ActionRegistry } from './actions/registry';
+import { editingActions } from './actions/editing';
 
 export type SlideEditor = {
 	doc: DocumentState;
 	selection: SelectionState;
 	viewport: ViewportState;
 	interaction: InteractionState;
+	clipboard: Clipboard;
+	messages: MessageBar;
+	actions: ActionRegistry;
 	/** The editor that opens a text session owns it; saves and exports flush through it. */
 	text: TextEditSession;
 	persistence: PresentationSaving;
@@ -62,13 +69,23 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 			};
 		}
 	});
-	return {
+	const selection = createSelection(doc);
+	const messages = createMessages();
+	const editor: SlideEditor = {
 		doc,
-		selection: createSelection(doc),
+		selection,
 		viewport: createViewport(doc),
 		interaction: createInteraction(doc),
+		clipboard: createClipboard({ doc, selection, text }),
+		messages,
+		// Assigned below: actions receive the finished editor.
+		actions: undefined!,
 		text,
 		persistence,
 		exports
 	};
+	editor.actions = createActionRegistry(editor, editingActions, (message) =>
+		messages.show(message)
+	);
+	return editor;
 }
