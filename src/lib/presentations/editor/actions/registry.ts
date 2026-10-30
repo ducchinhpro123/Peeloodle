@@ -43,6 +43,8 @@ export type ActionRegistry = {
 	run(id: string, args?: Record<string, unknown>): ActionResult;
 	/** The action whose shortcut this key event presses, if any. */
 	match(event: KeyboardEvent): Action | undefined;
+	/** Adds actions whose behaviour belongs to the page (dialogs, file pickers). */
+	register(more: Action[]): void;
 };
 
 const isApple = () =>
@@ -73,7 +75,8 @@ export function createActionRegistry(
 	actions: Action[],
 	report: (message: string) => void
 ): ActionRegistry {
-	const byId = new Map(actions.map((action) => [action.id, action]));
+	const all = [...actions];
+	const byId = new Map(all.map((action) => [action.id, action]));
 	const get = (id: string) => {
 		const action = byId.get(id);
 		if (!action) throw new Error(`Unknown editor action: ${id}`);
@@ -93,7 +96,13 @@ export function createActionRegistry(
 			return result;
 		},
 		match(event) {
-			return actions.find((action) => action.shortcuts?.some((s) => pressed(s, event)));
+			return all.find((action) => action.shortcuts?.some((s) => pressed(s, event)));
+		},
+		register(more) {
+			for (const action of more) {
+				byId.set(action.id, action);
+				all.push(action);
+			}
 		}
 	};
 }

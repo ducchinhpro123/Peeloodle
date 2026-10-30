@@ -64,10 +64,10 @@ test('keeps a compact editor bar while selecting text at laptop and tablet width
 		expect(heightAfter).toBeLessThanOrEqual(120);
 		expect(Math.abs(heightAfter - heightBefore)).toBeLessThanOrEqual(2);
 		await page.screenshot({ path: testInfo.outputPath(`compact-editor-${width}.png`) });
-		// Less-used actions remain reachable beyond the visible edge of the tool strip.
-		await page.getByRole('button', { name: 'Theme', exact: true }).click();
-		await expect(page.getByRole('dialog', { name: 'Presentation theme' })).toBeVisible();
-		await page.keyboard.press('Escape');
+		// Less-used actions remain reachable through their ribbon tab.
+		await page.getByRole('tab', { name: 'Design', exact: true }).click();
+		await expect(page.getByLabel('Heading font')).toBeVisible();
+		await page.getByRole('tab', { name: 'Home', exact: true }).click();
 		await page.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect(page.getByRole('dialog', { name: 'Export presentation' })).toBeVisible();
 		await page.keyboard.press('Escape');

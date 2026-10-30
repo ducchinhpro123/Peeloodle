@@ -71,10 +71,10 @@ test('shortcuts do not fire inside inputs and dialogs', async ({ page }) => {
 	await page.keyboard.press('Control+d');
 	await page.keyboard.press('Control+z');
 	await x.press('Escape');
-	await page.getByRole('button', { name: 'Theme', exact: true }).click();
-	const dialog = page.getByRole('dialog');
+	await page.getByRole('button', { name: 'Add layout', exact: true }).click();
+	const dialog = page.getByRole('dialog', { name: 'Add a slide layout' });
 	await expect(dialog).toBeVisible();
-	await dialog.getByLabel('Heading font').focus();
+	await dialog.getByRole('button', { name: 'Two columns', exact: true }).focus();
 	await page.keyboard.press('Delete');
 	await page.keyboard.press('Control+d');
 

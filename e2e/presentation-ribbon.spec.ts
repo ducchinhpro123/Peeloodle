@@ -47,3 +47,42 @@ test('status bar zoom controls keep their names', async ({ page }) => {
 		)
 	);
 });
+
+test('ribbon tabs work like PowerPoint', async ({ page }) => {
+	await openBlankEditor(page);
+	const ribbon = page.getByRole('tablist', { name: 'Ribbon' });
+	const tab = (name: string) => ribbon.getByRole('tab', { name, exact: true });
+	for (const name of ['Home', 'Insert', 'Design', 'Arrange', 'View'])
+		await expect(tab(name)).toBeVisible();
+	await expect(tab('Home')).toHaveAttribute('aria-selected', 'true');
+	await expect(page.getByRole('tabpanel', { name: 'Home' })).toBeVisible();
+	await expect(tab('Shape Format')).toHaveCount(0);
+
+	// Arrow keys move focus between tabs; Enter opens the focused one.
+	await tab('Home').focus();
+	await page.keyboard.press('ArrowRight');
+	await expect(tab('Insert')).toBeFocused();
+	await page.keyboard.press('Enter');
+	await expect(tab('Insert')).toHaveAttribute('aria-selected', 'true');
+	await expect(page.getByRole('button', { name: 'Add image', exact: true })).toBeVisible();
+
+	await tab('Design').click();
+	await expect(page.getByLabel('Heading font')).toBeVisible();
+
+	// A contextual tab appears only while a shape is selected, and falls back to
+	// Home when its selection disappears.
+	await tab('Home').click();
+	await page.getByLabel('Add shape', { exact: true }).selectOption('Rectangle');
+	await expect(tab('Shape Format')).toBeVisible();
+	await tab('Shape Format').click();
+	await expect(page.getByLabel('Shape fill color')).toBeVisible();
+	await page.keyboard.press('Control+z');
+	await expect(tab('Shape Format')).toHaveCount(0);
+	await expect(tab('Home')).toHaveAttribute('aria-selected', 'true');
+
+	// Ctrl+F1 collapses the ribbon to its tabs and restores it.
+	await page.keyboard.press('Control+F1');
+	await expect(page.getByRole('tabpanel')).toHaveCount(0);
+	await page.keyboard.press('Control+F1');
+	await expect(page.getByRole('tabpanel', { name: 'Home' })).toBeVisible();
+});

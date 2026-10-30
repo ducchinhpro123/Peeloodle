@@ -35,6 +35,11 @@
 	import { attachKeymap } from '#lib/presentations/editor/actions/keymap.js';
 	import ActionButton from './shell/ActionButton.svelte';
 	import StatusBar from './shell/StatusBar.svelte';
+	import Ribbon from './shell/Ribbon.svelte';
+	import RibbonGroup from './shell/RibbonGroup.svelte';
+	import ShapeStyleInspector from './ShapeStyleInspector.svelte';
+	import ImageAdjustInspector from './ImageAdjustInspector.svelte';
+	import { OK } from '#lib/presentations/editor/actions/registry.js';
 	import { usePresentationOfflineReadiness } from '#lib/presentations/presentationOffline.svelte.js';
 	import ElementLayerList from './ElementLayerList.svelte';
 	import ElementGeometryInspector from './ElementGeometryInspector.svelte';
@@ -61,8 +66,9 @@
 	 * ) => void} GestureStarter
 	 */
 
+	// Native <dialog> elements have no role attribute, so they are listed by tag.
 	const SHORTCUT_EXEMPT =
-		'input, textarea, select, [contenteditable="true"], [role="slider"], [data-slot="slider"], [role="dialog"]';
+		'input, textarea, select, [contenteditable="true"], [role="slider"], [data-slot="slider"], [role="dialog"], dialog';
 
 	/** @type {{
 	 *   presentationId: string,
@@ -114,6 +120,7 @@
 	});
 	setSlideEditor(editor);
 	$effect(() => attachKeymap(editor.actions, window, { exempt: SHORTCUT_EXEMPT }));
+
 	const {
 		doc,
 		selection,
@@ -123,6 +130,63 @@
 		exports: exportController,
 		text: textSession
 	} = editor;
+
+	let ribbonTab = $state('home');
+	let ribbonCollapsed = $state(false);
+	/** Contextual tabs exist only while their kind of element is selected. */
+	const ribbonTabs = $derived([
+		{ id: 'home', label: 'Home' },
+		{ id: 'insert', label: 'Insert' },
+		{ id: 'design', label: 'Design' },
+		{ id: 'arrange', label: 'Arrange' },
+		{ id: 'view', label: 'View' },
+		...(selection.primary?.kind === 'shape'
+			? [{ id: 'shapeFormat', label: 'Shape Format', contextual: true }]
+			: []),
+		...(selection.primary?.kind === 'image'
+			? [{ id: 'pictureFormat', label: 'Picture Format', contextual: true }]
+			: [])
+	]);
+
+	/** @param {string} id A tab id, or `toggle:<id>` from a double-click. */
+	function selectRibbonTab(id) {
+		if (id.startsWith('toggle:')) {
+			ribbonTab = id.slice('toggle:'.length);
+			ribbonCollapsed = !ribbonCollapsed;
+			return;
+		}
+		ribbonTab = id;
+		ribbonCollapsed = false;
+	}
+
+	// Text formatting lives on Home, so starting a text edit brings Home forward.
+	$effect(() => {
+		if (selection.editingId) ribbonTab = 'home';
+	});
+
+	editor.actions.register([
+		{
+			id: 'view.fit',
+			label: 'Fit to window',
+			enabled: () => true,
+			run: () => {
+				viewport.setZoom(1);
+				viewport.setPan({ x: 0, y: 0 });
+				return OK;
+			}
+		},
+		{
+			id: 'view.toggleRibbon',
+			label: 'Collapse or expand the ribbon',
+			shortLabel: 'Collapse ribbon',
+			shortcuts: [{ key: 'F1', mod: true }],
+			enabled: () => true,
+			run: () => {
+				ribbonCollapsed = !ribbonCollapsed;
+				return OK;
+			}
+		}
+	]);
 	let saveState = $state.raw(saving.getStatus());
 	let exportState = $state.raw(exportController.getState());
 	// A deep link straight into the editor still prepares offline use for this session.
@@ -157,10 +221,7 @@
 	let imageInput = $state(null);
 	/** @type {HTMLButtonElement | null} */
 	let propertiesOpener = $state(null);
-	/** @type {HTMLButtonElement | null} */
-	let themeOpener = $state(null);
 	let propertiesOpen = $state(false);
-	let themeOpen = $state(false);
 	/** @type {string | null} */
 	let focusSlideId = $state(null);
 	/** @type {{ id: string, pointerId: number, x: number, y: number } | null} */
@@ -816,12 +877,6 @@
 				<button type="button" class={button} onclick={requestSave}
 					><Save size={16} aria-hidden="true" /> {policy.labels.save}</button
 				>
-			</div>
-			<div class="presentation-editor-actions" role="group" aria-label="Presentation tools">
-				<ActionButton id="history.undo" variant="icon" iconSize={17} />
-				<ActionButton id="history.redo" variant="icon" iconSize={17} />
-				<ActionButton id="clipboard.copy" />
-				<ActionButton id="clipboard.paste" />
 				{#if policy.capabilities.export}
 					<ExportDialog
 						{exportState}
@@ -831,62 +886,6 @@
 						oncancel={() => exportController.cancel()}
 					/>
 				{/if}
-				<label class="presentation-add-shape"
-					><span class="sr-only">Add shape</span><select
-						aria-label="Add shape"
-						value=""
-						onchange={(event) => {
-							const kind =
-								/** @type {import('#lib/presentations/editor/shapeTools.js').ShapeInsertKind | ''} */ (
-									event.currentTarget.value
-								);
-							event.currentTarget.value = '';
-							if (kind) addShape(kind);
-						}}
-						><option value="">Add shape…</option><option value="rectangle">Rectangle</option><option
-							value="rounded-rectangle">Rounded rectangle</option
-						><option value="ellipse">Ellipse</option><option value="line">Line</option><option
-							value="arrow">Arrow</option
-						></select
-					></label
-				>
-				<span class="presentation-add-text">
-					<button type="button" class={button} onclick={() => addTextBox('heading')}
-						>Add heading</button
-					>
-					<button type="button" class={button} onclick={() => addTextBox('subheading')}
-						>Add subheading</button
-					>
-					<button type="button" class={button} onclick={() => addTextBox('body')}
-						>Add body text</button
-					>
-					<button type="button" class={button} onclick={() => addTextBox()}
-						><Type size={16} aria-hidden="true" /> Add text</button
-					>
-				</span>
-				{#if policy.capabilities.localMedia}
-					<button
-						type="button"
-						class={button}
-						disabled={inserting}
-						onclick={() => {
-							replaceTargetId = null;
-							imageInput?.click();
-						}}
-						><ImagePlus size={16} aria-hidden="true" />
-						{inserting ? 'Adding image…' : 'Add image'}</button
-					>
-				{/if}
-				{#if catalogRepository}<CatalogPickerDialog
-						repository={catalogRepository}
-						disabled={inserting}
-						oninsert={addCatalogImage}
-					/>{/if}
-				{#if catalogRepository && policy.capabilities.templateSlides}<InsertTemplateDialog
-						repository={catalogRepository}
-						disabled={inserting}
-						oninsert={insertTemplateLayout}
-					/>{/if}
 				{#if catalogAdminRepository && policy.capabilities.saveAsTemplate}<SaveAsTemplateDialog
 						repository={catalogAdminRepository}
 						needsCollection={presentation.assets.some(
@@ -895,52 +894,6 @@
 						defaultTitle={presentation.title}
 						onsave={(input) => saveAsTemplate(input)}
 					/>{/if}
-				{#if stickerRepository && policy.capabilities.stickers}<StickerPickerDialog
-						repository={stickerRepository}
-						disabled={inserting}
-						onpick={(projectId) => void addSticker(projectId)}
-					/>{/if}
-				{#if policy.capabilities.localMedia}
-					<input
-						bind:this={imageInput}
-						class="sr-only"
-						type="file"
-						accept="image/png,image/jpeg,image/webp"
-						aria-label="Choose image file"
-						data-testid="presentation-image-input"
-						onchange={(event) => {
-							const input = event.currentTarget;
-							const file = input.files?.[0];
-							input.value = '';
-							if (!file) return;
-							if (replaceTargetId) void replacePhoto(file);
-							else void addImage(file);
-						}}
-					/>
-				{/if}
-				{#if selectedText}<button
-						type="button"
-						class={button}
-						aria-label="Edit text: {selectedText.name}"
-						onclick={() => selection.startTextEdit(selectedText.id)}
-						><PenLine size={16} aria-hidden="true" /> Edit text</button
-					>{/if}
-				{#if selectedElement}
-					<!-- The wide pane is hidden from 1150px down, so the same numeric fields
-					     stay reachable through the shared dialog at tablet and phone widths. -->
-					<button
-						type="button"
-						class={[button, 'properties-toggle']}
-						bind:this={propertiesOpener}
-						onclick={() => (propertiesOpen = true)}>Element properties</button
-					>
-				{/if}
-				<button
-					type="button"
-					class={button}
-					bind:this={themeOpener}
-					onclick={() => (themeOpen = true)}>Theme</button
-				>
 				{#if saveState.status === 'conflict' && policy.conflictRecovery === 'reload-draft'}
 					<button
 						type="button"
@@ -974,7 +927,31 @@
 					{editorNote ?? saveState.message ?? saveStatus}
 				</p>{/if}
 		</div>
-		{#if selection.editingId}<TextFormatToolbar session={textSession} />{/if}
+		{#if policy.capabilities.localMedia}
+			<input
+				bind:this={imageInput}
+				class="sr-only"
+				type="file"
+				accept="image/png,image/jpeg,image/webp"
+				aria-label="Choose image file"
+				data-testid="presentation-image-input"
+				onchange={(event) => {
+					const input = event.currentTarget;
+					const file = input.files?.[0];
+					input.value = '';
+					if (!file) return;
+					if (replaceTargetId) void replacePhoto(file);
+					else void addImage(file);
+				}}
+			/>
+		{/if}
+		<Ribbon
+			tabs={ribbonTabs}
+			active={ribbonTab}
+			collapsed={ribbonCollapsed}
+			onselect={selectRibbonTab}
+			panel={ribbonPanel}
+		/>
 		{#if editor.messages.current}<p class="asset-error" role="alert">
 				{editor.messages.current}
 			</p>{/if}
@@ -998,30 +975,6 @@
 					>Drag to reorder. On touchscreens, use the handle at the top left of a slide. Or focus the
 					slide and press Alt plus the up or down arrow key.</span
 				>
-				<div
-					class="presentation-slide-rail-actions [margin-block-end:var(--space-3)] [display:grid] [gap:var(--space-2)]"
-				>
-					<button
-						type="button"
-						class={button}
-						aria-label="Add slide"
-						title="Add slide"
-						onclick={addSlide}><Plus size={16} aria-hidden="true" /><span>Add slide</span></button
-					>
-					<BuiltinLayoutDialog
-						theme={presentation.theme}
-						disabled={inserting}
-						oninsert={addBuiltinLayout}
-					/>
-					<button
-						type="button"
-						class={button}
-						aria-label="Duplicate active slide"
-						title="Duplicate active slide"
-						onclick={duplicateActiveSlide}
-						><Copy size={16} aria-hidden="true" /><span>Duplicate</span></button
-					>
-				</div>
 				<div class="presentation-slide-list">
 					{#each presentation.slides as slide, index (slide.id)}
 						<div
@@ -1149,21 +1102,182 @@
 				onreplaceimage={policy.capabilities.localMedia ? beginReplaceImage : undefined}
 			/>{/if}
 	</Modal>
-
-	<Modal
-		open={themeOpen}
-		title="Presentation theme"
-		description="Defaults for new slides and text. Existing elements keep their own styles."
-		onclose={() => (themeOpen = false)}
-		onclosed={() => themeOpener?.focus()}
-	>
-		<ThemeControls
-			theme={presentation.theme}
-			onchange={(next) => doc.setTheme(next, { historyGroup: 'theme' })}
-			onendgroup={() => doc.endHistoryGroup()}
-		/>
-	</Modal>
 {/if}
+
+{#snippet slideActions()}
+	{#if presentation}
+		<button type="button" class={button} aria-label="Add slide" title="Add slide" onclick={addSlide}
+			><Plus size={16} aria-hidden="true" /><span>Add slide</span></button
+		>
+		<BuiltinLayoutDialog
+			theme={presentation.theme}
+			disabled={inserting}
+			oninsert={addBuiltinLayout}
+		/>
+		<button
+			type="button"
+			class={button}
+			aria-label="Duplicate active slide"
+			title="Duplicate active slide"
+			onclick={duplicateActiveSlide}
+			><Copy size={16} aria-hidden="true" /><span>Duplicate</span></button
+		>
+	{/if}
+{/snippet}
+
+{#snippet textButtons()}
+	<button type="button" class={button} onclick={() => addTextBox('heading')}>Add heading</button>
+	<button type="button" class={button} onclick={() => addTextBox('subheading')}
+		>Add subheading</button
+	>
+	<button type="button" class={button} onclick={() => addTextBox('body')}>Add body text</button>
+	<button type="button" class={button} onclick={() => addTextBox()}
+		><Type size={16} aria-hidden="true" /> Add text</button
+	>
+{/snippet}
+
+{#snippet shapePicker()}
+	<label class="presentation-add-shape"
+		><span class="sr-only">Add shape</span><select
+			aria-label="Add shape"
+			value=""
+			onchange={(event) => {
+				const kind =
+					/** @type {import('#lib/presentations/editor/shapeTools.js').ShapeInsertKind | ''} */ (
+						event.currentTarget.value
+					);
+				event.currentTarget.value = '';
+				if (kind) addShape(kind);
+			}}
+			><option value="">Add shape…</option><option value="rectangle">Rectangle</option><option
+				value="rounded-rectangle">Rounded rectangle</option
+			><option value="ellipse">Ellipse</option><option value="line">Line</option><option
+				value="arrow">Arrow</option
+			></select
+		></label
+	>
+{/snippet}
+
+{#snippet ribbonPanel(/** @type {string} */ tab)}
+	{#if tab === 'home'}
+		<RibbonGroup label="Undo">
+			<ActionButton id="history.undo" variant="icon" iconSize={17} />
+			<ActionButton id="history.redo" variant="icon" iconSize={17} />
+		</RibbonGroup>
+		<RibbonGroup label="Clipboard">
+			<ActionButton id="clipboard.paste" />
+			<ActionButton id="clipboard.copy" />
+			<ActionButton id="element.duplicate" />
+		</RibbonGroup>
+		<RibbonGroup label="Slides">{@render slideActions()}</RibbonGroup>
+		<RibbonGroup label="Font and paragraph">
+			{#if selection.editingId}<TextFormatToolbar session={textSession} />{:else}<p
+					class="ribbon-hint"
+				>
+					Double-click a text box to format its text.
+				</p>{/if}
+		</RibbonGroup>
+		<RibbonGroup label="Drawing">
+			{@render shapePicker()}
+			{@render textButtons()}
+		</RibbonGroup>
+		<RibbonGroup label="Editing">
+			{#if selectedText}<button
+					type="button"
+					class={button}
+					aria-label="Edit text: {selectedText.name}"
+					onclick={() => selection.startTextEdit(selectedText.id)}
+					><PenLine size={16} aria-hidden="true" /> Edit text</button
+				>{/if}
+			{#if selectedElement}
+				<!-- The wide pane is hidden from 1150px down, so the same numeric fields
+				     stay reachable through the shared dialog at tablet and phone widths. -->
+				<button
+					type="button"
+					class={[button, 'properties-toggle']}
+					bind:this={propertiesOpener}
+					onclick={() => (propertiesOpen = true)}>Element properties</button
+				>
+			{/if}
+		</RibbonGroup>
+	{:else if tab === 'insert'}
+		<RibbonGroup label="Slides">
+			<button
+				type="button"
+				class={button}
+				aria-label="Add slide"
+				title="Add slide"
+				onclick={addSlide}><Plus size={16} aria-hidden="true" /><span>Add slide</span></button
+			>
+			{#if catalogRepository && policy.capabilities.templateSlides}<InsertTemplateDialog
+					repository={catalogRepository}
+					disabled={inserting}
+					oninsert={insertTemplateLayout}
+				/>{/if}
+		</RibbonGroup>
+		<RibbonGroup label="Text">{@render textButtons()}</RibbonGroup>
+		<RibbonGroup label="Images">
+			{#if policy.capabilities.localMedia}
+				<button
+					type="button"
+					class={button}
+					disabled={inserting}
+					onclick={() => {
+						replaceTargetId = null;
+						imageInput?.click();
+					}}
+					><ImagePlus size={16} aria-hidden="true" />
+					{inserting ? 'Adding image…' : 'Add image'}</button
+				>
+			{/if}
+			{#if stickerRepository && policy.capabilities.stickers}<StickerPickerDialog
+					repository={stickerRepository}
+					disabled={inserting}
+					onpick={(projectId) => void addSticker(projectId)}
+				/>{/if}
+			{#if catalogRepository}<CatalogPickerDialog
+					repository={catalogRepository}
+					disabled={inserting}
+					oninsert={addCatalogImage}
+				/>{/if}
+		</RibbonGroup>
+		<RibbonGroup label="Illustrations">{@render shapePicker()}</RibbonGroup>
+	{:else if tab === 'design' && presentation}
+		<RibbonGroup label="Theme">
+			<ThemeControls
+				theme={presentation.theme}
+				onchange={(next) => doc.setTheme(next, { historyGroup: 'theme' })}
+				onendgroup={() => doc.endHistoryGroup()}
+			/>
+		</RibbonGroup>
+	{:else if tab === 'arrange'}
+		<RibbonGroup label="Order">
+			<ActionButton id="arrange.bringForward" />
+			<ActionButton id="arrange.sendBackward" />
+		</RibbonGroup>
+		<RibbonGroup label="Element">
+			<ActionButton id="element.toggleLock" />
+			<ActionButton id="element.toggleVisible" />
+			<ActionButton id="element.delete" />
+		</RibbonGroup>
+	{:else if tab === 'view'}
+		<RibbonGroup label="Zoom">
+			<ActionButton id="view.fit" />
+		</RibbonGroup>
+		<RibbonGroup label="Ribbon">
+			<ActionButton id="view.toggleRibbon" />
+		</RibbonGroup>
+	{:else if tab === 'shapeFormat' && selectedElement?.kind === 'shape'}
+		<RibbonGroup label="Shape style"><ShapeStyleInspector element={selectedElement} /></RibbonGroup>
+	{:else if tab === 'pictureFormat' && selectedElement?.kind === 'image'}
+		<RibbonGroup label="Picture">
+			<ImageAdjustInspector
+				element={selectedElement}
+				onreplace={policy.capabilities.localMedia ? beginReplaceImage : undefined}
+			/>
+		</RibbonGroup>
+	{/if}
+{/snippet}
 
 <style>
 	/* Migrated from the former global layout stylesheet; scoped to this owner. */
@@ -1367,13 +1481,6 @@
 		font-weight: 800;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
-	}
-	.presentation-slide-rail-actions .button {
-		inline-size: 100%;
-		min-block-size: 38px;
-		justify-content: flex-start;
-		padding: 8px;
-		font-size: 11px;
 	}
 	.presentation-slide-list {
 		display: grid;
@@ -1607,9 +1714,6 @@
 		}
 		.presentation-inspector {
 			display: none;
-		}
-		.presentation-slide-rail-actions {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 		.presentation-slide-list {
 			display: flex;

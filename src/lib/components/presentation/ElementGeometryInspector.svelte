@@ -5,8 +5,6 @@
 	import { elementGeometry, withRotation } from '#lib/presentations/editor/transformGeometry.js';
 	import GeometryField from './GeometryField.svelte';
 	import TextOverflowNotice from './TextOverflowNotice.svelte';
-	import ShapeStyleInspector from './ShapeStyleInspector.svelte';
-	import ImageAdjustInspector from './ImageAdjustInspector.svelte';
 
 	/**
 	 * Numeric element geometry (P24). These fields are the keyboard path to the
@@ -102,7 +100,6 @@
 {#if element.kind === 'text'}
 	<TextOverflowNotice {element} />
 {:else if element.kind === 'shape'}
-	<ShapeStyleInspector {element} />
 	{#if onreplaceimage && (element.shape === 'rectangle' || element.shape === 'rounded-rectangle')}
 		<button
 			type="button"
@@ -111,8 +108,6 @@
 			onclick={() => onreplaceimage?.(element.id)}>Add image here</button
 		>
 	{/if}
-{:else if element.kind === 'image'}
-	<ImageAdjustInspector {element} onreplace={onreplaceimage} />
 {/if}
 
 <style>

@@ -21,6 +21,7 @@ import { createClipboard, type Clipboard } from './clipboard.svelte';
 import { createMessages, type MessageBar } from './messages.svelte';
 import { createActionRegistry, type ActionRegistry } from './actions/registry';
 import { editingActions } from './actions/editing';
+import { arrangeActions } from './actions/arrange';
 
 export type SlideEditor = {
 	doc: DocumentState;
@@ -84,7 +85,7 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 		persistence,
 		exports
 	};
-	editor.actions = createActionRegistry(editor, editingActions, (message) =>
+	editor.actions = createActionRegistry(editor, [...editingActions, ...arrangeActions], (message) =>
 		messages.show(message)
 	);
 	return editor;
