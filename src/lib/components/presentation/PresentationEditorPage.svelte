@@ -1,6 +1,5 @@
 <script>
 	import { untrack } from 'svelte';
-	import { tick } from 'svelte';
 	import { button, buttonIcon, buttonPrimary } from '#lib/ui/styles.js';
 	import {
 		ArrowLeft,
@@ -129,6 +128,7 @@
 	setSlideEditor(editor);
 	$effect(() => attachKeymap(editor.actions, window, { exempt: SHORTCUT_EXEMPT }));
 
+	const { ui } = editor;
 	const {
 		doc,
 		selection,
@@ -139,8 +139,6 @@
 		text: textSession
 	} = editor;
 
-	/** @type {{ x: number, y: number, trigger: HTMLElement, items: string[], label: string } | null} */
-	let contextMenu = $state(null);
 	const elementMenuItems = [
 		'clipboard.cut',
 		'clipboard.copy',
@@ -164,7 +162,7 @@
 	];
 	/** @param {number} x @param {number} y @param {HTMLElement} trigger */
 	function openCanvasMenu(x, y, trigger) {
-		contextMenu = {
+		ui.menu.open({
 			x,
 			y,
 			trigger,
@@ -172,34 +170,12 @@
 				? elementMenuItems
 				: ['clipboard.paste', 'selection.selectAll', 'slide.add', 'slide.formatBackground'],
 			label: selection.ids.length ? 'Element actions' : 'Canvas actions'
-		};
-	}
-	/** @param {boolean} background */
-	function showFormat(background = false) {
-		setPaneState({ ...paneState, open: true, format: true });
-		void tick().then(() => {
-			const selector = background
-				? '.presentation-slide-background input'
-				: '.presentation-geometry-fields input';
-			/** @type {HTMLInputElement | null} */ (document.querySelector(selector))?.focus();
 		});
-	}
-
-	function closeContextMenu(restore = true) {
-		const trigger = contextMenu?.trigger;
-		contextMenu = null;
-		if (restore) {
-			if (trigger?.isConnected) trigger.focus();
-			else
-				/** @type {HTMLButtonElement | null} */ (
-					document.querySelector('.presentation-slide-card[aria-current="true"]')
-				)?.focus();
-		}
 	}
 	/** @param {HTMLDivElement} root */
 	function editorInteractions(root) {
 		const detachFocus = attachFocusNavigation(root, () => {
-			closeContextMenu(false);
+			ui.menu.close(false);
 			textSession.flush();
 			selection.endTextEdit();
 		});
@@ -240,7 +216,7 @@
 			}
 			const rect = trigger.getBoundingClientRect();
 			const pointer = event instanceof MouseEvent && event.button === 2;
-			contextMenu = {
+			ui.menu.open({
 				x: pointer ? event.clientX : rect.left + 12,
 				y: pointer ? event.clientY : rect.top + 12,
 				trigger,
@@ -248,7 +224,7 @@
 					? ['slide.add', 'slide.duplicate', 'slide.delete', 'slide.moveUp', 'slide.moveDown']
 					: elementMenuItems,
 				label: slide ? 'Slide actions' : 'Element actions'
-			};
+			});
 		};
 		/** @param {ClipboardEvent} event */
 		const copy = (event) => {
@@ -292,78 +268,9 @@
 		}
 	});
 
-	let ribbonTab = $state('home');
-	let ribbonCollapsed = $state(false);
-
-	const PANE_KEY = 'stickerlab_slide_editor_pane';
-	/** @typedef {{ open: boolean, format: boolean, selection: boolean }} PaneState */
-	/** @returns {PaneState} */
-	function readPaneState() {
-		const fallback = { open: true, format: true, selection: true };
-		if (typeof localStorage === 'undefined') return fallback;
-		try {
-			const stored = JSON.parse(localStorage.getItem(PANE_KEY) ?? 'null');
-			if (
-				stored &&
-				typeof stored.open === 'boolean' &&
-				typeof stored.format === 'boolean' &&
-				typeof stored.selection === 'boolean'
-			)
-				return stored;
-		} catch {
-			// A corrupt preference falls back to the default layout.
-		}
-		return fallback;
-	}
-	let paneState = $state(readPaneState());
-	/** @param {PaneState} next */
-	function setPaneState(next) {
-		paneState = next;
-		try {
-			localStorage.setItem(PANE_KEY, JSON.stringify(next));
-		} catch {
-			// Storage can be unavailable (private mode); the layout still applies now.
-		}
-	}
-	/** Shows a closed pane section, or hides an open one; no sections left closes the pane. */
-	/** @param {'format' | 'selection'} section */
-	function togglePaneSection(section) {
-		if (!paneState.open) {
-			setPaneState({ ...paneState, open: true, [section]: true });
-			return;
-		}
-		const next = { ...paneState, [section]: !paneState[section] };
-		setPaneState({ ...next, open: next.format || next.selection });
-	}
-	/** Contextual tabs exist only while their kind of element is selected. */
-	const ribbonTabs = $derived([
-		{ id: 'home', label: 'Home' },
-		{ id: 'insert', label: 'Insert' },
-		{ id: 'design', label: 'Design' },
-		{ id: 'arrange', label: 'Arrange' },
-		{ id: 'view', label: 'View' },
-		...(selection.primary?.kind === 'shape'
-			? [{ id: 'shapeFormat', label: 'Shape Format', contextual: true }]
-			: []),
-		...(selection.primary?.kind === 'image'
-			? [{ id: 'pictureFormat', label: 'Picture Format', contextual: true }]
-			: [])
-	]);
-
-	/** @param {string} id A tab id, or `toggle:<id>` from a double-click. */
-	function selectRibbonTab(id) {
-		if (id.startsWith('toggle:')) {
-			ribbonTab = id.slice('toggle:'.length);
-			ribbonCollapsed = !ribbonCollapsed;
-			return;
-		}
-		ribbonTab = id;
-		ribbonCollapsed = false;
-	}
-
 	// Text formatting lives on Home, so starting a text edit brings Home forward.
 	$effect(() => {
-		if (selection.editingId) ribbonTab = 'home';
+		if (selection.editingId) ui.ribbon.select('home');
 	});
 
 	editor.actions.register([
@@ -387,24 +294,6 @@
 			enabled: () => !selection.primary?.locked && !inserting,
 			run: () => {
 				if (selection.primary) beginReplaceImage(selection.primary.id);
-				return OK;
-			}
-		},
-		{
-			id: 'element.format',
-			label: 'Format…',
-			enabled: () => selection.primary !== null,
-			run: () => {
-				showFormat();
-				return OK;
-			}
-		},
-		{
-			id: 'slide.formatBackground',
-			label: 'Format background…',
-			enabled: () => selection.activeSlide !== undefined,
-			run: () => {
-				showFormat(true);
 				return OK;
 			}
 		},
@@ -454,45 +343,6 @@
 			enabled: () => (doc.document?.slides.length ?? 0) > 1,
 			run: () => {
 				if (selection.activeSlideId) deleteSlide(selection.activeSlideId);
-				return OK;
-			}
-		},
-		{
-			id: 'view.fit',
-			label: 'Fit to window',
-			enabled: () => true,
-			run: () => {
-				viewport.setZoom(1);
-				viewport.setPan({ x: 0, y: 0 });
-				return OK;
-			}
-		},
-		{
-			id: 'view.formatPane',
-			label: 'Format pane',
-			enabled: () => true,
-			run: () => {
-				togglePaneSection('format');
-				return OK;
-			}
-		},
-		{
-			id: 'view.selectionPane',
-			label: 'Selection pane',
-			enabled: () => true,
-			run: () => {
-				togglePaneSection('selection');
-				return OK;
-			}
-		},
-		{
-			id: 'view.toggleRibbon',
-			label: 'Collapse ribbon',
-			shortLabel: 'Collapse ribbon',
-			shortcuts: [{ key: 'F1', mod: true }],
-			enabled: () => true,
-			run: () => {
-				ribbonCollapsed = !ribbonCollapsed;
 				return OK;
 			}
 		}
@@ -1319,10 +1169,10 @@
 			/>
 		{/if}
 		<Ribbon
-			tabs={ribbonTabs}
-			active={ribbonTab}
-			collapsed={ribbonCollapsed}
-			onselect={selectRibbonTab}
+			tabs={ui.ribbon.tabs}
+			active={ui.ribbon.tab}
+			collapsed={ui.ribbon.collapsed}
+			onselect={(id) => ui.ribbon.select(id)}
 			panel={ribbonPanel}
 		/>
 		{#if saveReported || editorNote}<MessageBar
@@ -1343,7 +1193,7 @@
 		<div
 			class={[
 				'presentation-workspace [display:grid] [flex:1] [min-block-size:0] [min-inline-size:0]',
-				{ 'has-task-pane': paneState.open }
+				{ 'has-task-pane': ui.panes.state.open }
 			]}
 		>
 			<aside
@@ -1420,11 +1270,11 @@
 					class="presentation-canvas-placeholder [background:oklch(0.923614_0.009985_181.3932)] [min-block-size:0] [min-inline-size:0]"
 				></div>
 			{/if}
-			{#if paneState.open}
+			{#if ui.panes.state.open}
 				<TaskPane
-					showFormat={paneState.format}
-					showSelection={paneState.selection}
-					onclose={() => setPaneState({ ...paneState, open: false })}
+					showFormat={ui.panes.state.format}
+					showSelection={ui.panes.state.selection}
+					onclose={() => ui.panes.set({ ...ui.panes.state, open: false })}
 				>
 					{#snippet format()}
 						<div class="presentation-inspector">
@@ -1460,12 +1310,12 @@
 				</TaskPane>
 			{/if}
 		</div>
-		{#if contextMenu}<ActionMenu
-				items={contextMenu.items}
-				x={contextMenu.x}
-				y={contextMenu.y}
-				label={contextMenu.label}
-				onclose={closeContextMenu}
+		{#if ui.menu.current}<ActionMenu
+				items={ui.menu.current.items}
+				x={ui.menu.current.x}
+				y={ui.menu.current.y}
+				label={ui.menu.current.label}
+				onclose={(restore) => ui.menu.close(restore)}
 			/>{/if}
 		<StatusBar />
 	</div>

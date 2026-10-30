@@ -22,6 +22,8 @@ import { createMessages, type MessageBar } from './messages.svelte';
 import { createActionRegistry, type ActionRegistry } from './actions/registry';
 import { editingActions } from './actions/editing';
 import { arrangeActions } from './actions/arrange';
+import { viewActions } from './actions/view';
+import { createEditorUi, type EditorUi } from './ui.svelte';
 
 export type SlideEditor = {
 	doc: DocumentState;
@@ -31,6 +33,8 @@ export type SlideEditor = {
 	clipboard: Clipboard;
 	messages: MessageBar;
 	actions: ActionRegistry;
+	/** Ribbon, task pane and context menu state for this editor. */
+	ui: EditorUi;
 	/** The editor that opens a text session owns it; saves and exports flush through it. */
 	text: TextEditSession;
 	persistence: PresentationSaving;
@@ -84,14 +88,17 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 			report: (message) => messages.show(message)
 		}),
 		messages,
+		ui: createEditorUi(selection),
 		// Assigned below: actions receive the finished editor.
 		actions: undefined!,
 		text,
 		persistence,
 		exports
 	};
-	editor.actions = createActionRegistry(editor, [...editingActions, ...arrangeActions], (message) =>
-		messages.show(message)
+	editor.actions = createActionRegistry(
+		editor,
+		[...editingActions, ...arrangeActions, ...viewActions],
+		(message) => messages.show(message)
 	);
 	return editor;
 }
