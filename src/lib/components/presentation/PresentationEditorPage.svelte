@@ -144,8 +144,6 @@
 	let PresentationCanvas = $state(null);
 	/** @type {import('#lib/presentations/rendering/decodedArtwork.js').DecodedArtwork | null} */
 	let decodedArtwork = null;
-	/** @type {string | null} */
-	let insertError = $state(null);
 	let inserting = $state(false);
 	/** @type {string | null} */
 	let editorNote = $state(null);
@@ -355,7 +353,7 @@
 		const id = doc.addElement(createPresetText(preset, state.document.theme));
 		// Open the editor straight away so the new box can be typed into immediately.
 		if (id) selection.startTextEdit(id);
-		else insertError = 'This slide cannot hold another text box. Remove an element first.';
+		else editor.messages.show('This slide cannot hold another text box. Remove an element first.');
 	}
 
 	/** @param {import('#lib/presentations/templates/builtinLayouts.js').BuiltinLayoutId} layoutId */
@@ -533,11 +531,12 @@
 		const state = doc.snapshot();
 		if (!state.document) return;
 		if (!decodedArtwork) {
-			insertError =
-				'This presentation is still opening its artwork, so the image was not added. Try again once the slide appears.';
+			editor.messages.show(
+				'This presentation is still opening its artwork, so the image was not added. Try again once the slide appears.'
+			);
 			return;
 		}
-		insertError = null;
+		editor.messages.clear();
 		inserting = true;
 		// Past the write the element, its asset and its bytes are stored, so a later
 		// display failure must not be reported as a failed write.
@@ -546,15 +545,17 @@
 			const prepared = await prepare();
 			const outcome = await write(prepared);
 			if (!outcome.ok) {
-				insertError =
-					outcome.reason === 'failed' || outcome.reason === 'conflict' ? null : outcome.message;
+				// A failed or conflicting write is reported by the save status instead.
+				if (outcome.reason === 'failed' || outcome.reason === 'conflict') editor.messages.clear();
+				else editor.messages.show(outcome.message);
 				return;
 			}
 			persisted = true;
 			const media = decodedArtwork;
 			if (!media) {
-				insertError =
-					'This image was saved, but this editor can no longer display it. Reopen the presentation to see it.';
+				editor.messages.show(
+					'This image was saved, but this editor can no longer display it. Reopen the presentation to see it.'
+				);
 				return;
 			}
 			await media.add([prepared.media]);
@@ -562,11 +563,12 @@
 			images = new Map(media.images);
 		} catch (error) {
 			if (error instanceof PrepareImageError || error instanceof CatalogInsertError)
-				insertError = error.message;
+				editor.messages.show(error.message);
 			else if (persisted)
-				insertError =
-					'This image was saved, but it cannot be displayed here yet. Reopen the presentation to see it.';
-			else insertError = fallback;
+				editor.messages.show(
+					'This image was saved, but it cannot be displayed here yet. Reopen the presentation to see it.'
+				);
+			else editor.messages.show(fallback);
 		} finally {
 			inserting = false;
 		}
@@ -620,7 +622,7 @@
 	 */
 	function addSticker(projectId) {
 		if (!stickerRepository) {
-			insertError = 'Saved stickers are not available in this session.';
+			editor.messages.show('Saved stickers are not available in this session.');
 			return;
 		}
 		return runImageWrite(
@@ -967,8 +969,8 @@
 				</p>{/if}
 		</header>
 		{#if selection.editingId}<TextFormatToolbar session={textSession} />{/if}
-		{#if insertError || editor.messages.current}<p class="asset-error" role="alert">
-				{insertError ?? editor.messages.current}
+		{#if editor.messages.current}<p class="asset-error" role="alert">
+				{editor.messages.current}
 			</p>{/if}
 		<div class="presentation-mobile-note [display:none]">
 			<MonitorUp size={18} aria-hidden="true" />
