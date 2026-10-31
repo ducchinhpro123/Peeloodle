@@ -4,7 +4,8 @@
 	/**
 	 * "Remove background" for the selected image layer. The root carries the
 	 * test contract: `data-state`, the last run's backend and timings, and
-	 * `data-dropped`, the count of abandoned runs whose late output was discarded.
+	 * `data-dropped`, the count of abandoned runs whose late output was discarded,
+	 * and `data-deferred` while a finished result waits for an open gesture to end.
 	 * The consent dialog is `CutoutConsent.svelte`, mounted once by the workspace.
 	 */
 
@@ -34,6 +35,7 @@
 	data-inference-ms={last?.inferenceMs}
 	data-kept={last?.keptFraction}
 	data-dropped={cutout.dropped}
+	data-deferred={mine && cutout.deferred ? 'true' : undefined}
 >
 	<div class="button-row">
 		<button

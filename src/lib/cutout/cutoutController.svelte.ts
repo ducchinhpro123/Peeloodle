@@ -27,6 +27,8 @@ export type CutoutController = {
 	readonly last: CutoutResult | null;
 	/** Abandoned runs whose late worker output has settled and been discarded. */
 	readonly dropped: number;
+	/** A finished result is held until the open drag, slider or text session ends. */
+	readonly deferred: boolean;
 	start(layerId: string): Promise<void>;
 	confirm(): void;
 	cancel(): void;
@@ -66,6 +68,7 @@ class Controller implements CutoutController {
 	progress = $state<number | null>(null);
 	last = $state.raw<CutoutResult | null>(null);
 	dropped = $state(0);
+	deferred = $state(false);
 	layerId = $state<string | null>(null);
 	#editor: EditorState;
 	#job: AbortController | null = null;
@@ -135,6 +138,31 @@ class Controller implements CutoutController {
 		job.abort();
 		void workerDrained().then(() => {
 			this.dropped += 1;
+		});
+	}
+
+	/**
+	 * Resolves once no gesture is open (or the job is aborted). Applying inside an
+	 * open gesture would fold the mask into that gesture's undo step, and the
+	 * user's gesture is never committed on their behalf.
+	 */
+	#gestureEnded(signal: AbortSignal): Promise<void> {
+		return new Promise((resolve) => {
+			let settled = false;
+			let stop = (): void => {};
+			const done = (): void => {
+				if (settled) return;
+				settled = true;
+				signal.removeEventListener('abort', done);
+				queueMicrotask(() => stop());
+				resolve();
+			};
+			signal.addEventListener('abort', done, { once: true });
+			stop = $effect.root(() => {
+				$effect(() => {
+					if (!this.#editor.gestureActive) done();
+				});
+			});
 		});
 	}
 
@@ -251,6 +279,15 @@ class Controller implements CutoutController {
 					}
 				}
 			});
+			// Hold the result while a gesture is open; the guards below run after it.
+			while (editor.gestureActive && !job.signal.aborted) {
+				this.deferred = true;
+				try {
+					await this.#gestureEnded(job.signal);
+				} finally {
+					this.deferred = false;
+				}
+			}
 			// Stale guards, checked immediately before applying.
 			if (job.signal.aborted || this.#job !== job) return;
 			const current =

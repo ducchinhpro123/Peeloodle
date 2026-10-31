@@ -818,6 +818,69 @@ test('the status, Retry and progress belong to the layer the run is on', async (
 	await expect(remove).toBeEnabled();
 });
 
+/** The stored image layer's position and `maskKey`, from IndexedDB. */
+async function storedImageLayer(page: Page, projectId: string) {
+	return page.evaluate(async (id) => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('stickerlab-local');
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		const project = await new Promise<{
+			layers: Array<{ kind: string; maskKey?: string; transform: { x: number; y: number } }>;
+		}>((resolve, reject) => {
+			const request = db.transaction('projects', 'readonly').objectStore('projects').get(id);
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		db.close();
+		const layer = project.layers.find((item) => item.kind === 'image');
+		if (!layer) throw new Error('The stored project has no image layer');
+		return { x: layer.transform.x, y: layer.transform.y, maskKey: layer.maskKey ?? null };
+	}, projectId);
+}
+
+test('a result that lands during a drag is its own undo step', async ({ page }) => {
+	test.setTimeout(300_000);
+	const projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+	await saveAndWait(page);
+	const start = await storedImageLayer(page, projectId);
+	await startUntilRunning(page);
+
+	// Drag the layer with the Select tool and hold it until the result has arrived:
+	// the run is either held back (`data-deferred`) or, wrongly, already applied.
+	const box = await page.getByTestId('editor-canvas').boundingBox();
+	if (!box) throw new Error('The editor canvas has no bounding box');
+	const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+	await page.mouse.move(center.x, center.y);
+	await page.mouse.down();
+	await page.mouse.move(center.x + 60, center.y + 40, { steps: 8 });
+	await expect
+		.poll(
+			async () =>
+				(await cutout(page).getAttribute('data-deferred')) === 'true' ||
+				(await cutout(page).getAttribute('data-state')) === 'done',
+			{ timeout: 120_000 }
+		)
+		.toBe(true);
+	await page.mouse.up();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'done');
+	await expect(cutout(page)).not.toHaveAttribute('data-deferred', 'true');
+	await saveAndWait(page);
+	const after = await storedImageLayer(page, projectId);
+	expect(after.maskKey).toBeTruthy();
+	expect(after.x).not.toBe(start.x);
+
+	// The drag committed first and the mask applied when it ended, so each Undo
+	// takes back exactly one of them, newest first: the mask, then the drag.
+	await undoButton(page).click();
+	await saveAndWait(page);
+	expect(await storedImageLayer(page, projectId)).toEqual({ ...after, maskKey: null });
+	await undoButton(page).click();
+	await saveAndWait(page);
+	expect(await storedImageLayer(page, projectId)).toEqual(start);
+});
+
 // Keep this the LAST test: workers=1 runs it after the quality test has filled `results`.
 test('artifact report is written', async () => {
 	const outDir = path.resolve('proofs/out/cutout');
