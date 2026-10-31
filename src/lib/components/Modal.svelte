@@ -221,7 +221,20 @@
 	}
 	@media (prefers-reduced-motion: no-preference) {
 		.dialog[data-state='open'] {
-			animation: reveal 180ms ease-out;
+			animation: dialog-pop var(--dur-base) var(--ease-pop);
+		}
+		.dialog[data-state='open']::backdrop {
+			animation: reveal var(--dur-base) var(--ease-out);
+		}
+		@keyframes -global-dialog-pop {
+			from {
+				opacity: 0;
+				transform: translateY(24px) scale(0.94);
+			}
+			to {
+				opacity: 1;
+				transform: none;
+			}
 		}
 		@keyframes -global-reveal {
 			from {

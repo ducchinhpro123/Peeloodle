@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { button, buttonDanger, buttonIcon, buttonPrimary } from '#lib/ui/styles.js';
 	import { asset } from '$app/paths';
+	import { reveal } from '#lib/actions/reveal.js';
 	import {
 		ArrowRight,
 		Clock3,
@@ -391,8 +392,8 @@
 			</section>
 		{:else}
 			<ul class="presentation-grid">
-				{#each visibleItems as item (item.id)}
-					<li>
+				{#each visibleItems as item, index (item.id)}
+					<li use:reveal={{ index }}>
 						<article class="presentation-card">
 							<a
 								class="presentation-card-link"

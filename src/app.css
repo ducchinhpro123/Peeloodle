@@ -9,4 +9,5 @@
 @import './lib/styles/fonts.css';
 @import './lib/presentations/rendering/presentation-fonts.css';
 @import './lib/styles/tokens.css';
+@import './lib/styles/motion.css';
 @import './lib/styles/base.css';

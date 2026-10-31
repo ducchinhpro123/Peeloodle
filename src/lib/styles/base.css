@@ -105,13 +105,18 @@
 		.button {
 			transition:
 				background-color 160ms ease-out,
-				box-shadow 160ms ease-out;
+				box-shadow 160ms ease-out,
+				scale var(--dur-fast) var(--ease-pop);
+		}
+		.button:not(:disabled):active {
+			scale: 0.96;
 		}
 		.button.primary {
 			transition:
 				background-color 160ms ease-out,
 				box-shadow 160ms ease-out,
-				transform 160ms ease-out;
+				transform 160ms ease-out,
+				scale var(--dur-fast) var(--ease-pop);
 		}
 		@media (hover: hover) and (pointer: fine) {
 			.button.primary:not(:disabled):hover {

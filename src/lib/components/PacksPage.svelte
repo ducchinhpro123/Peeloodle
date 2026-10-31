@@ -1,5 +1,6 @@
 <script>
 	import { button, buttonDanger, buttonPrimary } from '#lib/ui/styles.js';
+	import { reveal } from '#lib/actions/reveal.js';
 	/**
 	 * Port of `src/features/packs/PacksPage.tsx` (React main `54eae61c`): the real
 	 * `/my-stickers` library — saved-sticker packs with search/sort, the five source
@@ -449,6 +450,7 @@
 						<button
 							type="button"
 							class={`pack-card ${selectedPack?.id === pack.id ? 'active' : ''}`}
+							use:reveal={{ index }}
 							aria-pressed={selectedPack?.id === pack.id}
 							onclick={() => {
 								selectedPackId = pack.id;

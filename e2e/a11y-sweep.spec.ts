@@ -69,9 +69,9 @@ test('the same dialog reveals through the keyframes when motion is allowed', asy
 	await page.waitForTimeout(60);
 	const state = await page.evaluate(() => ({
 		animationName: getComputedStyle(document.querySelector('dialog[open]')!).animationName,
-		running: document.getAnimations().some((animation) => animation.animationName === 'reveal')
+		running: document.getAnimations().some((animation) => animation.animationName === 'dialog-pop')
 	}));
-	expect(state).toEqual({ animationName: 'reveal', running: true });
+	expect(state).toEqual({ animationName: 'dialog-pop', running: true });
 });
 
 test('primary navigation and the pack flow are operable with the keyboard alone', async ({

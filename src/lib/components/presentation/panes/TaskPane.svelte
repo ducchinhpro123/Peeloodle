@@ -48,6 +48,21 @@
 		scrollbar-width: thin;
 		scroll-padding-block-start: 44px;
 	}
+	@media (prefers-reduced-motion: no-preference) {
+		.task-pane {
+			animation: pane-in var(--dur-base) var(--ease-out);
+		}
+		@keyframes pane-in {
+			from {
+				opacity: 0;
+				transform: translateX(14px);
+			}
+			to {
+				opacity: 1;
+				transform: none;
+			}
+		}
+	}
 	.task-pane-header {
 		position: sticky;
 		z-index: 1;

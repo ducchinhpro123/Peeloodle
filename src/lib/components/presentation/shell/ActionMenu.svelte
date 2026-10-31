@@ -102,6 +102,22 @@
 		background: var(--surface);
 		box-shadow: 0 8px 28px oklch(0.2 0.02 264 / 0.22);
 		color: var(--ink);
+		transform-origin: top left;
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.action-menu {
+			animation: menu-pop var(--dur-fast) var(--ease-out);
+		}
+		@keyframes menu-pop {
+			from {
+				opacity: 0;
+				transform: scale(0.94) translateY(-4px);
+			}
+			to {
+				opacity: 1;
+				transform: none;
+			}
+		}
 	}
 	button {
 		display: flex;

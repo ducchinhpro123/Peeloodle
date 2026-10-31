@@ -702,4 +702,98 @@
 			block-size: 82%;
 		}
 	}
+	/*
+	 * Motion uses the independent `scale` / `translate` / `rotate` properties so it
+	 * stacks on top of each element's own `transform: rotate(...)` instead of
+	 * replacing it.
+	 */
+	@media (prefers-reduced-motion: no-preference) {
+		.collage-cat,
+		.collage-buddy,
+		.collage-heart,
+		.collage-sparkle,
+		.collage-lettering,
+		.collage-note,
+		.collage-stamp,
+		.collage-polaroid,
+		.collage-star {
+			animation: sticker-pop 560ms var(--ease-pop) backwards;
+		}
+		.collage-cat {
+			animation-delay: 120ms;
+		}
+		.collage-buddy {
+			animation-delay: 220ms;
+		}
+		.collage-polaroid-field {
+			animation-delay: 180ms;
+		}
+		.collage-polaroid-daisy {
+			animation-delay: 280ms;
+		}
+		.collage-heart {
+			animation-delay: 340ms;
+		}
+		.collage-sparkle,
+		.collage-star {
+			animation-delay: 420ms;
+		}
+		.collage-lettering,
+		.collage-note,
+		.collage-stamp {
+			animation-delay: 380ms;
+		}
+		/* Ambient drift starts after the entrance so the two never fight. */
+		.collage-cat {
+			animation:
+				sticker-pop 560ms var(--ease-pop) 120ms backwards,
+				drift 6s ease-in-out 700ms infinite;
+		}
+		.collage-heart,
+		.collage-sparkle {
+			animation:
+				sticker-pop 560ms var(--ease-pop) 340ms backwards,
+				drift 4.5s ease-in-out 900ms infinite;
+		}
+		.collage-sparkle {
+			animation-direction: normal, reverse;
+		}
+		@keyframes sticker-pop {
+			from {
+				opacity: 0;
+				scale: 0.5;
+				rotate: -10deg;
+			}
+			to {
+				opacity: 1;
+				scale: 1;
+				rotate: 0deg;
+			}
+		}
+		@keyframes drift {
+			0%,
+			100% {
+				translate: 0 0;
+			}
+			50% {
+				translate: 0 -8px;
+			}
+		}
+	}
+	@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+		.collage-polaroid,
+		.collage-buddy {
+			transition:
+				rotate var(--dur-base) var(--ease-pop),
+				scale var(--dur-base) var(--ease-pop);
+		}
+		.collage:hover .collage-polaroid {
+			rotate: 2deg;
+			scale: 1.03;
+		}
+		.collage:hover .collage-buddy {
+			rotate: -6deg;
+			scale: 1.08;
+		}
+	}
 </style>

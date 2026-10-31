@@ -73,14 +73,16 @@
 		{/each}
 	</div>
 	{#if !collapsed}
-		<div
-			class="ribbon-panel"
-			role="tabpanel"
-			id="ribbon-panel-{current}"
-			aria-labelledby="ribbon-tab-{current}"
-		>
-			{@render panel(current)}
-		</div>
+		{#key current}
+			<div
+				class="ribbon-panel"
+				role="tabpanel"
+				id="ribbon-panel-{current}"
+				aria-labelledby="ribbon-tab-{current}"
+			>
+				{@render panel(current)}
+			</div>
+		{/key}
 	{/if}
 </div>
 
@@ -111,6 +113,26 @@
 	}
 	.ribbon-tab:hover {
 		background: oklch(0.94 0.004 264);
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.ribbon-tab {
+			transition:
+				background-color var(--dur-fast) var(--ease-out),
+				color var(--dur-fast) var(--ease-out);
+		}
+		.ribbon-panel {
+			animation: panel-in var(--dur-base) var(--ease-out);
+		}
+		@keyframes panel-in {
+			from {
+				opacity: 0;
+				transform: translateY(4px);
+			}
+			to {
+				opacity: 1;
+				transform: none;
+			}
+		}
 	}
 	.ribbon-tab[aria-selected='true'] {
 		background: var(--surface);

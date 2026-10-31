@@ -1,6 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { reveal } from '#lib/actions/reveal.js';
 	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	import {
 		ArrowRight,
@@ -114,8 +115,8 @@
 			<span>A head start, not a blank stare.</span>
 		</div>
 		<div class="task-grid">
-			{#each tasks as task (task.title)}
-				<a class="task-card" aria-label={task.title} href={task.href}>
+			{#each tasks as task, index (task.title)}
+				<a class="task-card" use:reveal={{ index }} aria-label={task.title} href={task.href}>
 					<small>{task.label}</small><task.icon size={26} aria-hidden="true" />
 					<strong>{task.title}</strong>
 					<p>{task.detail}</p>

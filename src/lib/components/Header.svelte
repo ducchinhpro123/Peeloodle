@@ -138,6 +138,32 @@
 			color: oklch(0.551582 0.11869 163.307);
 		}
 	}
+	@media (prefers-reduced-motion: no-preference) {
+		.topnav a {
+			transition: color var(--dur-fast) var(--ease-out);
+		}
+		.topnav a.active::before {
+			animation: tape-slap var(--dur-base) var(--ease-pop) backwards;
+		}
+		.topnav a.active::after {
+			animation: tape-slap var(--dur-base) var(--ease-pop) 80ms backwards;
+		}
+		@keyframes tape-slap {
+			from {
+				opacity: 0;
+				scale: 0.4;
+			}
+			to {
+				opacity: 1;
+				scale: 1;
+			}
+		}
+	}
+	@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+		.topnav a:not(.active):hover {
+			animation: wiggle 420ms var(--ease-out);
+		}
+	}
 	.mobile-only {
 		display: none;
 	}

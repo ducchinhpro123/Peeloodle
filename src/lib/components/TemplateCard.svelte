@@ -1,6 +1,7 @@
 <script>
 	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	import { asset } from '$app/paths';
+	import { reveal } from '#lib/actions/reveal.js';
 	import Modal from './Modal.svelte';
 	/** @typedef {import('#lib/domain/domain.js').Template} Template */
 
@@ -10,9 +11,10 @@
 	 *   isFavorite: boolean,
 	 *   onToggleFavorite: (id: string) => void,
 	 *   onUse: (template: Template) => Promise<void>,
+	 *   index?: number,
 	 * }}
 	 */
-	let { template, isFavorite, onToggleFavorite, onUse } = $props();
+	let { template, isFavorite, onToggleFavorite, onUse, index = 0 } = $props();
 
 	let open = $state(false);
 	let error = $state(/** @type {string | null} */ (null));
@@ -32,7 +34,7 @@
 	}
 </script>
 
-<article class="template-card">
+<article class="template-card" use:reveal={{ index }}>
 	<div class="template-art">
 		<button
 			type="button"
@@ -255,6 +257,31 @@
 			oklch(0.946118 0.035177 311.4254)
 		);
 		font-size: 72px;
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.template-card {
+			transition:
+				transform var(--dur-base) var(--ease-pop),
+				box-shadow var(--dur-base) var(--ease-out);
+		}
+		.template-art .favorite-button {
+			transition: transform var(--dur-fast) var(--ease-pop);
+		}
+		.template-art .favorite-button:active {
+			transform: scale(0.85);
+		}
+	}
+	@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+		.template-card:hover {
+			transform: translateY(-6px) rotate(-0.8deg);
+			box-shadow: var(--shadow-hover);
+		}
+		.template-card:nth-child(even):hover {
+			transform: translateY(-6px) rotate(0.8deg);
+		}
+		.template-art .favorite-button:hover {
+			transform: scale(1.18) rotate(8deg);
+		}
 	}
 	@media (max-width: 720px) {
 		.template-card {

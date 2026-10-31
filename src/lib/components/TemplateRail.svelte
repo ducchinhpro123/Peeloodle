@@ -56,9 +56,10 @@
 		<a href={shellHref('/templates')}>View all</a>
 	</div>
 	<div class="rail [max-inline-size:100%] [min-inline-size:0]">
-		{#each items as template (template.id)}
+		{#each items as template, index (template.id)}
 			<TemplateCard
 				{template}
+				{index}
 				isFavorite={favorites.includes(template.id)}
 				onToggleFavorite={(id) => (favorites = toggleFavoriteTemplateId(id))}
 				onUse={handleUse}

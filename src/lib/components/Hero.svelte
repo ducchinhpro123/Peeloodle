@@ -388,6 +388,23 @@
 		inline-size: 1.4em;
 		block-size: 1.4em;
 	}
+	@media (prefers-reduced-motion: no-preference) {
+		.hero-copy > :global(*) {
+			animation: rise-in var(--dur-slow) var(--ease-pop) backwards;
+		}
+		.hero-copy > :global(:nth-child(2)) {
+			animation-delay: 70ms;
+		}
+		.hero-copy > :global(:nth-child(3)) {
+			animation-delay: 140ms;
+		}
+		.hero-copy > :global(:nth-child(4)) {
+			animation-delay: 210ms;
+		}
+		.hero-copy > :global(:nth-child(n + 5)) {
+			animation-delay: 280ms;
+		}
+	}
 	@media (max-width: 1150px) {
 		.hero {
 			padding: var(--space-5);
