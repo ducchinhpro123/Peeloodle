@@ -37,6 +37,7 @@
 	import { untrack } from 'svelte';
 	import EditorCanvas from './EditorCanvas.svelte';
 	import EditorInspector from './EditorInspector.svelte';
+	import CutoutConsent from './CutoutConsent.svelte';
 	import AssetTray from './AssetTray.svelte';
 	import ExportDialog from './ExportDialog.svelte';
 	import Modal from './Modal.svelte';
@@ -685,6 +686,9 @@
 			/>
 		{/if}
 	</Modal>
+
+	<!-- After the properties sheet, so it opens on top of it at narrow widths. -->
+	<CutoutConsent {editor} />
 {/if}
 
 <style>

@@ -727,6 +727,40 @@ test('locked or non-image layer disables removal', async ({ page }) => {
 	expect(modelRequests).toHaveLength(0);
 });
 
+/** Open `<dialog>`s named `title`, including any under a `display: none` ancestor. */
+const openDialog = (page: Page, title: string) =>
+	page.getByRole('dialog', { name: title, includeHidden: true }).and(page.locator('[open]'));
+
+test('the properties sheet at 390x844 opens exactly one consent dialog', async ({ page }) => {
+	test.setTimeout(180_000);
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/');
+	await page.getByRole('link', { name: /Create a Sticker/ }).click();
+	await expect(page).toHaveURL(/\/editor\/[0-9a-z-]+/, { timeout: 20_000 });
+	await page.setInputFiles('[data-testid="photo-file-input"]', fixture('boba-tea.png'));
+	await expect(page.locator('.save-status')).toContainText(/Unsaved changes|Saving|Saved locally/, {
+		timeout: 20_000
+	});
+
+	// The inline inspector is hidden (but mounted) at this width; the sheet has its own.
+	await page.getByRole('button', { name: 'Sticker properties', exact: true }).click();
+	const sheet = openDialog(page, 'Sticker properties');
+	await expect(sheet).toBeVisible();
+	const panel = sheet.getByTestId('cutout');
+	await sheet.getByRole('button', { name: 'Remove background' }).click();
+	await expect(panel).toHaveAttribute('data-state', 'consent');
+
+	const consent = openDialog(page, CONSENT_TITLE);
+	await expect(consent).toHaveCount(1);
+	await expect(consent).toBeVisible();
+	await consent.getByRole('button', { name: 'Download & remove' }).click();
+	await expect(panel).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
+	await expect(consent).toHaveCount(0);
+	// The sheet stays open underneath and shows the result.
+	await expect(sheet).toBeVisible();
+	await expect(panel.getByRole('status')).toContainText('Background removed');
+});
+
 // Keep this the LAST test: workers=1 runs it after the quality test has filled `results`.
 test('artifact report is written', async () => {
 	const outDir = path.resolve('proofs/out/cutout');
