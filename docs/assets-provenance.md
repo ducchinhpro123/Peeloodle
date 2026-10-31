@@ -158,3 +158,26 @@ The concept is not served by the application and does not stand in for a working
 source app implemented that route, it used real React controls and real local pack/project state with
 the locally served StickerLab artwork and generated project thumbnails. In this target the route is
 deliberately absent rather than faked.
+
+## Background removal model
+
+File: `static/models/cutout/isnet-general-int8-v1.onnx` (44369070 bytes, tracked with Git LFS).
+SHA-256: `1ee1bb467218d7e29490ca1b5d8051d26c083769208d1c4400a74a0c5d1967c6`.
+
+- Upstream: https://github.com/xuebinqin/DIS at commit `b6764e20381f6f42a70f83fa3324181529ed1403`
+  (`IS-Net/models/isnet.py` vendored unmodified at `scripts/cutout/vendor/isnet.py`).
+- Licence: Apache License 2.0 (`LICENSE.md`, "Apache License Version 2.0, January 2004"). README:
+  "Our code and evaluation metric use Apache License 2.0." The README links `isnet-general-use.pth`
+  (the general-use weights) from Google Drive.
+- Weights: `isnet-general-use.pth`, Google Drive id `1klUkUnQFAxPdFu9XE3Vhnn-e72CVz6oM`
+  (https://drive.google.com/uc?id=1klUkUnQFAxPdFu9XE3Vhnn-e72CVz6oM), 176597693 bytes,
+  SHA-256 `ea0889743a78391b48d6b7c40b4def963ee329cb10934c75aa32481dc5af9c61`.
+- Conversion: exported by us from the upstream `.pth` (opset 17, input `input` [1,3,1024,1024] float32,
+  single output `mask` = d1 [1,1,1024,1024], already sigmoid), then `quantize_dynamic` QUInt8.
+  No third-party or imgly-derived ONNX is used. Build is bit-reproducible (two runs, identical hash).
+- Commands:
+  `python3 -m venv venv && venv/bin/pip install --extra-index-url https://download.pytorch.org/whl/cpu -r scripts/cutout/requirements.txt`
+  `venv/bin/python scripts/cutout/build-isnet-onnx.py --out static/models/cutout/isnet-general-int8-v1.onnx`
+- Hosting: served with `Cache-Control: public, max-age=31536000, immutable` (vercel.json). The Vercel
+  project must have Git LFS enabled (Settings -> Git).
+- Drive id note: the upstream README lists two ids. Line 28 gives `1XHIzgTz...` for general-use, but line 145 says `1XHIzgTz...` is `isnet.pth` (DIS5K) and general-use is `1klUkUnQ...`. We used `1klUkUnQ...` (the explicit line-145 mapping).
