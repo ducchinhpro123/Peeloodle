@@ -23,6 +23,7 @@
 	} from 'lucide-svelte';
 	import Slider from './Slider.svelte';
 	import ColorField from './ColorField.svelte';
+	import CutoutControls from './CutoutControls.svelte';
 	import { TEXT_FONTS, cssFontFamily } from '#lib/fonts.js';
 	/** @typedef {import('#lib/editor/editorState.svelte.js').EditorState} EditorState */
 
@@ -307,6 +308,7 @@
 				Automatic background removal is not available. Erase and Restore edit a mask; the original
 				photo stays unchanged.
 			</p>
+			<CutoutControls {editor} {image} />
 			<div class="button-row">
 				<button
 					type="button"

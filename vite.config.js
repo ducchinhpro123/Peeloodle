@@ -11,9 +11,21 @@ export default defineConfig({
 			{
 				find: /^lucide-svelte$/,
 				replacement: fileURLToPath(new URL('./src/lib/ui/icons.js', import.meta.url))
+			},
+			// The cutout worker loads ORT's WASM glue (`.mjs`) and binary from the
+			// self-hosted `/vendor/ort/` (see scripts/cutout/copy-ort-assets.mjs). The
+			// package's default "bundle" build embeds the glue and makes Vite emit a
+			// second 27 MB copy of the `.wasm`; this is the same WebGPU build without it.
+			{
+				find: /^onnxruntime-web\/webgpu$/,
+				replacement: fileURLToPath(
+					new URL('./node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs', import.meta.url)
+				)
 			}
 		]
 	},
+	// ORT loads its glue with a dynamic import, which needs an ES module worker.
+	worker: { format: 'es' },
 	// lucide-svelte ships Svelte dev-mode internals; compiling it from source keeps
 	// the dev element instrumentation consistent with the app's Svelte version.
 	optimizeDeps: { exclude: ['lucide-svelte'] },

@@ -53,3 +53,6 @@ __pycache__/
 .worktrees/
 .tmp/
 supabase/.temp/
+
+# Self-hosted runtime files copied from node_modules (scripts/cutout/copy-ort-assets.mjs)
+static/vendor/

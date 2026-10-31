@@ -6,13 +6,13 @@ Deterministic inputs for `e2e/cutout.spec.ts`. Regenerate with:
 node e2e/fixtures/cutout/build-fixtures.mjs
 ```
 
-| File                     | Content                                                                 |
-| ------------------------ | ----------------------------------------------------------------------- |
-| `peace-selfie.png`       | Person subject composited at 1024×1024 onto the busy background.        |
-| `sunny-corgi.png`        | Pet subject, same background.                                           |
-| `boba-tea.png`           | Object subject, same background.                                        |
-| `<name>.truth.png`       | The subject's own alpha as grayscale: ground truth for the IoU gate.    |
-| `no-subject.png`         | The background alone.                                                   |
+| File               | Content                                                              |
+| ------------------ | -------------------------------------------------------------------- |
+| `peace-selfie.png` | Person subject composited at 1024×1024 onto the busy background.     |
+| `sunny-corgi.png`  | Pet subject, same background.                                        |
+| `boba-tea.png`     | Object subject, same background.                                     |
+| `<name>.truth.png` | The subject's own alpha as grayscale: ground truth for the IoU gate. |
+| `no-subject.png`   | The background alone.                                                |
 
 ## Provenance
 
