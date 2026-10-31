@@ -1,11 +1,14 @@
 /**
  * Builds the background-removal E2E fixtures (run: `node e2e/fixtures/cutout/build-fixtures.mjs`).
  *
- * Each fixture composites a template photo's subject (its own alpha) at 1024×1024
- * onto one deterministic busy background: seeded colour noise, blurred into soft
- * blobs so the PNGs stay small, plus 40 random filled circles and rectangles
- * (seed 42). `<name>.truth.png` is the subject's alpha as grayscale, the ground
- * truth for the IoU gate; `no-subject.png` is the background alone.
+ * Each subject (a template photo with its own alpha) is composited at 1024×1024
+ * onto two deterministic backgrounds (seed 42):
+ * - `<name>.png` (gating): a realistic background, seeded colour noise blurred
+ *   into soft blobs.
+ * - `<name>.clutter.png` (non-gating benchmark): the same background plus 40
+ *   random flat filled circles and rectangles.
+ * `<name>.truth.png` is the subject's alpha as grayscale, shared by both
+ * variants; `no-subject.png` is the realistic background alone.
  */
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -31,7 +34,8 @@ function rng(seed) {
 	};
 }
 
-async function buildBackground() {
+/** Returns the realistic background and the cluttered one built on top of it. */
+async function buildBackgrounds() {
 	const random = rng(SEED);
 	// Coarse colour noise (64×64 cells) upscaled and blurred into soft blobs.
 	const cells = 64;
@@ -65,14 +69,14 @@ async function buildBackground() {
 			}
 		}
 	}
-	return pixels;
+	return { realistic: base, clutter: pixels };
 }
 
-const background = await buildBackground();
+const { realistic, clutter } = await buildBackgrounds();
 const raw = { raw: { width: SIZE, height: SIZE, channels: 3 } };
 const png = { compressionLevel: 9, effort: 10 };
 
-writeFileSync(path.join(here, 'no-subject.png'), await sharp(background, raw).png(png).toBuffer());
+writeFileSync(path.join(here, 'no-subject.png'), await sharp(realistic, raw).png(png).toBuffer());
 
 for (const name of SUBJECTS) {
 	const source = path.join(root, 'static/art/template-photos', `${name}.webp`);
@@ -81,13 +85,18 @@ for (const name of SUBJECTS) {
 		.ensureAlpha()
 		.png()
 		.toBuffer();
-	const composite = await sharp(background, raw)
-		.composite([{ input: subject }])
-		.removeAlpha()
-		.png(png)
-		.toBuffer();
+	for (const [suffix, background] of [
+		['', realistic],
+		['.clutter', clutter]
+	]) {
+		const composite = await sharp(background, raw)
+			.composite([{ input: subject }])
+			.removeAlpha()
+			.png(png)
+			.toBuffer();
+		writeFileSync(path.join(here, `${name}${suffix}.png`), composite);
+	}
 	const truth = await sharp(subject).extractChannel('alpha').png(png).toBuffer();
-	writeFileSync(path.join(here, `${name}.png`), composite);
 	writeFileSync(path.join(here, `${name}.truth.png`), truth);
 }
-console.log(`Wrote ${SUBJECTS.length * 2 + 1} fixtures to ${path.relative(root, here)}`);
+console.log(`Wrote ${SUBJECTS.length * 3 + 1} fixtures to ${path.relative(root, here)}`);

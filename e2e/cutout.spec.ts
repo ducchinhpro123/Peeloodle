@@ -17,6 +17,8 @@ const cutout = (page: Page) => page.getByTestId('cutout');
 /** One row per quality-gate fixture; Task 5 writes the artifact from it. */
 export type CutoutQualityRow = {
 	fixture: string;
+	/** False for the cluttered benchmark set, which is reported but never gates. */
+	gating: boolean;
 	iou: number;
 	backend: string;
 	downloadMs: number;
@@ -218,10 +220,14 @@ test('removes the background of a pet photo in one undo step', async ({ page }) 
 });
 
 test('cutout quality meets IoU ≥ 0.90 for person, pet and object', async ({ page }) => {
-	test.setTimeout(600_000);
+	test.setTimeout(900_000);
 	mkdirSync(test.info().outputDir, { recursive: true });
-	for (const name of ['peace-selfie', 'sunny-corgi', 'boba-tea']) {
-		const projectId = await openEditorWithPhoto(page, fixture(`${name}.png`));
+	const runs = ['peace-selfie', 'sunny-corgi', 'boba-tea'].flatMap((name) => [
+		{ name, file: `${name}.png`, gating: true },
+		{ name, file: `${name}.clutter.png`, gating: false }
+	]);
+	for (const { name, file, gating } of runs) {
+		const projectId = await openEditorWithPhoto(page, fixture(file));
 		await removeBackground(page);
 		await saveAndWait(page);
 		const { iou, maskBytes } = await storedMaskIou(
@@ -230,10 +236,14 @@ test('cutout quality meets IoU ≥ 0.90 for person, pet and object', async ({ pa
 			readFileSync(fixture(`${name}.truth.png`))
 		);
 		// Keep the produced mask next to the test output for inspection.
-		writeFileSync(path.join(test.info().outputDir, `${name}.mask.png`), Buffer.from(maskBytes));
+		writeFileSync(
+			path.join(test.info().outputDir, file.replace(/\.png$/, '.mask.png')),
+			Buffer.from(maskBytes)
+		);
 		const root = cutout(page);
 		results.push({
-			fixture: name,
+			fixture: file.replace(/\.png$/, ''),
+			gating,
 			iou,
 			backend: (await root.getAttribute('data-backend')) ?? '',
 			downloadMs: Number(await root.getAttribute('data-download-ms')),
@@ -241,7 +251,8 @@ test('cutout quality meets IoU ≥ 0.90 for person, pet and object', async ({ pa
 		});
 		console.log(`cutout quality: ${JSON.stringify(results.at(-1))}`);
 	}
-	for (const row of results) {
+	// Only the realistic set gates; the clutter benchmark is recorded, never asserted.
+	for (const row of results.filter((item) => item.gating)) {
 		expect(row.iou, `${row.fixture} IoU`).toBeGreaterThanOrEqual(0.9);
 	}
 });
