@@ -17,6 +17,11 @@ export type CutoutState = 'idle' | 'consent' | 'downloading' | 'running' | 'done
 
 export type CutoutController = {
 	readonly state: CutoutState;
+	/**
+	 * The image layer the state, message, progress and result belong to; null
+	 * when idle with no run. Views show them only for this layer.
+	 */
+	readonly layerId: string | null;
 	readonly message: string;
 	readonly progress: number | null;
 	readonly last: CutoutResult | null;
@@ -61,9 +66,9 @@ class Controller implements CutoutController {
 	progress = $state<number | null>(null);
 	last = $state.raw<CutoutResult | null>(null);
 	dropped = $state(0);
+	layerId = $state<string | null>(null);
 	#editor: EditorState;
 	#job: AbortController | null = null;
-	#layerId: string | null = null;
 	/** The bound layer's photo when the running job started. */
 	#assetId: string | null = null;
 	/** The project the status belongs to; `undefined` until the watcher starts. */
@@ -105,13 +110,13 @@ class Controller implements CutoutController {
 			this.#reset();
 			return;
 		}
-		if (!this.#job || !this.#layerId) return;
-		const layer = editor.document?.layers.find((item) => item.id === this.#layerId);
+		if (!this.#job || !this.layerId) return;
+		const layer = editor.document?.layers.find((item) => item.id === this.layerId);
 		const brushOnLayer =
-			editor.maskStroke?.layerId === this.#layerId ||
+			editor.maskStroke?.layerId === this.layerId ||
 			(toolChanged &&
 				(tool === 'erase' || tool === 'restore') &&
-				editor.selectedLayerId === this.#layerId);
+				editor.selectedLayerId === this.layerId);
 		if (
 			layer?.kind !== 'image' ||
 			layer.locked ||
@@ -140,7 +145,7 @@ class Controller implements CutoutController {
 		this.message = '';
 		this.progress = null;
 		this.last = null;
-		this.#layerId = null;
+		this.layerId = null;
 		this.#assetId = null;
 	}
 
@@ -148,7 +153,11 @@ class Controller implements CutoutController {
 		this.#watch();
 		// `#starting` covers the async cache probe, so a double click is one job.
 		if (this.#job || this.#starting || this.state === 'consent') return;
-		this.#layerId = layerId;
+		// A new run: the previous run's status (perhaps on another layer) is cleared.
+		if (layerId !== this.layerId) this.last = null;
+		this.layerId = layerId;
+		this.state = 'idle';
+		this.message = '';
 		this.#starting = true;
 		try {
 			if (!(await isModelCached())) {
@@ -163,8 +172,8 @@ class Controller implements CutoutController {
 	};
 
 	confirm = (): void => {
-		if (this.state === 'consent' && this.#layerId && !this.#job) {
-			void this.#run(this.#layerId, true);
+		if (this.state === 'consent' && this.layerId && !this.#job) {
+			void this.#run(this.layerId, true);
 		}
 	};
 
@@ -180,14 +189,14 @@ class Controller implements CutoutController {
 	 * the model already cached), so Retry does not ask again.
 	 */
 	retry = (): void => {
-		const layerId = this.#layerId;
+		const layerId = this.layerId;
 		if (this.state !== 'error' || !layerId || this.#job || this.#starting) return;
 		this.#starting = true;
 		void isModelCached()
 			.catch(() => false)
 			.then((cached) => {
 				this.#starting = false;
-				if (this.state === 'error' && this.#layerId === layerId && !this.#job) {
+				if (this.state === 'error' && this.layerId === layerId && !this.#job) {
 					return this.#run(layerId, !cached);
 				}
 			});

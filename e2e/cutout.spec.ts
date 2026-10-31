@@ -761,6 +761,63 @@ test('the properties sheet at 390x844 opens exactly one consent dialog', async (
 	await expect(panel.getByRole('status')).toContainText('Background removed');
 });
 
+test('the status, Retry and progress belong to the layer the run is on', async ({ page }) => {
+	test.setTimeout(300_000);
+	// A is the corgi (bottom row), B the boba tea added on top of it.
+	await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+	await page.setInputFiles('[data-testid="photo-file-input"]', fixture('boba-tea.png'));
+	const rows = page.locator('.layer-stack .layer-row');
+	await page.getByRole('tab', { name: 'Layers' }).click();
+	await expect(rows).toHaveCount(2);
+	const select = async (row: 'A' | 'B') => {
+		await page.getByRole('tab', { name: 'Layers' }).click();
+		await rows
+			.nth(row === 'A' ? 1 : 0)
+			.locator('.layer-kind-tag')
+			.click();
+		await page.getByRole('tab', { name: 'Adjust' }).click();
+	};
+	const remove = page.getByRole('button', { name: 'Remove background' });
+	const status = cutout(page).getByRole('status');
+	const retry = cutout(page).getByRole('button', { name: 'Retry' });
+
+	// A's error and Retry stay with A.
+	await page.route('**/models/cutout/**', (route) => route.abort());
+	await select('A');
+	await remove.click();
+	await page.getByRole('button', { name: 'Download & remove' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'error', { timeout: 60_000 });
+	await expect(retry).toBeVisible();
+	await select('B');
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await expect(status).toHaveText('');
+	await expect(retry).toHaveCount(0);
+	await expect(remove).toBeEnabled();
+
+	// While A runs, B shows nothing of it and cannot start a second job.
+	await page.unroute('**/models/cutout/**');
+	await select('A');
+	await retry.click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'running', { timeout: 60_000 });
+	await select('B');
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await expect(status).toHaveText('');
+	await expect(cutout(page).locator('progress')).toHaveCount(0);
+	await expect(cutout(page).getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+	await expect(remove).toBeDisabled();
+	await expect(remove).toHaveAccessibleDescription(/another layer/i);
+
+	// Selecting B did not cancel A's job: it finishes on A.
+	await select('A');
+	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
+	await expect(status).toContainText('Background removed');
+	await select('B');
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await expect(status).not.toContainText('Background removed');
+	await expect(cutout(page)).not.toHaveAttribute('data-backend', /.+/);
+	await expect(remove).toBeEnabled();
+});
+
 // Keep this the LAST test: workers=1 runs it after the quality test has filled `results`.
 test('artifact report is written', async () => {
 	const outDir = path.resolve('proofs/out/cutout');
