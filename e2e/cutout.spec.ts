@@ -665,6 +665,60 @@ test('replacing a hand-painted mask is undoable', async ({ page }) => {
 	expect(await storedMaskKey(page, projectId)).toBe(painted);
 });
 
+test('Erase and Restore refine the removal result', async ({ page }) => {
+	test.setTimeout(300_000);
+	const projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+	await removeBackground(page);
+	await saveAndWait(page);
+	const removed = await storedMaskKey(page, projectId);
+	expect(removed).toBeTruthy();
+
+	// The canvas centre is image pixel (512, 512), on the corgi; the 512 px export
+	// is the photo at half size, so it reads back at (256, 256).
+	const box = await page.getByTestId('editor-canvas').boundingBox();
+	if (!box) throw new Error('The editor canvas has no bounding box');
+	const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+	const stroke = async () => {
+		await page.mouse.move(center.x, center.y);
+		await page.mouse.down();
+		await page.mouse.move(center.x + 50, center.y + 30, { steps: 8 });
+		await page.mouse.up();
+	};
+	const exportedAlpha = async () =>
+		pngAlphaAt(page, await exportPng(page), [
+			[256, 256],
+			[20, 20]
+		]);
+	expect(await exportedAlpha()).toEqual([255, 0]);
+
+	// One Erase stroke on the result, as in masks.spec.ts: a hole in the subject,
+	// and the removed background stays removed (the brush started from the result).
+	await page.getByRole('button', { name: 'Background Eraser' }).click();
+	await page.getByRole('slider', { name: 'Brush size' }).fill('120');
+	await stroke();
+	await saveAndWait(page);
+	const erased = await storedMaskKey(page, projectId);
+	expect(erased).toBeTruthy();
+	expect(erased).not.toBe(removed);
+	expect(await exportedAlpha()).toEqual([0, 0]);
+
+	// Restore paints the subject back over the same spot.
+	await page.getByRole('button', { name: 'Restore', exact: true }).click();
+	await stroke();
+	await saveAndWait(page);
+	const restored = await storedMaskKey(page, projectId);
+	expect(restored).not.toBe(erased);
+	expect(await exportedAlpha()).toEqual([255, 0]);
+
+	// Each stroke is one undo step back to the removal's mask.
+	await undoButton(page).click();
+	await saveAndWait(page);
+	expect(await storedMaskKey(page, projectId)).toBe(erased);
+	await undoButton(page).click();
+	await saveAndWait(page);
+	expect(await storedMaskKey(page, projectId)).toBe(removed);
+});
+
 test('no clear subject is reported honestly', async ({ page }) => {
 	test.setTimeout(180_000);
 	const projectId = await openEditorWithPhoto(page, fixture('no-subject.png'));
