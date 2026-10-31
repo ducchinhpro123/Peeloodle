@@ -4,7 +4,8 @@
 	import { cutoutControllerFor } from '#lib/cutout/cutoutController.svelte.js';
 	/**
 	 * "Remove background" for the selected image layer. The root carries the
-	 * test contract: `data-state` plus the last run's backend and timings.
+	 * test contract: `data-state`, the last run's backend and timings, and
+	 * `data-dropped`, the count of abandoned runs whose late output was discarded.
 	 */
 
 	/**
@@ -27,6 +28,7 @@
 	data-download-ms={cutout.last?.downloadMs}
 	data-inference-ms={cutout.last?.inferenceMs}
 	data-kept={cutout.last?.keptFraction}
+	data-dropped={cutout.dropped}
 >
 	<div class="button-row">
 		<button

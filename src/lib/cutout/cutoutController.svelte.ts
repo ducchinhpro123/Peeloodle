@@ -2,9 +2,15 @@
  * UI state machine for "Remove background": runs one job for an image layer,
  * reports progress, and applies the mask as one undo step only if the job was
  * not cancelled and the layer is still the same unlocked image.
+ *
+ * A watcher (created on first use, from an event handler, so no component owns
+ * it) abandons the running job as soon as its layer is deleted, locked, given
+ * another photo, painted with Erase/Restore, or its project closes; opening
+ * another project also clears a finished run's status.
  */
+import { untrack } from 'svelte';
 import type { EditorState } from '#lib/editor/editorState.svelte.js';
-import { isModelCached, removeBackground } from './removeBackground';
+import { isModelCached, removeBackground, workerDrained } from './removeBackground';
 import { CutoutError, type CutoutErrorCode, type CutoutResult } from './protocol';
 
 export type CutoutState = 'idle' | 'consent' | 'downloading' | 'running' | 'done' | 'error';
@@ -14,6 +20,8 @@ export type CutoutController = {
 	readonly message: string;
 	readonly progress: number | null;
 	readonly last: CutoutResult | null;
+	/** Abandoned runs whose late worker output has settled and been discarded. */
+	readonly dropped: number;
 	start(layerId: string): Promise<void>;
 	confirm(): void;
 	cancel(): void;
@@ -52,16 +60,92 @@ class Controller implements CutoutController {
 	/** Download percent while `downloading`; null shows an indeterminate bar. */
 	progress = $state<number | null>(null);
 	last = $state.raw<CutoutResult | null>(null);
+	dropped = $state(0);
 	#editor: EditorState;
 	#job: AbortController | null = null;
 	#layerId: string | null = null;
+	/** The bound layer's photo when the running job started. */
+	#assetId: string | null = null;
+	/** The project the status belongs to; `undefined` until the watcher starts. */
+	#documentId: string | null | undefined = undefined;
+	#tool: string | undefined = undefined;
+	#watching = false;
 	#starting = false;
 
 	constructor(editor: EditorState) {
 		this.#editor = editor;
 	}
 
+	/** Starts the watcher once; it lives as long as the EditorState. */
+	#watch(): void {
+		if (this.#watching) return;
+		this.#watching = true;
+		this.#documentId = this.#editor.document?.id ?? null;
+		this.#tool = this.#editor.activeTool;
+		$effect.root(() => {
+			$effect(() => {
+				const editor = this.#editor;
+				// Dependencies: the document (layers, lock, assetId), strokes and the tool.
+				void editor.document;
+				void editor.maskStroke;
+				void editor.activeTool;
+				untrack(() => this.#guard());
+			});
+		});
+	}
+
+	#guard(): void {
+		const editor = this.#editor;
+		const documentId = editor.document?.id ?? null;
+		const tool = editor.activeTool;
+		const toolChanged = tool !== this.#tool;
+		this.#tool = tool;
+		if (documentId !== this.#documentId) {
+			this.#documentId = documentId;
+			this.#reset();
+			return;
+		}
+		if (!this.#job || !this.#layerId) return;
+		const layer = editor.document?.layers.find((item) => item.id === this.#layerId);
+		const brushOnLayer =
+			editor.maskStroke?.layerId === this.#layerId ||
+			(toolChanged &&
+				(tool === 'erase' || tool === 'restore') &&
+				editor.selectedLayerId === this.#layerId);
+		if (
+			layer?.kind !== 'image' ||
+			layer.locked ||
+			layer.assetId !== this.#assetId ||
+			brushOnLayer
+		) {
+			this.cancel();
+		}
+	}
+
+	/** Aborts the running job; once the worker has settled it counts as dropped. */
+	#abandon(): void {
+		const job = this.#job;
+		if (!job) return;
+		this.#job = null;
+		job.abort();
+		void workerDrained().then(() => {
+			this.dropped += 1;
+		});
+	}
+
+	/** Back to a clean idle state, as for a newly opened project. */
+	#reset(): void {
+		this.#abandon();
+		this.state = 'idle';
+		this.message = '';
+		this.progress = null;
+		this.last = null;
+		this.#layerId = null;
+		this.#assetId = null;
+	}
+
 	start = async (layerId: string): Promise<void> => {
+		this.#watch();
 		// `#starting` covers the async cache probe, so a double click is one job.
 		if (this.#job || this.#starting || this.state === 'consent') return;
 		this.#layerId = layerId;
@@ -85,15 +169,28 @@ class Controller implements CutoutController {
 	};
 
 	cancel = (): void => {
-		this.#job?.abort();
-		this.#job = null;
+		this.#abandon();
 		this.state = 'idle';
 		this.message = '';
 		this.progress = null;
 	};
 
+	/**
+	 * Re-runs on the same layer. An error is only reachable after consent (or with
+	 * the model already cached), so Retry does not ask again.
+	 */
 	retry = (): void => {
-		if (this.#layerId && !this.#job) void this.start(this.#layerId);
+		const layerId = this.#layerId;
+		if (this.state !== 'error' || !layerId || this.#job || this.#starting) return;
+		this.#starting = true;
+		void isModelCached()
+			.catch(() => false)
+			.then((cached) => {
+				this.#starting = false;
+				if (this.state === 'error' && this.#layerId === layerId && !this.#job) {
+					return this.#run(layerId, !cached);
+				}
+			});
 	};
 
 	async #run(layerId: string, downloading: boolean): Promise<void> {
@@ -101,14 +198,24 @@ class Controller implements CutoutController {
 		const documentId = editor.document?.id;
 		const layer = editor.document?.layers.find((item) => item.id === layerId);
 		const record = layer?.kind === 'image' ? editor.assets[layer.assetId] : undefined;
-		if (!documentId || layer?.kind !== 'image' || layer.locked || !record) {
+		if (!documentId || layer?.kind !== 'image' || layer.locked) {
+			// The button is disabled for these; a layer that changed under the click is a no-op.
 			this.state = 'idle';
 			this.message = '';
+			return;
+		}
+		if (!record) {
+			// The photo's bytes are not loaded: say so, and let Retry try again.
+			this.state = 'error';
+			this.message = errorMessage('unsupported');
+			this.progress = null;
 			return;
 		}
 
 		const job = new AbortController();
 		this.#job = job;
+		this.#assetId = layer.assetId;
+		this.#documentId = documentId;
 		// After consent the request is in flight before the first byte arrives.
 		this.state = downloading ? 'downloading' : 'running';
 		this.message = downloading ? CUTOUT_COPY.downloading(0) : CUTOUT_COPY.running;
@@ -142,8 +249,11 @@ class Controller implements CutoutController {
 					? editor.document.layers.find((item) => item.id === layerId)
 					: undefined;
 			if (current?.kind !== 'image' || current.locked || current.assetId !== layer.assetId) {
+				this.#job = null;
 				this.state = 'idle';
 				this.message = '';
+				this.progress = null;
+				this.dropped += 1;
 				return;
 			}
 			editor.applyMask(layerId, crypto.randomUUID(), result.mask);
@@ -157,8 +267,12 @@ class Controller implements CutoutController {
 			if (job.signal.aborted || this.#job !== job) return;
 			const code = error instanceof CutoutError ? error.code : 'unsupported';
 			if (code === 'aborted') {
+				// Aborted outside the controller (`disposeCutout` when the editor closes):
+				// the worker is gone, so the run has settled and nothing will be applied.
 				this.state = 'idle';
 				this.message = '';
+				this.progress = null;
+				this.dropped += 1;
 				return;
 			}
 			this.state = 'error';

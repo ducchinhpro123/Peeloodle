@@ -6,12 +6,14 @@ Deterministic inputs for `e2e/cutout.spec.ts`. Regenerate with:
 node e2e/fixtures/cutout/build-fixtures.mjs
 ```
 
-| File                 | Role                    | Content                                                                   |
-| -------------------- | ----------------------- | ------------------------------------------------------------------------- |
-| `<name>.png`         | **Gating** (IoU ≥ 0.90) | Subject composited at 1024×1024 onto the realistic background.            |
-| `<name>.clutter.png` | Benchmark, non-gating   | Same subject on the realistic background plus 40 flat circles/rectangles. |
-| `<name>.truth.png`   | Ground truth            | The subject's own alpha as grayscale, shared by both variants.            |
-| `no-subject.png`     | "No clear subject" case | The realistic background alone.                                           |
+| File                  | Role                          | Content                                                                                        |
+| --------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| `<name>.png`          | **Gating** (IoU ≥ 0.90)       | Subject composited at 1024×1024 onto the realistic background.                                 |
+| `<name>.clutter.png`  | Benchmark, non-gating         | Same subject on the realistic background plus 40 flat circles/rectangles.                      |
+| `<name>.truth.png`    | Ground truth                  | The subject's own alpha as grayscale, shared by both variants.                                 |
+| `no-subject.png`      | "No clear subject" case       | The realistic background alone.                                                                |
+| `rotated-6.jpg`       | EXIF orientation (IoU ≥ 0.90) | `sunny-corgi.png` stored 90° CCW in pixels, tagged EXIF orientation 6, so it displays upright. |
+| `rotated-6.truth.png` | Ground truth                  | The subject alpha in display orientation (equal to `sunny-corgi.truth.png`).                   |
 
 `<name>` is `peace-selfie` (person), `sunny-corgi` (pet) and `boba-tea` (object).
 

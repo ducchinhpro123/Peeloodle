@@ -50,6 +50,18 @@ async function webGpuAvailable(): Promise<boolean> {
 	}
 }
 
+/**
+ * Errors raised while running the model. Heuristic: a RangeError or an ORT
+ * message about memory/allocation is an out-of-memory, i.e. the photo is too
+ * large for this device; anything else means the runtime cannot do the job.
+ */
+function runFailure(error: unknown): CutoutError {
+	if (error instanceof CutoutError) return error;
+	const message = error instanceof Error ? error.message : String(error);
+	const outOfMemory = error instanceof RangeError || /memory|alloc|OOM/i.test(message);
+	return new CutoutError(outOfMemory ? 'too-large' : 'unsupported', message);
+}
+
 async function createSession(bytes: ArrayBuffer, target: CutoutBackend) {
 	return ort.InferenceSession.create(new Uint8Array(bytes), {
 		executionProviders: [target],
@@ -91,23 +103,25 @@ async function infer(bytes: ArrayBuffer, input: Float32Array): Promise<Float32Ar
 	try {
 		return await once(active);
 	} catch (error) {
-		if (backend !== 'webgpu') {
-			throw new CutoutError('unsupported', error instanceof Error ? error.message : String(error));
-		}
+		if (backend !== 'webgpu') throw runFailure(error);
 		// WebGPU inference failed: rebuild on WASM once.
 		await active.release().catch(() => undefined);
 		session = null;
+		let fallback: ort.InferenceSession;
 		try {
-			session = await createSession(bytes, 'wasm');
-			backend = 'wasm';
-			return await once(session);
+			fallback = await createSession(bytes, 'wasm');
 		} catch (fallbackError) {
-			session = null;
+			// Session creation failed on both execution providers.
 			throw new CutoutError(
 				'unsupported',
 				fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
 			);
 		}
+		session = fallback;
+		backend = 'wasm';
+		return await once(fallback).catch((fallbackError: unknown) => {
+			throw runFailure(fallbackError);
+		});
 	}
 }
 
@@ -163,12 +177,7 @@ async function run(id: number, image: Blob, width: number, height: number, useCa
 			}
 		});
 	} catch (error) {
-		const failure =
-			error instanceof CutoutError
-				? error
-				: error instanceof RangeError
-					? new CutoutError('too-large', error.message)
-					: new CutoutError('unsupported', error instanceof Error ? error.message : String(error));
+		const failure = runFailure(error);
 		post({ type: 'error', id, code: failure.code, message: failure.message });
 	} finally {
 		controllers.delete(id);

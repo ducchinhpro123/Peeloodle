@@ -73,7 +73,13 @@ async function download(
 	const total = Number(response.headers.get('content-length')) || MODEL_BYTES;
 	onProgress(0, total);
 	if (!response.body) {
-		const bytes = await response.arrayBuffer();
+		let bytes: ArrayBuffer;
+		try {
+			bytes = await response.arrayBuffer();
+		} catch (error) {
+			if (signal.aborted) throw new CutoutError('aborted');
+			throw new CutoutError('network', error instanceof Error ? error.message : String(error));
+		}
 		onProgress(bytes.byteLength, total);
 		return bytes;
 	}

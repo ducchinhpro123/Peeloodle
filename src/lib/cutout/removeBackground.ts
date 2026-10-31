@@ -18,6 +18,8 @@ type PendingJob = {
 	reject: (error: CutoutError) => void;
 	onProgress?: (progress: CutoutProgress) => void;
 	cleanup: () => void;
+	/** The worker reported the inference phase: the model loaded and the run began. */
+	inferring: boolean;
 };
 
 let worker: Worker | null = null;
@@ -25,6 +27,16 @@ let pending: PendingJob | null = null;
 let nextId = 1;
 /** The worker holds the verified model in memory (covers Cache Storage being unavailable). */
 let workerHasModel = false;
+/** Runs the worker has not finished yet, cancelled ones included (each ends with one result/error). */
+let inflight = 0;
+let drainWaiters: Array<() => void> = [];
+
+function drained() {
+	if (inflight > 0) return;
+	const waiters = drainWaiters;
+	drainWaiters = [];
+	for (const resolve of waiters) resolve();
+}
 
 function settle(job: PendingJob) {
 	if (pending === job) pending = null;
@@ -47,9 +59,14 @@ function getWorker(): Worker {
 	const created = new Worker(new URL('./cutout.worker.ts', import.meta.url), { type: 'module' });
 	created.onmessage = (event: MessageEvent<CutoutResponse>) => {
 		const message = event.data;
+		if (message.type !== 'progress') {
+			inflight = Math.max(0, inflight - 1);
+			drained();
+		}
 		const job = pending;
 		if (!job || job.id !== message.id) return;
 		if (message.type === 'progress') {
+			if (message.progress.phase === 'infer') job.inferring = true;
 			job.onProgress?.(message.progress);
 		} else if (message.type === 'result') {
 			settle(job);
@@ -67,8 +84,12 @@ function getWorker(): Worker {
 		if (worker === created) {
 			worker = null;
 			workerHasModel = false;
+			inflight = 0;
+			drained();
 		}
-		failPending(new CutoutError('unsupported', event.message || 'The background remover crashed'));
+		// Heuristic: a worker that dies mid-inference has almost always run out of memory.
+		const code = pending?.inferring ? 'too-large' : 'unsupported';
+		failPending(new CutoutError(code, event.message || 'The background remover crashed'));
 	};
 	worker = created;
 	return created;
@@ -100,10 +121,12 @@ export function removeBackground(
 			resolve,
 			reject,
 			onProgress: opts.onProgress,
-			cleanup: () => opts.signal?.removeEventListener('abort', onAbort)
+			cleanup: () => opts.signal?.removeEventListener('abort', onAbort),
+			inferring: false
 		};
 		pending = job;
 		opts.signal?.addEventListener('abort', onAbort, { once: true });
+		inflight += 1;
 		send(target, {
 			type: 'run',
 			id,
@@ -121,10 +144,21 @@ export function isModelCached(): Promise<boolean> {
 	return typeof caches === 'undefined' ? Promise.resolve(false) : modelCached();
 }
 
+/**
+ * Resolves once the worker has finished every run it was sent, including
+ * cancelled ones whose output is discarded (or the worker is gone).
+ */
+export function workerDrained(): Promise<void> {
+	if (inflight === 0) return Promise.resolve();
+	return new Promise((resolve) => drainWaiters.push(resolve));
+}
+
 /** Terminates the worker (and its session); a pending job rejects as aborted. */
 export function disposeCutout(): void {
 	worker?.terminate();
 	worker = null;
 	workerHasModel = false;
+	inflight = 0;
+	drained();
 	failPending(new CutoutError('aborted'));
 }

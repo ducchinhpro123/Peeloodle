@@ -416,8 +416,8 @@ test('cancel during inference applies nothing', async ({ page }) => {
 	await expect(cutout(page)).toHaveAttribute('data-state', 'running');
 	await cutout(page).getByRole('button', { name: 'Cancel' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
-	// Let the abandoned inference finish; its result must be dropped.
-	await page.waitForTimeout(15_000);
+	// Let the abandoned inference finish in the worker; its result must be dropped.
+	await waitForDropped(page, 1);
 	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
 	expect(await undoButton(page).isDisabled()).toBe(undoDisabledBefore);
 	await saveAndWait(page);
@@ -455,4 +455,256 @@ test('double click starts one job', async ({ page }) => {
 	await undoButton(page).click();
 	await saveAndWait(page);
 	expect(await storedMaskKey(page, projectId)).toBeNull();
+});
+
+// ── Guards, errors, replace and degenerate results ─────────────────────────────
+
+const DOWNLOAD_ERROR = "Couldn't download the model. Check your connection.";
+const DEGENERATE = "Couldn't find a clear subject — try Erase instead.";
+
+/** Every stored layer's `maskKey` (undefined ones dropped), from IndexedDB. */
+async function storedMaskKeys(page: Page, projectId: string) {
+	return page.evaluate(async (id) => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('stickerlab-local');
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		const project = await new Promise<{ layers: Array<{ maskKey?: string }> }>(
+			(resolve, reject) => {
+				const request = db.transaction('projects', 'readonly').objectStore('projects').get(id);
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = () => reject(request.error);
+			}
+		);
+		db.close();
+		return project.layers.map((layer) => layer.maskKey).filter(Boolean);
+	}, projectId);
+}
+
+/** Clicks Remove background (accepting consent if asked) and waits for `running`. */
+async function startUntilRunning(page: Page) {
+	await page.getByRole('button', { name: 'Remove background' }).click();
+	await expect(cutout(page)).not.toHaveAttribute('data-state', 'idle');
+	if ((await cutout(page).getAttribute('data-state')) === 'consent') {
+		await page.getByRole('button', { name: 'Download & remove' }).click();
+	}
+	await expect(cutout(page)).toHaveAttribute('data-state', 'running', { timeout: 60_000 });
+}
+
+/**
+ * Waits until `count` abandoned runs have settled in the worker and their late
+ * output was dropped, so "nothing was applied" is asserted after the fact.
+ */
+async function waitForDropped(page: Page, count: number) {
+	await expect(cutout(page)).toHaveAttribute('data-dropped', String(count), { timeout: 60_000 });
+}
+
+const modelCachedInPage = (page: Page) => page.evaluate(() => caches.has('cutout-isnet-v1'));
+
+test('deleting or replacing the layer mid-run applies nothing', async ({ page }) => {
+	test.setTimeout(300_000);
+	// Delete: the Background section unmounts with the layer, so a second photo
+	// brings the (shared) controller back into view to observe it.
+	let projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+	await startUntilRunning(page);
+	await page.locator('.layer-card .layer-delete').click();
+	await expect(cutout(page)).toHaveCount(0);
+	await page.setInputFiles('[data-testid="photo-file-input"]', fixture('boba-tea.png'));
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await waitForDropped(page, 1);
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await expect(cutout(page).getByRole('status')).toHaveText('');
+	await saveAndWait(page);
+	expect(await storedMaskKeys(page, projectId)).toEqual([]);
+
+	// Replace image: same layer id, new asset.
+	projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+	await startUntilRunning(page);
+	await page.setInputFiles('#replacement-photo-input', fixture('boba-tea.png'));
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await waitForDropped(page, 1);
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await saveAndWait(page);
+	expect(await storedMaskKeys(page, projectId)).toEqual([]);
+});
+
+test('opening another project resets the cutout status', async ({ page }) => {
+	test.setTimeout(300_000);
+	const openAnotherProject = async (photo: string) => {
+		// Client-side navigation: the root EditorState (and its controller) survive.
+		await page.getByRole('link', { name: 'StickerLab home' }).click();
+		await page.getByRole('link', { name: /Create a Sticker/ }).click();
+		await expect(page).toHaveURL(/\/editor\/[0-9a-z-]+/, { timeout: 20_000 });
+		await page.setInputFiles('[data-testid="photo-file-input"]', photo);
+		await page.getByRole('tab', { name: 'Adjust' }).click();
+		const id = page.url().match(/editor\/([^/?#]+)/)?.[1];
+		if (!id) throw new Error('The editor URL has no project id');
+		return id;
+	};
+	const firstProject = await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await removeBackground(page);
+	await expect(cutout(page).getByRole('status')).toContainText('Background removed');
+
+	// A finished run's message and timings do not follow the user to another project.
+	const secondProject = await openAnotherProject(fixture('sunny-corgi.png'));
+	expect(secondProject).not.toBe(firstProject);
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await expect(cutout(page).getByRole('status')).toHaveText('');
+	await expect(cutout(page)).not.toHaveAttribute('data-backend', /.+/);
+
+	// A running job is abandoned when its project closes.
+	await startUntilRunning(page);
+	const thirdProject = await openAnotherProject(fixture('boba-tea.png'));
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await waitForDropped(page, 1);
+	await saveAndWait(page);
+	expect(await storedMaskKeys(page, thirdProject)).toEqual([]);
+});
+
+test('download failure shows retry, and Retry recovers', async ({ page }) => {
+	test.setTimeout(300_000);
+	await page.route('**/models/cutout/**', (route) => route.abort());
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await page.getByRole('button', { name: 'Remove background' }).click();
+	await page.getByRole('button', { name: 'Download & remove' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'error', { timeout: 60_000 });
+	await expect(cutout(page).getByRole('status')).toHaveText(DOWNLOAD_ERROR);
+	const retry = cutout(page).getByRole('button', { name: 'Retry' });
+	await expect(retry).toBeVisible();
+	expect(await modelCachedInPage(page)).toBe(false);
+
+	// Retry re-runs on the same layer; consent was already given.
+	await page.unroute('**/models/cutout/**');
+	await retry.click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
+	await expect(page.getByRole('dialog', { name: CONSENT_TITLE })).toBeHidden();
+	await expect(cutout(page).getByRole('status')).toContainText('Background removed');
+	await expect(retry).toHaveCount(0);
+});
+
+test('corrupted model is rejected and not cached', async ({ page }) => {
+	test.setTimeout(120_000);
+	const size = 1024 * 1024;
+	await page.route('**/models/cutout/**', (route) =>
+		route.fulfill({
+			status: 200,
+			headers: { 'content-type': 'application/octet-stream', 'content-length': String(size) },
+			body: Buffer.alloc(size)
+		})
+	);
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await page.getByRole('button', { name: 'Remove background' }).click();
+	await page.getByRole('button', { name: 'Download & remove' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'error', { timeout: 60_000 });
+	await expect(cutout(page).getByRole('status')).toHaveText(DOWNLOAD_ERROR);
+	await expect(cutout(page).getByRole('button', { name: 'Retry' })).toBeVisible();
+	expect(await modelCachedInPage(page)).toBe(false);
+});
+
+test('replacing a hand-painted mask is undoable', async ({ page }) => {
+	test.setTimeout(300_000);
+	const projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+	// One Erase stroke, as in masks.spec.ts.
+	const box = await page.getByTestId('editor-canvas').boundingBox();
+	if (!box) throw new Error('The editor canvas has no bounding box');
+	const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+	await page.getByRole('button', { name: 'Background Eraser' }).click();
+	await page.mouse.move(center.x, center.y);
+	await page.mouse.down();
+	await page.mouse.move(center.x + 50, center.y + 30, { steps: 8 });
+	await page.mouse.up();
+	await saveAndWait(page);
+	const painted = await storedMaskKey(page, projectId);
+	expect(painted).toBeTruthy();
+
+	await removeBackground(page);
+	await saveAndWait(page);
+	const removed = await storedMaskKey(page, projectId);
+	expect(removed).toBeTruthy();
+	expect(removed).not.toBe(painted);
+
+	await undoButton(page).click();
+	await saveAndWait(page);
+	expect(await storedMaskKey(page, projectId)).toBe(painted);
+});
+
+test('no clear subject is reported honestly', async ({ page }) => {
+	test.setTimeout(180_000);
+	const projectId = await openEditorWithPhoto(page, fixture('no-subject.png'));
+	await removeBackground(page);
+	console.log(`no-subject keptFraction: ${await cutout(page).getAttribute('data-kept')}`);
+	await expect(cutout(page).getByRole('status')).toHaveText(DEGENERATE);
+	// Still applied: the user can refine it or undo it.
+	await saveAndWait(page);
+	expect(await storedMaskKey(page, projectId)).toBeTruthy();
+});
+
+test('editor stays responsive during inference', async ({ page }) => {
+	test.setTimeout(180_000);
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	const stageX = () =>
+		page.evaluate(
+			() =>
+				(
+					window as unknown as { Konva?: { stages: Array<{ x(): number }> } }
+				).Konva?.stages[0]?.x() ?? Number.NaN
+		);
+	const before = await stageX();
+	expect(Number.isFinite(before)).toBe(true);
+	await startUntilRunning(page);
+
+	// Space-pan, as in masks.spec.ts: blur the button so Space reaches the canvas.
+	const box = await page.getByTestId('editor-canvas').boundingBox();
+	if (!box) throw new Error('The editor canvas has no bounding box');
+	const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+	await page.evaluate(() => {
+		if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+	});
+	const started = Date.now();
+	await page.keyboard.down('Space');
+	await page.mouse.move(center.x, center.y);
+	await page.mouse.down();
+	await page.mouse.move(center.x + 90, center.y + 40, { steps: 8 });
+	await page.mouse.up();
+	await page.keyboard.up('Space');
+	await expect.poll(stageX, { timeout: 1_000 }).not.toBe(before);
+	expect(Date.now() - started).toBeLessThan(1_000);
+	// The pan happened while the model was still working.
+	await expect(cutout(page)).toHaveAttribute('data-state', 'running');
+	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
+});
+
+test('EXIF-rotated JPEG aligns', async ({ page }) => {
+	test.setTimeout(180_000);
+	const projectId = await openEditorWithPhoto(page, fixture('rotated-6.jpg'));
+	await removeBackground(page);
+	await saveAndWait(page);
+	const { iou, maskBytes } = await storedMaskIou(
+		page,
+		projectId,
+		readFileSync(fixture('rotated-6.truth.png'))
+	);
+	mkdirSync(test.info().outputDir, { recursive: true });
+	writeFileSync(path.join(test.info().outputDir, 'rotated-6.mask.png'), Buffer.from(maskBytes));
+	console.log(`rotated-6 IoU: ${iou}`);
+	expect(iou).toBeGreaterThanOrEqual(0.9);
+});
+
+test('locked or non-image layer disables removal', async ({ page }) => {
+	const modelRequests = watchModelRequests(page);
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await page.getByRole('tab', { name: 'Layers' }).click();
+	await page.getByRole('button', { name: /^Lock / }).click();
+	await page.getByRole('tab', { name: 'Adjust' }).click();
+	const remove = page.getByRole('button', { name: 'Remove background' });
+	await expect(remove).toBeDisabled();
+	await remove.click({ force: true });
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+
+	await page.getByRole('button', { name: 'Text', exact: true }).click();
+	await expect(page.getByRole('tab', { name: 'Adjust' })).toHaveAttribute('data-state', 'active');
+	await expect(cutout(page)).toHaveCount(0);
+	await expect(remove).toHaveCount(0);
+	expect(modelRequests).toHaveLength(0);
 });

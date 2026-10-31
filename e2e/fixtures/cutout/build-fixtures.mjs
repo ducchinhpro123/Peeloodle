@@ -9,6 +9,10 @@
  *   random flat filled circles and rectangles.
  * `<name>.truth.png` is the subject's alpha as grayscale, shared by both
  * variants; `no-subject.png` is the realistic background alone.
+ *
+ * `rotated-6.jpg` is the gating `sunny-corgi.png` stored rotated 90° CCW in pixels
+ * and tagged EXIF orientation 6 ("rotate 90° CW to display"), so it *displays*
+ * upright. `rotated-6.truth.png` is the ground truth in display orientation.
  */
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -99,4 +103,21 @@ for (const name of SUBJECTS) {
 	const truth = await sharp(subject).extractChannel('alpha').png(png).toBuffer();
 	writeFileSync(path.join(here, `${name}.truth.png`), truth);
 }
-console.log(`Wrote ${SUBJECTS.length * 3 + 1} fixtures to ${path.relative(root, here)}`);
+// EXIF orientation 6 = rotate 90° CW to display: store the pixels 90° CCW.
+const corgi = path.join(here, 'sunny-corgi.png');
+writeFileSync(
+	path.join(here, 'rotated-6.jpg'),
+	await sharp(corgi).rotate(270).jpeg({ quality: 92 }).withMetadata({ orientation: 6 }).toBuffer()
+);
+// Display orientation (= the upright subject), derived through sharp's own EXIF
+// handling so the truth matches what an orientation-aware decoder shows.
+const displayed = await sharp(path.join(here, 'sunny-corgi.truth.png'))
+	.rotate(270)
+	.png()
+	.withMetadata({ orientation: 6 })
+	.toBuffer();
+writeFileSync(
+	path.join(here, 'rotated-6.truth.png'),
+	await sharp(displayed).rotate().extractChannel(0).png(png).toBuffer()
+);
+console.log(`Wrote ${SUBJECTS.length * 3 + 3} fixtures to ${path.relative(root, here)}`);
