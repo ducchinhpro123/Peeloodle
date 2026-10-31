@@ -6,7 +6,9 @@
  * reaches the exported PNG, and its quality is gated by IoU against ground-truth
  * subject alpha for a person, a pet and an object (`e2e/fixtures/cutout/`).
  */
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import sharp from 'sharp';
@@ -1017,15 +1019,33 @@ test('artifact report is written', async () => {
 	mkdirSync(outDir, { recursive: true });
 	expect(results.length, 'quality test must run first').toBeGreaterThan(0);
 
-	const rows = results.map((row) => ({ ...row, pass: row.iou >= 0.9 }));
+	// The previous run's mask hashes, read before they are overwritten.
+	const reportPath = path.join(outDir, 'report.json');
+	const previous = existsSync(reportPath)
+		? (JSON.parse(readFileSync(reportPath, 'utf8')) as {
+				results?: Array<{ fixture: string; maskSha256?: string }>;
+			})
+		: null;
+	const previousHashes = new Map(
+		(previous?.results ?? []).flatMap((row) =>
+			row.maskSha256 ? [[row.fixture, row.maskSha256] as const] : []
+		)
+	);
+	const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+	const rows = results.map((row) => {
+		const data = artifacts.get(row.fixture);
+		if (!data) throw new Error(`No artifact bytes for ${row.fixture}`);
+		return { ...row, pass: row.iou >= 0.9, maskSha256: sha256(data.mask) };
+	});
+	const generatedAt = new Date().toISOString();
 	writeFileSync(
-		path.join(outDir, 'report.json'),
+		reportPath,
 		JSON.stringify(
 			{
 				modelSha256: MODEL_SHA256,
 				ortVersion: ORT_VERSION,
 				results: rows,
-				generatedAt: new Date().toISOString()
+				generatedAt
 			},
 			null,
 			2
@@ -1065,5 +1085,83 @@ test('artifact report is written', async () => {
 		}
 	}
 	// Only the realistic set gates; clutter rows are recorded with their IoU.
+	// The summary, generated from the same rows; timings are reported against the
+	// spec budget, and a miss is reported, not hidden.
+	const BUDGET_MS = { webgpu: 2_000, wasm: 15_000 } as Record<string, number>;
+	const withinBudget = (row: (typeof rows)[number]) =>
+		row.backend in BUDGET_MS ? row.inferenceMs < BUDGET_MS[row.backend]! : false;
+	const table = (subset: typeof rows) => [
+		'| Fixture | IoU | Backend | Download ms | Inference ms | Within budget | Pass (IoU ≥ 0.90) |',
+		'|---|---|---|---|---|---|---|',
+		...subset.map(
+			(row) =>
+				`| ${row.fixture} | ${row.iou.toFixed(4)} | ${row.backend} | ${row.downloadMs} | ${row.inferenceMs} | ${withinBudget(row) ? 'yes' : 'no'} | ${row.pass ? 'yes' : 'no'} |`
+		)
+	];
+	const gatingRows = rows.filter((row) => row.gating);
+	const clutterRows = rows.filter((row) => !row.gating);
+	const backends = [...new Set(rows.map((row) => row.backend))];
+	const misses = rows.filter((row) => !withinBudget(row));
+	const compared = rows.filter((row) => previousHashes.has(row.fixture));
+	const changed = compared.filter((row) => previousHashes.get(row.fixture) !== row.maskSha256);
+	const cpus = os.cpus();
+	const lines = [
+		'# In-browser background removal: proof',
+		'',
+		`Generated ${generatedAt} by \`e2e/cutout.spec.ts\` (production build, real model, headless Chromium).`,
+		'',
+		`- Model SHA-256: \`${MODEL_SHA256}\` (\`isnet-general-int8-v1.onnx\`)`,
+		`- onnxruntime-web: \`${ORT_VERSION}\``,
+		`- Machine: ${cpus[0]?.model ?? 'unknown CPU'}, ${cpus.length} logical cores, ${os.platform()} ${os.release()}`,
+		'',
+		'## Performance budget',
+		'',
+		'Spec targets for inference: WebGPU < 2 s, single-threaded WASM < 15 s on a mid-range laptop.',
+		'',
+		`- Backends used in this run: ${backends.join(', ')}.`,
+		...(backends.includes('webgpu')
+			? []
+			: [
+					'- WebGPU was not measured: headless Chromium has no WebGPU adapter, so every run fell back to single-threaded WASM. The WebGPU < 2 s target is unverified.'
+				]),
+		misses.length === 0
+			? '- Every run was within the budget for its backend.'
+			: `- Over budget: ${misses.map((row) => `${row.fixture} (${row.backend}, ${row.inferenceMs} ms)`).join(', ')}.`,
+		'- The machine above is the test host, not a reference mid-range laptop.',
+		'',
+		'## Quality gate (person, pet, object)',
+		'',
+		...table(gatingRows),
+		'',
+		gatingRows.every((row) => row.pass) ? 'All gating rows pass.' : 'Some gating rows FAIL.',
+		'',
+		'## Clutter benchmark (non-gating)',
+		'',
+		'The subjects sit on a flat-shapes background; recorded for tracking only, never asserted.',
+		'',
+		...table(clutterRows),
+		'',
+		'## Artifacts',
+		'',
+		"`proofs/out/cutout/` holds `report.json` (with each mask's SHA-256) and, per fixture, `*.source.png`, `*.mask.png`, `*.sticker.png` (the 512 px export) and `*.sheet.png` (source | mask | sticker).",
+		'',
+		'## Re-run',
+		'',
+		'`npx playwright test e2e/cutout.spec.ts`; the last test writes this file and the artifacts.',
+		'',
+		'## Determinism',
+		'',
+		compared.length === 0
+			? 'No previous `report.json` with mask hashes to compare against; re-run to check.'
+			: changed.length === 0
+				? `All ${compared.length} masks are byte-identical to the previous run (SHA-256 in \`report.json\`).`
+				: `Masks differ from the previous run: ${changed.map((row) => row.fixture).join(', ')}.`,
+		''
+	];
+	writeFileSync(path.resolve('proofs/cutout.md'), lines.join('\n'));
+
+	const summary = readFileSync(path.resolve('proofs/cutout.md'), 'utf8');
+	expect(summary).toContain('WebGPU < 2 s, single-threaded WASM < 15 s');
+	expect(summary).toContain(`Generated ${generatedAt}`);
 	for (const row of rows.filter((item) => item.gating)) expect(row.pass).toBe(true);
 });
