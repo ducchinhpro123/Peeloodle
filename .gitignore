@@ -36,7 +36,8 @@ project.inlang/cache/
 # Local artifacts and archived development material
 /proofs/
 /anti-slop/
-/scripts/
+/scripts/*
+!/scripts/cutout/
 /docs/*
 !/docs/assets-provenance.md
 /CONTEXT.md
