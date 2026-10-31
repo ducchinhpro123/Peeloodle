@@ -565,6 +565,24 @@ test('deleting or replacing the layer mid-run applies nothing', async ({ page })
 	expect(await storedMaskKeys(page, projectId)).toEqual([]);
 });
 
+test('locking the layer mid-run applies nothing', async ({ page }) => {
+	test.setTimeout(300_000);
+	const projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+	await startUntilRunning(page);
+	await page.getByRole('tab', { name: 'Layers' }).click();
+	await page.getByRole('button', { name: /^Lock / }).click();
+	await expect(page.getByRole('button', { name: /^Unlock / })).toBeVisible();
+	await page.getByRole('tab', { name: 'Adjust' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	// The abandoned inference settles in the worker and its mask is discarded.
+	await waitForDropped(page, 1);
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await expect(cutout(page).getByRole('status')).toHaveText('');
+	await expect(page.getByRole('button', { name: 'Remove background' })).toBeDisabled();
+	await saveAndWait(page);
+	expect(await storedMaskKeys(page, projectId)).toEqual([]);
+});
+
 test('opening another project resets the cutout status', async ({ page }) => {
 	test.setTimeout(300_000);
 	const openAnotherProject = async (photo: string) => {
