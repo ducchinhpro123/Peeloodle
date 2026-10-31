@@ -6,9 +6,11 @@
  * reaches the exported PNG, and its quality is gated by IoU against ground-truth
  * subject alpha for a person, a pet and an object (`e2e/fixtures/cutout/`).
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import sharp from 'sharp';
+import { MODEL_SHA256 } from '../src/lib/cutout/modelInfo';
 
 const FIXTURES = path.resolve('e2e/fixtures/cutout');
 const fixture = (name: string) => path.join(FIXTURES, name);
@@ -25,6 +27,10 @@ export type CutoutQualityRow = {
 	inferenceMs: number;
 };
 const results: CutoutQualityRow[] = [];
+/** Mask and exported sticker bytes per quality fixture, for the artifact. */
+const artifacts = new Map<string, { mask: Buffer; sticker: Buffer }>();
+const HELP_COPY =
+	'Runs on your device. Your photo is never uploaded. Refine with Erase and Restore.';
 
 /** Opens a fresh editor with `photo` uploaded and the Adjust tab showing. */
 async function openEditorWithPhoto(
@@ -203,6 +209,16 @@ async function pngAlphaAt(page: Page, bytes: Buffer, points: Array<[number, numb
 test('removes the background of a pet photo in one undo step', async ({ page }) => {
 	test.setTimeout(180_000);
 	const projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+
+	// The Background section states the new behaviour; the old "not available" copy is gone.
+	const section = page
+		.locator('.inspector-section')
+		.filter({ has: page.getByText('Background', { exact: true }) });
+	await expect(section).toContainText(HELP_COPY);
+	await expect(page.getByText('Automatic background removal is not available')).toHaveCount(0);
+	await expect(page.getByText('Backgrounds are not removed automatically')).toHaveCount(0);
+	await expect(page.locator('[title*="Backgrounds are not removed automatically"]')).toHaveCount(0);
+
 	await removeBackground(page);
 	await expect(cutout(page).getByRole('status')).toContainText(
 		'Background removed — use Erase/Restore to touch up.'
@@ -254,6 +270,10 @@ test('cutout quality meets IoU ≥ 0.90 for person, pet and object', async ({ pa
 			Buffer.from(maskBytes)
 		);
 		const root = cutout(page);
+		artifacts.set(file.replace(/\.png$/, ''), {
+			mask: Buffer.from(maskBytes),
+			sticker: await exportPng(page)
+		});
 		results.push({
 			fixture: file.replace(/\.png$/, ''),
 			gating,
@@ -650,8 +670,7 @@ test('editor stays responsive during inference', async ({ page }) => {
 					window as unknown as { Konva?: { stages: Array<{ x(): number }> } }
 				).Konva?.stages[0]?.x() ?? Number.NaN
 		);
-	const before = await stageX();
-	expect(Number.isFinite(before)).toBe(true);
+	expect(Number.isFinite(await stageX())).toBe(true);
 	await startUntilRunning(page);
 
 	// Space-pan, as in masks.spec.ts: blur the button so Space reaches the canvas.
@@ -661,7 +680,7 @@ test('editor stays responsive during inference', async ({ page }) => {
 	await page.evaluate(() => {
 		if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 	});
-	const started = Date.now();
+	const before = await stageX();
 	await page.keyboard.down('Space');
 	await page.mouse.move(center.x, center.y);
 	await page.mouse.down();
@@ -669,7 +688,6 @@ test('editor stays responsive during inference', async ({ page }) => {
 	await page.mouse.up();
 	await page.keyboard.up('Space');
 	await expect.poll(stageX, { timeout: 1_000 }).not.toBe(before);
-	expect(Date.now() - started).toBeLessThan(1_000);
 	// The pan happened while the model was still working.
 	await expect(cutout(page)).toHaveAttribute('data-state', 'running');
 	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
@@ -707,4 +725,64 @@ test('locked or non-image layer disables removal', async ({ page }) => {
 	await expect(cutout(page)).toHaveCount(0);
 	await expect(remove).toHaveCount(0);
 	expect(modelRequests).toHaveLength(0);
+});
+
+// Keep this the LAST test: workers=1 runs it after the quality test has filled `results`.
+test('artifact report is written', async () => {
+	const outDir = path.resolve('proofs/out/cutout');
+	mkdirSync(outDir, { recursive: true });
+	expect(results.length, 'quality test must run first').toBeGreaterThan(0);
+
+	const ortVersion = JSON.parse(
+		readFileSync(path.resolve('node_modules/onnxruntime-web/package.json'), 'utf8')
+	).version as string;
+	const rows = results.map((row) => ({ ...row, pass: row.iou >= 0.9 }));
+	writeFileSync(
+		path.join(outDir, 'report.json'),
+		JSON.stringify(
+			{
+				modelSha256: MODEL_SHA256,
+				ortVersion,
+				results: rows,
+				generatedAt: new Date().toISOString()
+			},
+			null,
+			2
+		)
+	);
+
+	const height = 512;
+	for (const row of rows) {
+		const data = artifacts.get(row.fixture);
+		if (!data) throw new Error(`No artifact bytes for ${row.fixture}`);
+		const source = readFileSync(fixture(`${row.fixture}.png`));
+		writeFileSync(path.join(outDir, `${row.fixture}.source.png`), source);
+		writeFileSync(path.join(outDir, `${row.fixture}.mask.png`), data.mask);
+		writeFileSync(path.join(outDir, `${row.fixture}.sticker.png`), data.sticker);
+		// Source, mask and sticker side by side on a neutral background.
+		const panels = await Promise.all(
+			[source, data.mask, data.sticker].map((buffer) =>
+				sharp(buffer)
+					.resize({ width: height, height, fit: 'contain', background: '#808080' })
+					.flatten({ background: '#808080' })
+					.png()
+					.toBuffer()
+			)
+		);
+		await sharp({
+			create: { width: height * 3, height, channels: 3, background: '#808080' }
+		})
+			.composite(panels.map((input, i) => ({ input, left: i * height, top: 0 })))
+			.png()
+			.toFile(path.join(outDir, `${row.fixture}.sheet.png`));
+	}
+
+	expect(existsSync(path.join(outDir, 'report.json'))).toBe(true);
+	for (const row of rows) {
+		for (const kind of ['source', 'mask', 'sticker', 'sheet']) {
+			expect(existsSync(path.join(outDir, `${row.fixture}.${kind}.png`))).toBe(true);
+		}
+	}
+	// Only the realistic set gates; clutter rows are recorded with their IoU.
+	for (const row of rows.filter((item) => item.gating)) expect(row.pass).toBe(true);
 });

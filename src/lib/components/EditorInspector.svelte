@@ -96,7 +96,7 @@
 				<button
 					type="button"
 					class={button}
-					title="Keeps position, rotation, and effects; resets crop and mask data. Backgrounds are not removed automatically."
+					title="Keeps position, rotation, and effects; resets crop and mask data."
 					disabled={imageLayer.locked || replacing}
 					onclick={() => document.getElementById('replacement-photo-input')?.click()}
 					>{replacing ? 'Replacing…' : 'Replace photo'}</button
@@ -283,8 +283,8 @@
 			</span>
 		</label>
 		<p class="muted inspector-help [margin:0] [font-size:12px]">
-			The outline follows visible pixels. An opaque photo outlines its rectangle; use Erase to make
-			a cutout.
+			The outline follows visible pixels. An opaque photo outlines its rectangle; use Remove
+			background or Erase to make a cutout.
 		</p>
 
 		<div class="inspector-section">
@@ -305,8 +305,7 @@
 		<div class="inspector-section">
 			<b>Background</b>
 			<p class="muted" style="font-size: 12px">
-				Automatic background removal is not available. Erase and Restore edit a mask; the original
-				photo stays unchanged.
+				Runs on your device. Your photo is never uploaded. Refine with Erase and Restore.
 			</p>
 			<CutoutControls {editor} {image} />
 			<div class="button-row">

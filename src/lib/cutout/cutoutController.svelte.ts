@@ -207,7 +207,7 @@ class Controller implements CutoutController {
 		if (!record) {
 			// The photo's bytes are not loaded: say so, and let Retry try again.
 			this.state = 'error';
-			this.message = errorMessage('unsupported');
+			this.message = "Couldn't read this photo. Try uploading it again.";
 			this.progress = null;
 			return;
 		}

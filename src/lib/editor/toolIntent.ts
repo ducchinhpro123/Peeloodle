@@ -226,7 +226,7 @@ export function toolEmptyCopy(
 	if (intent === 'erase' && !hasImage) {
 		return {
 			title: 'Upload a photo to erase the background',
-			body: 'Background Eraser needs an image layer. Automatic removal is not available — use Erase and Restore after you add a photo.'
+			body: 'Background Eraser needs an image layer. Once you add a photo, it can remove the background automatically or by hand with Erase and Restore.'
 		};
 	}
 	if (intent === 'effects' && !hasImage) {
