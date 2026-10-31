@@ -40,7 +40,12 @@ async function webGpuAvailable(): Promise<boolean> {
 	try {
 		const adapter = await (navigator as unknown as GpuNavigator).gpu?.requestAdapter();
 		return adapter != null;
-	} catch {
+	} catch (error) {
+		// Observable in devtools (and the e2e fallback test); the run continues on WASM.
+		console.debug(
+			'[cutout] WebGPU adapter request failed:',
+			error instanceof Error ? error.message : String(error)
+		);
 		return false;
 	}
 }

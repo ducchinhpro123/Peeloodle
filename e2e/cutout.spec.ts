@@ -248,13 +248,24 @@ test('cutout quality meets IoU ≥ 0.90 for person, pet and object', async ({ pa
 
 test('falls back to WASM when WebGPU is broken', async ({ page }) => {
 	test.setTimeout(180_000);
-	await page.addInitScript(() => {
-		Object.defineProperty(navigator, 'gpu', {
-			configurable: true,
-			value: { requestAdapter: () => Promise.reject(new Error('boom')) }
-		});
+	// The backend is chosen inside the worker, which `addInitScript` never reaches:
+	// serve the built worker chunk with a prefix that breaks `navigator.gpu` there.
+	const stub = `Object.defineProperty(self.navigator, 'gpu', { configurable: true, value: { requestAdapter: () => Promise.reject(new Error('boom')) } });\n`;
+	const stubbed: string[] = [];
+	await page.route('**/_app/immutable/workers/cutout.worker-*.js', async (route) => {
+		const response = await route.fetch();
+		stubbed.push(route.request().url());
+		await route.fulfill({ response, body: stub + (await response.text()) });
 	});
+	const workerLogs: string[] = [];
+	page.on('worker', (worker) => worker.on('console', (message) => workerLogs.push(message.text())));
+
 	await openEditorWithPhoto(page, fixture('boba-tea.png'));
 	await removeBackground(page);
 	await expect(cutout(page)).toHaveAttribute('data-backend', 'wasm');
+	expect(stubbed).toHaveLength(1);
+	// The stub ran in the worker: its rejected adapter request was observed there.
+	expect(workerLogs).toContainEqual(
+		expect.stringContaining('[cutout] WebGPU adapter request failed: boom')
+	);
 });
