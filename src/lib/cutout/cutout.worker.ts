@@ -111,7 +111,7 @@ async function infer(bytes: ArrayBuffer, input: Float32Array): Promise<Float32Ar
 	}
 }
 
-async function run(id: number, image: Blob, width: number, height: number) {
+async function run(id: number, image: Blob, width: number, height: number, useCache: boolean) {
 	const controller = controllers.get(id) ?? new AbortController();
 	const checkpoint = () => {
 		if (aborted.has(id)) throw new CutoutError('aborted');
@@ -121,7 +121,8 @@ async function run(id: number, image: Blob, width: number, height: number) {
 		const { bytes, downloadMs } = await loadModel(
 			(loaded, total) =>
 				post({ type: 'progress', id, progress: { phase: 'download', loaded, total } }),
-			controller.signal
+			controller.signal,
+			useCache
 		);
 		checkpoint();
 		post({ type: 'progress', id, progress: { phase: 'infer' } });
@@ -179,8 +180,8 @@ self.onmessage = (event: MessageEvent<CutoutRequest>) => {
 	const message = event.data;
 	if (message.type === 'run') {
 		controllers.set(message.id, new AbortController());
-		const { id, image, width, height } = message;
-		queue = queue.then(() => run(id, image, width, height));
+		const { id, image, width, height, useCache } = message;
+		queue = queue.then(() => run(id, image, width, height, useCache));
 	} else if (message.type === 'cancel' && controllers.has(message.id)) {
 		aborted.add(message.id);
 		controllers.get(message.id)?.abort();

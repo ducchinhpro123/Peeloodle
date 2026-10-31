@@ -4,7 +4,7 @@
  * not cancelled and the layer is still the same unlocked image.
  */
 import type { EditorState } from '#lib/editor/editorState.svelte.js';
-import { removeBackground } from './removeBackground';
+import { isModelCached, removeBackground } from './removeBackground';
 import { CutoutError, type CutoutErrorCode, type CutoutResult } from './protocol';
 
 export type CutoutState = 'idle' | 'consent' | 'downloading' | 'running' | 'done' | 'error';
@@ -12,6 +12,7 @@ export type CutoutState = 'idle' | 'consent' | 'downloading' | 'running' | 'done
 export type CutoutController = {
 	readonly state: CutoutState;
 	readonly message: string;
+	readonly progress: number | null;
 	readonly last: CutoutResult | null;
 	start(layerId: string): Promise<void>;
 	confirm(): void;
@@ -48,23 +49,39 @@ function errorMessage(code: CutoutErrorCode): string {
 class Controller implements CutoutController {
 	state = $state<CutoutState>('idle');
 	message = $state('');
+	/** Download percent while `downloading`; null shows an indeterminate bar. */
+	progress = $state<number | null>(null);
 	last = $state.raw<CutoutResult | null>(null);
 	#editor: EditorState;
 	#job: AbortController | null = null;
 	#layerId: string | null = null;
+	#starting = false;
 
 	constructor(editor: EditorState) {
 		this.#editor = editor;
 	}
 
 	start = async (layerId: string): Promise<void> => {
-		if (this.#job) return;
+		// `#starting` covers the async cache probe, so a double click is one job.
+		if (this.#job || this.#starting || this.state === 'consent') return;
 		this.#layerId = layerId;
-		await this.#run(layerId);
+		this.#starting = true;
+		try {
+			if (!(await isModelCached())) {
+				this.state = 'consent';
+				this.message = '';
+				return;
+			}
+		} finally {
+			this.#starting = false;
+		}
+		await this.#run(layerId, false);
 	};
 
 	confirm = (): void => {
-		if (this.state === 'consent' && this.#layerId) void this.#run(this.#layerId);
+		if (this.state === 'consent' && this.#layerId && !this.#job) {
+			void this.#run(this.#layerId, true);
+		}
 	};
 
 	cancel = (): void => {
@@ -72,24 +89,30 @@ class Controller implements CutoutController {
 		this.#job = null;
 		this.state = 'idle';
 		this.message = '';
+		this.progress = null;
 	};
 
 	retry = (): void => {
 		if (this.#layerId && !this.#job) void this.start(this.#layerId);
 	};
 
-	async #run(layerId: string): Promise<void> {
+	async #run(layerId: string, downloading: boolean): Promise<void> {
 		const editor = this.#editor;
 		const documentId = editor.document?.id;
 		const layer = editor.document?.layers.find((item) => item.id === layerId);
-		if (!documentId || layer?.kind !== 'image' || layer.locked) return;
-		const record = editor.assets[layer.assetId];
-		if (!record) return;
+		const record = layer?.kind === 'image' ? editor.assets[layer.assetId] : undefined;
+		if (!documentId || layer?.kind !== 'image' || layer.locked || !record) {
+			this.state = 'idle';
+			this.message = '';
+			return;
+		}
 
 		const job = new AbortController();
 		this.#job = job;
-		this.state = 'running';
-		this.message = CUTOUT_COPY.running;
+		// After consent the request is in flight before the first byte arrives.
+		this.state = downloading ? 'downloading' : 'running';
+		this.message = downloading ? CUTOUT_COPY.downloading(0) : CUTOUT_COPY.running;
+		this.progress = downloading ? 0 : null;
 		try {
 			const result = await removeBackground(record.blob, {
 				width: record.asset.width,
@@ -100,11 +123,13 @@ class Controller implements CutoutController {
 					if (progress.phase === 'download') {
 						const percent = Math.min(
 							100,
-							Math.floor((progress.loaded / Math.max(1, progress.total)) * 100)
+							Math.round((progress.loaded / Math.max(1, progress.total)) * 100)
 						);
 						this.state = 'downloading';
+						this.progress = percent;
 						this.message = CUTOUT_COPY.downloading(percent);
 					} else {
+						this.progress = null;
 						this.state = 'running';
 						this.message = CUTOUT_COPY.running;
 					}

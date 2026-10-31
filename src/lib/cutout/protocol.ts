@@ -34,7 +34,7 @@ export type CutoutResult = {
 
 /** Main thread → worker. */
 export type CutoutRequest =
-	| { type: 'run'; id: number; image: Blob; width: number; height: number }
+	| { type: 'run'; id: number; image: Blob; width: number; height: number; useCache: boolean }
 	| { type: 'cancel'; id: number };
 
 /** Worker → main thread. */

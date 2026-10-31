@@ -43,6 +43,8 @@ async function pruneOldCaches(storage: CacheStorage): Promise<void> {
 
 async function readCached(storage: CacheStorage): Promise<ArrayBuffer | null> {
 	try {
+		// `open` creates a missing cache; only look inside one that already exists.
+		if (!(await storage.has(CACHE_NAME))) return null;
 		const cache = await storage.open(CACHE_NAME);
 		const response = await cache.match(MODEL_URL);
 		if (!response) return null;
@@ -106,12 +108,13 @@ async function download(
  */
 export async function loadModel(
 	onProgress: (loaded: number, total: number) => void,
-	signal: AbortSignal
+	signal: AbortSignal,
+	useCache = true
 ): Promise<{ bytes: ArrayBuffer; downloadMs: number }> {
 	if (memory) return { bytes: memory, downloadMs: 0 };
 	if (signal.aborted) throw new CutoutError('aborted');
 
-	const storage = cacheStorage();
+	const storage = useCache ? cacheStorage() : null;
 	if (storage) {
 		await pruneOldCaches(storage);
 		const cached = await readCached(storage);

@@ -27,10 +27,16 @@ export type CutoutQualityRow = {
 const results: CutoutQualityRow[] = [];
 
 /** Opens a fresh editor with `photo` uploaded and the Adjust tab showing. */
-async function openEditorWithPhoto(page: Page, photo: string) {
+async function openEditorWithPhoto(
+	page: Page,
+	photo: string,
+	/** Runs once the editor has loaded, before the photo is uploaded. */
+	beforeUpload?: () => Promise<void>
+) {
 	await page.goto('/');
 	await page.getByRole('link', { name: /Create a Sticker/ }).click();
 	await expect(page).toHaveURL(/\/editor\/[0-9a-z-]+/, { timeout: 20_000 });
+	await beforeUpload?.();
 	await page.setInputFiles('[data-testid="photo-file-input"]', photo);
 	await expect(page.locator('.save-status')).toContainText(/Unsaved changes|Saving|Saved locally/, {
 		timeout: 20_000
@@ -48,9 +54,16 @@ async function saveAndWait(page: Page) {
 	await expect(page.locator('.save-status')).toContainText('Saved locally', { timeout: 20_000 });
 }
 
-/** Clicks Remove background and waits for the run to finish. */
+/**
+ * Clicks Remove background and waits for the run to finish. On a first run the
+ * consent dialog appears and is accepted with "Download & remove".
+ */
 async function removeBackground(page: Page) {
 	await page.getByRole('button', { name: 'Remove background' }).click();
+	await expect(cutout(page)).not.toHaveAttribute('data-state', 'idle');
+	if ((await cutout(page).getAttribute('data-state')) === 'consent') {
+		await page.getByRole('button', { name: 'Download & remove' }).click();
+	}
 	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
 }
 
@@ -279,4 +292,167 @@ test('falls back to WASM when WebGPU is broken', async ({ page }) => {
 	expect(workerLogs).toContainEqual(
 		expect.stringContaining('[cutout] WebGPU adapter request failed: boom')
 	);
+});
+
+const MODEL_PATH = '/models/cutout/';
+const CONSENT_TITLE = 'Download background remover?';
+
+/** Records every request to the model, from the page or its worker. */
+function watchModelRequests(page: Page) {
+	const urls: string[] = [];
+	page.context().on('request', (request) => {
+		if (request.url().includes(MODEL_PATH)) urls.push(request.url());
+	});
+	return urls;
+}
+
+const undoButton = (page: Page) => page.getByRole('button', { name: 'Undo', exact: true });
+
+test('asks for consent before the first download, then never again', async ({ page }) => {
+	test.setTimeout(300_000);
+	const modelRequests = watchModelRequests(page);
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+
+	// Cancel: no download is made.
+	await page.getByRole('button', { name: 'Remove background' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'consent');
+	const dialog = page.getByRole('dialog', { name: CONSENT_TITLE });
+	await expect(dialog).toBeVisible();
+	await expect(dialog).toContainText(
+		'One-time download of about 45 MB, saved in your browser so it works offline afterwards. Photos stay on your device.'
+	);
+	await dialog.getByRole('button', { name: 'Cancel' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await expect(dialog).toBeHidden();
+	expect(modelRequests).toHaveLength(0);
+
+	// Accept: progress, then inference, then done.
+	await page.getByRole('button', { name: 'Remove background' }).click();
+	await page.getByRole('button', { name: 'Download & remove' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'downloading');
+	await expect(cutout(page).getByRole('status')).toHaveText(/Downloading model… \d+%/);
+	await expect(cutout(page)).toHaveAttribute('data-state', 'running', { timeout: 60_000 });
+	await expect(cutout(page).getByRole('status')).toHaveText('Removing background…');
+	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
+	// The listener sees the worker's request, so the negative check below means something.
+	expect(modelRequests.length).toBeGreaterThan(0);
+
+	// Reload with another photo: no dialog, no model request, nothing downloaded.
+	modelRequests.length = 0;
+	await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+	await page.getByRole('button', { name: 'Remove background' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
+	await expect(page.getByRole('dialog', { name: CONSENT_TITLE })).toBeHidden();
+	expect(modelRequests).toHaveLength(0);
+	await expect(cutout(page)).toHaveAttribute('data-download-ms', '0');
+});
+
+test('works offline once the model is cached', async ({ page, context }) => {
+	test.setTimeout(300_000);
+	// Production serves /vendor/ort/ as `immutable` (vercel.json), so the runtime and
+	// the lazily loaded worker chunk come from the HTTP cache offline; `vite preview`
+	// sends no such header, and routing disables the cache anyway. Replay those files
+	// from memory to stand in for it. The model is not
+	// replayed: it must come from Cache Storage.
+	const runtime = new Map<string, { body: Buffer; headers: Record<string, string> }>();
+	await page.route(/\/(vendor\/ort|_app\/immutable)\//, async (route) => {
+		const url = route.request().url();
+		if (!runtime.has(url)) {
+			const response = await route.fetch();
+			runtime.set(url, { body: await response.body(), headers: response.headers() });
+		}
+		const entry = runtime.get(url)!;
+		await route.fulfill({ status: 200, headers: entry.headers, body: entry.body });
+	});
+	const modelRequests = watchModelRequests(page);
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await removeBackground(page);
+	expect(modelRequests.length).toBeGreaterThan(0); // the listener does see the download
+	let requestsWhenOnline = 0;
+
+	// There is no service worker, so the app shell cannot be reloaded offline:
+	// load the editor online, then go offline before uploading and removing.
+	await openEditorWithPhoto(page, fixture('sunny-corgi.png'), async () => {
+		requestsWhenOnline = modelRequests.length;
+		await context.setOffline(true);
+	});
+	await page.getByRole('button', { name: 'Remove background' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
+	await expect(page.getByRole('dialog', { name: CONSENT_TITLE })).toBeHidden();
+	await expect(cutout(page)).toHaveAttribute('data-download-ms', '0');
+	// Offline, the model came from Cache Storage: not even a failed request was made.
+	expect(modelRequests).toHaveLength(requestsWhenOnline);
+});
+
+test('cancel during download caches nothing', async ({ page }) => {
+	test.setTimeout(120_000);
+	await page.route('**/models/cutout/**', async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 3_000));
+		await route.continue().catch(() => {});
+	});
+	const projectId = await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await page.getByRole('button', { name: 'Remove background' }).click();
+	await page.getByRole('button', { name: 'Download & remove' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'downloading');
+	await cutout(page).getByRole('button', { name: 'Cancel' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	// Outlive the route's delay: a late completion must not cache the model.
+	await page.waitForTimeout(6_000);
+	expect(await page.evaluate(() => caches.has('cutout-isnet-v1'))).toBe(false);
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	await saveAndWait(page);
+	expect(await storedMaskKey(page, projectId)).toBeNull();
+});
+
+test('cancel during inference applies nothing', async ({ page }) => {
+	test.setTimeout(300_000);
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await removeBackground(page);
+
+	const projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+	// Adding the photo is itself an undo step: compare against that baseline.
+	const undoDisabledBefore = await undoButton(page).isDisabled();
+	await page.getByRole('button', { name: 'Remove background' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'running');
+	await cutout(page).getByRole('button', { name: 'Cancel' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	// Let the abandoned inference finish; its result must be dropped.
+	await page.waitForTimeout(15_000);
+	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
+	expect(await undoButton(page).isDisabled()).toBe(undoDisabledBefore);
+	await saveAndWait(page);
+	expect(await storedMaskKey(page, projectId)).toBeNull();
+});
+
+test('works when Cache Storage is unavailable', async ({ page }) => {
+	test.setTimeout(300_000);
+	await page.addInitScript(() => {
+		delete (window as unknown as { caches?: unknown }).caches;
+	});
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	expect(await page.evaluate(() => typeof caches)).toBe('undefined');
+	await page.getByRole('button', { name: 'Remove background' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'consent');
+	await page.getByRole('button', { name: 'Download & remove' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
+	await expect(cutout(page).getByRole('status')).toContainText('Background removed');
+});
+
+test('double click starts one job', async ({ page }) => {
+	test.setTimeout(300_000);
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await removeBackground(page);
+
+	const projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+	const modelRequests = watchModelRequests(page);
+	await page.getByRole('button', { name: 'Remove background' }).dblclick();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
+	expect(modelRequests).toHaveLength(0);
+	await expect(page.getByRole('dialog', { name: CONSENT_TITLE })).toBeHidden();
+	await saveAndWait(page);
+	expect(await storedMaskKey(page, projectId)).toBeTruthy();
+	// One Undo removes the mask. A second removal step would have left one behind.
+	await undoButton(page).click();
+	await saveAndWait(page);
+	expect(await storedMaskKey(page, projectId)).toBeNull();
 });

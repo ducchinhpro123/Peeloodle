@@ -23,6 +23,8 @@ type PendingJob = {
 let worker: Worker | null = null;
 let pending: PendingJob | null = null;
 let nextId = 1;
+/** The worker holds the verified model in memory (covers Cache Storage being unavailable). */
+let workerHasModel = false;
 
 function settle(job: PendingJob) {
 	if (pending === job) pending = null;
@@ -51,6 +53,7 @@ function getWorker(): Worker {
 			job.onProgress?.(message.progress);
 		} else if (message.type === 'result') {
 			settle(job);
+			workerHasModel = true;
 			job.resolve(message.result);
 		} else {
 			settle(job);
@@ -61,7 +64,10 @@ function getWorker(): Worker {
 		event.preventDefault();
 		// A crashed worker (e.g. out of memory) is replaced on the next call.
 		created.terminate();
-		if (worker === created) worker = null;
+		if (worker === created) {
+			worker = null;
+			workerHasModel = false;
+		}
 		failPending(new CutoutError('unsupported', event.message || 'The background remover crashed'));
 	};
 	worker = created;
@@ -98,18 +104,27 @@ export function removeBackground(
 		};
 		pending = job;
 		opts.signal?.addEventListener('abort', onAbort, { once: true });
-		send(target, { type: 'run', id, image, width: opts.width, height: opts.height });
+		send(target, {
+			type: 'run',
+			id,
+			image,
+			width: opts.width,
+			height: opts.height,
+			useCache: typeof caches !== 'undefined'
+		});
 	});
 }
 
 /** True when a run would not need to download the model. */
 export function isModelCached(): Promise<boolean> {
-	return modelCached();
+	if (workerHasModel) return Promise.resolve(true);
+	return typeof caches === 'undefined' ? Promise.resolve(false) : modelCached();
 }
 
 /** Terminates the worker (and its session); a pending job rejects as aborted. */
 export function disposeCutout(): void {
 	worker?.terminate();
 	worker = null;
+	workerHasModel = false;
 	failPending(new CutoutError('aborted'));
 }
