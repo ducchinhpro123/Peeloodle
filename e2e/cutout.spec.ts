@@ -29,6 +29,10 @@ export type CutoutQualityRow = {
 const results: CutoutQualityRow[] = [];
 /** Mask and exported sticker bytes per quality fixture, for the artifact. */
 const artifacts = new Map<string, { mask: Buffer; sticker: Buffer }>();
+/** The pinned onnxruntime-web version; its runtime is served from `/vendor/ort/<version>/`. */
+const ORT_VERSION = JSON.parse(
+	readFileSync(path.resolve('node_modules/onnxruntime-web/package.json'), 'utf8')
+).version as string;
 const HELP_COPY =
 	'Runs on your device. Your photo is never uploaded. Refine with Erase and Restore.';
 
@@ -303,6 +307,10 @@ test('falls back to WASM when WebGPU is broken', async ({ page }) => {
 	});
 	const workerLogs: string[] = [];
 	page.on('worker', (worker) => worker.on('console', (message) => workerLogs.push(message.text())));
+	const runtimeRequests: string[] = [];
+	page.context().on('request', (request) => {
+		if (request.url().includes('/vendor/ort/')) runtimeRequests.push(request.url());
+	});
 
 	await openEditorWithPhoto(page, fixture('boba-tea.png'));
 	await removeBackground(page);
@@ -312,6 +320,14 @@ test('falls back to WASM when WebGPU is broken', async ({ page }) => {
 	expect(workerLogs).toContainEqual(
 		expect.stringContaining('[cutout] WebGPU adapter request failed: boom')
 	);
+	// The immutable-cached runtime lives under a per-version folder, so an upgrade
+	// changes every URL instead of serving a returning user a stale `.wasm`.
+	expect(runtimeRequests.length).toBeGreaterThan(0);
+	for (const url of runtimeRequests) {
+		expect(new URL(url).pathname).toMatch(
+			new RegExp(`^/vendor/ort/${ORT_VERSION.replaceAll('.', '\\.')}/[^/]+$`)
+		);
+	}
 });
 
 const MODEL_PATH = '/models/cutout/';
@@ -887,16 +903,13 @@ test('artifact report is written', async () => {
 	mkdirSync(outDir, { recursive: true });
 	expect(results.length, 'quality test must run first').toBeGreaterThan(0);
 
-	const ortVersion = JSON.parse(
-		readFileSync(path.resolve('node_modules/onnxruntime-web/package.json'), 'utf8')
-	).version as string;
 	const rows = results.map((row) => ({ ...row, pass: row.iou >= 0.9 }));
 	writeFileSync(
 		path.join(outDir, 'report.json'),
 		JSON.stringify(
 			{
 				modelSha256: MODEL_SHA256,
-				ortVersion,
+				ortVersion: ORT_VERSION,
 				results: rows,
 				generatedAt: new Date().toISOString()
 			},

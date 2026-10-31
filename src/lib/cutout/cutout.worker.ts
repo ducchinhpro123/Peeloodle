@@ -20,7 +20,8 @@ import {
 
 declare const self: DedicatedWorkerGlobalScope;
 
-ort.env.wasm.wasmPaths = '/vendor/ort/';
+// Versioned folder (scripts/cutout/copy-ort-assets.mjs): the files are cached immutable.
+ort.env.wasm.wasmPaths = `/vendor/ort/${__ORT_VERSION__}/`;
 ort.env.wasm.numThreads = 1;
 
 type GpuNavigator = { gpu?: { requestAdapter(): Promise<unknown> } };

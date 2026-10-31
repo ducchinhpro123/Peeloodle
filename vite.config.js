@@ -4,8 +4,16 @@ import tailwindcss from '@tailwindcss/vite';
 import adapter from '@sveltejs/adapter-auto';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+
+/** The installed onnxruntime-web version: names the folder its runtime is served from. */
+const ortVersion = JSON.parse(
+	readFileSync(new URL('./node_modules/onnxruntime-web/package.json', import.meta.url), 'utf8')
+).version;
 
 export default defineConfig({
+	// `/vendor/ort/<version>/` in the cutout worker (see scripts/cutout/copy-ort-assets.mjs).
+	define: { __ORT_VERSION__: JSON.stringify(ortVersion) },
 	resolve: {
 		alias: [
 			{
