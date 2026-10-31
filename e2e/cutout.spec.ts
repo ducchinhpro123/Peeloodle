@@ -638,6 +638,48 @@ test('corrupted model is rejected and not cached', async ({ page }) => {
 	expect(await modelCachedInPage(page)).toBe(false);
 });
 
+test('a photo whose decoded size disagrees with its record is reported as unreadable', async ({
+	page
+}) => {
+	test.setTimeout(180_000);
+	const projectId = await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await saveAndWait(page);
+	// The stored asset claims one pixel less width than the photo decodes to.
+	await page.evaluate(async () => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('stickerlab-local');
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		await new Promise<void>((resolve, reject) => {
+			const tx = db.transaction('assets', 'readwrite');
+			const store = tx.objectStore('assets');
+			const request = store.getAll();
+			request.onsuccess = () => {
+				for (const row of request.result as Array<{ width: number }>)
+					store.put({ ...row, width: row.width - 1 });
+			};
+			tx.oncomplete = () => resolve();
+			tx.onerror = () => reject(tx.error);
+		});
+		db.close();
+	});
+	await page.reload();
+	await page.getByRole('tab', { name: 'Layers' }).click();
+	await expect(page.locator('.layer-stack .layer-row')).toHaveCount(1, { timeout: 20_000 });
+	await page.getByRole('tab', { name: 'Adjust' }).click();
+
+	await page.getByRole('button', { name: 'Remove background' }).click();
+	await page.getByRole('button', { name: 'Download & remove' }).click();
+	await expect(cutout(page)).toHaveAttribute('data-state', 'error', { timeout: 60_000 });
+	await expect(cutout(page).getByRole('status')).toHaveText(
+		"Couldn't read this photo. Try uploading it again."
+	);
+	await expect(cutout(page).getByRole('button', { name: 'Retry' })).toBeVisible();
+	await saveAndWait(page);
+	expect(await storedMaskKey(page, projectId)).toBeNull();
+});
+
 test('replacing a hand-painted mask is undoable', async ({ page }) => {
 	test.setTimeout(300_000);
 	const projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));

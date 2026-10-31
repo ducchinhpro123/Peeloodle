@@ -42,20 +42,25 @@ export const CUTOUT_COPY = {
 	degenerate: "Couldn't find a clear subject — try Erase instead.",
 	download: "Couldn't download the model. Check your connection.",
 	tooLarge: 'This photo is too large for your device. Try a smaller one.',
-	unsupported: "Background removal isn't supported in this browser."
+	unsupported: "Background removal isn't supported in this browser.",
+	unreadable: "Couldn't read this photo. Try uploading it again."
 } as const;
 
 /** Fewer than 1% or more than 99% kept pixels reads as "no clear subject". */
 const DEGENERATE_MIN = 0.01;
 const DEGENERATE_MAX = 0.99;
 
-function errorMessage(code: CutoutErrorCode): string {
+/** `missing-asset`: the layer's photo bytes are not loaded in the editor. */
+function errorMessage(code: CutoutErrorCode | 'missing-asset'): string {
 	switch (code) {
 		case 'network':
 		case 'integrity':
 			return CUTOUT_COPY.download;
 		case 'too-large':
 			return CUTOUT_COPY.tooLarge;
+		case 'size-mismatch':
+		case 'missing-asset':
+			return CUTOUT_COPY.unreadable;
 		default:
 			return CUTOUT_COPY.unsupported;
 	}
@@ -244,7 +249,7 @@ class Controller implements CutoutController {
 		if (!record) {
 			// The photo's bytes are not loaded: say so, and let Retry try again.
 			this.state = 'error';
-			this.message = "Couldn't read this photo. Try uploading it again.";
+			this.message = errorMessage('missing-asset');
 			this.progress = null;
 			return;
 		}
