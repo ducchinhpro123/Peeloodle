@@ -53,12 +53,11 @@
 			animation: pane-in var(--dur-base) var(--ease-out);
 		}
 		@keyframes pane-in {
+			/* Transform only, for the same axe contrast reason as the ribbon panel. */
 			from {
-				opacity: 0;
 				transform: translateX(14px);
 			}
 			to {
-				opacity: 1;
 				transform: none;
 			}
 		}

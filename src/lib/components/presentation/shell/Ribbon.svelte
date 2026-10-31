@@ -124,12 +124,12 @@
 			animation: panel-in var(--dur-base) var(--ease-out);
 		}
 		@keyframes panel-in {
+			/* Transform only: axe scans right after a tab click and cannot resolve
+			 * contrast through a half-transparent ancestor. */
 			from {
-				opacity: 0;
 				transform: translateY(4px);
 			}
 			to {
-				opacity: 1;
 				transform: none;
 			}
 		}

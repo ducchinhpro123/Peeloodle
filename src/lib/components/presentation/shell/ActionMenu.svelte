@@ -109,12 +109,12 @@
 			animation: menu-pop var(--dur-fast) var(--ease-out);
 		}
 		@keyframes menu-pop {
+			/* No opacity: axe scans the open menu immediately and cannot resolve
+			 * text contrast against a half-transparent ancestor. */
 			from {
-				opacity: 0;
 				transform: scale(0.94) translateY(-4px);
 			}
 			to {
-				opacity: 1;
 				transform: none;
 			}
 		}
