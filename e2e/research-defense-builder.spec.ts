@@ -258,9 +258,9 @@ test('formatSectionTime', async () => {
 		expect(formatSectionTime(seconds)).toBe(label);
 });
 
-test.afterAll(async ({}, info) => {
+test.afterAll(async () => {
 	writeFileSync(
-		info.outputPath('shipped-deck-verification.json'),
+		test.info().outputPath('shipped-deck-verification.json'),
 		JSON.stringify(
 			normalized(
 				SHIPPED_TEMPLATES.map((template) => ({ key: template.key, doc: template.build() }))

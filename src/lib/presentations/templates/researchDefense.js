@@ -282,6 +282,47 @@ function remap(value, replacements) {
 	return value;
 }
 
+/**
+ * Conservative average glyph advance, in em, for the two shipped fonts. The
+ * builder runs in Node (the catalog seed imports it) and has no canvas to measure
+ * with, so it wraps the title at this width — the same estimate the editor's
+ * measurement module falls back to — and sizes the box from the line count. Real
+ * fonts are narrower, so the box ends up roomy rather than clipped.
+ */
+const TITLE_CHAR_EM = 0.55;
+
+/**
+ * The sample title box is sized for one line. A personalised title wraps, so the
+ * box grows to the lines it needs and the subtitle moves below it; without a
+ * personalised title the shipped geometry stays exactly as frozen.
+ * @param {import('../model/types').TextElement} element @param {string} text @param {number} size
+ */
+function fittedTitleHeight(element, text, size) {
+	const unit = size * TITLE_CHAR_EM;
+	const max = element.width - element.padding * 2;
+	// A token wider than the box wraps character by character, like the renderer.
+	const widths = text.split(' ').flatMap((word) => {
+		const chunks = [];
+		let rest = word.length * unit;
+		while (rest > max) {
+			chunks.push(max);
+			rest -= max;
+		}
+		chunks.push(rest);
+		return chunks;
+	});
+	let lines = 1;
+	let used = 0;
+	for (const width of widths) {
+		const advance = used === 0 ? 0 : unit;
+		if (used > 0 && used + advance + width > max) {
+			lines += 1;
+			used = width;
+		} else used += advance + width;
+	}
+	return Math.ceil(lines * size * element.lineHeight) + element.padding * 2;
+}
+
 /** @param {DefenseDeckOptions} [options] @returns {import('../model/types').PresentationDocument} */
 export function buildResearchDefenseDeck(options = {}) {
 	const length = DEFENSE_LENGTHS[options.length ?? 'standard'];
@@ -336,6 +377,14 @@ export function buildResearchDefenseDeck(options = {}) {
 			if (section.name === 'Question' && element.name === 'Question body' && question)
 				element.paragraphs[0].runs[0].text = question;
 		}
+	const titleSlide = document.slides.find((section) => section.name === 'Title');
+	const titleBox = titleSlide?.elements.find((element) => element.name === 'Title');
+	const subtitleBox = titleSlide?.elements.find((element) => element.name === 'Subtitle');
+	if (title && titleBox?.kind === 'text') {
+		const size = title.length > 60 ? 48 : 64;
+		titleBox.height = fittedTitleHeight(titleBox, title, size);
+		if (subtitleBox) subtitleBox.y = titleBox.y + titleBox.height + 16;
+	}
 	return /** @type {import('../model/types').PresentationDocument} */ (
 		remap(document, {
 			[DARK]: look.dark,
