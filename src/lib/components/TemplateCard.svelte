@@ -3,6 +3,7 @@
 	import { asset } from '$app/paths';
 	import { reveal } from '#lib/actions/reveal.js';
 	import Modal from './Modal.svelte';
+	import { Heart } from 'lucide-svelte';
 	/** @typedef {import('#lib/domain/domain.js').Template} Template */
 
 	/**
@@ -58,12 +59,13 @@
 		<button
 			type="button"
 			class="favorite-button"
+			aria-pressed={isFavorite}
 			aria-label={isFavorite
 				? `Remove ${template.title} from favorites`
 				: `Add ${template.title} to favorites`}
 			onclick={() => onToggleFavorite(template.id)}
 		>
-			{isFavorite ? '❤️' : '♡'}
+			<Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
 		</button>
 	</div>
 	<button type="button" class="template-title-btn" onclick={() => (open = true)}>
@@ -201,8 +203,11 @@
 		border: 0;
 		border-radius: 50%;
 		background: color-mix(in oklch, oklch(1 0 none) 90.1961%, transparent);
+		color: var(--muted);
+	}
+	/* The favourite colour marks the saved state only, like a selection. */
+	.template-art .favorite-button[aria-pressed='true'] {
 		color: oklch(0.553692 0.192534 3.7887);
-		font-size: 22px;
 	}
 	.template-preview-trigger {
 		display: grid;

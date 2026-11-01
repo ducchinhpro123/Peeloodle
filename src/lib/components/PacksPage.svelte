@@ -277,7 +277,7 @@
 <AppShell {pathname} {search}>
 	<Hero variant="packs">
 		{#snippet kicker()}
-			<p class="hero-kicker"><Layers3 size={14} /> COLLECT THE GOOD STUFF</p>
+			<p class="hero-kicker"><Layers3 size={16} /> COLLECT THE GOOD STUFF</p>
 		{/snippet}
 		{#snippet title()}
 			<span>Your little world.</span><br /><em>In sticker packs.</em>
@@ -336,7 +336,7 @@
 			<label
 				class="pack-search [padding-inline-start:var(--space-4)] [padding-inline-end:var(--space-4)] [padding-block-start:0] [padding-block-end:0] [min-inline-size:min(240px,_24vw)]"
 			>
-				<Search size={17} aria-hidden="true" />
+				<Search size={16} aria-hidden="true" />
 				<span class="sr-only">Search packs</span>
 				<input
 					type="search"
@@ -367,7 +367,7 @@
 			<p
 				class="pack-privacy-note [grid-column:1_/_-1] [margin:0] [display:flex] [align-items:center] [gap:var(--space-2)] [padding-inline-start:var(--space-2)] [padding-inline-end:var(--space-2)] [padding-block-start:0] [padding-block-end:0] [font-size:12px] [color:oklch(0.519935_0.036349_170.9202)]"
 			>
-				<LockKeyhole size={15} aria-hidden="true" />Private account · local-first cloud saving
+				<LockKeyhole size={16} aria-hidden="true" />Private account · local-first cloud saving
 			</p>
 		{/if}
 	</section>
@@ -379,8 +379,8 @@
 	{#if view === 'Shared with Me'}
 		<section class="empty packs-empty">
 			<span
-				class="packs-empty-art [position:relative] [display:grid] [place-items:center] [color:var(--scrapbook-green)] [block-size:82px] [inline-size:92px]"
-				><Layers3 size={38} /><i>♡</i><b>✦</b></span
+				class="packs-empty-art [position:relative] [display:grid] [place-items:center] [color:var(--muted)] [block-size:82px] [inline-size:92px]"
+				><Layers3 size={28} /></span
 			>
 			<p class="packs-empty-kicker">A space for future collaborations</p>
 			<h2>Sharing is not available yet</h2>
@@ -389,8 +389,8 @@
 	{:else if view === 'Export History'}
 		<section class="empty packs-empty">
 			<span
-				class="packs-empty-art [position:relative] [display:grid] [place-items:center] [color:var(--scrapbook-green)] [block-size:82px] [inline-size:92px]"
-				><Download size={38} /><i>↓</i><b>✦</b></span
+				class="packs-empty-art [position:relative] [display:grid] [place-items:center] [color:var(--muted)] [block-size:82px] [inline-size:92px]"
+				><Download size={28} /></span
 			>
 			<p class="packs-empty-kicker">Downloads stay in your browser</p>
 			<h2>Export History</h2>
@@ -402,8 +402,8 @@
 	{:else if packs.length === 0}
 		<section class="empty packs-empty">
 			<span
-				class="packs-empty-art [position:relative] [display:grid] [place-items:center] [color:var(--scrapbook-green)] [block-size:82px] [inline-size:92px]"
-				><PackageOpen size={42} /><i>♡</i><b>✦</b></span
+				class="packs-empty-art [position:relative] [display:grid] [place-items:center] [color:var(--muted)] [block-size:82px] [inline-size:92px]"
+				><PackageOpen size={28} /></span
 			>
 			<p class="packs-empty-kicker">Your first collection starts here</p>
 			<h2>{emptyHeading}</h2>
@@ -425,8 +425,8 @@
 	{:else if visible.length === 0}
 		<section class="empty packs-empty packs-no-results">
 			<span
-				class="packs-empty-art [position:relative] [display:grid] [place-items:center] [color:var(--scrapbook-green)] [block-size:82px] [inline-size:92px]"
-				><Search size={38} /><i>?</i><b>✦</b></span
+				class="packs-empty-art [position:relative] [display:grid] [place-items:center] [color:var(--muted)] [block-size:82px] [inline-size:92px]"
+				><Search size={28} /></span
 			>
 			<p class="packs-empty-kicker">That title is playing hide-and-seek</p>
 			<h2>No packs found</h2>
@@ -461,7 +461,7 @@
 							<span class="pack-card-copy">
 								<span
 									class="pack-card-title [display:flex] [align-items:center] [justify-content:space-between] [gap:var(--space-2)]"
-									><b>{pack.title}</b><ChevronRight size={17} aria-hidden="true" /></span
+									><b>{pack.title}</b><ChevronRight size={16} aria-hidden="true" /></span
 								>
 								<small>{pack.description || 'A fresh pack ready for your favorite stickers.'}</small
 								>
@@ -469,7 +469,7 @@
 									class="pack-card-meta [display:flex] [align-items:center] [justify-content:space-between] [gap:var(--space-2)] [font-size:11px] [font-weight:700] [color:oklch(0.503769_0.028988_177.3921)]"
 								>
 									<span
-										><PackageOpen size={13} aria-hidden="true" />{pack.projectIds.length}
+										><PackageOpen size={16} aria-hidden="true" />{pack.projectIds.length}
 										{pack.projectIds.length === 1 ? 'sticker' : 'stickers'}</span
 									>
 									<span class="pack-badge">{cloud ? 'Private' : 'Local'}</span>
@@ -534,7 +534,7 @@
 								newTitle = selectedPack.title;
 								newDesc = selectedPack.description;
 								createOpen = true;
-							}}><Pencil size={15} />Edit pack</button
+							}}><Pencil size={16} />Edit pack</button
 						>
 						<button
 							type="button"
@@ -577,12 +577,12 @@
 							onclick={(event) => {
 								addOpener = event.currentTarget;
 								addStickerOpen = true;
-							}}><Plus size={15} />Add</button
+							}}><Plus size={16} />Add</button
 						>
 					</div>
 					{#if selectedPack.projectIds.length === 0}
 						<div class="pack-detail-empty">
-							<PackageOpen size={30} />
+							<PackageOpen size={28} />
 							<p>No stickers here yet. Add a saved sticker to start the collage.</p>
 						</div>
 					{:else}
@@ -635,7 +635,7 @@
 											disabled={busy}
 											onclick={() => void runPackAction(() => handleToggleStickerInPack(projectId))}
 										>
-											<X size={14} />
+											<X size={16} />
 										</button>
 									</div>
 								</article>
@@ -648,7 +648,7 @@
 									addStickerOpen = true;
 								}}
 							>
-								<Plus size={22} /><span>Add sticker</span>
+								<Plus size={28} /><span>Add sticker</span>
 							</button>
 						</div>
 					{/if}
@@ -677,7 +677,7 @@
 				</p>
 				<h2>{cloud ? 'All Private Stickers' : 'All Local Stickers'}</h2>
 			</div>
-			<a href={shellHref('/create')}>Create a sticker <ChevronRight size={15} /></a>
+			<a href={shellHref('/create')}>Create a sticker <ChevronRight size={16} /></a>
 		</div>
 		<LocalProjectList
 			{repository}
@@ -1095,33 +1095,6 @@
 		position: relative;
 		z-index: 1;
 	}
-	.packs-empty-art i {
-		position: absolute;
-		z-index: 2;
-		color: oklch(0.694297 0.165915 7.4434);
-		font:
-			400 24px/1 Chewy,
-			cursive;
-	}
-	.packs-empty-art b {
-		position: absolute;
-		z-index: 2;
-		color: oklch(0.694297 0.165915 7.4434);
-		font:
-			400 24px/1 Chewy,
-			cursive;
-	}
-	.packs-empty-art i {
-		inset-inline-end: -7px;
-		inset-block-start: -3px;
-		transform: rotate(12deg);
-	}
-	.packs-empty-art b {
-		inset-inline-start: -10px;
-		inset-block-end: 2px;
-		color: oklch(0.79302 0.162184 87.0618);
-		transform: rotate(-14deg);
-	}
 	.packs-empty-kicker {
 		padding-block-start: 5px;
 		padding-block-end: 5px;
@@ -1464,7 +1437,7 @@
 	}
 	:global(.pack-card-title svg) {
 		flex: none;
-		color: var(--scrapbook-green);
+		color: var(--muted);
 	}
 	@media (prefers-reduced-motion: no-preference) {
 		:global(.pack-card-title svg) {

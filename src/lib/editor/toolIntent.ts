@@ -184,8 +184,9 @@ export function applyToolIntent(
 	if (intent === 'erase') {
 		const image = compatibleImage(document.layers, state.selectedLayerId);
 		if (image && image.id !== state.selectedLayerId) state.selectLayer(image.id);
-		state.setTool('erase');
-		ui.setInspectorTab('adjust');
+		// The Background tab leads with Remove background; Erase/Restore refine there.
+		state.setTool('select');
+		ui.setInspectorTab('background');
 		ui.setAssetTab('uploads');
 		ui.setRailFocus('erase');
 		ui.setExportOpen(false);

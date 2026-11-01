@@ -28,7 +28,8 @@
 		Pencil,
 		Scissors,
 		Smile,
-		Sparkles,
+		SlidersHorizontal,
+		Image as ImageIcon,
 		Type,
 		Undo2,
 		Redo2,
@@ -68,7 +69,9 @@
 
 	// Query intents seed the initial chrome only; later changes come through applyToolIntent.
 	// svelte-ignore state_referenced_locally
-	let inspectorTab = $state(intent === 'effects' ? 'effects' : 'adjust');
+	let inspectorTab = $state(
+		intent === 'effects' ? 'effects' : intent === 'erase' ? 'background' : 'adjust'
+	);
 	// svelte-ignore state_referenced_locally
 	let assetTab = $state(intent === 'text' ? 'stickers' : 'uploads');
 	// svelte-ignore state_referenced_locally
@@ -97,13 +100,13 @@
 	let urls = $state(/** @type {Record<string, string>} */ ({}));
 
 	const toolRail = [
-		{ key: 'erase', label: 'Background Eraser', icon: Scissors, action: 'tool' },
+		{ key: 'erase', label: 'Background Eraser', icon: Scissors, action: 'background' },
 		{ key: 'rotate', label: 'Crop & Rotate', icon: Crop, action: 'tool' },
 		{ key: 'restore', label: 'Brush / Restore', icon: Paintbrush, action: 'tool' },
 		{ key: 'outline', label: 'Outline & Border', icon: Circle, action: 'outline' },
 		{ key: 'text', label: 'Text', icon: Type, action: 'text' },
 		{ key: 'stickers', label: 'Emoji & Stickers', icon: Smile, action: 'stickers' },
-		{ key: 'effects', label: 'Filters & Effects', icon: Sparkles, action: 'effects' },
+		{ key: 'effects', label: 'Filters & Effects', icon: SlidersHorizontal, action: 'effects' },
 		{ key: 'layers', label: 'Layers', icon: Layers, action: 'layers' }
 	];
 
@@ -256,11 +259,34 @@
 	 */
 	function railPressed(tool) {
 		if (tool.action === 'tool') return editor.activeTool === tool.key;
+		if (tool.action === 'background') return inspectorTab === 'background';
 		if (tool.action === 'text') return false;
 		if (tool.key === 'stickers') return railFocus === 'stickers';
 		if (tool.key === 'outline')
 			return railFocus === 'outline' && inspectorTab === 'adjust' && editor.activeTool === 'select';
 		return inspectorTab === tool.action;
+	}
+
+	/**
+	 * Opens the Background tab: remove the background, then refine with Erase and
+	 * Restore. With no photo selected it selects the topmost visible one. From the
+	 * canvas (`openSheet`), narrow layouts also open the properties sheet, where
+	 * the inspector lives below 1150px.
+	 * @param {boolean} [openSheet]
+	 */
+	function openBackground(openSheet = false) {
+		editor.setTool('select');
+		const layers = editor.document?.layers ?? [];
+		const selected = layers.find((layer) => layer.id === editor.selectedLayerId);
+		if (selected?.kind !== 'image') {
+			const topmost = [...layers]
+				.reverse()
+				.find((layer) => layer.kind === 'image' && layer.visible);
+			if (topmost) editor.selectLayer(topmost.id);
+		}
+		railFocus = 'erase';
+		selectTab('background');
+		if (openSheet && matchMedia('(max-width: 1150px)').matches) propertiesOpen = true;
 	}
 
 	/** @param {string} tab */
@@ -443,9 +469,14 @@
 					aria-label={tool.key === 'stickers' ? 'Stickers & decorations' : undefined}
 					onclick={() => {
 						railFocus = /** @type {any} */ (tool.key);
+						if (tool.action === 'background') {
+							openBackground();
+							return;
+						}
 						if (tool.action === 'tool') {
 							editor.setTool(/** @type {any} */ (tool.key));
-							selectTab('adjust');
+							// Brush settings live with the other background tools.
+							selectTab(tool.key === 'restore' ? 'background' : 'adjust');
 							return;
 						}
 						if (tool.action === 'text') {
@@ -479,7 +510,7 @@
 			>
 				{#if tipOpen}
 					<div class="tool-tip-card">
-						<strong><Lightbulb size={14} aria-hidden="true" /> Pro Tip</strong>
+						<strong><Lightbulb size={16} aria-hidden="true" /> Pro Tip</strong>
 						<p>Use the brush tool to fine-tune edges for a cleaner sticker!</p>
 						<button type="button" onclick={() => (tipOpen = false)}>Got it!</button>
 					</div>
@@ -519,7 +550,7 @@
 						<Pencil size={16} aria-hidden="true" onclick={() => titleInput?.focus()} />
 					</h1>
 					<small class="save-status" data-state={editor.saveStatus} role="status">
-						{#if savedOk}<Check size={14} aria-hidden="true" />{/if}
+						{#if savedOk}<Check size={16} aria-hidden="true" />{/if}
 						{saveLabel}{editor.saveStatus === 'save-failed' && editor.saveError
 							? ` — ${editor.saveError}`
 							: ''}
@@ -592,7 +623,7 @@
 			<div class="editor">
 				<section class="canvas-area">
 					<div class="canvas-workspace">
-						<EditorCanvas {editor} {urls} />
+						<EditorCanvas {editor} {urls} onopenbackground={() => openBackground(true)} />
 						{#if doc.layers.length === 0}
 							<div class="editor-welcome">
 								<img
@@ -616,7 +647,7 @@
 									type="button"
 									class={button}
 									onclick={() => void onAddSample('/samples/cat-in-console.png', 'Sample cat')}
-									><Sparkles size={16} />Try a sample photo</button
+									><ImageIcon size={16} />Try a sample photo</button
 								>
 								{#if intent === 'text'}
 									<button

@@ -1,5 +1,5 @@
 <script>
-	import { Search, Sparkles } from 'lucide-svelte';
+	import { Presentation, Search } from 'lucide-svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import Modal from '#lib/components/Modal.svelte';
 	import { button, buttonPrimary } from '#lib/ui/styles.js';
@@ -226,7 +226,7 @@
 		<div
 			class="[display:grid] [place-items:center] [gap:var(--space-3)] [border-radius:var(--radius)] [padding:var(--space-7)] [text-align:center] [border:1px_dashed_oklch(0.833566_0.047737_168.8711)]"
 		>
-			<Sparkles size={28} aria-hidden="true" />
+			<Presentation size={28} aria-hidden="true" />
 			<p>
 				{appliedQuery || useCase
 					? 'No deck templates match these filters.'

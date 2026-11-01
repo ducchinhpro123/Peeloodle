@@ -12,7 +12,6 @@
 		Pencil,
 		Presentation,
 		Search,
-		Sparkles,
 		Trash2,
 		Upload
 	} from 'lucide-svelte';
@@ -216,7 +215,7 @@
 	<div class="presentations-library">
 		<section class="presentations-hero">
 			<div class="presentation-hero-copy [position:relative] [z-index:2] [max-inline-size:680px]">
-				<p class="hero-kicker"><Presentation size={15} /> YOUR IDEAS, ON THE BIG SCREEN</p>
+				<p class="hero-kicker"><Presentation size={16} /> YOUR IDEAS, ON THE BIG SCREEN</p>
 				<h1>Tell your story.<br /><em>Make it stick.</em></h1>
 				<p>
 					Turn a blank 16:9 slide into something clear, colorful, and completely yours. Your work
@@ -231,7 +230,7 @@
 						disabled={loading || creatingBlank}
 						aria-busy={loading || creatingBlank}
 					>
-						<FilePlus2 size={18} />
+						<FilePlus2 size={16} />
 						{loading
 							? 'Loading presentations…'
 							: creatingBlank
@@ -283,7 +282,7 @@
 				<p
 					class="presentation-library-eyebrow [margin:0] [display:flex] [align-items:center] [gap:var(--space-2)] [font-size:10px] [font-weight:800] [letter-spacing:0.12em] [color:var(--scrapbook-green)]"
 				>
-					<Sparkles size={15} /> YOUR CREATIVE DESK
+					YOUR CREATIVE DESK
 				</p>
 				<h2>Your presentations</h2>
 				<p>
@@ -296,7 +295,7 @@
 				class="presentation-library-tools [display:flex] [align-items:center] [justify-content:flex-end] [gap:var(--space-4)]"
 			>
 				<label class="presentation-library-search"
-					><Search size={17} aria-hidden="true" /><span class="sr-only">Search presentations</span
+					><Search size={16} aria-hidden="true" /><span class="sr-only">Search presentations</span
 					><input
 						id="presentation-library-search"
 						type="search"
@@ -374,7 +373,7 @@
 					</p>
 
 					<button class={buttonPrimary} onclick={createBlank} disabled={creatingBlank}>
-						<FilePlus2 size={18} />
+						<FilePlus2 size={16} />
 						{creatingBlank ? 'Creating…' : 'Create your first presentation'}
 					</button>
 
@@ -385,7 +384,7 @@
 			</section>
 		{:else if visibleItems.length === 0}
 			<section class="card presentation-library-state presentation-library-no-results">
-				<Search size={32} aria-hidden="true" />
+				<Search size={28} aria-hidden="true" />
 				<h2>No presentation found</h2>
 				<p>Nothing matches “{query.trim()}”. Try another title or clear the search.</p>
 				<button class={button} onclick={() => (query = '')}>Clear search</button>
@@ -402,7 +401,7 @@
 							>
 								<span class="presentation-card-preview" aria-hidden="true">
 									<span class="presentation-card-paper">
-										<Presentation size={17} />
+										<Presentation size={16} />
 										<b>{item.title}</b>
 										<em></em>
 									</span>
@@ -417,11 +416,11 @@
 										class="presentation-card-title [display:flex] [align-items:center] [justify-content:space-between] [gap:var(--space-3)]"
 									>
 										<strong title={item.title}>{item.title}</strong>
-										<ArrowRight size={17} />
+										<ArrowRight size={16} />
 									</span>
 
 									<small>
-										<Clock3 size={13} />
+										<Clock3 size={16} />
 										Updated {formattedDate(item.updatedAt)}
 									</small>
 
@@ -1149,7 +1148,7 @@
 		overflow-wrap: anywhere;
 	}
 	:global(.presentation-card-title svg) {
-		color: var(--scrapbook-green);
+		color: var(--muted);
 	}
 	@media (prefers-reduced-motion: no-preference) {
 		:global(.presentation-card-title svg) {

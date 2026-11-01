@@ -363,7 +363,7 @@
 					<div class="admin-collection-actions [display:flex] [gap:var(--space-2)]">
 						{#if row.state !== 'archived'}
 							<button type="button" class={button} onclick={() => openEdit(row)}
-								><Pencil size={15} aria-hidden="true" /> Edit</button
+								><Pencil size={16} aria-hidden="true" /> Edit</button
 							>
 						{/if}
 						{#if row.state === 'draft'}
@@ -374,7 +374,7 @@
 								type="button"
 								class={[button, 'admin-archive-button']}
 								onclick={() => openArchive(row)}
-								><Archive size={15} aria-hidden="true" /> Archive</button
+								><Archive size={16} aria-hidden="true" /> Archive</button
 							>
 						{/if}
 					</div>

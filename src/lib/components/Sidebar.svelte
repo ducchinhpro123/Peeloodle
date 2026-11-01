@@ -1,6 +1,6 @@
 <script>
 	import { asset } from '$app/paths';
-	import { ChevronRight, Scissors, Sparkles, Type, Upload } from 'lucide-svelte';
+	import { ChevronRight, Scissors, SlidersHorizontal, Type, Upload } from 'lucide-svelte';
 	import { shellHref, sidebarNavigation } from '#lib/app/navigation.js';
 	import {
 		appLocalPathname,
@@ -25,7 +25,11 @@
 	const sidebarTools = [
 		{ label: 'Background Eraser', icon: Scissors, intent: /** @type {const} */ ('erase') },
 		{ label: 'Text & Emoji', icon: Type, intent: /** @type {const} */ ('text') },
-		{ label: 'Filters & Effects', icon: Sparkles, intent: /** @type {const} */ ('effects') },
+		{
+			label: 'Filters & Effects',
+			icon: SlidersHorizontal,
+			intent: /** @type {const} */ ('effects')
+		},
 		{ label: 'Export & Share', icon: Upload, intent: /** @type {const} */ ('export') }
 	];
 
@@ -90,7 +94,7 @@
 
 			<b>Good ideas stick.</b>
 			<p>Create. Customize.<br />Share. Repeat.</p>
-			<a href={shellHref('/create')}>Make something fun <ChevronRight size={14} /></a>
+			<a href={shellHref('/create')}>Make something fun <ChevronRight size={16} /></a>
 		</section>
 	{/if}
 </aside>

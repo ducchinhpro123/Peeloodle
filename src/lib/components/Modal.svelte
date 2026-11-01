@@ -145,7 +145,10 @@
 		overflow: clip;
 		border: 1px solid oklch(1 0 none);
 		border-radius: 24px;
-		transform: translate(-50%, -50%);
+		/* Centre with `translate`, not `transform`: the open animation animates
+		   `transform`, which would otherwise replace the centring while it runs and
+		   pin the dialog's top-left corner to the viewport centre. */
+		translate: -50% -50%;
 	}
 	.dialog-scroll {
 		display: flex;

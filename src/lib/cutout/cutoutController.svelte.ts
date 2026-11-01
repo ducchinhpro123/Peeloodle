@@ -30,6 +30,12 @@ export type CutoutController = {
 	/** A finished result is held until the open drag, slider or text session ends. */
 	readonly deferred: boolean;
 	start(layerId: string): Promise<void>;
+	/**
+	 * Registers a callback that runs synchronously just before a result is applied,
+	 * while the layer still shows the unmasked photo (the canvas snapshots it for
+	 * the reveal). Returns the unsubscribe function.
+	 */
+	onBeforeApply(callback: (layerId: string) => void): () => void;
 	confirm(): void;
 	cancel(): void;
 	retry(): void;
@@ -84,6 +90,7 @@ class Controller implements CutoutController {
 	#tool: string | undefined = undefined;
 	#watching = false;
 	#starting = false;
+	#beforeApply = new Set<(layerId: string) => void>();
 
 	constructor(editor: EditorState) {
 		this.#editor = editor;
@@ -204,6 +211,11 @@ class Controller implements CutoutController {
 		await this.#run(layerId, false);
 	};
 
+	onBeforeApply = (callback: (layerId: string) => void): (() => void) => {
+		this.#beforeApply.add(callback);
+		return () => this.#beforeApply.delete(callback);
+	};
+
 	confirm = (): void => {
 		if (this.state === 'consent' && this.layerId && !this.#job) {
 			void this.#run(this.layerId, true);
@@ -306,6 +318,13 @@ class Controller implements CutoutController {
 				this.progress = null;
 				this.dropped += 1;
 				return;
+			}
+			for (const callback of this.#beforeApply) {
+				try {
+					callback(layerId);
+				} catch {
+					// A failed reveal snapshot must never block applying the result.
+				}
 			}
 			editor.applyMask(layerId, crypto.randomUUID(), result.mask);
 			this.last = result;

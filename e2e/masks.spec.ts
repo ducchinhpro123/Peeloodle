@@ -176,6 +176,7 @@ test('erase paints a mask that the preview shows, IndexedDB keeps, and undo/redo
 
 	// One brush stroke: press, drag, release. The source commits on pointer-up.
 	await page.getByRole('button', { name: 'Background Eraser' }).click();
+	await page.getByRole('button', { name: 'Erase', exact: true }).click();
 	await page.mouse.move(center.x, center.y);
 	await page.mouse.down();
 	await page.mouse.move(center.x + 50, center.y + 30, { steps: 8 });
@@ -220,6 +221,7 @@ test('the mask reaches the exported PNG and Reset Mask removes it there again', 
 
 	const center = await canvasCenter(page);
 	await page.getByRole('button', { name: 'Background Eraser' }).click();
+	await page.getByRole('button', { name: 'Erase', exact: true }).click();
 	await page.getByRole('slider', { name: 'Brush size' }).fill('120');
 	await page.mouse.move(center.x, center.y);
 	await page.mouse.down();
@@ -247,6 +249,7 @@ test('a masked sticker travels through the pack ZIP with the same hole as the PN
 	await openEditorWithPhoto(page);
 	const center = await canvasCenter(page);
 	await page.getByRole('button', { name: 'Background Eraser' }).click();
+	await page.getByRole('button', { name: 'Erase', exact: true }).click();
 	await page.getByRole('slider', { name: 'Brush size' }).fill('120');
 	await page.mouse.move(center.x, center.y);
 	await page.mouse.down();
@@ -301,6 +304,7 @@ test('Space-pan takes precedence over the brush and never paints', async ({ page
 	await saveAndWait(page);
 	const center = await canvasCenter(page);
 	await page.getByRole('button', { name: 'Background Eraser' }).click();
+	await page.getByRole('button', { name: 'Erase', exact: true }).click();
 
 	// Space turns the canvas into a pan surface: the brush must stand down. Blur the
 	// rail button first — Space on a focused button belongs to that button.
@@ -350,6 +354,7 @@ test('a failed mask encode retains the stroke and Save retries it exactly once',
 
 	const center = await canvasCenter(page);
 	await page.getByRole('button', { name: 'Background Eraser' }).click();
+	await page.getByRole('button', { name: 'Erase', exact: true }).click();
 	await page.mouse.move(center.x, center.y);
 	await page.mouse.down();
 	await page.mouse.move(center.x + 40, center.y, { steps: 5 });
@@ -393,6 +398,7 @@ test.describe('mobile mask editing', () => {
 		// "Sticker properties" dialog.
 		await page.getByRole('button', { name: 'Sticker properties', exact: true }).click();
 		const dialog = page.locator('dialog[open]');
+		await dialog.getByRole('tab', { name: 'Background' }).click();
 		await dialog.getByRole('button', { name: 'Erase', exact: true }).click();
 		await page.keyboard.press('Escape');
 		await expect(page.locator('dialog[open]')).toHaveCount(0);

@@ -18,7 +18,7 @@
 		type="button"
 		class={[buttonIconLarge, 'mobile-only']}
 		aria-label="Open navigation"
-		onclick={() => (mobileNavOpen = true)}><Menu size={20} /></button
+		onclick={() => (mobileNavOpen = true)}><Menu size={18} /></button
 	>
 
 	<a href={shellHref('/')} class="brand" aria-label="StickerLab home">

@@ -128,7 +128,7 @@
 >
 	<span aria-hidden="true">{session?.user.email?.slice(0, 1).toUpperCase() ?? 'G'}</span>
 	<b>{session ? 'Account' : 'Guest'}</b>
-	<ChevronDown size={15} aria-hidden="true" />
+	<ChevronDown size={16} aria-hidden="true" />
 </button>
 
 <Modal

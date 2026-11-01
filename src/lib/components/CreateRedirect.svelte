@@ -93,7 +93,7 @@
 				type="button"
 				class={buttonPrimary}
 				onclick={() => onnavigate(editorPathWithIntent(takeCreateDraftId(), intent))}
-				><Upload size={18} />Create new sticker</button
+				><Upload size={16} />Create new sticker</button
 			>
 		</header>
 		{#if choiceError}

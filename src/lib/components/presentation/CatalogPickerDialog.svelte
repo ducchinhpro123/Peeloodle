@@ -228,7 +228,7 @@
 					<option value="svg">SVG</option>
 				</select>
 			</label>
-			<button type="submit" class={button}><Search size={14} />Apply</button>
+			<button type="submit" class={button}><Search size={16} />Apply</button>
 		</form>
 
 		{#if status === 'loading'}<p role="status">Loading catalog images…</p>{/if}

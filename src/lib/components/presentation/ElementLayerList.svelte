@@ -30,39 +30,39 @@
 						class={buttonIcon}
 						aria-label={`${element.visible ? 'Hide' : 'Show'} ${element.name}`}
 						onclick={() => doc.toggleElementVisible(element.id)}
-						>{#if element.visible}<Eye size={14} />{:else}<EyeOff size={14} />{/if}</button
+						>{#if element.visible}<Eye size={16} />{:else}<EyeOff size={16} />{/if}</button
 					>
 					<button
 						class={buttonIcon}
 						aria-label={`${element.locked ? 'Unlock' : 'Lock'} ${element.name}`}
 						onclick={() => doc.toggleElementLocked(element.id)}
-						>{#if element.locked}<Lock size={14} />{:else}<Unlock size={14} />{/if}</button
+						>{#if element.locked}<Lock size={16} />{:else}<Unlock size={16} />{/if}</button
 					>
 					<button
 						class={buttonIcon}
 						aria-label={`Move ${element.name} forward`}
 						disabled={index === slide.elements.length - 1}
 						onclick={() => doc.reorderElement(element.id, index + 1)}
-						><ChevronUp size={14} /></button
+						><ChevronUp size={16} /></button
 					>
 					<button
 						class={buttonIcon}
 						aria-label={`Move ${element.name} backward`}
 						disabled={index === 0}
 						onclick={() => doc.reorderElement(element.id, index - 1)}
-						><ChevronDown size={14} /></button
+						><ChevronDown size={16} /></button
 					>
 					<button
 						class={buttonIcon}
 						aria-label={`Duplicate ${element.name}`}
 						onclick={() => actions.run('element.duplicate', { elementId: element.id })}
-						><Copy size={14} /></button
+						><Copy size={16} /></button
 					>
 					<button
 						class={[buttonIcon, 'presentation-layer-delete']}
 						aria-label={`Delete ${element.name}`}
 						onclick={() => actions.run('element.delete', { elementId: element.id })}
-						><Trash2 size={14} /></button
+						><Trash2 size={16} /></button
 					>
 				</div>
 			</li>

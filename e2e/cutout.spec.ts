@@ -35,10 +35,9 @@ const artifacts = new Map<string, { mask: Buffer; sticker: Buffer }>();
 const ORT_VERSION = JSON.parse(
 	readFileSync(path.resolve('node_modules/onnxruntime-web/package.json'), 'utf8')
 ).version as string;
-const HELP_COPY =
-	'Runs on your device. Your photo is never uploaded. Refine with Erase and Restore.';
+const HELP_COPY = 'Runs on your device. Your photo is never uploaded.';
 
-/** Opens a fresh editor with `photo` uploaded and the Adjust tab showing. */
+/** Opens a fresh editor with `photo` uploaded and the Background tab showing. */
 async function openEditorWithPhoto(
 	page: Page,
 	photo: string,
@@ -55,7 +54,7 @@ async function openEditorWithPhoto(
 	});
 	await page.getByRole('tab', { name: 'Layers' }).click();
 	await expect(page.locator('.layer-stack .layer-row')).toHaveCount(1);
-	await page.getByRole('tab', { name: 'Adjust' }).click();
+	await page.getByRole('tab', { name: 'Background' }).click();
 	const projectId = page.url().match(/editor\/([^/?#]+)/)?.[1];
 	if (!projectId) throw new Error('The editor URL has no project id');
 	return projectId;
@@ -71,7 +70,7 @@ async function saveAndWait(page: Page) {
  * consent dialog appears and is accepted with "Download & remove".
  */
 async function removeBackground(page: Page) {
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await expect(cutout(page)).not.toHaveAttribute('data-state', 'idle');
 	if ((await cutout(page).getAttribute('data-state')) === 'consent') {
 		await page.getByRole('button', { name: 'Download & remove' }).click();
@@ -219,7 +218,7 @@ test('removes the background of a pet photo in one undo step', async ({ page }) 
 	// The Background section states the new behaviour; the old "not available" copy is gone.
 	const section = page
 		.locator('.inspector-section')
-		.filter({ has: page.getByText('Background', { exact: true }) });
+		.filter({ has: page.getByText('Remove background', { exact: true }) });
 	await expect(section).toContainText(HELP_COPY);
 	await expect(page.getByText('Automatic background removal is not available')).toHaveCount(0);
 	await expect(page.getByText('Backgrounds are not removed automatically')).toHaveCount(0);
@@ -352,7 +351,7 @@ test('asks for consent before the first download, then never again', async ({ pa
 	await openEditorWithPhoto(page, fixture('boba-tea.png'));
 
 	// Cancel: no download is made.
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'consent');
 	const dialog = page.getByRole('dialog', { name: CONSENT_TITLE });
 	await expect(dialog).toBeVisible();
@@ -365,7 +364,7 @@ test('asks for consent before the first download, then never again', async ({ pa
 	expect(modelRequests).toHaveLength(0);
 
 	// Accept: progress, then inference, then done.
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await page.getByRole('button', { name: 'Download & remove' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'downloading');
 	await expect(cutout(page).getByRole('status')).toHaveText(/Downloading model… \d+%/);
@@ -378,7 +377,7 @@ test('asks for consent before the first download, then never again', async ({ pa
 	// Reload with another photo: no dialog, no model request, nothing downloaded.
 	modelRequests.length = 0;
 	await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
 	await expect(page.getByRole('dialog', { name: CONSENT_TITLE })).toBeHidden();
 	expect(modelRequests).toHaveLength(0);
@@ -414,7 +413,7 @@ test('works offline once the model is cached', async ({ page, context }) => {
 		requestsWhenOnline = modelRequests.length;
 		await context.setOffline(true);
 	});
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
 	await expect(page.getByRole('dialog', { name: CONSENT_TITLE })).toBeHidden();
 	await expect(cutout(page)).toHaveAttribute('data-download-ms', '0');
@@ -429,7 +428,7 @@ test('cancel during download caches nothing', async ({ page }) => {
 		await route.continue().catch(() => {});
 	});
 	const projectId = await openEditorWithPhoto(page, fixture('boba-tea.png'));
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await page.getByRole('button', { name: 'Download & remove' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'downloading');
 	await cutout(page).getByRole('button', { name: 'Cancel' }).click();
@@ -450,7 +449,7 @@ test('cancel during inference applies nothing', async ({ page }) => {
 	const projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
 	// Adding the photo is itself an undo step: compare against that baseline.
 	const undoDisabledBefore = await undoButton(page).isDisabled();
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'running');
 	await cutout(page).getByRole('button', { name: 'Cancel' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
@@ -469,7 +468,7 @@ test('works when Cache Storage is unavailable', async ({ page }) => {
 	});
 	await openEditorWithPhoto(page, fixture('boba-tea.png'));
 	expect(await page.evaluate(() => typeof caches)).toBe('undefined');
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'consent');
 	await page.getByRole('button', { name: 'Download & remove' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
@@ -483,7 +482,7 @@ test('double click starts one job', async ({ page }) => {
 
 	const projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
 	const modelRequests = watchModelRequests(page);
-	await page.getByRole('button', { name: 'Remove background' }).dblclick();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).dblclick();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
 	expect(modelRequests).toHaveLength(0);
 	await expect(page.getByRole('dialog', { name: CONSENT_TITLE })).toBeHidden();
@@ -522,7 +521,7 @@ async function storedMaskKeys(page: Page, projectId: string) {
 
 /** Clicks Remove background (accepting consent if asked) and waits for `running`. */
 async function startUntilRunning(page: Page) {
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await expect(cutout(page)).not.toHaveAttribute('data-state', 'idle');
 	if ((await cutout(page).getAttribute('data-state')) === 'consent') {
 		await page.getByRole('button', { name: 'Download & remove' }).click();
@@ -574,13 +573,13 @@ test('locking the layer mid-run applies nothing', async ({ page }) => {
 	await page.getByRole('tab', { name: 'Layers' }).click();
 	await page.getByRole('button', { name: /^Lock / }).click();
 	await expect(page.getByRole('button', { name: /^Unlock / })).toBeVisible();
-	await page.getByRole('tab', { name: 'Adjust' }).click();
+	await page.getByRole('tab', { name: 'Background' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
 	// The abandoned inference settles in the worker and its mask is discarded.
 	await waitForDropped(page, 1);
 	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
 	await expect(cutout(page).getByRole('status')).toHaveText('');
-	await expect(page.getByRole('button', { name: 'Remove background' })).toBeDisabled();
+	await expect(cutout(page).getByRole('button', { name: 'Remove background' })).toBeDisabled();
 	await saveAndWait(page);
 	expect(await storedMaskKeys(page, projectId)).toEqual([]);
 });
@@ -593,7 +592,7 @@ test('opening another project resets the cutout status', async ({ page }) => {
 		await page.getByRole('link', { name: /Create a Sticker/ }).click();
 		await expect(page).toHaveURL(/\/editor\/[0-9a-z-]+/, { timeout: 20_000 });
 		await page.setInputFiles('[data-testid="photo-file-input"]', photo);
-		await page.getByRole('tab', { name: 'Adjust' }).click();
+		await page.getByRole('tab', { name: 'Background' }).click();
 		const id = page.url().match(/editor\/([^/?#]+)/)?.[1];
 		if (!id) throw new Error('The editor URL has no project id');
 		return id;
@@ -622,7 +621,7 @@ test('download failure shows retry, and Retry recovers', async ({ page }) => {
 	test.setTimeout(300_000);
 	await page.route('**/models/cutout/**', (route) => route.abort());
 	await openEditorWithPhoto(page, fixture('boba-tea.png'));
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await page.getByRole('button', { name: 'Download & remove' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'error', { timeout: 60_000 });
 	await expect(cutout(page).getByRole('status')).toHaveText(DOWNLOAD_ERROR);
@@ -650,7 +649,7 @@ test('corrupted model is rejected and not cached', async ({ page }) => {
 		})
 	);
 	await openEditorWithPhoto(page, fixture('boba-tea.png'));
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await page.getByRole('button', { name: 'Download & remove' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'error', { timeout: 60_000 });
 	await expect(cutout(page).getByRole('status')).toHaveText(DOWNLOAD_ERROR);
@@ -687,9 +686,9 @@ test('a photo whose decoded size disagrees with its record is reported as unread
 	await page.reload();
 	await page.getByRole('tab', { name: 'Layers' }).click();
 	await expect(page.locator('.layer-stack .layer-row')).toHaveCount(1, { timeout: 20_000 });
-	await page.getByRole('tab', { name: 'Adjust' }).click();
+	await page.getByRole('tab', { name: 'Background' }).click();
 
-	await page.getByRole('button', { name: 'Remove background' }).click();
+	await cutout(page).getByRole('button', { name: 'Remove background' }).click();
 	await page.getByRole('button', { name: 'Download & remove' }).click();
 	await expect(cutout(page)).toHaveAttribute('data-state', 'error', { timeout: 60_000 });
 	await expect(cutout(page).getByRole('status')).toHaveText(
@@ -708,6 +707,7 @@ test('replacing a hand-painted mask is undoable', async ({ page }) => {
 	if (!box) throw new Error('The editor canvas has no bounding box');
 	const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 	await page.getByRole('button', { name: 'Background Eraser' }).click();
+	await page.getByRole('button', { name: 'Erase', exact: true }).click();
 	await page.mouse.move(center.x, center.y);
 	await page.mouse.down();
 	await page.mouse.move(center.x + 50, center.y + 30, { steps: 8 });
@@ -756,6 +756,7 @@ test('Erase and Restore refine the removal result', async ({ page }) => {
 	// One Erase stroke on the result, as in masks.spec.ts: a hole in the subject,
 	// and the removed background stays removed (the brush started from the result).
 	await page.getByRole('button', { name: 'Background Eraser' }).click();
+	await page.getByRole('button', { name: 'Erase', exact: true }).click();
 	await page.getByRole('slider', { name: 'Brush size' }).fill('120');
 	await stroke();
 	await saveAndWait(page);
@@ -846,8 +847,8 @@ test('locked or non-image layer disables removal', async ({ page }) => {
 	await openEditorWithPhoto(page, fixture('boba-tea.png'));
 	await page.getByRole('tab', { name: 'Layers' }).click();
 	await page.getByRole('button', { name: /^Lock / }).click();
-	await page.getByRole('tab', { name: 'Adjust' }).click();
-	const remove = page.getByRole('button', { name: 'Remove background' });
+	await page.getByRole('tab', { name: 'Background' }).click();
+	const remove = cutout(page).getByRole('button', { name: 'Remove background' });
 	await expect(remove).toBeDisabled();
 	await remove.click({ force: true });
 	await expect(cutout(page)).toHaveAttribute('data-state', 'idle');
@@ -878,8 +879,9 @@ test('the properties sheet at 390x844 opens exactly one consent dialog', async (
 	await page.getByRole('button', { name: 'Sticker properties', exact: true }).click();
 	const sheet = openDialog(page, 'Sticker properties');
 	await expect(sheet).toBeVisible();
+	await sheet.getByRole('tab', { name: 'Background' }).click();
 	const panel = sheet.getByTestId('cutout');
-	await sheet.getByRole('button', { name: 'Remove background' }).click();
+	await panel.getByRole('button', { name: 'Remove background' }).click();
 	await expect(panel).toHaveAttribute('data-state', 'consent');
 
 	const consent = openDialog(page, CONSENT_TITLE);
@@ -907,9 +909,9 @@ test('the status, Retry and progress belong to the layer the run is on', async (
 			.nth(row === 'A' ? 1 : 0)
 			.locator('.layer-kind-tag')
 			.click();
-		await page.getByRole('tab', { name: 'Adjust' }).click();
+		await page.getByRole('tab', { name: 'Background' }).click();
 	};
-	const remove = page.getByRole('button', { name: 'Remove background' });
+	const remove = cutout(page).getByRole('button', { name: 'Remove background' });
 	const status = cutout(page).getByRole('status');
 	const retry = cutout(page).getByRole('button', { name: 'Retry' });
 
@@ -1014,6 +1016,135 @@ test('a result that lands during a drag is its own undo step', async ({ page }) 
 });
 
 // Keep this the LAST test: workers=1 runs it after the quality test has filled `results`.
+const canvasAction = (page: Page) => page.getByTestId('cutout-canvas-action');
+
+test('the Background Eraser rail item opens the Background tab, led by Remove background', async ({
+	page
+}) => {
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await page.getByRole('tab', { name: 'Adjust' }).click();
+	await page.getByRole('button', { name: 'Background Eraser' }).click();
+	await expect(page.getByRole('tab', { name: 'Background' })).toHaveAttribute(
+		'data-state',
+		'active'
+	);
+	await expect(cutout(page).getByRole('button', { name: 'Remove background' })).toBeVisible();
+	// Refining is a second, deliberate step: the rail no longer arms the brush.
+	await expect(page.getByRole('button', { name: 'Erase', exact: true })).toHaveAttribute(
+		'aria-pressed',
+		'false'
+	);
+});
+
+test('the canvas action removes the background with a scan, then offers Refine edges', async ({
+	page
+}) => {
+	test.setTimeout(300_000);
+	const projectId = await openEditorWithPhoto(page, fixture('sunny-corgi.png'));
+	// Record every reveal element the canvas adds, since it removes itself after 500 ms.
+	await page.evaluate(() => {
+		const seen = { reveals: 0 };
+		(window as unknown as { __cutoutSeen: typeof seen }).__cutoutSeen = seen;
+		new MutationObserver((records) => {
+			for (const record of records)
+				for (const node of record.addedNodes)
+					if (node instanceof HTMLElement && node.dataset.testid === 'cutout-reveal')
+						seen.reveals += 1;
+		}).observe(document.body, { childList: true, subtree: true });
+	});
+
+	const action = canvasAction(page);
+	await expect(action).toHaveAttribute('data-mode', 'offer');
+	await action.getByRole('button', { name: 'Remove background' }).click();
+	await page.getByRole('button', { name: 'Download & remove' }).click();
+
+	// While it runs: the chip is a progress pill, and the photo is dimmed and swept.
+	await expect(action).toHaveAttribute('data-mode', 'running', { timeout: 60_000 });
+	const scan = page.getByTestId('cutout-scan');
+	await expect(scan).toBeVisible();
+	const scanState = await scan.evaluate((element) => ({
+		sweeping: (element.querySelector('.cutout-scan-band')?.getAnimations() ?? []).length > 0,
+		box: element.getBoundingClientRect().toJSON()
+	}));
+	expect(scanState.sweeping).toBe(true);
+	const canvasBox = await page.getByTestId('editor-canvas').boundingBox();
+	if (!canvasBox) throw new Error('The editor canvas has no bounding box');
+	// The overlay sits on the photo, inside the canvas.
+	expect(scanState.box.width).toBeGreaterThan(50);
+	expect(scanState.box.left).toBeGreaterThanOrEqual(canvasBox.x - 1);
+	expect(scanState.box.right).toBeLessThanOrEqual(canvasBox.x + canvasBox.width + 1);
+
+	// Done: the reveal played, the scan is gone, and the chip offers Refine edges.
+	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
+	await expect(scan).toHaveCount(0);
+	await expect
+		.poll(() =>
+			page.evaluate(
+				() => (window as unknown as { __cutoutSeen: { reveals: number } }).__cutoutSeen.reveals
+			)
+		)
+		.toBe(1);
+	await expect(page.getByTestId('cutout-reveal')).toHaveCount(0);
+	await expect(action).toHaveAttribute('data-mode', 'refine');
+
+	await page.getByRole('tab', { name: 'Adjust' }).click();
+	await action.getByRole('button', { name: 'Refine edges' }).click();
+	await expect(page.getByRole('tab', { name: 'Background' })).toHaveAttribute(
+		'data-state',
+		'active'
+	);
+	// The photo now has a mask: refining lives in the rail, so the chip is gone.
+	await expect(action).toHaveCount(0);
+	await saveAndWait(page);
+	expect(await storedMaskKey(page, projectId)).toBeTruthy();
+});
+
+test('the canvas action stays out of the way of locked photos and the brush', async ({ page }) => {
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await expect(canvasAction(page)).toHaveAttribute('data-mode', 'offer');
+
+	await page.getByRole('button', { name: 'Erase', exact: true }).click();
+	await expect(canvasAction(page)).toHaveCount(0);
+	await page.getByRole('button', { name: 'Erase', exact: true }).click();
+	await expect(canvasAction(page)).toHaveAttribute('data-mode', 'offer');
+
+	await page.getByRole('tab', { name: 'Layers' }).click();
+	await page.getByRole('button', { name: /^Lock / }).click();
+	await expect(canvasAction(page)).toHaveCount(0);
+});
+
+test('with reduced motion the photo dims without a sweep and the result appears at once', async ({
+	page
+}) => {
+	test.setTimeout(300_000);
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await openEditorWithPhoto(page, fixture('boba-tea.png'));
+	await page.evaluate(() => {
+		const seen = { reveals: 0 };
+		(window as unknown as { __cutoutSeen: typeof seen }).__cutoutSeen = seen;
+		new MutationObserver((records) => {
+			for (const record of records)
+				for (const node of record.addedNodes)
+					if (node instanceof HTMLElement && node.dataset.testid === 'cutout-reveal')
+						seen.reveals += 1;
+		}).observe(document.body, { childList: true, subtree: true });
+	});
+	await startUntilRunning(page);
+	const scan = page.getByTestId('cutout-scan');
+	await expect(scan).toBeVisible();
+	expect(
+		await scan.evaluate(
+			(element) => (element.querySelector('.cutout-scan-band')?.getAnimations() ?? []).length
+		)
+	).toBe(0);
+	await expect(cutout(page)).toHaveAttribute('data-state', 'done', { timeout: 120_000 });
+	expect(
+		await page.evaluate(
+			() => (window as unknown as { __cutoutSeen: { reveals: number } }).__cutoutSeen.reveals
+		)
+	).toBe(0);
+});
+
 test('artifact report is written', async () => {
 	const outDir = path.resolve('proofs/out/cutout');
 	mkdirSync(outDir, { recursive: true });

@@ -326,7 +326,7 @@
 				<option value="svg">SVG</option>
 			</select>
 		</label>
-		<button type="submit" class={button}><Search size={14} />Apply</button>
+		<button type="submit" class={button}><Search size={16} />Apply</button>
 	</form>
 
 	{#if listStatus === 'loading'}
@@ -395,7 +395,7 @@
 					<span
 						class="[display:grid] [place-items:center] [border-radius:var(--radius-sm)] [color:var(--muted)] [background:var(--surface)] [block-size:96px] [inline-size:140px]"
 					>
-						<ImageOff size={20} aria-hidden="true" />
+						<ImageOff size={18} aria-hidden="true" />
 					</span>
 				{/if}
 			</div>
@@ -490,7 +490,7 @@
 						disabled={publishing || !version || selected.state === 'archived'}
 						onclick={publish}
 					>
-						<Send size={14} />{selected.state === 'published'
+						<Send size={16} />{selected.state === 'published'
 							? 'Republish this version'
 							: 'Publish'}
 					</button>
@@ -503,7 +503,7 @@
 							archiveError = null;
 						}}
 					>
-						<Archive size={14} />Archive
+						<Archive size={16} />Archive
 					</button>
 				</div>
 			</form>

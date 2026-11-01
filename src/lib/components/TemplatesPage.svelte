@@ -11,7 +11,7 @@
 	 * dependency and renders in a browser test without mocks — the same seam
 	 * `DashboardPage.svelte` uses.
 	 */
-	import { Search, Sparkles } from 'lucide-svelte';
+	import { Search } from 'lucide-svelte';
 	import AppShell from './AppShell.svelte';
 	import Hero from './Hero.svelte';
 	import StickerCollage from './StickerCollage.svelte';
@@ -74,7 +74,7 @@
 <AppShell {pathname} {search}>
 	<Hero variant="templates">
 		{#snippet kicker()}
-			<p class="hero-kicker"><Sparkles size={14} /> THE INSPIRATION STATION</p>
+			<p class="hero-kicker">THE INSPIRATION STATION</p>
 		{/snippet}
 		{#snippet title()}
 			<span>Find your vibe.</span><br /><em>Make it yours.</em>
@@ -114,17 +114,17 @@
 	</div>
 
 	{#if result.length}
-		<TemplateRail {repository} {onopen} title="🔥 Trending Templates" items={result} />
+		<TemplateRail {repository} {onopen} title="Trending Templates" items={result} />
 		<TemplateRail
 			{repository}
 			{onopen}
-			title="✦ Explore by Category"
+			title="Explore by Category"
 			items={result.slice().reverse()}
 		/>
 		<TemplateRail
 			{repository}
 			{onopen}
-			title="✨ More Templates You'll Love"
+			title="More Templates You'll Love"
 			items={result.slice(2)}
 		/>
 	{:else}

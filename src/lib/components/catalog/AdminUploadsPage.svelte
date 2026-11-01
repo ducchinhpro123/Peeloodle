@@ -422,7 +422,7 @@
 							aria-label={`Remove ${file.name}`}
 							onclick={() => removeFile(index)}
 						>
-							<X size={14} />
+							<X size={16} />
 						</button>
 					</li>
 				{/each}
@@ -457,7 +457,7 @@
 				</span>
 				<span class="[flex:1]"></span>
 				<button type="button" class={button} disabled={running} onclick={refreshAndProcess}>
-					<RefreshCw size={14} />{running ? 'Validating…' : 'Refresh and validate'}
+					<RefreshCw size={16} />{running ? 'Validating…' : 'Refresh and validate'}
 				</button>
 				{#if status.batch.state === 'open'}
 					<button type="button" class={button} onclick={closeBatch}>Close batch</button>
@@ -466,7 +466,7 @@
 					</button>
 				{:else}
 					<button type="button" class={button} disabled={cleanupBusy} onclick={findOrphans}>
-						<Trash2 size={14} />Check abandoned uploads
+						<Trash2 size={16} />Check abandoned uploads
 					</button>
 				{/if}
 			</div>
@@ -501,7 +501,7 @@
 									onclick={() => retry(job.id)}
 									aria-label={`Retry ${job.originalName}`}
 								>
-									<RotateCcw size={14} />Retry
+									<RotateCcw size={16} />Retry
 								</button>
 							{/if}
 							{#if activeJobId === job.id}
@@ -531,7 +531,7 @@
 						<p class="[margin:0] [color:var(--muted)]">Nothing to clean up.</p>
 					{:else}
 						<button type="button" class={button} disabled={cleanupBusy} onclick={removeOrphans}>
-							<Trash2 size={14} />Remove {orphans.sourceTotal + orphans.derivativeTotal} objects
+							<Trash2 size={16} />Remove {orphans.sourceTotal + orphans.derivativeTotal} objects
 						</button>
 					{/if}
 				</div>

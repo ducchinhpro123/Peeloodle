@@ -1,5 +1,6 @@
 <script>
 	import { button, buttonPrimary } from '#lib/ui/styles.js';
+	import { Scissors } from 'lucide-svelte';
 	import { cutoutControllerFor } from '#lib/cutout/cutoutController.svelte.js';
 	/**
 	 * "Remove background" for the selected image layer. The root carries the
@@ -37,28 +38,124 @@
 	data-dropped={cutout.dropped}
 	data-deferred={mine && cutout.deferred ? 'true' : undefined}
 >
-	<div class="button-row">
-		<button
-			type="button"
-			class={buttonPrimary}
-			disabled={image.locked || busy}
-			title={busy && !mine
-				? "Another layer's background is being removed. One removal runs at a time."
-				: undefined}
-			onclick={() => cutout.start(image.id)}>Remove background</button
-		>
-		{#if mine && busy}
-			<button type="button" class={button} onclick={() => cutout.cancel()}>Cancel</button>
-		{:else if state === 'error'}
-			<button type="button" class={button} onclick={() => cutout.retry()}>Retry</button>
-		{/if}
-	</div>
 	{#if mine && busy}
-		{#if state === 'downloading' && cutout.progress !== null}
-			<progress max="100" value={cutout.progress} aria-label="Model download"></progress>
-		{:else}
-			<progress aria-label="Removing background"></progress>
-		{/if}
+		<div class="cutout-progress">
+			<div class="cutout-progress-head">
+				<span role="status">{cutout.message}</span>
+				<button type="button" class="cutout-progress-cancel" onclick={() => cutout.cancel()}
+					>Cancel</button
+				>
+			</div>
+			{#if state === 'downloading' && cutout.progress !== null}
+				<progress max="100" value={cutout.progress} aria-label="Model download"></progress>
+			{:else}
+				<progress aria-label="Removing background"></progress>
+			{/if}
+		</div>
+	{:else}
+		<div class="button-row">
+			<button
+				type="button"
+				class={buttonPrimary}
+				disabled={image.locked || busy}
+				title={busy
+					? "Another layer's background is being removed. One removal runs at a time."
+					: undefined}
+				onclick={() => cutout.start(image.id)}><Scissors size={16} />Remove background</button
+			>
+			{#if state === 'error'}
+				<button type="button" class={button} onclick={() => cutout.retry()}>Retry</button>
+			{/if}
+		</div>
+		<p class="muted [margin:0] [font-size:12px]" role="status">{mine ? cutout.message : ''}</p>
 	{/if}
-	<p class="muted [margin:0] [font-size:12px]" role="status">{mine ? cutout.message : ''}</p>
 </div>
+
+<style>
+	.cutout-progress {
+		display: grid;
+		gap: 8px;
+		padding: 12px;
+		border: 1px solid color-mix(in oklch, var(--ink) 8%, transparent);
+		border-radius: 12px;
+		background: color-mix(in oklch, var(--primary) 6%, oklch(1 0 none));
+	}
+	.cutout-progress-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		color: var(--ink);
+		font-size: 14px;
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
+	}
+	.cutout-progress-cancel {
+		padding: 4px 8px;
+		border: 0;
+		border-radius: 8px;
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-size: 13px;
+		cursor: pointer;
+	}
+	.cutout-progress-cancel:hover {
+		background: color-mix(in oklch, var(--ink) 6%, transparent);
+		color: var(--ink);
+	}
+	.cutout-progress-cancel:focus-visible {
+		outline: 2px solid var(--ink);
+		outline-offset: 2px;
+	}
+	.cutout-progress progress {
+		inline-size: 100%;
+		block-size: 4px;
+		border: 0;
+		border-radius: 4px;
+		overflow: hidden;
+		appearance: none;
+		background: color-mix(in oklch, var(--primary) 16%, transparent);
+		color: var(--primary);
+	}
+	.cutout-progress progress::-webkit-progress-bar {
+		background: color-mix(in oklch, var(--primary) 16%, transparent);
+	}
+	.cutout-progress progress::-webkit-progress-value {
+		background: var(--primary);
+		border-radius: 4px;
+	}
+	.cutout-progress progress::-moz-progress-bar {
+		background: var(--primary);
+		border-radius: 4px;
+	}
+	/* Indeterminate: a short segment sliding along the track instead of a full bar. */
+	.cutout-progress progress:indeterminate {
+		background:
+			linear-gradient(90deg, transparent, var(--primary), transparent) 0 0 / 40% 100% no-repeat,
+			color-mix(in oklch, var(--primary) 16%, transparent);
+	}
+	.cutout-progress progress:indeterminate::-webkit-progress-bar {
+		background: transparent;
+	}
+	.cutout-progress progress:indeterminate::-moz-progress-bar {
+		background: transparent;
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.cutout-progress progress:indeterminate {
+			animation: cutout-indeterminate 1.2s ease-in-out infinite;
+		}
+	}
+	@keyframes cutout-indeterminate {
+		from {
+			background-position:
+				-40% 0,
+				0 0;
+		}
+		to {
+			background-position:
+				140% 0,
+				0 0;
+		}
+	}
+</style>

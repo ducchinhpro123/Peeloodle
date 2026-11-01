@@ -12,17 +12,21 @@
 		ArrowDown,
 		ArrowUp,
 		Copy,
+		Eraser,
 		Eye,
 		EyeOff,
 		FlipHorizontal2,
 		FlipVertical2,
 		Lock,
+		Paintbrush,
+		RotateCcw,
 		RotateCw,
 		Trash2,
 		Unlock
 	} from 'lucide-svelte';
 	import Slider from './Slider.svelte';
 	import ColorField from './ColorField.svelte';
+	import { cutoutControllerFor } from '#lib/cutout/cutoutController.svelte.js';
 	import CutoutControls from './CutoutControls.svelte';
 	import { TEXT_FONTS, cssFontFamily } from '#lib/fonts.js';
 	/** @typedef {import('#lib/editor/editorState.svelte.js').EditorState} EditorState */
@@ -50,6 +54,7 @@
 
 	const tabs = [
 		{ value: 'adjust', label: 'Adjust' },
+		{ value: 'background', label: 'Background' },
 		{ value: 'effects', label: 'Effects' },
 		{ value: 'position', label: 'Position' },
 		{ value: 'layers', label: 'Layers' }
@@ -68,6 +73,7 @@
 	let imageLayer = $derived(selected?.kind === 'image' ? selected : undefined);
 	let textLayer = $derived(selected?.kind === 'text' ? selected : undefined);
 	let brushTool = $derived(editor.activeTool === 'erase' || editor.activeTool === 'restore');
+	let cutout = $derived(cutoutControllerFor(editor));
 
 	/** @param {string} value */
 	function changeTab(value) {
@@ -108,7 +114,7 @@
 					onclick={() => {
 						editor.selectLayer(imageLayer.id);
 						editor.removeSelected();
-					}}><Trash2 size={14} />Delete</button
+					}}><Trash2 size={16} />Delete</button
 				>
 			</div>
 			<input
@@ -156,6 +162,16 @@
 				{@render ImagePanel(imageLayer)}
 			{:else}
 				<p class="muted">Shape style editing arrives later.</p>
+			{/if}
+		{:else if tab === 'background'}
+			{#if imageLayer}
+				{@render BackgroundPanel(imageLayer)}
+			{:else}
+				<p class="muted">
+					{doc?.layers.some((layer) => layer.kind === 'image')
+						? 'Select a photo to remove its background.'
+						: 'Add a photo to remove its background.'}
+				</p>
 			{/if}
 		{:else if tab === 'effects'}
 			{#if imageLayer}
@@ -291,62 +307,78 @@
 			<b>Flip &amp; Rotate</b>
 			<div class="button-row flip-row">
 				<button type="button" class={button} onclick={() => editor.flipSelected('horizontal')}
-					><FlipHorizontal2 size={14} />Flip H</button
+					><FlipHorizontal2 size={16} />Flip H</button
 				>
 				<button type="button" class={button} onclick={() => editor.flipSelected('vertical')}
-					><FlipVertical2 size={14} />Flip V</button
+					><FlipVertical2 size={16} />Flip V</button
 				>
 				<button type="button" class={button} onclick={() => editor.rotateSelected90()}
-					><RotateCw size={14} />Rotate 90°</button
+					><RotateCw size={16} />Rotate 90°</button
 				>
 			</div>
 		</div>
+	</div>
+{/snippet}
 
+{#snippet BackgroundPanel(/** @type {import('#lib/domain/domain.js').ImageLayer} */ image)}
+	{@const removing =
+		cutout.layerId === image.id && (cutout.state === 'downloading' || cutout.state === 'running')}
+	<div class="inspector-fields">
 		<div class="inspector-section">
-			<b>Background</b>
-			<p class="muted" style="font-size: 12px">
-				Runs on your device. Your photo is never uploaded. Refine with Erase and Restore.
+			<b>Remove background</b>
+			<p class="muted [margin:0] [font-size:12px]">
+				Runs on your device. Your photo is never uploaded.
 			</p>
 			<CutoutControls {editor} {image} />
+		</div>
+
+		<div class="inspector-section">
+			<b>Refine</b>
+			<p class="muted [margin:0] [font-size:12px]">
+				Erase leftover background, or Restore parts the cutout missed.
+			</p>
 			<div class="button-row">
 				<button
 					type="button"
 					class={editor.activeTool === 'erase' ? buttonPrimary : button}
+					aria-pressed={editor.activeTool === 'erase'}
+					disabled={removing}
 					onclick={() => editor.setTool(editor.activeTool === 'erase' ? 'select' : 'erase')}
-					>Erase</button
+					><Eraser size={16} />Erase</button
 				>
 				<button
 					type="button"
 					class={editor.activeTool === 'restore' ? buttonPrimary : button}
+					aria-pressed={editor.activeTool === 'restore'}
+					disabled={removing}
 					onclick={() => editor.setTool(editor.activeTool === 'restore' ? 'select' : 'restore')}
-					>Restore</button
+					><Paintbrush size={16} />Restore</button
 				>
 				{#if image.maskKey}
 					<button
 						type="button"
 						class={button}
 						title="Reset mask to show full image"
-						onclick={() => editor.clearMask(image.id)}>Reset Mask</button
+						onclick={() => editor.clearMask(image.id)}><RotateCcw size={16} />Reset Mask</button
 					>
 				{/if}
 			</div>
+			{#if brushTool}
+				<label>
+					<span>Brush size</span>
+					<span class="inspector-slider-value">
+						<Slider
+							value={editor.brushSize}
+							min={4}
+							max={120}
+							label="Brush size"
+							oninput={(value) => editor.setBrushSize(value)}
+						/>
+						<small>{editor.brushSize} px</small>
+					</span>
+				</label>
+			{/if}
 		</div>
-
-		{#if brushTool}
-			<label>
-				<span>Brush size</span>
-				<span class="inspector-slider-value">
-					<Slider
-						value={editor.brushSize}
-						min={4}
-						max={120}
-						label="Brush size"
-						oninput={(value) => editor.setBrushSize(value)}
-					/>
-					<small>{editor.brushSize} px</small>
-				</span>
-			</label>
-		{/if}
 	</div>
 {/snippet}
 
@@ -464,7 +496,7 @@
 								aria-label={layer.visible ? `Hide ${layer.name}` : `Show ${layer.name}`}
 								onclick={() => editor.toggleLayerVisibility(layer.id)}
 							>
-								{#if layer.visible}<Eye size={14} />{:else}<EyeOff size={14} />{/if}
+								{#if layer.visible}<Eye size={16} />{:else}<EyeOff size={16} />{/if}
 							</button>
 							<button
 								type="button"
@@ -474,7 +506,7 @@
 								aria-label={layer.locked ? `Unlock ${layer.name}` : `Lock ${layer.name}`}
 								onclick={() => editor.toggleLayerLock(layer.id)}
 							>
-								{#if layer.locked}<Lock size={14} />{:else}<Unlock size={14} />{/if}
+								{#if layer.locked}<Lock size={16} />{:else}<Unlock size={16} />{/if}
 							</button>
 							<button
 								type="button"
@@ -482,7 +514,7 @@
 								disabled={isTop}
 								title="Bring forward"
 								aria-label={`Bring ${layer.name} forward`}
-								onclick={() => editor.reorderLayer(layer.id, 'up')}><ArrowUp size={14} /></button
+								onclick={() => editor.reorderLayer(layer.id, 'up')}><ArrowUp size={16} /></button
 							>
 							<button
 								type="button"
@@ -491,7 +523,7 @@
 								title="Send backward"
 								aria-label={`Send ${layer.name} backward`}
 								onclick={() => editor.reorderLayer(layer.id, 'down')}
-								><ArrowDown size={14} /></button
+								><ArrowDown size={16} /></button
 							>
 							<button
 								type="button"
@@ -501,7 +533,7 @@
 								onclick={() => {
 									editor.selectLayer(layer.id);
 									editor.duplicateSelected();
-								}}><Copy size={14} /></button
+								}}><Copy size={16} /></button
 							>
 							<button
 								type="button"
@@ -511,7 +543,7 @@
 								onclick={() => {
 									editor.selectLayer(layer.id);
 									editor.removeSelected();
-								}}><Trash2 size={14} /></button
+								}}><Trash2 size={16} /></button
 							>
 						</div>
 					</div>
@@ -665,7 +697,8 @@
 	}
 	.inspector [role='tablist'] {
 		display: flex;
-		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0 12px;
 		border-block-end: 1px solid var(--line);
 	}
 	.inspector [role='tab'] {

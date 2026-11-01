@@ -8,8 +8,8 @@
 	import { browser } from '$app/env';
 
 	/** @typedef {import('#lib/editor/editorState.svelte.js').EditorState} EditorState */
-	/** @type {{ editor: EditorState, urls: Record<string, string> }} */
-	let { editor, urls } = $props();
+	/** @type {{ editor: EditorState, urls: Record<string, string>, onopenbackground?: () => void }} */
+	let { editor, urls, onopenbackground } = $props();
 
 	/** @type {any} */
 	let Artboard = $state(null);
@@ -23,7 +23,7 @@
 </script>
 
 {#if Artboard}
-	<Artboard {editor} {urls} />
+	<Artboard {editor} {urls} {onopenbackground} />
 {:else}
 	<div class="canvas-placeholder" data-testid="editor-canvas">
 		<strong>Loading canvas…</strong>

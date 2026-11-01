@@ -5,6 +5,11 @@
  */
 
 @layer base {
+	/* One icon stroke across the app. CSS beats Lucide's stroke-width="2" attribute. */
+	svg.lucide {
+		stroke-width: 1.5;
+	}
+
 	/* Tailwind preflight sets h1–h6 to font-weight: inherit; restore display weights. */
 	h1,
 	h2,

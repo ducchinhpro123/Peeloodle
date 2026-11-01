@@ -1632,3 +1632,67 @@ test.describe('sticker vertical slice', () => {
 		await expect(page.locator('.layer-stack .layer-row')).toHaveCount(1);
 	});
 });
+
+test('the empty-canvas "Upload a photo" button opens the file chooser and adds the photo', async ({
+	page
+}) => {
+	await page.goto('/');
+	await page.getByRole('link', { name: /Create a Sticker/ }).click();
+	await expect(page).toHaveURL(/\/editor\/[0-9a-z-]+/, { timeout: 20_000 });
+
+	// A real click on the visible button, not setInputFiles on the hidden input:
+	// the button reaches the input by id, which is what this test guards.
+	const chooser = page.waitForEvent('filechooser', { timeout: 5_000 });
+	await page.getByRole('button', { name: 'Upload a photo' }).click();
+	await (await chooser).setFiles(PHOTO);
+
+	await page.getByRole('tab', { name: 'Layers' }).click();
+	await expect(page.locator('.layer-stack .layer-row')).toHaveCount(1, { timeout: 20_000 });
+});
+
+test('a dialog opens centred instead of sliding in from the bottom right', async ({ page }) => {
+	await page.goto('/');
+	await page.getByRole('link', { name: /Create a Sticker/ }).click();
+	await expect(page).toHaveURL(/\/editor\/[0-9a-z-]+/, { timeout: 20_000 });
+	await page.setInputFiles('[data-testid="photo-file-input"]', PHOTO);
+	await expect(page.locator('.save-status')).toContainText(/Unsaved changes|Saving|Saved locally/, {
+		timeout: 20_000
+	});
+
+	// Measure on the first painted frames, while the open animation is still running:
+	// the bug only shows mid-animation, so a measurement after it settles would pass.
+	const offsets = await page.evaluate(async () => {
+		const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+		/** @type {HTMLButtonElement | null} */
+		const button = document.querySelector('button[aria-label="Export and share"]');
+		button?.click();
+		let dialog = null;
+		for (let i = 0; i < 60 && !dialog; i++) {
+			await frame();
+			dialog = document.querySelector('dialog[open]');
+		}
+		if (!dialog) return null;
+		const samples = [];
+		for (let i = 0; i < 3; i++) {
+			await frame();
+			const box = dialog.getBoundingClientRect();
+			samples.push({
+				dx: Math.abs(box.left + box.width / 2 - innerWidth / 2),
+				dy: Math.abs(box.top + box.height / 2 - innerHeight / 2),
+				animating: dialog.getAnimations().length > 0
+			});
+		}
+		return samples;
+	});
+
+	expect(offsets, 'the export dialog opened').not.toBeNull();
+	expect(
+		offsets?.some((sample) => sample.animating),
+		'sampled during the open animation'
+	).toBe(true);
+	for (const sample of offsets ?? []) {
+		// The pop may rise a few pixels, but the box stays on the viewport's centre.
+		expect(sample.dx).toBeLessThan(4);
+		expect(sample.dy).toBeLessThan(30);
+	}
+});

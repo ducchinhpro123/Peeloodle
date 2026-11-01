@@ -49,7 +49,7 @@
 	<div class="presentation-editor-bar" role="banner" aria-label="Presentation title bar">
 		<div class="presentation-editor-heading">
 			<a class={buttonIcon} aria-label="Back to presentations" href={backhref} onclick={onleave}
-				><ArrowLeft size={19} /></a
+				><ArrowLeft size={18} /></a
 			>
 			<a class={buttonIcon} aria-label="Home" title="StickerLab home" href={shellHref('/')}
 				><Home size={18} aria-hidden="true" /></a

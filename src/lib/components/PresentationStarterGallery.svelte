@@ -139,7 +139,7 @@
 	</p>
 	<div class="gallery-toolbar">
 		<label class="template-search">
-			<Search size={18} aria-hidden="true" />
+			<Search size={16} aria-hidden="true" />
 			<span class="sr-only">Search presentation templates</span>
 
 			<input type="search" bind:value={query} placeholder="Find your starting point…" />
@@ -162,7 +162,7 @@
 			disabled={!mounted || creatingBlank}
 			aria-busy={!mounted || creatingBlank}
 		>
-			<span class="blank-art"><Plus size={30} /></span>
+			<span class="blank-art"><Plus size={28} /></span>
 			<strong>{!mounted ? 'Loading…' : creatingBlank ? 'Creating…' : 'Start from scratch'}</strong>
 			<small>Blank 16:9 presentation</small>
 		</button>
@@ -189,7 +189,7 @@
 							></span
 						>{/if}<span class="slide-count">{deck.document.slides.length} slides</span></span
 				>
-				<span class="card-caption"><strong>{deck.title}</strong><ArrowRight size={17} /></span
+				<span class="card-caption"><strong>{deck.title}</strong><ArrowRight size={16} /></span
 				><small
 					>{deck.category} · {deck.document.assets.length
 						? 'Editable text & layout artwork'

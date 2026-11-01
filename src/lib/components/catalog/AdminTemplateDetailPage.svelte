@@ -386,7 +386,7 @@
 	<p role="status">Loading template…</p>
 {:else if status === 'missing'}
 	<section class="[display:grid] [justify-items:start] [gap:var(--space-3)] [max-inline-size:62ch]">
-		<ShieldAlert size={34} aria-hidden="true" />
+		<ShieldAlert size={28} aria-hidden="true" />
 		<h1>Template not found</h1>
 		<p>It may have been removed or the link may be wrong.</p>
 		<a class={buttonPrimary} href={listHref}>Back to templates</a>
@@ -444,7 +444,7 @@
 				<div class="[display:flex] [flex-wrap:wrap] [gap:var(--space-2)]">
 					{#if template.state !== 'archived'}
 						<button type="button" class={button} onclick={openEditor}
-							><Pencil size={15} aria-hidden="true" /> Edit metadata</button
+							><Pencil size={16} aria-hidden="true" /> Edit metadata</button
 						>
 					{/if}
 					{#if versions.length > 0 && template.state !== 'archived'}
@@ -505,7 +505,7 @@
 						</p>
 						{#if template.state !== 'archived'}
 							<button type="button" class={button} onclick={openPreviewDialog}
-								><ImagePlus size={15} aria-hidden="true" /> Regenerate previews</button
+								><ImagePlus size={16} aria-hidden="true" /> Regenerate previews</button
 							>
 						{/if}
 					</div>

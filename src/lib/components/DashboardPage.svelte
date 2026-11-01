@@ -89,9 +89,9 @@
 		{#snippet action()}
 			<div class="desk-actions">
 				<a class={buttonPrimary} href={shellHref('/presentations')}>
-					<Presentation size={17} />
+					<Presentation size={16} />
 					Make a presentation
-					<ArrowRight size={17} />
+					<ArrowRight size={16} />
 				</a>
 
 				<button type="button" class={button} onclick={() => (walkthroughOpen = true)}
@@ -117,10 +117,10 @@
 		<div class="task-grid">
 			{#each tasks as task, index (task.title)}
 				<a class="task-card" use:reveal={{ index }} aria-label={task.title} href={task.href}>
-					<small>{task.label}</small><task.icon size={26} aria-hidden="true" />
+					<small>{task.label}</small><task.icon size={28} aria-hidden="true" />
 					<strong>{task.title}</strong>
 					<p>{task.detail}</p>
-					<ArrowRight size={19} aria-hidden="true" />
+					<ArrowRight size={16} aria-hidden="true" />
 				</a>
 			{/each}
 		</div>
@@ -128,8 +128,8 @@
 
 	<section class="recent-decks" aria-labelledby="recent-heading">
 		<div class="section-title">
-			<h2 id="recent-heading"><Clock size={17} aria-hidden="true" />Recent presentations</h2>
-			<a href={shellHref('/presentations')}>All presentations <ArrowRight size={15} /></a>
+			<h2 id="recent-heading"><Clock size={16} aria-hidden="true" />Recent presentations</h2>
+			<a href={shellHref('/presentations')}>All presentations <ArrowRight size={16} /></a>
 		</div>
 		<p class="storage-note">
 			Saved in this browser — not automatically synced. Download a backup to keep a portable copy.
@@ -163,7 +163,7 @@
 					</li>{/each}
 			</ul>
 		{:else}<div class="desk-empty">
-				<BookOpen size={26} aria-hidden="true" />
+				<BookOpen size={28} aria-hidden="true" />
 				<div>
 					<strong>Your next assignment starts here.</strong>
 					<p>

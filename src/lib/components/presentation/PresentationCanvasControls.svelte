@@ -28,17 +28,17 @@
 		class={buttonIcon}
 		aria-label="Zoom out"
 		onclick={() => zoomBy(0.8)}
-		disabled={zoom <= PRESENTATION_MIN_ZOOM}><Minus size={15} /></button
+		disabled={zoom <= PRESENTATION_MIN_ZOOM}><Minus size={16} /></button
 	>
 	<output aria-label="Canvas zoom">{Math.round(zoom * 100)}%</output>
 	<button
 		class={buttonIcon}
 		aria-label="Zoom in"
 		onclick={() => zoomBy(1.25)}
-		disabled={zoom >= PRESENTATION_MAX_ZOOM}><Plus size={15} /></button
+		disabled={zoom >= PRESENTATION_MAX_ZOOM}><Plus size={16} /></button
 	>
 	<button class={buttonIcon} aria-label="Fit slide to window" onclick={fit}
-		><Scan size={15} /></button
+		><Scan size={16} /></button
 	>
 </div>
 

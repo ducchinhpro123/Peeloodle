@@ -63,6 +63,7 @@
 >
 	<input
 		bind:this={fileInput}
+		id="photo-file-input"
 		class="sr-only"
 		type="file"
 		accept="image/png,image/jpeg,image/webp"
@@ -105,7 +106,7 @@
 				class="asset-upload [display:flex] [flex-direction:column] [align-items:center] [justify-content:center] [gap:2px] [font-size:11px]"
 				onclick={() => fileInput?.click()}
 			>
-				<Upload size={18} />Upload Photo
+				<Upload size={16} />Upload Photo
 			</button>
 			{#each imageLayers as layer (layer.id)}
 				<button

@@ -365,7 +365,7 @@
 	</section>
 {:else if loadState !== 'ready' || !presentation}
 	<section class="card presentation-route-state">
-		<ShieldAlert size={34} aria-hidden="true" />
+		<ShieldAlert size={28} aria-hidden="true" />
 		<h1>
 			{loadState === 'missing'
 				? 'Presentation not found'

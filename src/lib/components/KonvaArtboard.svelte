@@ -17,15 +17,25 @@
 		formatCssFilter
 	} from '#lib/exports/renderDocument.js';
 	import { cssFontFamily, loadFont, measureTextEditBox } from '#lib/fonts.js';
+	import { cutoutControllerFor } from '#lib/cutout/cutoutController.svelte.js';
+	import {
+		cssMatrix,
+		photoScreenBox,
+		rasterScreenBox,
+		sameBox
+	} from '#lib/editor/layerScreenBox.js';
+	import CutoutScanOverlay from './CutoutScanOverlay.svelte';
+	import CutoutCanvasAction from './CutoutCanvasAction.svelte';
 	/** @typedef {import('#lib/editor/editorState.svelte.js').EditorState} EditorState */
 
 	/**
 	 * @type {{
 	 *   editor: EditorState,
 	 *   urls: Record<string, string>,
+	 *   onopenbackground?: () => void,
 	 * }}
 	 */
-	let { editor, urls } = $props();
+	let { editor, urls, onopenbackground } = $props();
 
 	let host = $state(/** @type {HTMLDivElement | undefined} */ (undefined));
 	let size = $state({ width: 640, height: 480 });
@@ -655,6 +665,82 @@
 		editor.commitGesture();
 		editingTextId = null;
 	}
+
+	// --- Background removal: scan overlay, reveal and the floating canvas action ---
+
+	let cutout = $derived(cutoutControllerFor(editor));
+	let cutoutBusy = $derived(cutout.state === 'downloading' || cutout.state === 'running');
+	let selectedImage = $derived.by(() => {
+		const layer = editor.document?.layers.find((item) => item.id === editor.selectedLayerId);
+		return layer?.kind === 'image' && layer.visible ? layer : undefined;
+	});
+	/** On-screen boxes of the selected photo and of the photo being processed. */
+	let selectedBox = $state.raw(
+		/** @type {import('#lib/editor/layerScreenBox.js').ScreenBox | null} */ (null)
+	);
+	let scanBox = $state.raw(
+		/** @type {import('#lib/editor/layerScreenBox.js').ScreenBox | null} */ (null)
+	);
+	/**
+	 * The unmasked photo, held over the layer right after the cutout is applied
+	 * and faded out, so the background appears to melt away.
+	 * @type {{ canvas: HTMLCanvasElement, box: import('#lib/editor/layerScreenBox.js').ScreenBox, key: number } | null}
+	 */
+	let reveal = $state.raw(null);
+	let revealKey = 0;
+
+	$effect(() => {
+		// Follow the photo every frame while something is drawn over it: zoom, pan,
+		// drag and the transformer all move it without a document change.
+		const selectedId = selectedImage?.id;
+		const scanId = cutoutBusy ? cutout.layerId : null;
+		if (!selectedId && !scanId) {
+			selectedBox = null;
+			scanBox = null;
+			return;
+		}
+		let frame = 0;
+		const tick = () => {
+			const selectedNode = selectedId ? nodes.get(selectedId) : undefined;
+			const nextSelected = selectedNode ? photoScreenBox(selectedNode) : null;
+			if (!sameBox(selectedBox, nextSelected)) selectedBox = nextSelected;
+			const scanNode = scanId ? nodes.get(scanId) : undefined;
+			const nextScan = scanNode ? photoScreenBox(scanNode) : null;
+			if (!sameBox(scanBox, nextScan)) scanBox = nextScan;
+			frame = requestAnimationFrame(tick);
+		};
+		tick();
+		return () => cancelAnimationFrame(frame);
+	});
+
+	$effect(() => {
+		// Snapshot the photo exactly as drawn (filters, outline) just before the mask
+		// lands; reduced motion skips the reveal and shows the result at once.
+		const controller = cutout;
+		return controller.onBeforeApply((layerId) => {
+			if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+			const node = nodes.get(layerId);
+			if (!(node instanceof Konva.Image)) return;
+			const source = node.image();
+			const box = rasterScreenBox(node);
+			if (!source || !box) return;
+			const canvas = document.createElement('canvas');
+			canvas.width = /** @type {HTMLCanvasElement} */ (source).width || Math.ceil(box.width);
+			canvas.height = /** @type {HTMLCanvasElement} */ (source).height || Math.ceil(box.height);
+			canvas.getContext('2d')?.drawImage(/** @type {CanvasImageSource} */ (source), 0, 0);
+			revealKey += 1;
+			reveal = { canvas, box, key: revealKey };
+		});
+	});
+
+	/** @param {HTMLCanvasElement} canvas */
+	function mountRevealCanvas(canvas) {
+		/** @param {HTMLElement} element */
+		return (element) => {
+			element.append(canvas);
+			return () => canvas.remove();
+		};
+	}
 </script>
 
 <svelte:window
@@ -687,49 +773,118 @@
 	onblur={() => (spaceHeld = false)}
 />
 
-<div
-	class="artboard-host{brushActive ? ' brush-active' : ''}{spaceHeld ? ' space-pan' : ''}{panning
-		? ' is-panning'
-		: ''}"
-	data-testid="editor-canvas"
-	data-space-pan={spaceHeld || undefined}
-	data-panning={panning || undefined}
-	bind:this={host}
->
-	{#if editing && editing.kind === 'text' && editingBox}
-		<textarea
-			class="canvas-text-edit"
-			aria-label="Edit canvas text"
-			bind:this={textEditor}
-			value={editing.content}
-			rows={Math.max(1, editing.content.split('\n').length)}
-			style:left="{editingBox.position.x}px"
-			style:top="{editingBox.position.y}px"
-			style:width="{editingBox.box.width}px"
-			style:height="{editingBox.box.height}px"
-			style:font-family={cssFontFamily(editing.fontFamily)}
-			style:font-size="{editingBox.fontSize}px"
-			style:color={editing.color}
-			style:transform={editingBox.rotation ? `rotate(${editingBox.rotation}deg)` : undefined}
-			oninput={(event) => {
-				if (editing?.kind === 'text')
-					editor.updateText(editing.id, { content: event.currentTarget.value });
-			}}
-			onblur={stopEditing}
-			onkeydown={(event) => {
-				if (event.key === 'Escape') event.currentTarget.blur();
-			}}></textarea>
-	{/if}
+<div class="artboard-frame">
 	<div
-		bind:this={brushCursor}
-		class="brush-cursor"
-		data-testid="brush-cursor"
-		aria-hidden="true"
-		style="display: none"
-	></div>
+		class="artboard-host{brushActive ? ' brush-active' : ''}{spaceHeld ? ' space-pan' : ''}{panning
+			? ' is-panning'
+			: ''}"
+		data-testid="editor-canvas"
+		data-space-pan={spaceHeld || undefined}
+		data-panning={panning || undefined}
+		bind:this={host}
+	>
+		{#if editing && editing.kind === 'text' && editingBox}
+			<textarea
+				class="canvas-text-edit"
+				aria-label="Edit canvas text"
+				bind:this={textEditor}
+				value={editing.content}
+				rows={Math.max(1, editing.content.split('\n').length)}
+				style:left="{editingBox.position.x}px"
+				style:top="{editingBox.position.y}px"
+				style:width="{editingBox.box.width}px"
+				style:height="{editingBox.box.height}px"
+				style:font-family={cssFontFamily(editing.fontFamily)}
+				style:font-size="{editingBox.fontSize}px"
+				style:color={editing.color}
+				style:transform={editingBox.rotation ? `rotate(${editingBox.rotation}deg)` : undefined}
+				oninput={(event) => {
+					if (editing?.kind === 'text')
+						editor.updateText(editing.id, { content: event.currentTarget.value });
+				}}
+				onblur={stopEditing}
+				onkeydown={(event) => {
+					if (event.key === 'Escape') event.currentTarget.blur();
+				}}></textarea>
+		{/if}
+		<div
+			bind:this={brushCursor}
+			class="brush-cursor"
+			data-testid="brush-cursor"
+			aria-hidden="true"
+			style="display: none"
+		></div>
+	</div>
+	<!-- Konva empties its container, so overlays live beside the host, not in it. -->
+	<div class="artboard-overlays">
+		{#if cutoutBusy && scanBox}
+			<CutoutScanOverlay box={scanBox} />
+		{/if}
+		{#if reveal}
+			{#key reveal.key}
+				<div
+					class="cutout-reveal"
+					data-testid="cutout-reveal"
+					aria-hidden="true"
+					style:width="{reveal.box.width}px"
+					style:height="{reveal.box.height}px"
+					style:transform={cssMatrix(reveal.box)}
+					onanimationend={() => (reveal = null)}
+					{@attach mountRevealCanvas(reveal.canvas)}
+				></div>
+			{/key}
+		{/if}
+		{#if selectedImage && selectedBox && !brushActive && !panMode && !editingTextId}
+			<CutoutCanvasAction
+				{editor}
+				image={selectedImage}
+				box={selectedBox}
+				hostWidth={size.width}
+				hostHeight={size.height}
+				onrefine={onopenbackground}
+			/>
+		{/if}
+	</div>
 </div>
 
 <style>
+	/* Covers the canvas workspace out of grid flow, as the host alone used to. */
+	.artboard-frame {
+		position: absolute;
+		inset: 0;
+	}
+	.artboard-overlays {
+		position: absolute;
+		inset: 0;
+		z-index: 2;
+		overflow: hidden;
+		pointer-events: none;
+	}
+	.artboard-overlays :global([data-testid='cutout-canvas-action']) {
+		pointer-events: auto;
+	}
+	.cutout-reveal {
+		position: absolute;
+		inset-block-start: 0;
+		inset-inline-start: 0;
+		z-index: 3;
+		transform-origin: 0 0;
+		pointer-events: none;
+		animation: cutout-reveal 500ms var(--ease-out) forwards;
+	}
+	.cutout-reveal :global(canvas) {
+		display: block;
+		inline-size: 100%;
+		block-size: 100%;
+	}
+	@keyframes cutout-reveal {
+		from {
+			opacity: 1;
+		}
+		to {
+			opacity: 0;
+		}
+	}
 	.artboard-host {
 		position: relative;
 		width: 100%;
