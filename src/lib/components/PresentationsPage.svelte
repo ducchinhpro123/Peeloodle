@@ -19,6 +19,8 @@
 	import Modal from '#lib/components/Modal.svelte';
 	import PresentationThumb from '#lib/components/PresentationThumb.svelte';
 	import PresentationStarterGallery from '#lib/components/PresentationStarterGallery.svelte';
+	import ResearchDefenseSetup from '#lib/components/ResearchDefenseSetup.svelte';
+	import { parsePresentationTask } from '#lib/presentations/tasks.js';
 	import { blobToArrayBuffer } from '#lib/blob.js';
 	import { createPresentationDocument } from '#lib/presentations/model/factories.js';
 	import { PRESENTATION_LIMITS } from '#lib/presentations/model/limits.js';
@@ -41,6 +43,13 @@
 	 *   oncategory: (slug: import('#lib/presentations/tasks.js').GalleryCategory) => void
 	 * }} */
 	let { repository, pathname, search, onopen, openhref, category, oncategory } = $props();
+	const task = $derived(parsePresentationTask(search));
+
+	function focusDefenseTitle() {
+		const behavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+		document.getElementById('defense-setup')?.scrollIntoView({ behavior });
+		document.getElementById('defense-title')?.focus();
+	}
 
 	let items = $state.raw(
 		/** @type {import('#lib/presentations/model/types.js').PresentationSummary[]} */ ([])
@@ -217,17 +226,34 @@
 	<div class="presentations-library">
 		<section class="presentations-hero">
 			<div class="presentation-hero-copy [position:relative] [z-index:2] [max-inline-size:680px]">
-				<p class="hero-kicker"><Presentation size={16} /> YOUR IDEAS, ON THE BIG SCREEN</p>
-				<h1>Tell your story.<br /><em>Make it stick.</em></h1>
-				<p>
-					Turn a blank 16:9 slide into something clear, colorful, and completely yours. Your work
-					stays private in this browser.
+				<p class="hero-kicker">
+					<Presentation size={16} />
+					{task === 'research-defense' ? 'RESEARCH DEFENSE' : 'YOUR IDEAS, ON THE BIG SCREEN'}
 				</p>
+				<h1>
+					{task === 'research-defense' ? 'Defend your work.' : 'Tell your story.'}<br /><em
+						>Make it stick.</em
+					>
+				</h1>
+				{#if task === 'research-defense'}
+					<p>
+						Give your question, method and findings a clear story. Fill in a few details and get a
+						deck that's already yours. It stays private in this browser.
+					</p>
+				{:else}<p>
+						Turn a blank 16:9 slide into something clear, colorful, and completely yours. Your work
+						stays private in this browser.
+					</p>{/if}
 				<div
 					class="presentation-hero-actions [margin-block-start:var(--space-5)] [display:flex] [flex-wrap:wrap] [gap:var(--space-3)]"
 				>
+					{#if task === 'research-defense'}<button
+							type="button"
+							class={buttonPrimary}
+							onclick={focusDefenseTitle}>Set up my defense deck <ArrowRight size={16} /></button
+						>{/if}
 					<button
-						class={buttonPrimary}
+						class={task === 'research-defense' ? button : buttonPrimary}
 						onclick={createBlank}
 						disabled={loading || creatingBlank}
 						aria-busy={loading || creatingBlank}
@@ -240,13 +266,15 @@
 								: 'Start a blank presentation'}
 					</button>
 
-					{#if items[0]}
+					{#if items[0] && task !== 'research-defense'}
 						<a class={button} href={openhref(items[0].id)}>Open latest <ArrowRight size={16} /></a>
 					{/if}
 				</div>
 				<ul class="presentation-hero-points" aria-label="Presentation features">
-					<li>16:9 slide canvas</li>
-					<li>Saved in this browser</li>
+					{#if task === 'research-defense'}<li>7–13 slides</li>
+						<li>Timed story arc</li>
+					{:else}<li>16:9 slide canvas</li>
+						<li>Saved in this browser</li>{/if}
 					<li>No account needed</li>
 				</ul>
 			</div>
@@ -271,6 +299,7 @@
 				open it on another device.
 			</p>
 		</section>
+		{#if task === 'research-defense'}<ResearchDefenseSetup {repository} {onopen} />{/if}
 		<PresentationStarterGallery
 			{repository}
 			{onopen}
