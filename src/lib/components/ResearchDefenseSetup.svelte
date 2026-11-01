@@ -1,5 +1,6 @@
 <script>
 	import { buttonPrimary } from '#lib/ui/styles.js';
+	import DefenseStoryArc from './DefenseStoryArc.svelte';
 	import {
 		buildResearchDefenseDeck,
 		cleanDefenseField,
@@ -71,106 +72,115 @@
 			Answer what you know now. Everything stays editable, and empty fields keep the sample text.
 		</p>
 	</header>
-	<form onsubmit={build} novalidate aria-busy={building}>
-		<fieldset>
-			<legend>How long is your talk?</legend>
-			<div class="choices">
-				{#each Object.entries(DEFENSE_LENGTHS) as [key, option] (key)}
-					<label class="choice"
-						><input
-							type="radio"
-							name="defense-length"
-							value={key}
-							bind:group={length}
-							required
-						/><span>{option.label}</span></label
-					>
-				{/each}
+	<div class="setup-grid">
+		<form onsubmit={build} novalidate aria-busy={building}>
+			<fieldset>
+				<legend>How long is your talk?</legend>
+				<div class="choices">
+					{#each Object.entries(DEFENSE_LENGTHS) as [key, option] (key)}
+						<label class="choice"
+							><input
+								type="radio"
+								name="defense-length"
+								value={key}
+								bind:group={length}
+								required
+							/><span>{option.label}</span></label
+						>
+					{/each}
+				</div>
+			</fieldset>
+			<fieldset>
+				<legend>Look</legend>
+				<div class="choices">
+					{#each Object.entries(DEFENSE_LOOKS) as [key, option] (key)}
+						<label class="choice"
+							><input
+								type="radio"
+								name="defense-look"
+								value={key}
+								bind:group={look}
+								required
+							/><span class="look-swatch" aria-hidden="true" style:background={option.dark}
+								><span style:background={option.accent}></span></span
+							><span>{option.label}</span></label
+						>
+					{/each}
+				</div>
+			</fieldset>
+			<div class="fields">
+				<div class="field field-wide">
+					<label for="defense-title">Thesis or project title</label>
+					<input
+						id="defense-title"
+						name="title"
+						type="text"
+						bind:value={title}
+						required
+						maxlength={DEFENSE_FIELD_LIMITS.title}
+						aria-invalid={!!titleError}
+						aria-describedby={titleError ? 'defense-title-error' : undefined}
+						oninput={() => (titleError = '')}
+					/>
+					{#if titleError}<p id="defense-title-error" class="form-error" role="alert">
+							{titleError}
+						</p>{/if}
+				</div>
+				<div class="field">
+					<label for="defense-presenter">Your name</label><input
+						id="defense-presenter"
+						name="presenter"
+						autocomplete="name"
+						bind:value={presenter}
+						maxlength={DEFENSE_FIELD_LIMITS.presenter}
+					/>
+				</div>
+				<div class="field">
+					<label for="defense-institution">School or program</label><input
+						id="defense-institution"
+						name="institution"
+						autocomplete="organization"
+						bind:value={institution}
+						maxlength={DEFENSE_FIELD_LIMITS.institution}
+					/>
+				</div>
+				<div class="field">
+					<label for="defense-advisor">Advisor</label><input
+						id="defense-advisor"
+						name="advisor"
+						bind:value={advisor}
+						maxlength={DEFENSE_FIELD_LIMITS.advisor}
+					/>
+				</div>
+				<div class="field">
+					<label for="defense-date">Defense date</label><input
+						id="defense-date"
+						name="date"
+						type="date"
+						bind:value={date}
+					/>
+				</div>
+				<div class="field field-wide">
+					<label for="defense-question">Research question</label>
+					<p id="defense-question-hint" class="field-hint">
+						One sentence. It goes on its own slide.
+					</p>
+					<textarea
+						id="defense-question"
+						name="question"
+						rows="3"
+						bind:value={question}
+						maxlength={DEFENSE_FIELD_LIMITS.question}
+						aria-describedby="defense-question-hint"></textarea>
+				</div>
 			</div>
-		</fieldset>
-		<fieldset>
-			<legend>Look</legend>
-			<div class="choices">
-				{#each Object.entries(DEFENSE_LOOKS) as [key, option] (key)}
-					<label class="choice"
-						><input type="radio" name="defense-look" value={key} bind:group={look} required /><span
-							class="look-swatch"
-							aria-hidden="true"
-							style:background={option.dark}><span style:background={option.accent}></span></span
-						><span>{option.label}</span></label
-					>
-				{/each}
-			</div>
-		</fieldset>
-		<div class="fields">
-			<div class="field field-wide">
-				<label for="defense-title">Thesis or project title</label>
-				<input
-					id="defense-title"
-					name="title"
-					type="text"
-					bind:value={title}
-					required
-					maxlength={DEFENSE_FIELD_LIMITS.title}
-					aria-invalid={!!titleError}
-					aria-describedby={titleError ? 'defense-title-error' : undefined}
-					oninput={() => (titleError = '')}
-				/>
-				{#if titleError}<p id="defense-title-error" class="form-error" role="alert">
-						{titleError}
-					</p>{/if}
-			</div>
-			<div class="field">
-				<label for="defense-presenter">Your name</label><input
-					id="defense-presenter"
-					name="presenter"
-					autocomplete="name"
-					bind:value={presenter}
-					maxlength={DEFENSE_FIELD_LIMITS.presenter}
-				/>
-			</div>
-			<div class="field">
-				<label for="defense-institution">School or program</label><input
-					id="defense-institution"
-					name="institution"
-					autocomplete="organization"
-					bind:value={institution}
-					maxlength={DEFENSE_FIELD_LIMITS.institution}
-				/>
-			</div>
-			<div class="field">
-				<label for="defense-advisor">Advisor</label><input
-					id="defense-advisor"
-					name="advisor"
-					bind:value={advisor}
-					maxlength={DEFENSE_FIELD_LIMITS.advisor}
-				/>
-			</div>
-			<div class="field">
-				<label for="defense-date">Defense date</label><input
-					id="defense-date"
-					name="date"
-					type="date"
-					bind:value={date}
-				/>
-			</div>
-			<div class="field field-wide">
-				<label for="defense-question">Research question</label>
-				<p id="defense-question-hint" class="field-hint">One sentence. It goes on its own slide.</p>
-				<textarea
-					id="defense-question"
-					name="question"
-					rows="3"
-					bind:value={question}
-					maxlength={DEFENSE_FIELD_LIMITS.question}
-					aria-describedby="defense-question-hint"></textarea>
-			</div>
-		</div>
-		{#if saveError}<p class="form-error" role="alert">{saveError}</p>{/if}
-		<button type="submit" class={buttonPrimary} disabled={building}
-			>{building ? 'Building your deck…' : 'Build my defense deck'}</button
-		>
-	</form>
+			{#if saveError}<p class="form-error" role="alert">{saveError}</p>{/if}
+			<button type="submit" class={buttonPrimary} disabled={building}
+				>{building ? 'Building your deck…' : 'Build my defense deck'}</button
+			>
+		</form>
+		<DefenseStoryArc {length} />
+	</div>
 </section>
 
 <style>
@@ -196,10 +206,21 @@
 		color: var(--muted);
 		max-inline-size: 65ch;
 	}
+	.setup-grid {
+		display: grid;
+		gap: 28px;
+		min-inline-size: 0;
+	}
 	form {
 		display: grid;
 		gap: 24px;
 		min-inline-size: 0;
+	}
+	@media (min-width: 900px) {
+		.setup-grid {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+			align-items: start;
+		}
 	}
 	fieldset {
 		padding: 0;

@@ -186,6 +186,22 @@ test.describe('local defense date', () => {
 	});
 });
 
+// Story arc failures: the panel lists the wrong sections, the times drift from the
+// length table, the arc stops following the radio, or the talk time is misreported.
+test('the story arc follows the chosen length', async ({ page }) => {
+	await page.goto('/presentations?task=research-defense');
+	const arc = page.getByRole('list', { name: 'Defense story arc' });
+	await expect(arc.getByRole('listitem')).toHaveCount(9);
+	await expect(arc.getByRole('listitem').first()).toContainText('Title');
+	await expect(arc.getByRole('listitem').first()).toContainText('~30 s');
+	await expect(arc.getByRole('listitem').filter({ hasText: /^Results/ })).toContainText('~3.5 min');
+	await expect(arc.getByRole('listitem').last()).toContainText('after the talk');
+	await expect(page.getByText('Talk time: 15 minutes')).toBeVisible();
+	await page.getByLabel('10 minutes · 7 slides').check();
+	await expect(arc.getByRole('listitem')).toHaveCount(7);
+	await expect(page.getByText('Talk time: 10 minutes')).toBeVisible();
+});
+
 test.afterEach(async ({ page }, info) => {
 	writeFileSync(
 		info.outputPath('research-page-state.json'),
