@@ -1,0 +1,6224 @@
+[
+	{
+		"key": "class",
+		"doc": {
+			"kind": "presentation",
+			"schemaVersion": 1,
+			"title": "Class presentation — sample",
+			"revision": 0,
+			"pageSize": {
+				"width": 1280,
+				"height": 720
+			},
+			"theme": {
+				"headingFontId": "spectral",
+				"bodyFontId": "be-vietnam-pro",
+				"colors": {
+					"text": "#0b1f2a",
+					"accent": "#08b879",
+					"background": "#ffffff",
+					"muted": "#4a6572"
+				}
+			},
+			"slides": [
+				{
+					"name": "Title",
+					"background": "#0b1f3b",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Title",
+							"x": 96,
+							"y": 200,
+							"width": 1088,
+							"height": 160,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample: Class presentation",
+											"fontId": "spectral",
+											"size": 68,
+											"color": "#ffffff",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Subtitle",
+							"x": 96,
+							"y": 372,
+							"width": 1088,
+							"height": 64,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Bài trình bày mẫu · Replace this line with your name and course",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#bfe9d6"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Accent",
+							"x": 1080,
+							"y": 120,
+							"width": 120,
+							"height": 120,
+							"rotation": 0,
+							"opacity": 0.9,
+							"visible": true,
+							"locked": false,
+							"shape": "ellipse",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						}
+					]
+				},
+				{
+					"name": "Agenda",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Agenda heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Agenda",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Agenda rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Agenda list",
+							"x": 72,
+							"y": 208,
+							"width": 1136,
+							"height": 420,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Concept and motivation",
+											"fontId": "be-vietnam-pro",
+											"size": 30,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Core idea",
+											"fontId": "be-vietnam-pro",
+											"size": 30,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Example and comparison",
+											"fontId": "be-vietnam-pro",
+											"size": 30,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Summary and references",
+											"fontId": "be-vietnam-pro",
+											"size": 30,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Concept",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Concept heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Concept",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Concept rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Concept body",
+							"x": 72,
+							"y": 208,
+							"width": 640,
+							"height": 360,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample content — replace with your own. Explain the central idea in two or three short sentences, then support it with the panel on the right.",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Concept panel",
+							"x": 760,
+							"y": 208,
+							"width": 448,
+							"height": 360,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						}
+					]
+				},
+				{
+					"name": "Text & image",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Text & image",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Body",
+							"x": 72,
+							"y": 208,
+							"width": 560,
+							"height": 360,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample content — replace with your own. Keep the paragraph on the left short and let the image carry the detail.",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Layout image frame",
+							"x": 680,
+							"y": 208,
+							"width": 528,
+							"height": 360,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#e8f4ee",
+							"stroke": "#08b879",
+							"strokeWidth": 2
+						},
+						{
+							"kind": "text",
+							"name": "Layout image label",
+							"x": 704,
+							"y": 364,
+							"width": 480,
+							"height": 48,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "middle",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Image placeholder — insert your own image",
+											"fontId": "be-vietnam-pro",
+											"size": 22,
+											"color": "#4a6572"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Comparison",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Comparison",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Left panel",
+							"x": 72,
+							"y": 200,
+							"width": 536,
+							"height": 400,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Right panel",
+							"x": 672,
+							"y": 200,
+							"width": 536,
+							"height": 400,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#fdf1dc",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Left title",
+							"x": 104,
+							"y": 232,
+							"width": 472,
+							"height": 56,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Option A",
+											"fontId": "be-vietnam-pro",
+											"size": 32,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Left body",
+							"x": 104,
+							"y": 304,
+							"width": 472,
+							"height": 240,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample content — replace with your own. Two short lines.",
+											"fontId": "be-vietnam-pro",
+											"size": 24,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Right title",
+							"x": 704,
+							"y": 232,
+							"width": 472,
+							"height": 56,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Option B",
+											"fontId": "be-vietnam-pro",
+											"size": 32,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Right body",
+							"x": 704,
+							"y": 304,
+							"width": 472,
+							"height": 240,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample content — replace with your own. Two short lines.",
+											"fontId": "be-vietnam-pro",
+											"size": 24,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Example",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Example heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Example",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Example rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Example panel",
+							"x": 72,
+							"y": 200,
+							"width": 1136,
+							"height": 400,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#0f2f4a",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Example body",
+							"x": 120,
+							"y": 264,
+							"width": 1040,
+							"height": 120,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample content — replace with your own. Walk through one concrete example step by step.",
+											"fontId": "be-vietnam-pro",
+											"size": 34,
+											"color": "#ffffff"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Example detail",
+							"x": 120,
+							"y": 420,
+							"width": 1040,
+							"height": 80,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Step 1 → Step 2 → Step 3",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#bfe9d6"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Summary",
+					"background": "#e8f4ee",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Summary heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Summary",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Summary rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Summary list",
+							"x": 72,
+							"y": 208,
+							"width": 1136,
+							"height": 420,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Main takeaway one",
+											"fontId": "be-vietnam-pro",
+											"size": 30,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Main takeaway two",
+											"fontId": "be-vietnam-pro",
+											"size": 30,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Main takeaway three",
+											"fontId": "be-vietnam-pro",
+											"size": 30,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "References",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "References heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "References",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "References rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "References list",
+							"x": 72,
+							"y": 208,
+							"width": 1136,
+							"height": 420,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Author, A. (2026). Sample reference one.",
+											"fontId": "be-vietnam-pro",
+											"size": 24,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Author, B. (2025). Sample reference two.",
+											"fontId": "be-vietnam-pro",
+											"size": 24,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Author, C. (2024). Sample reference three.",
+											"fontId": "be-vietnam-pro",
+											"size": 24,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Closing",
+					"background": "#0b1f3b",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Closing heading",
+							"x": 96,
+							"y": 240,
+							"width": 1088,
+							"height": 120,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Thank you",
+											"fontId": "spectral",
+											"size": 64,
+											"color": "#ffffff",
+											"bold": true
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Closing body",
+							"x": 96,
+							"y": 380,
+							"width": 1088,
+							"height": 72,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Questions? Replace this line with your contact details.",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#bfe9d6"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"assets": []
+		}
+	},
+	{
+		"key": "research-defense",
+		"doc": {
+			"kind": "presentation",
+			"schemaVersion": 1,
+			"title": "Research defense — sample",
+			"revision": 0,
+			"pageSize": {
+				"width": 1280,
+				"height": 720
+			},
+			"theme": {
+				"headingFontId": "spectral",
+				"bodyFontId": "be-vietnam-pro",
+				"colors": {
+					"text": "#0b1f2a",
+					"accent": "#08b879",
+					"background": "#ffffff",
+					"muted": "#4a6572"
+				}
+			},
+			"slides": [
+				{
+					"name": "Title",
+					"background": "#0b1f3b",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Title",
+							"x": 96,
+							"y": 220,
+							"width": 1088,
+							"height": 150,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample: Research defense",
+											"fontId": "spectral",
+											"size": 64,
+											"color": "#ffffff",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Subtitle",
+							"x": 96,
+							"y": 380,
+							"width": 1088,
+							"height": 64,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Replace with your title, name and institution",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#bfe9d6"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Problem",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Problem heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Problem",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Problem rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Problem body",
+							"x": 72,
+							"y": 208,
+							"width": 1136,
+							"height": 220,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample content — replace with your own. State the problem and why it matters.",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Problem points",
+							"x": 72,
+							"y": 440,
+							"width": 1136,
+							"height": 180,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Gap one",
+											"fontId": "be-vietnam-pro",
+											"size": 26,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Gap two",
+											"fontId": "be-vietnam-pro",
+											"size": 26,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Question",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Question heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Research question",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Question rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Question body",
+							"x": 72,
+							"y": 240,
+							"width": 1136,
+							"height": 180,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "middle",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample content — replace with your own. One clear research question.",
+											"fontId": "be-vietnam-pro",
+											"size": 36,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Method",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Method heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Method",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Method rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Method 1",
+							"x": 72,
+							"y": 224,
+							"width": 328,
+							"height": 328,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Method 2",
+							"x": 476,
+							"y": 224,
+							"width": 328,
+							"height": 328,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Method 3",
+							"x": 880,
+							"y": 224,
+							"width": 328,
+							"height": 328,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Method 1 label",
+							"x": 72,
+							"y": 340,
+							"width": 328,
+							"height": 56,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Data",
+											"fontId": "be-vietnam-pro",
+											"size": 30,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Method 2 label",
+							"x": 476,
+							"y": 340,
+							"width": 328,
+							"height": 56,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Process",
+											"fontId": "be-vietnam-pro",
+											"size": 30,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Method 3 label",
+							"x": 880,
+							"y": 340,
+							"width": 328,
+							"height": 56,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Analysis",
+											"fontId": "be-vietnam-pro",
+											"size": 30,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Results image area",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Results heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Results",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Results rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Results figure frame",
+							"x": 72,
+							"y": 200,
+							"width": 700,
+							"height": 420,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#e8f4ee",
+							"stroke": "#08b879",
+							"strokeWidth": 2
+						},
+						{
+							"kind": "text",
+							"name": "Results figure label",
+							"x": 96,
+							"y": 386,
+							"width": 652,
+							"height": 48,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "middle",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Results figure placeholder — insert a chart or table image",
+											"fontId": "be-vietnam-pro",
+											"size": 22,
+											"color": "#4a6572"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Results notes",
+							"x": 812,
+							"y": 208,
+							"width": 396,
+							"height": 400,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Finding one",
+											"fontId": "be-vietnam-pro",
+											"size": 24,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Finding two",
+											"fontId": "be-vietnam-pro",
+											"size": 24,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Finding three",
+											"fontId": "be-vietnam-pro",
+											"size": 24,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Discussion",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Discussion heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Discussion",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Discussion rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Discussion body",
+							"x": 72,
+							"y": 208,
+							"width": 1136,
+							"height": 420,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample content — replace with your own. Interpret the results and connect them to the question.",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Limitations",
+					"background": "#e8f4ee",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Limitations heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Limitations",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Limitations rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Limitations list",
+							"x": 72,
+							"y": 208,
+							"width": 1136,
+							"height": 420,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Limitation one",
+											"fontId": "be-vietnam-pro",
+											"size": 26,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Limitation two",
+											"fontId": "be-vietnam-pro",
+											"size": 26,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "What you would do next",
+											"fontId": "be-vietnam-pro",
+											"size": 26,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "References",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "References heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "References",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "References rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "References list",
+							"x": 72,
+							"y": 208,
+							"width": 1136,
+							"height": 420,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Author, A. (2026). Sample reference one.",
+											"fontId": "be-vietnam-pro",
+											"size": 24,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Author, B. (2025). Sample reference two.",
+											"fontId": "be-vietnam-pro",
+											"size": 24,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Q&A",
+					"background": "#0b1f3b",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Q&A heading",
+							"x": 96,
+							"y": 280,
+							"width": 1088,
+							"height": 120,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Questions & answers",
+											"fontId": "spectral",
+											"size": 56,
+											"color": "#ffffff",
+											"bold": true
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Q&A body",
+							"x": 96,
+							"y": 420,
+							"width": 1088,
+							"height": 64,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Thank you for your time.",
+											"fontId": "be-vietnam-pro",
+											"size": 26,
+											"color": "#bfe9d6"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"assets": []
+		}
+	},
+	{
+		"key": "club-pitch",
+		"doc": {
+			"kind": "presentation",
+			"schemaVersion": 1,
+			"title": "Club pitch — sample",
+			"revision": 0,
+			"pageSize": {
+				"width": 1280,
+				"height": 720
+			},
+			"theme": {
+				"headingFontId": "spectral",
+				"bodyFontId": "be-vietnam-pro",
+				"colors": {
+					"text": "#0b1f2a",
+					"accent": "#08b879",
+					"background": "#ffffff",
+					"muted": "#4a6572"
+				}
+			},
+			"slides": [
+				{
+					"name": "Mission",
+					"background": "#0b1f3b",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Mission heading",
+							"x": 96,
+							"y": 180,
+							"width": 1088,
+							"height": 140,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample: Club pitch",
+											"fontId": "spectral",
+											"size": 64,
+											"color": "#ffffff",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Mission statement",
+							"x": 96,
+							"y": 340,
+							"width": 1088,
+							"height": 120,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Our mission in one sentence — replace this sample line.",
+											"fontId": "be-vietnam-pro",
+											"size": 32,
+											"color": "#bfe9d6"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Problem",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Problem heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Problem",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Problem rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Problem body",
+							"x": 72,
+							"y": 208,
+							"width": 1136,
+							"height": 420,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Sample content — replace with your own. Describe the problem your club or project addresses.",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Proposal",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Proposal heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Proposal",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Proposal rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Proposal list",
+							"x": 72,
+							"y": 208,
+							"width": 1136,
+							"height": 420,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "What we will do",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Who it is for",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Why it works",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Activities",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Activities heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Activities",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Activities rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Activity 1",
+							"x": 72,
+							"y": 216,
+							"width": 536,
+							"height": 180,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Activity 2",
+							"x": 672,
+							"y": 216,
+							"width": 536,
+							"height": 180,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Activity 3",
+							"x": 72,
+							"y": 428,
+							"width": 536,
+							"height": 180,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Activity 4",
+							"x": 672,
+							"y": 428,
+							"width": 536,
+							"height": 180,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rounded-rectangle",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Activity 1 label",
+							"x": 104,
+							"y": 280,
+							"width": 472,
+							"height": 56,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Workshop",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Activity 2 label",
+							"x": 704,
+							"y": 280,
+							"width": 472,
+							"height": 56,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Meetup",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Activity 3 label",
+							"x": 104,
+							"y": 492,
+							"width": 472,
+							"height": 56,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Competition",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Activity 4 label",
+							"x": 704,
+							"y": 492,
+							"width": 472,
+							"height": 56,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Showcase",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Timeline",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Timeline heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Timeline",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Timeline rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Timeline line",
+							"x": 96,
+							"y": 380,
+							"width": 1088,
+							"height": 4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "line",
+							"fill": null,
+							"stroke": "#08b879",
+							"strokeWidth": 4
+						},
+						{
+							"kind": "shape",
+							"name": "Milestone 1",
+							"x": 160,
+							"y": 344,
+							"width": 72,
+							"height": 72,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "ellipse",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Milestone 2",
+							"x": 480,
+							"y": 344,
+							"width": 72,
+							"height": 72,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "ellipse",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Milestone 3",
+							"x": 800,
+							"y": 344,
+							"width": 72,
+							"height": 72,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "ellipse",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Milestone 4",
+							"x": 1112,
+							"y": 344,
+							"width": 72,
+							"height": 72,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "ellipse",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Milestone 1 label",
+							"x": 120,
+							"y": 440,
+							"width": 152,
+							"height": 48,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Week 1",
+											"fontId": "be-vietnam-pro",
+											"size": 22,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Milestone 2 label",
+							"x": 440,
+							"y": 440,
+							"width": 152,
+							"height": 48,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Week 4",
+											"fontId": "be-vietnam-pro",
+											"size": 22,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Milestone 3 label",
+							"x": 760,
+							"y": 440,
+							"width": 152,
+							"height": 48,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Week 8",
+											"fontId": "be-vietnam-pro",
+											"size": 22,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Milestone 4 label",
+							"x": 1072,
+							"y": 440,
+							"width": 152,
+							"height": 48,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Week 12",
+											"fontId": "be-vietnam-pro",
+											"size": 22,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Team",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Team heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Team",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Team rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Member 1",
+							"x": 152,
+							"y": 248,
+							"width": 200,
+							"height": 200,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "ellipse",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Member 2",
+							"x": 540,
+							"y": 248,
+							"width": 200,
+							"height": 200,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "ellipse",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "shape",
+							"name": "Member 3",
+							"x": 928,
+							"y": 248,
+							"width": 200,
+							"height": 200,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "ellipse",
+							"fill": "#e8f4ee",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Member 1 label",
+							"x": 152,
+							"y": 470,
+							"width": 200,
+							"height": 80,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Name\nRole",
+											"fontId": "be-vietnam-pro",
+											"size": 22,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Member 2 label",
+							"x": 540,
+							"y": 470,
+							"width": 200,
+							"height": 80,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Name\nRole",
+											"fontId": "be-vietnam-pro",
+											"size": 22,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Member 3 label",
+							"x": 928,
+							"y": 470,
+							"width": 200,
+							"height": 80,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Name\nRole",
+											"fontId": "be-vietnam-pro",
+											"size": 22,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Impact",
+					"background": "#e8f4ee",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Impact heading",
+							"x": 72,
+							"y": 48,
+							"width": 1136,
+							"height": 100,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Impact",
+											"fontId": "spectral",
+											"size": 52,
+											"color": "#0b1f2a",
+											"bold": true
+										}
+									],
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "shape",
+							"name": "Impact rule",
+							"x": 72,
+							"y": 156,
+							"width": 160,
+							"height": 8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"shape": "rectangle",
+							"fill": "#08b879",
+							"stroke": null,
+							"strokeWidth": 0
+						},
+						{
+							"kind": "text",
+							"name": "Impact list",
+							"x": 72,
+							"y": 208,
+							"width": 1136,
+							"height": 420,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Impact one",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Impact two",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								},
+								{
+									"runs": [
+										{
+											"text": "Impact three",
+											"fontId": "be-vietnam-pro",
+											"size": 28,
+											"color": "#0b1f2a"
+										}
+									],
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Call to action",
+					"background": "#0b1f3b",
+					"elements": [
+						{
+							"kind": "text",
+							"name": "Call to action",
+							"x": 96,
+							"y": 260,
+							"width": 1088,
+							"height": 120,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Join us",
+											"fontId": "spectral",
+											"size": 60,
+											"color": "#ffffff",
+											"bold": true
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Contact",
+							"x": 96,
+							"y": 400,
+							"width": 1088,
+							"height": 64,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 8,
+							"lineHeight": 1.3,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"runs": [
+										{
+											"text": "Replace this line with a sign-up link or contact address.",
+											"fontId": "be-vietnam-pro",
+											"size": 26,
+											"color": "#bfe9d6"
+										}
+									],
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"assets": []
+		}
+	},
+	{
+		"key": "company-profile",
+		"doc": {
+			"kind": "presentation",
+			"schemaVersion": 1,
+			"title": "Red & white company profile",
+			"revision": 0,
+			"pageSize": {
+				"width": 1280,
+				"height": 720
+			},
+			"theme": {
+				"headingFontId": "be-vietnam-pro",
+				"bodyFontId": "be-vietnam-pro",
+				"colors": {
+					"text": "#000000",
+					"accent": "#8d0000",
+					"background": "#ffffff",
+					"muted": "#2e2e2e"
+				}
+			},
+			"slides": [
+				{
+					"name": "Title",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Title artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-1",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Title"
+						},
+						{
+							"kind": "text",
+							"name": "COMPANY",
+							"x": 207.4,
+							"y": 184.2,
+							"width": 598.1,
+							"height": 130.5,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "COMPANY ",
+											"fontId": "be-vietnam-pro",
+											"size": 97.3,
+											"color": "#000000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "PROFILE",
+							"x": 306.7,
+							"y": 323.4,
+							"width": 666.6,
+							"height": 119.8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "PROFILE",
+											"fontId": "be-vietnam-pro",
+											"size": 107.1,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "hello@reallygreatsite.com",
+							"x": 210.8,
+							"y": 538.8,
+							"width": 366.3,
+							"height": 33.9,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "hello@reallygreatsite.com",
+											"fontId": "be-vietnam-pro",
+											"size": 24,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Liceria & Co.",
+							"x": 275.4,
+							"y": 89.3,
+							"width": 313,
+							"height": 43.3,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Liceria & Co.",
+											"fontId": "be-vietnam-pro",
+											"size": 30.2,
+											"color": "#000000",
+											"bold": true,
+											"italic": true
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Contents",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Contents artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-2",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Contents"
+						},
+						{
+							"kind": "text",
+							"name": "Table of",
+							"x": 394,
+							"y": 101.5,
+							"width": 437.9,
+							"height": 63.4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Table of ",
+											"fontId": "be-vietnam-pro",
+											"size": 60.5,
+											"color": "#000000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Contents",
+							"x": 300.9,
+							"y": 168.3,
+							"width": 624.2,
+							"height": 77.7,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Contents",
+											"fontId": "be-vietnam-pro",
+											"size": 68.5,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem Ipsum Dolar Lorem Ipsum  Lorem Ipsum Dolar Lorem Ipsum  Lorem Ip",
+							"x": 253.5,
+							"y": 282.7,
+							"width": 359.5,
+							"height": 326.4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum Dolar",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum ",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum Dolar",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum ",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum Dolar",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum Dolar",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem Ipsum  Dolar Lorem Ipsum  Lorem Ipsum Dolar Lorem Ipsum Lorem Ip",
+							"x": 715.7,
+							"y": 282.7,
+							"width": 356.4,
+							"height": 326.4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										},
+										{
+											"text": " Dolar",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum ",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum Dolar",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum Dolar",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum Dolar",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "About company",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "About company artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-3",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for About company"
+						},
+						{
+							"kind": "text",
+							"name": "About",
+							"x": 78.1,
+							"y": 80,
+							"width": 238.6,
+							"height": 54.5,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "About",
+											"fontId": "be-vietnam-pro",
+											"size": 52.5,
+											"color": "#000000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "COMPANY",
+							"x": 78.1,
+							"y": 140.5,
+							"width": 473.2,
+							"height": 71.3,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "COMPANY",
+											"fontId": "be-vietnam-pro",
+											"size": 63.1,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 78.1,
+							"y": 252.8,
+							"width": 433.7,
+							"height": 355.6,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Our team",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Our team artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-4",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Our team"
+						},
+						{
+							"kind": "text",
+							"name": "Our",
+							"x": 128.8,
+							"y": 122.9,
+							"width": 239.6,
+							"height": 77.7,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Our ",
+											"fontId": "be-vietnam-pro",
+											"size": 68.5,
+											"color": "#000000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "TEAM",
+							"x": 128.8,
+							"y": 169.3,
+							"width": 349.7,
+							"height": 113.3,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "TEAM",
+											"fontId": "be-vietnam-pro",
+											"size": 80,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 128.8,
+							"y": 329,
+							"width": 402.6,
+							"height": 218.9,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea coollit anim id est laborum.",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "ARON LOEB",
+							"x": 610.5,
+							"y": 302.7,
+							"width": 296.1,
+							"height": 18.1,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "ARON LOEB",
+											"fontId": "be-vietnam-pro",
+											"size": 17.1,
+											"color": "#000000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Manager",
+							"x": 610.5,
+							"y": 325.4,
+							"width": 296.1,
+							"height": 18.1,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Manager",
+											"fontId": "be-vietnam-pro",
+											"size": 17.1,
+											"color": "#000000",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "SAMIRA HADID",
+							"x": 911.9,
+							"y": 304,
+							"width": 296.1,
+							"height": 18.1,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "SAMIRA HADID",
+											"fontId": "be-vietnam-pro",
+											"size": 17.1,
+											"color": "#000000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Manager",
+							"x": 911.9,
+							"y": 326.8,
+							"width": 296.1,
+							"height": 18.1,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Manager",
+											"fontId": "be-vietnam-pro",
+											"size": 17.1,
+											"color": "#000000",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "ARON LOEB",
+							"x": 610.5,
+							"y": 587.6,
+							"width": 296.1,
+							"height": 18.1,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "ARON LOEB",
+											"fontId": "be-vietnam-pro",
+											"size": 17.1,
+											"color": "#000000",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Manager",
+							"x": 610.5,
+							"y": 610.3,
+							"width": 296.1,
+							"height": 18.1,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Manager",
+											"fontId": "be-vietnam-pro",
+											"size": 17.1,
+											"color": "#000000",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "SAMIRA HADID",
+							"x": 911.9,
+							"y": 586.2,
+							"width": 296.1,
+							"height": 18.1,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "SAMIRA HADID",
+											"fontId": "be-vietnam-pro",
+											"size": 17.1,
+											"color": "#000000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Manager",
+							"x": 911.9,
+							"y": 609,
+							"width": 296.1,
+							"height": 18.1,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Manager",
+											"fontId": "be-vietnam-pro",
+											"size": 17.1,
+											"color": "#000000",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Vision",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Vision artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-5",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Vision"
+						},
+						{
+							"kind": "text",
+							"name": "VISION",
+							"x": 469.9,
+							"y": 87,
+							"width": 340.1,
+							"height": 98.8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "VISION",
+											"fontId": "be-vietnam-pro",
+											"size": 69.3,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 101.4,
+							"y": 228.7,
+							"width": 1077.2,
+							"height": 82.3,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.Duis aute irure dolor in reprehenderit in voluptate velit ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Mission",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Mission artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-6",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Mission"
+						},
+						{
+							"kind": "text",
+							"name": "MISSION",
+							"x": 59.3,
+							"y": 97.9,
+							"width": 384.2,
+							"height": 98.8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "MISSION",
+											"fontId": "be-vietnam-pro",
+											"size": 69.3,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 59.3,
+							"y": 242.6,
+							"width": 372,
+							"height": 82.3,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, st",
+							"x": 59.3,
+							"y": 335.8,
+							"width": 372,
+							"height": 54.9,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, st",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 59.3,
+							"y": 401.4,
+							"width": 372,
+							"height": 82.3,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consecte",
+							"x": 59.3,
+							"y": 494.4,
+							"width": 372,
+							"height": 54.9,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consecte",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Services",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Services artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-7",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Services"
+						},
+						{
+							"kind": "text",
+							"name": "OUR SERVICE",
+							"x": 348.2,
+							"y": 101,
+							"width": 583.5,
+							"height": 77.7,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "OUR SERVICE",
+											"fontId": "be-vietnam-pro",
+											"size": 68.5,
+											"color": "#000000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 101.4,
+							"y": 232.9,
+							"width": 1077.2,
+							"height": 54.9,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 146.9,
+							"y": 323.2,
+							"width": 402.6,
+							"height": 164.3,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 146.9,
+							"y": 503.4,
+							"width": 402.6,
+							"height": 109.6,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 668.7,
+							"y": 323.2,
+							"width": 402.6,
+							"height": 109.6,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 668.7,
+							"y": 448.8,
+							"width": 402.6,
+							"height": 82.3,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut  ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed t",
+							"x": 668.7,
+							"y": 547,
+							"width": 402.6,
+							"height": 54.9,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed t  ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "The process",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "The process artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-8",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for The process"
+						},
+						{
+							"kind": "text",
+							"name": "The Process",
+							"x": 72,
+							"y": 316,
+							"width": 384.5,
+							"height": 64.9,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "The Process",
+											"fontId": "be-vietnam-pro",
+											"size": 57.8,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "1",
+							"x": 580.3,
+							"y": 104.6,
+							"width": 25.5,
+							"height": 54.4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "1",
+											"fontId": "be-vietnam-pro",
+											"size": 40.6,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 658.1,
+							"y": 78.4,
+							"width": 524.4,
+							"height": 109.6,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "justify",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "2",
+							"x": 580.3,
+							"y": 239.2,
+							"width": 25.5,
+							"height": 54.4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "2",
+											"fontId": "be-vietnam-pro",
+											"size": 40.6,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 658.1,
+							"y": 213,
+							"width": 524.4,
+							"height": 109.6,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "justify",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "3",
+							"x": 580.3,
+							"y": 374.1,
+							"width": 25.5,
+							"height": 54.4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "3",
+											"fontId": "be-vietnam-pro",
+											"size": 40.6,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 658.1,
+							"y": 347.9,
+							"width": 524.4,
+							"height": 109.6,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "justify",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "4",
+							"x": 580.3,
+							"y": 509,
+							"width": 25.5,
+							"height": 54.4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "4",
+											"fontId": "be-vietnam-pro",
+											"size": 40.6,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 658.1,
+							"y": 482.8,
+							"width": 524.4,
+							"height": 109.6,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "justify",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Market analysis",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Market analysis artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-9",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Market analysis"
+						},
+						{
+							"kind": "text",
+							"name": "MARKET ANALYSIS",
+							"x": 84.3,
+							"y": 137.5,
+							"width": 633.9,
+							"height": 68.1,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "MARKET ANALYSIS",
+											"fontId": "be-vietnam-pro",
+											"size": 60.5,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem Ipsum is simply dummy text of the printing and typesetting indus",
+							"x": 84.3,
+							"y": 262.8,
+							"width": 469.6,
+							"height": 211.1,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's when an unknown printer took a galley of type and scrambled it to make a type specimen book.",
+											"fontId": "be-vietnam-pro",
+											"size": 22.2,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Goals",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Goals artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-10",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Goals"
+						},
+						{
+							"kind": "text",
+							"name": "Our",
+							"x": 118.1,
+							"y": 94.7,
+							"width": 128.8,
+							"height": 60.8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Our ",
+											"fontId": "be-vietnam-pro",
+											"size": 54.2,
+											"color": "#000000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "GOALS",
+							"x": 242,
+							"y": 91,
+							"width": 260.6,
+							"height": 68.9,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "GOALS",
+											"fontId": "be-vietnam-pro",
+											"size": 61.3,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmo",
+							"x": 140.8,
+							"y": 233.4,
+							"width": 466.9,
+							"height": 328.3,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit,",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "minim veniam, quis nostrud exercitation ullamco laboris nisi ut ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "aliquip ex ea commodo consequat.Duis aute irure dolor in ",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								},
+								{
+									"alignment": "left",
+									"bullet": "bullet",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "reprehenderit in voluptate velit esse ulpa qui officia deserunt mollit anim id est laborum.",
+											"fontId": "be-vietnam-pro",
+											"size": 20.5,
+											"color": "#2b2b2b",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Projects",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Projects artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-11",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Projects"
+						},
+						{
+							"kind": "text",
+							"name": "OUR PROJECT",
+							"x": 75.2,
+							"y": 76.7,
+							"width": 564.8,
+							"height": 73,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "OUR PROJECT",
+											"fontId": "be-vietnam-pro",
+											"size": 64.9,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer vulpu",
+							"x": 78.4,
+							"y": 198.1,
+							"width": 621.9,
+							"height": 135.5,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer vulputate vel ipsum ac fringilla. Nunc cursus, arcu nec pretium aliquet, dui metus fermentum sapien, id cursus libero orci ac augue.",
+											"fontId": "be-vietnam-pro",
+											"size": 21.3,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Achievements",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Achievements artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-12",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Achievements"
+						},
+						{
+							"kind": "text",
+							"name": "ACHIEVEMENT",
+							"x": 331.5,
+							"y": 76.7,
+							"width": 586.1,
+							"height": 78.5,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "ACHIEVEMENT",
+											"fontId": "be-vietnam-pro",
+											"size": 69.3,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "1",
+							"x": 114.2,
+							"y": 215.3,
+							"width": 19.6,
+							"height": 41.8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "1",
+											"fontId": "be-vietnam-pro",
+											"size": 31.1,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "2",
+							"x": 468.7,
+							"y": 219.9,
+							"width": 19.6,
+							"height": 41.8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "2",
+											"fontId": "be-vietnam-pro",
+											"size": 31.1,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "4",
+							"x": 114.2,
+							"y": 458,
+							"width": 19.6,
+							"height": 41.8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "4",
+											"fontId": "be-vietnam-pro",
+											"size": 31.1,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "5",
+							"x": 468.7,
+							"y": 458,
+							"width": 19.6,
+							"height": 41.8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "5",
+											"fontId": "be-vietnam-pro",
+											"size": 31.1,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "6",
+							"x": 822.9,
+							"y": 462.5,
+							"width": 19.6,
+							"height": 41.8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "6",
+											"fontId": "be-vietnam-pro",
+											"size": 31.1,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "3",
+							"x": 822.9,
+							"y": 224.4,
+							"width": 19.6,
+							"height": 41.8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "3",
+											"fontId": "be-vietnam-pro",
+											"size": 31.1,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Future plan",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Future plan artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-13",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Future plan"
+						},
+						{
+							"kind": "text",
+							"name": "Future Plan",
+							"x": 108.9,
+							"y": 61.5,
+							"width": 586.1,
+							"height": 77.7,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Future Plan",
+											"fontId": "be-vietnam-pro",
+											"size": 68.5,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer vulpu",
+							"x": 108.9,
+							"y": 237.3,
+							"width": 320.2,
+							"height": 237.5,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer vulputate vel ipsum ac fringilla. Nunc cursus, arcu nec pretium aliquet, dui metus fermentum sapien, id cursus libero orci ac augue.",
+											"fontId": "be-vietnam-pro",
+											"size": 21.3,
+											"color": "#2e2e2e",
+											"bold": false,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Contact",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Contact artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-14",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Contact"
+						},
+						{
+							"kind": "text",
+							"name": "Contact us",
+							"x": 72,
+							"y": 82.7,
+							"width": 322.3,
+							"height": 61.7,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Contact us",
+											"fontId": "be-vietnam-pro",
+											"size": 55.1,
+											"color": "#ffffff",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "+123-456-7890",
+							"x": 121.7,
+							"y": 228.9,
+							"width": 236.6,
+							"height": 32.4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "+123-456-7890",
+											"fontId": "be-vietnam-pro",
+											"size": 24.5,
+											"color": "#322f50",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "www.reallygreatsite.com",
+							"x": 121.7,
+							"y": 369.7,
+							"width": 363,
+							"height": 32.4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "www.reallygreatsite.com",
+											"fontId": "be-vietnam-pro",
+											"size": 24.5,
+											"color": "#322f50",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "123 Anywhere ST., Any City, ST 12345",
+							"x": 121.7,
+							"y": 448,
+							"width": 436.1,
+							"height": 66.4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "123 Anywhere ST., Any City, ST 12345",
+											"fontId": "be-vietnam-pro",
+											"size": 24.5,
+											"color": "#322f50",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "hello@reallygreatsite.com",
+							"x": 121.7,
+							"y": 301.5,
+							"width": 358,
+							"height": 32.4,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "left",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "hello@reallygreatsite.com",
+											"fontId": "be-vietnam-pro",
+											"size": 24.5,
+											"color": "#322f50",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Thank you",
+					"background": "#ffffff",
+					"elements": [
+						{
+							"kind": "image",
+							"name": "Thank you artwork (unlock to replace)",
+							"x": 0,
+							"y": 0,
+							"width": 1280,
+							"height": 720,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": true,
+							"assetId": "company-profile-artwork-15",
+							"crop": {
+								"x": 0,
+								"y": 0,
+								"width": 1,
+								"height": 1
+							},
+							"flipX": false,
+							"flipY": false,
+							"alt": "Original geometric layout and photographs for Thank you"
+						},
+						{
+							"kind": "text",
+							"name": "THANK YOU",
+							"x": 347,
+							"y": 423.6,
+							"width": 586.1,
+							"height": 78.5,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "THANK YOU",
+											"fontId": "be-vietnam-pro",
+											"size": 69.3,
+											"color": "#8d0000",
+											"bold": true,
+											"italic": false
+										}
+									]
+								}
+							]
+						},
+						{
+							"kind": "text",
+							"name": "Liceria & Co.",
+							"x": 511.1,
+							"y": 256.8,
+							"width": 313,
+							"height": 60.8,
+							"rotation": 0,
+							"opacity": 1,
+							"visible": true,
+							"locked": false,
+							"padding": 0,
+							"lineHeight": 1.05,
+							"verticalAlign": "top",
+							"paragraphs": [
+								{
+									"alignment": "center",
+									"bullet": "none",
+									"bulletLevel": 0,
+									"runs": [
+										{
+											"text": "Liceria & Co.",
+											"fontId": "be-vietnam-pro",
+											"size": 42.7,
+											"color": "#000000",
+											"bold": true,
+											"italic": true
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			],
+			"assets": [
+				{
+					"blobKey": "templates/company-profile/slide-1",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Title artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-2",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Contents artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-3",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "About company artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-4",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Our team artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-5",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Vision artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-6",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Mission artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-7",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Services artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-8",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "The process artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-9",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Market analysis artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-10",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Goals artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-11",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Projects artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-12",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Achievements artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-13",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Future plan artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-14",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Contact artwork"
+					}
+				},
+				{
+					"blobKey": "templates/company-profile/slide-15",
+					"mimeType": "image/webp",
+					"width": 1280,
+					"height": 720,
+					"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+					"byteLength": 0,
+					"provenance": {
+						"source": "upload",
+						"label": "Thank you artwork"
+					}
+				}
+			]
+		}
+	}
+]
