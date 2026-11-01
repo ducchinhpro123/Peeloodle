@@ -37,8 +37,10 @@
 	 *   search: string,
 	 *   onopen: (documentId: string) => void | Promise<void>,
 	 *   openhref: (documentId: string) => string
+	 *   category: import('#lib/presentations/tasks.js').GalleryCategory,
+	 *   oncategory: (slug: import('#lib/presentations/tasks.js').GalleryCategory) => void
 	 * }} */
-	let { repository, pathname, search, onopen, openhref } = $props();
+	let { repository, pathname, search, onopen, openhref, category, oncategory } = $props();
 
 	let items = $state.raw(
 		/** @type {import('#lib/presentations/model/types.js').PresentationSummary[]} */ ([])
@@ -274,7 +276,8 @@
 			{onopen}
 			onblank={createBlank}
 			{creatingBlank}
-			task={new URLSearchParams(search).get('task')}
+			{category}
+			{oncategory}
 		/>
 
 		<div class="presentation-library-controls">

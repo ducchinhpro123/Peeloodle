@@ -2,27 +2,17 @@
 	import { onMount } from 'svelte';
 	import { Search, Plus, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { SHIPPED_TEMPLATES } from '#lib/presentations/templates/shippedTemplates.js';
+	import { categoryForUseCase, GALLERY_CATEGORIES } from '#lib/presentations/tasks.js';
 	import { ensurePresentationFonts } from '#lib/presentations/rendering/fonts.js';
 	import { rasterizeSlidePage } from '#lib/presentations/rendering/rasterizeSlide.js';
 	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	import Modal from './Modal.svelte';
 	import { resolve } from '$app/paths';
 
-	/** @type {{ repository: import('#lib/presentations/persistence/repository.js').PresentationRepository, onopen: (id: string) => void | Promise<void>, onblank: () => void, creatingBlank: boolean, task?: string | null }} */
-	let { repository, onopen, onblank, creatingBlank, task = null } = $props();
+	/** @type {{ repository: import('#lib/presentations/persistence/repository.js').PresentationRepository, onopen: (id: string) => void | Promise<void>, onblank: () => void, creatingBlank: boolean, category: import('#lib/presentations/tasks.js').GalleryCategory, oncategory: (slug: import('#lib/presentations/tasks.js').GalleryCategory) => void }} */
+	let { repository, onopen, onblank, creatingBlank, category, oncategory } = $props();
 	let query = $state('');
-	let category = $derived(
-		task === 'class'
-			? 'Class'
-			: task === 'research-defense'
-				? 'Research'
-				: task === 'club-pitch'
-					? 'Pitch'
-					: 'All templates'
-	);
-	const categories = ['All templates', 'Class', 'Research', 'Pitch', 'Business'];
-	const labels = ['Class', 'Research', 'Pitch', 'Business'];
-	/** @type {Array<{ key: string, title: string, description: string, category: string, document: import('#lib/presentations/model/types.js').PresentationDocument, previews: string[] }>} */
+	/** @type {Array<{ key: string, title: string, description: string, category: import('#lib/presentations/tasks.js').GalleryCategory | null, document: import('#lib/presentations/model/types.js').PresentationDocument, previews: string[] }>} */
 	let decks = $state.raw([]);
 	let loading = $state(true);
 	let previewError = $state(false);
@@ -36,7 +26,7 @@
 	const filtered = $derived(
 		decks.filter(
 			(deck) =>
-				(category === 'All templates' || deck.category === category) &&
+				(category === 'all' || deck.category === category) &&
 				`${deck.title} ${deck.description}`.toLowerCase().includes(query.trim().toLowerCase())
 		)
 	);
@@ -55,11 +45,11 @@
 		let live = true;
 		loading = true;
 		previewError = false;
-		const built = SHIPPED_TEMPLATES.map((template, index) => ({
+		const built = SHIPPED_TEMPLATES.map((template) => ({
 			key: template.key,
 			title: template.title,
 			description: template.description,
-			category: labels[index],
+			category: categoryForUseCase(template.useCase),
 			document: template.build(),
 			previews: /** @type {string[]} */ ([])
 		}));
@@ -146,11 +136,11 @@
 		</label>
 
 		<div class="categories" role="group" aria-label="Template category">
-			{#each categories as item (item)}
+			{#each GALLERY_CATEGORIES as item (item.slug)}
 				<button
-					class={{ active: category === item }}
-					aria-pressed={category === item}
-					onclick={() => (category = item)}>{item}</button
+					class={{ active: category === item.slug }}
+					aria-pressed={category === item.slug}
+					onclick={() => oncategory(item.slug)}>{item.label}</button
 				>
 			{/each}
 		</div>
@@ -191,7 +181,8 @@
 				>
 				<span class="card-caption"><strong>{deck.title}</strong><ArrowRight size={16} /></span
 				><small
-					>{deck.category} · {deck.document.assets.length
+					>{GALLERY_CATEGORIES.find((item) => item.slug === deck.category)?.label ?? 'Template'} · {deck
+						.document.assets.length
 						? 'Editable text & layout artwork'
 						: 'Fully editable'}</small
 				>
@@ -204,7 +195,7 @@
 				class={button}
 				onclick={() => {
 					query = '';
-					category = 'All templates';
+					oncategory('all');
 				}}>Clear filters</button
 			>
 		</div>{/if}
