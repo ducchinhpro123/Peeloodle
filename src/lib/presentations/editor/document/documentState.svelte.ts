@@ -56,16 +56,12 @@ export type PresentationStoreState = {
 	/** Revision known to be persisted; -1 means the document was never saved. */
 	savedRevision: number;
 	dirty: boolean;
-	saving: boolean;
-	saveError: string | null;
 	past: HistoryEntry[];
 	future: HistoryEntry[];
 	lastHistoryGroup: string | null;
 
 	loadDocument(document: PresentationDocument, options?: { saved?: boolean }): void;
-	markSaving(): void;
 	markSaved(revision: number): void;
-	markSaveFailed(message: string): void;
 
 	selectSlide(slideId: string): void;
 	selectElements(ids: string[]): void;
@@ -341,9 +337,7 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 				lastHistoryGroup: recorded.lastHistoryGroup,
 				view: { ...get().view, selectedElementIds: [input.plan.elementId], editingElementId: null },
 				savedRevision: input.persisted ? input.plan.document.revision : get().savedRevision,
-				dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision,
-				saving: input.persisted ? false : get().saving,
-				saveError: input.persisted ? null : get().saveError
+				dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision
 			});
 		};
 
@@ -364,9 +358,7 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 				future: recorded.future,
 				lastHistoryGroup: recorded.lastHistoryGroup,
 				savedRevision: input.persisted ? input.plan.document.revision : get().savedRevision,
-				dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision,
-				saving: input.persisted ? false : get().saving,
-				saveError: input.persisted ? null : get().saveError
+				dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision
 			});
 		};
 
@@ -390,9 +382,7 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 					editingElementId: null
 				},
 				savedRevision: input.persisted ? input.plan.document.revision : get().savedRevision,
-				dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision,
-				saving: input.persisted ? false : get().saving,
-				saveError: input.persisted ? null : get().saveError
+				dirty: input.persisted ? false : input.plan.document.revision !== get().savedRevision
 			});
 		};
 
@@ -450,8 +440,6 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 			view: initialView,
 			savedRevision: -1,
 			dirty: false,
-			saving: false,
-			saveError: null,
 			past: [],
 			future: [],
 			lastHistoryGroup: null,
@@ -464,30 +452,18 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 					view: { ...initialView, activeSlideId: clean.slides[0]?.id ?? null },
 					savedRevision: saved ? clean.revision : -1,
 					dirty: !saved,
-					saving: false,
-					saveError: null,
 					past: [],
 					future: [],
 					lastHistoryGroup: null
 				});
 			},
 
-			markSaving() {
-				set({ saving: true, saveError: null });
-			},
-
 			markSaved(revision) {
 				const document = get().document;
 				set({
-					saving: false,
-					saveError: null,
 					savedRevision: revision,
 					dirty: document ? document.revision !== revision : false
 				});
-			},
-
-			markSaveFailed(message) {
-				set({ saving: false, saveError: message });
 			},
 
 			selectSlide(slideId) {
@@ -843,8 +819,6 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 					current.revision !== plan.document.revision - 1
 				) {
 					set({
-						saving: false,
-						saveError: null,
 						savedRevision: plan.document.revision,
 						dirty: true
 					});
@@ -867,8 +841,6 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 					current.revision !== plan.document.revision - 1
 				) {
 					set({
-						saving: false,
-						saveError: null,
 						savedRevision: plan.document.revision,
 						dirty: true
 					});
@@ -886,8 +858,6 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 					current.revision !== plan.document.revision - 1
 				) {
 					set({
-						saving: false,
-						saveError: null,
 						savedRevision: plan.document.revision,
 						dirty: true
 					});
@@ -930,7 +900,7 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 			},
 
 			commitTransforms(geometries) {
-				const clean = new Map<string, TransformGeometry>();
+				const clean = new SvelteMap<string, TransformGeometry>();
 				for (const [id, geometry] of Object.entries(geometries)) {
 					const normalized = normalizeTransform(geometry);
 					if (normalized) clean.set(id, normalized);
@@ -973,7 +943,7 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 			},
 
 			removeElements(ids) {
-				const remove = new Set(
+				const remove = new SvelteSet(
 					(activeSlide()?.elements ?? [])
 						.filter((element) => ids.includes(element.id) && !element.locked)
 						.map((element) => element.id)
@@ -1043,7 +1013,7 @@ export function createDocumentState(options: { measureText?: MeasureText } = {})
 			reorderElements(ids, direction) {
 				const slide = activeSlide();
 				if (!slide) return;
-				const selected = new Set(ids);
+				const selected = new SvelteSet(ids);
 				let order = slide.elements.map((element) => element.id);
 				let changed = false;
 				if (direction === 'front' || direction === 'back') {

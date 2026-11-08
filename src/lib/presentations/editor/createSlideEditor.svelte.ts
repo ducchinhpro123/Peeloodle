@@ -69,10 +69,15 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 	const { presentationId, repository } = input;
 	const doc = createDocumentState();
 	const text = createTextEditSession();
+	const artwork = createEditorArtwork(repository);
 	const persistence = createPresentationSaving({
 		repository,
 		documentId: presentationId,
 		flushText: () => text.flush(),
+		prepareReopen: async (document) => {
+			const decoded = await artwork.decode(document);
+			return { adopt: () => artwork.adopt(decoded), dispose: () => decoded.dispose() };
+		},
 		doc,
 		describeFailure: input.describeFailure,
 		conflictMessage: input.conflictMessage
@@ -92,7 +97,6 @@ export function createSlideEditor(input: SlideEditorInput): SlideEditor {
 	});
 	const selection = createSelection(doc);
 	const messages = createMessages();
-	const artwork = createEditorArtwork(repository);
 	const editor: SlideEditor = {
 		doc,
 		selection,

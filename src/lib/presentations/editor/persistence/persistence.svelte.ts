@@ -10,10 +10,9 @@
  * history group closed. A drag, a slider gesture, or an open text session holds
  * one history group, so nothing is written mid-gesture.
  *
- * Insertion and conflict recovery go through the same single write path
- * (`serialize`), so there is never a second, concurrent writer. The hook
- * `usePresentationSave` connects status and lifecycle to React; `attachAutosave`
- * is the lifecycle edge, like `draftSaving.attachAutosave` for stickers.
+ * Insertion and conflict recovery go through the same serialized path, including
+ * adoption and reopening. `saveLifecycle` owns the legal status transitions;
+ * `attachAutosave` connects the document's completed edits to this coordinator.
  *
  * Image insertion is persist-first: the document and the new bytes are written
  * in one transaction, so a normal save never carries media and the store holds
@@ -39,9 +38,8 @@ import {
 	planSlideInsertion
 } from '../document/commands/images';
 import type { DocumentState } from '../document/documentState.svelte';
-
-export type PresentationSaveStatus = 'clean' | 'saving' | 'saved' | 'failed' | 'conflict';
-export type PresentationSaveState = { status: PresentationSaveStatus; message: string | null };
+import { createSaveLifecycle } from './saveLifecycle';
+export type { PresentationSaveState, PresentationSaveStatus } from './saveLifecycle';
 
 export type PersistOutcome =
 	{ ok: true } | { ok: false; reason: 'failed' | 'conflict'; message: string };
@@ -76,6 +74,11 @@ export function createPresentationSaving(input: {
 	documentId: string | null;
 	/** Commits text that is still only on screen before a save reads the store. */
 	flushText: () => void;
+	/** Preparation leaves the current artwork intact until reopening can commit. */
+	prepareReopen: (document: PresentationDocument) => Promise<{
+		adopt(): void;
+		dispose(): void;
+	}>;
 	doc: DocumentState;
 	/** Overrides the local-storage failure copy (template mode supplies one). */
 	describeFailure?: (error: unknown) => string;
@@ -87,16 +90,10 @@ export function createPresentationSaving(input: {
 	const conflictMessage = input.conflictMessage ?? SAVE_CONFLICT_MESSAGE;
 	const describeFailure = input.describeFailure ?? describeSaveFailure;
 
-	let status: PresentationSaveState = { status: 'clean', message: null };
-	const statusListeners = new Set<() => void>();
+	const lifecycle = createSaveLifecycle();
+	const dispatch = lifecycle.dispatch;
 	let pendingWrites = 0;
 	let chain: Promise<unknown> = Promise.resolve();
-
-	const publish = (next: PresentationSaveState) => {
-		if (status.status === next.status && status.message === next.message) return;
-		status = next;
-		for (const listener of statusListeners) listener();
-	};
 
 	/**
 	 * One serialization point for every write. A write starts immediately when
@@ -135,7 +132,7 @@ export function createPresentationSaving(input: {
 		if (documentId === null || start.document?.id !== documentId) return 'skipped';
 		// An unchanged revision is never re-submitted, so a clean document is not re-written.
 		if (!start.dirty || start.document.revision === start.savedRevision) {
-			publish({ status: 'saved', message: null });
+			dispatch({ type: 'save-skipped' });
 			return 'skipped';
 		}
 
@@ -143,13 +140,12 @@ export function createPresentationSaving(input: {
 		const document = pending.document;
 		if (!document || document.id !== documentId) return 'skipped';
 		if (!pending.dirty || document.revision === pending.savedRevision) {
-			publish({ status: 'saved', message: null });
+			dispatch({ type: 'save-skipped' });
 			return 'skipped';
 		}
 
 		const baseRevision = pending.savedRevision;
-		pending.markSaving();
-		publish({ status: 'saving', message: null });
+		dispatch({ type: 'save-started' });
 
 		try {
 			// Persist-first: every asset the document references was written with the
@@ -158,15 +154,12 @@ export function createPresentationSaving(input: {
 			await repository.savePresentation(document, [], { baseRevision });
 		} catch (error) {
 			if (!stillCurrent()) return 'skipped';
-			const failed = doc.snapshot();
 			if (isPersistenceError(error) && error.code === 'revision_conflict') {
-				failed.markSaveFailed(conflictMessage);
-				publish({ status: 'conflict', message: conflictMessage });
+				dispatch({ type: 'save-failed', reason: 'conflict', message: conflictMessage });
 				return 'conflict';
 			}
 			const message = describeFailure(error);
-			failed.markSaveFailed(message);
-			publish({ status: 'failed', message });
+			dispatch({ type: 'save-failed', reason: 'failed', message });
 			return 'failed';
 		}
 
@@ -175,7 +168,7 @@ export function createPresentationSaving(input: {
 		// The revision that was written, not the latest one: edits made while the
 		// write was in flight must keep the document dirty.
 		stored.markSaved(document.revision);
-		publish({ status: 'saved', message: null });
+		dispatch({ type: 'save-succeeded' });
 		return 'saved';
 	};
 
@@ -189,7 +182,8 @@ export function createPresentationSaving(input: {
 	 */
 	const persistDocument = (
 		next: PresentationDocument,
-		media: PresentationMediaRecord[]
+		media: PresentationMediaRecord[],
+		adopt: () => void
 	): Promise<PersistOutcome> =>
 		serialize(async () => {
 			if (documentId === null || next.id !== documentId) {
@@ -199,15 +193,15 @@ export function createPresentationSaving(input: {
 			// a save that completes while this task waits in the queue advances the stored
 			// revision, and a stale base would then report a conflict for our own write.
 			const baseRevision = doc.savedRevision;
-			doc.markSaving();
-			publish({ status: 'saving', message: null });
+			dispatch({ type: 'save-started' });
 			try {
 				await repository.savePresentation(next, media, { baseRevision });
+				adopt();
+				dispatch({ type: 'save-succeeded' });
 				return { ok: true as const };
 			} catch (error) {
 				if (isPersistenceError(error) && error.code === 'revision_conflict') {
-					doc.markSaveFailed(conflictMessage);
-					publish({ status: 'conflict', message: conflictMessage });
+					dispatch({ type: 'save-failed', reason: 'conflict', message: conflictMessage });
 					return {
 						ok: false as const,
 						reason: 'conflict' as const,
@@ -215,8 +209,7 @@ export function createPresentationSaving(input: {
 					};
 				}
 				const message = describeFailure(error);
-				doc.markSaveFailed(message);
-				publish({ status: 'failed', message });
+				dispatch({ type: 'save-failed', reason: 'failed', message });
 				return { ok: false as const, reason: 'failed' as const, message };
 			}
 		});
@@ -250,11 +243,11 @@ export function createPresentationSaving(input: {
 			return { ok: false, reason: 'no-slide', message: 'There is no slide to add this image to.' };
 
 		const media = await mediaToPersist(repository, image);
-		const outcome = await persistDocument(plan.document, media);
+		const outcome = await persistDocument(plan.document, media, () =>
+			doc.adoptPersistedInsert(plan, image)
+		);
 		if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message };
 
-		doc.adoptPersistedInsert(plan, image);
-		publish({ status: 'saved', message: null });
 		return { ok: true, elementId: plan.elementId };
 	};
 
@@ -284,11 +277,11 @@ export function createPresentationSaving(input: {
 			return { ok: false, reason: 'no-image', message: 'Select an image before replacing it.' };
 
 		const media = await mediaToPersist(repository, image);
-		const outcome = await persistDocument(plan.document, media);
+		const outcome = await persistDocument(plan.document, media, () =>
+			doc.adoptPersistedReplacement(plan, image)
+		);
 		if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message };
 
-		doc.adoptPersistedReplacement(plan, image);
-		publish({ status: 'saved', message: null });
 		return { ok: true, elementId: plan.elementId };
 	};
 
@@ -323,10 +316,10 @@ export function createPresentationSaving(input: {
 				reason: 'no-slide',
 				message: 'There is no place to insert these slides.'
 			};
-		const outcome = await persistDocument(plan.document, input.media);
+		const outcome = await persistDocument(plan.document, input.media, () =>
+			doc.adoptPersistedSlideInsertion(plan)
+		);
 		if (!outcome.ok) return { ok: false, reason: outcome.reason, message: outcome.message };
-		doc.adoptPersistedSlideInsertion(plan);
-		publish({ status: 'saved', message: null });
 		return { ok: true, slideId: plan.slideIds[0] ?? null };
 	};
 
@@ -335,52 +328,62 @@ export function createPresentationSaving(input: {
 	 * independent copy, then load the newer stored revision so the user is no
 	 * longer editing something that can never be written.
 	 */
-	const keepMineAsCopy = async (): Promise<ConflictRecoveryOutcome> => {
-		const source = doc.document;
-		if (!source || source.id !== documentId)
-			return { ok: false, message: 'There is no open presentation to copy.' };
-		flushText();
-
-		const local = doc.document;
-		if (!local || local.id !== documentId)
-			return { ok: false, message: 'There is no open presentation to copy.' };
-		const copy = clonePresentationDocumentWithNewIds(local, {
-			title: conflictCopyTitle(local.title)
-		});
-
-		const outcome = await serialize(async (): Promise<ConflictRecoveryOutcome> => {
-			// The copy uses new asset ids, so its media must be re-keyed by content.
-			const media = await mediaForCopy(repository, local, copy);
-			if (!media.ok) return { ok: false, message: media.message };
+	const keepMineAsCopy = (): Promise<ConflictRecoveryOutcome> =>
+		serialize(async () => {
+			flushText();
+			const local = doc.document;
+			if (!local || local.id !== documentId)
+				return { ok: false, message: 'There is no open presentation to copy.' };
+			if (lifecycle.getState().status !== 'conflict')
+				return { ok: false, message: 'There is no save conflict to recover.' };
+			dispatch({ type: 'recovery-started', document: local });
+			let prepared: Awaited<ReturnType<typeof input.prepareReopen>> | undefined;
 			try {
-				await repository.savePresentation(copy, media.records);
-			} catch (error) {
-				return { ok: false, message: describeFailure(error) };
-			}
-			return { ok: true, copyId: copy.id };
-		});
+				const start = lifecycle.getState();
+				if (start.status === 'recovering' && start.stage === 'copying') {
+					const copy = clonePresentationDocumentWithNewIds(local, {
+						title: conflictCopyTitle(local.title)
+					});
+					const media = await mediaForCopy(repository, local, copy);
+					if (!media.ok) {
+						dispatch({ type: 'recovery-failed', message: media.message });
+						return media;
+					}
+					await repository.savePresentation(copy, media.records);
+					dispatch({ type: 'copy-saved', copyId: copy.id });
+				}
+				const checkpoint = lifecycle.getState();
+				if (checkpoint.status !== 'recovering' || checkpoint.stage !== 'reopening')
+					throw new Error('A saved conflict copy is required before reopening.');
 
-		if (!outcome.ok) {
-			doc.markSaveFailed(outcome.message);
-			publish({ status: 'failed', message: outcome.message });
-			return outcome;
-		}
-
-		// Reopen the newer stored revision; the user's own work is safe in the copy.
-		try {
-			const newer = await repository.getPresentation(documentId!);
-			if (doc.document?.id === documentId) {
+				const newer = await repository.getPresentation(documentId);
+				prepared = await input.prepareReopen(newer);
+				flushText();
+				// A copy protects exactly the snapshot it contains, including edits
+				// made during storage reads or artwork decoding. Never discard later work.
+				if (doc.document !== local) {
+					const message =
+						'You made more edits while your copy was being saved. Your edits are still here. Press Keep my copy again to keep the latest version.';
+					dispatch({ type: 'recovery-edited', message });
+					return { ok: false, message };
+				}
+				prepared.adopt();
+				prepared = undefined;
 				doc.loadDocument(newer, { saved: true });
-				publish({ status: 'clean', message: null });
+				dispatch({ type: 'recovery-succeeded' });
+				return { ok: true, copyId: checkpoint.copyId };
+			} catch (error) {
+				const current = lifecycle.getState();
+				const message =
+					current.status === 'recovering' && current.stage === 'reopening'
+						? 'Your conflict copy was saved, but the newer version could not be reopened. Press Keep my copy to retry.'
+						: describeFailure(error);
+				dispatch({ type: 'recovery-failed', message });
+				return { ok: false, message };
+			} finally {
+				prepared?.dispose();
 			}
-		} catch (error) {
-			const message = describeFailure(error);
-			doc.markSaveFailed(message);
-			publish({ status: 'failed', message });
-			return { ok: false, message };
-		}
-		return outcome;
-	};
+		});
 
 	/**
 	 * Used by the editor's leave block: commit anything still on screen, wait for
@@ -445,13 +448,8 @@ export function createPresentationSaving(input: {
 	};
 
 	return {
-		getStatus: () => status,
-		subscribeStatus: (listener: () => void) => {
-			statusListeners.add(listener);
-			return () => {
-				statusListeners.delete(listener);
-			};
-		},
+		getStatus: lifecycle.getState,
+		subscribeStatus: lifecycle.subscribe,
 		save,
 		saveBeforeLeave,
 		persistInsert,

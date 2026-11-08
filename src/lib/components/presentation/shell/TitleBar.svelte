@@ -14,7 +14,6 @@
 	 *   onsave: () => void,
 	 *   exportState: import('#lib/presentations/editor/exportController.js').PresentationExportState,
 	 *   offline: import('#lib/presentations/offlineReadiness.js').PresentationOfflineSnapshot,
-	 *   recovering: boolean,
 	 *   onreloaddraft: () => void,
 	 *   onkeepcopy: () => void
 	 * }}
@@ -29,7 +28,6 @@
 		onsave,
 		exportState,
 		offline,
-		recovering,
 		onreloaddraft,
 		onkeepcopy
 	} = $props();
@@ -43,6 +41,7 @@
 
 	const { doc, policy, services, inserts, exports } = getSlideEditor();
 	const presentation = $derived(doc.document);
+	const recovering = $derived(saveStatus === 'recovering');
 </script>
 
 {#if presentation}
@@ -61,7 +60,7 @@
 			<p class="presentation-local-status" role="status" title={saveMessage ?? undefined}>
 				{saveLabel}
 			</p>
-			<button type="button" class={button} onclick={onsave}
+			<button type="button" class={button} disabled={recovering} onclick={onsave}
 				><Save size={16} aria-hidden="true" /> {policy.labels.save}</button
 			>
 			{#if policy.capabilities.export}
@@ -88,7 +87,7 @@
 					title="Discard your changes and load the newest saved draft"
 					onclick={onreloaddraft}>Reload draft (discards my changes)</button
 				>
-			{:else if saveStatus === 'conflict'}
+			{:else if saveStatus === 'conflict' || recovering}
 				<button type="button" class={button} disabled={recovering} onclick={onkeepcopy}
 					>{recovering ? 'Keeping your copy…' : 'Keep my copy'}</button
 				>

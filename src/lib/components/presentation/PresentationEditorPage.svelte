@@ -102,7 +102,10 @@
 		}
 	});
 	setSlideEditor(editor);
-	$effect(() => attachKeymap(editor.actions, window, { exempt: SHORTCUT_EXEMPT }));
+	function attachKeyboard() {
+		return attachKeymap(editor.actions, window, { exempt: SHORTCUT_EXEMPT });
+	}
+	$effect(attachKeyboard);
 	configureClipboardPaste(editor);
 
 	const { ui, artwork, inserts } = editor;
@@ -115,9 +118,10 @@
 	} = editor;
 
 	// Text formatting lives on Home, so starting a text edit brings Home forward.
-	$effect(() => {
+	function followTextEditing() {
 		if (selection.editingId) ui.ribbon.select('home');
-	});
+	}
+	$effect(followTextEditing);
 
 	let saveState = $state.raw(saving.getStatus());
 	let exportState = $state.raw(exportController.getState());
@@ -139,7 +143,6 @@
 	 * @type {typeof import('./PresentationCanvas.svelte').default | null}
 	 */
 	let PresentationCanvas = $state(null);
-	let recovering = $state(false);
 
 	const editorState = $derived(doc.snapshot());
 	const presentation = $derived(editorState.document);
@@ -149,15 +152,19 @@
 	);
 	const saveReported = $derived(saveState.status === 'failed' || saveState.status === 'conflict');
 	const saveLabel = $derived(
-		saveState.status === 'conflict'
-			? 'Save conflict'
-			: saveState.status === 'failed'
-				? 'Save failed'
-				: saveState.status === 'saving'
-					? policy.labels.saving
-					: editorState.dirty
-						? 'Unsaved changes'
-						: policy.labels.saved
+		saveState.status === 'recovering'
+			? saveState.stage === 'copying'
+				? 'Keeping your copy…'
+				: 'Reopening saved version…'
+			: saveState.status === 'conflict'
+				? 'Save conflict'
+				: saveState.status === 'failed'
+					? 'Save failed'
+					: saveState.status === 'saving'
+						? policy.labels.saving
+						: editorState.dirty
+							? 'Unsaved changes'
+							: policy.labels.saved
 	);
 	// A failure is shown in words, not only in a tooltip: what happened and that
 	// the edit is still here with a way to retry it.
@@ -167,13 +174,14 @@
 
 	// Effects never run during SSR, so the import alone is the client-only seam;
 	// the placeholder below holds the canvas track until it resolves.
-	$effect(() => {
+	function loadCanvas() {
 		void import('./PresentationCanvas.svelte').then((module) => {
 			PresentationCanvas = module.default;
 		});
-	});
+	}
+	$effect(loadCanvas);
 
-	$effect(() => {
+	function subscribeSaving() {
 		const unsubscribe = saving.subscribeStatus(() => (saveState = saving.getStatus()));
 		// Template mode has no autosave: every write creates an immutable version,
 		// so a version is only ever created by an explicit Save (or a held
@@ -185,9 +193,10 @@
 			unsubscribe();
 			autosave?.detach();
 		};
-	});
+	}
+	$effect(subscribeSaving);
 
-	$effect(() => {
+	function subscribeExports() {
 		const unsubscribe = exportController.subscribeState(
 			() => (exportState = exportController.getState())
 		);
@@ -195,9 +204,10 @@
 			unsubscribe();
 			exportController.destroy();
 		};
-	});
+	}
+	$effect(subscribeExports);
 
-	$effect(() => {
+	function publishLeaveGuard() {
 		// The route owns history, the page owns the write: publishing this guard
 		// through the binding is how an in-app navigation is held until the unsaved
 		// work is committed. The route starts with `null`, so it must be handed the
@@ -214,7 +224,8 @@
 			// The guard must not outlive the editor it speaks for.
 			leaveguard = null;
 		};
-	});
+	}
+	$effect(publishLeaveGuard);
 
 	/**
 	 * Opens the routed presentation: loads its fonts and artwork, then adopts the
@@ -222,7 +233,7 @@
 	 * retry that has already replaced it) disposes what it decoded instead of
 	 * swapping it in after the editor has moved on.
 	 */
-	$effect(() => {
+	function openPresentation() {
 		// "Try again" bumps the attempt counter to re-run this read.
 		void attempt;
 		let live = true;
@@ -273,7 +284,8 @@
 			live = false;
 			artwork.dispose();
 		};
-	});
+	}
+	$effect(openPresentation);
 
 	async function requestSave() {
 		editor.messages.clearNotice();
@@ -297,30 +309,13 @@
 	 * the newer stored revision so Save is no longer dead.
 	 */
 	async function recoverFromConflict() {
-		recovering = true;
 		editor.messages.clearNotice();
-		let reopened = false;
-		try {
-			const outcome = await saving.keepMineAsCopy();
-			if (!outcome.ok) {
-				editor.messages.showNotice(outcome.message);
-				return;
-			}
-			// The store holds the newer revision from here on; only its artwork is left.
-			reopened = true;
-			await artwork.reload(presentationId);
-			editor.messages.showNotice(
-				'Your work was saved as a separate conflict copy. The newer saved version is open now.'
-			);
-		} catch {
-			editor.messages.showNotice(
-				reopened
-					? 'Your work was saved as a separate conflict copy, and the newer saved version is open — but its artwork could not be shown yet. Reload this page to see it.'
-					: 'The newer version could not be reopened. Reload this page to continue.'
-			);
-		} finally {
-			recovering = false;
-		}
+		const outcome = await saving.keepMineAsCopy();
+		editor.messages.showNotice(
+			outcome.ok
+				? 'Your work was saved as a separate conflict copy. The newer saved version is open now.'
+				: outcome.message
+		);
 	}
 
 	/**
@@ -408,7 +403,6 @@
 			onsave={requestSave}
 			{exportState}
 			offline={offline.snapshot}
-			{recovering}
 			onreloaddraft={reloadDraft}
 			onkeepcopy={() => void recoverFromConflict()}
 		/>
