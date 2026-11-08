@@ -1,5 +1,6 @@
 <script>
 	import { Presentation, Search } from 'lucide-svelte';
+	import { onDestroy } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import Modal from '#lib/components/Modal.svelte';
 	import { button, buttonPrimary } from '#lib/ui/styles.js';
@@ -53,6 +54,17 @@
 	let previewLoading = $state(false);
 	/** @type {string | null} */
 	let previewError = $state(null);
+	let previewSequence = 0;
+
+	onDestroy(() => {
+		previewSequence += 1;
+	});
+
+	function closePreview() {
+		previewSequence += 1;
+		previewOpen = false;
+		previewLoading = false;
+	}
 
 	/** @param {unknown} cause */
 	function errorText(cause) {
@@ -114,15 +126,18 @@
 		}
 	}
 
-	$effect(() => {
+	function refreshTemplates() {
 		void appliedQuery;
 		void useCase;
 		void reloadKey;
 		void load(true);
-	});
+	}
+
+	$effect(refreshTemplates);
 
 	/** @param {import('#lib/catalog/types.js').CatalogTemplate} row */
 	async function openPreview(row) {
+		const sequence = ++previewSequence;
 		previewTemplate = row;
 		previewOpen = true;
 		previewUrls = [];
@@ -135,17 +150,19 @@
 		previewLoading = true;
 		try {
 			const version = await catalog.getTemplateVersion(row.id);
+			if (sequence !== previewSequence) return;
 			const urls = await Promise.all(
 				version.slidePreviews
 					.slice()
 					.sort((left, right) => left.ordinal - right.ordinal)
 					.map((preview) => catalog.signedDerivativeUrl(preview.path, 300))
 			);
+			if (sequence !== previewSequence) return;
 			previewUrls = urls;
 		} catch (cause) {
-			previewError = errorText(cause);
+			if (sequence === previewSequence) previewError = errorText(cause);
 		} finally {
-			previewLoading = false;
+			if (sequence === previewSequence) previewLoading = false;
 		}
 	}
 
@@ -161,7 +178,7 @@
 				presentationRepository,
 				templateId: row.id
 			});
-			previewOpen = false;
+			closePreview();
 			onused(clone.id);
 		} catch (cause) {
 			cloneError =
@@ -315,7 +332,7 @@
 	open={previewOpen}
 	title={previewTemplate ? `${previewTemplate.title} — all slides` : 'All slides'}
 	description="Previews are rendered from the exact published template version. Choosing “Use template” copies all slides and artwork into a new presentation you own."
-	onclose={() => (previewOpen = false)}
+	onclose={closePreview}
 >
 	<div class="[display:grid] [gap:var(--space-3)]">
 		{#if previewLoading}<p role="status">Loading slides…</p>{/if}
@@ -339,7 +356,7 @@
 			<p>This template has no slide previews yet.</p>
 		{/if}
 		<div class="[display:flex] [justify-content:flex-end] [gap:var(--space-2)]">
-			<button type="button" class={button} onclick={() => (previewOpen = false)}>Close</button>
+			<button type="button" class={button} onclick={closePreview}>Close</button>
 			{#if previewTemplate}
 				<button
 					type="button"

@@ -54,7 +54,15 @@
 	const versions = new SvelteMap();
 	let versionsLoading = $state(false);
 
+	function close() {
+		loadSequence += 1;
+		open = false;
+		loadingMore = false;
+	}
+
 	async function loadFirstPage() {
+		const sequence = ++loadSequence;
+		loadingMore = false;
 		if (!repository) {
 			status = 'error';
 			error = 'The catalog is not configured for this site.';
@@ -62,7 +70,6 @@
 		}
 		status = 'loading';
 		error = null;
-		const sequence = ++loadSequence;
 		try {
 			const page = await repository.listAssets({
 				query: appliedQuery,
@@ -93,7 +100,8 @@
 	}
 
 	async function loadMore() {
-		if (!repository || !nextCursor) return;
+		if (!repository || !nextCursor || loadingMore || status !== 'ready') return;
+		const sequence = loadSequence;
 		loadingMore = true;
 		try {
 			const page = await repository.listAssets({
@@ -103,16 +111,17 @@
 				limit: PAGE_SIZE,
 				cursor: nextCursor
 			});
+			if (sequence !== loadSequence) return;
 			assets = [...assets, ...page.items];
 			nextCursor = page.nextCursor;
 		} catch (cause) {
-			error = errorText(cause);
+			if (sequence === loadSequence) error = errorText(cause);
 		} finally {
-			loadingMore = false;
+			if (sequence === loadSequence) loadingMore = false;
 		}
 	}
 
-	$effect(() => {
+	function loadPicker() {
 		if (!open) return;
 		let live = true;
 		void repository
@@ -126,14 +135,17 @@
 		void loadFirstPage();
 		return () => {
 			live = false;
+			loadSequence += 1;
 		};
-	});
+	}
+
+	$effect(loadPicker);
 
 	/**
 	 * Published versions for the assets currently shown, fetched once per asset so
 	 * Insert can pass the exact immutable version.
 	 */
-	$effect(() => {
+	function loadPublishedVersions() {
 		const active = catalog;
 		if (!open || status !== 'ready' || !active) return;
 		const missing = assets.filter((asset) => !versions.has(asset.id));
@@ -159,7 +171,9 @@
 		return () => {
 			live = false;
 		};
-	});
+	}
+
+	$effect(loadPublishedVersions);
 
 	/** @param {import('#lib/catalog/types.js').CatalogAsset} asset */
 	function insert(asset) {
@@ -176,16 +190,18 @@
 			derivativeSha256: version.derivativeSha256,
 			versionId: version.id
 		});
-		open = false;
+		close();
 	}
 </script>
 
 <button
 	type="button"
 	class={button}
-	bind:this={opener}
 	{disabled}
-	onclick={() => (open = true)}
+	onclick={(event) => {
+		opener = event.currentTarget;
+		open = true;
+	}}
 	aria-label="Add a catalog image"
 >
 	<Library size={16} aria-hidden="true" /> Catalog
@@ -195,7 +211,7 @@
 	{open}
 	title="Add a catalog image"
 	description="Published catalog images only. The image is saved into this presentation, so later catalog changes do not alter it."
-	onclose={() => (open = false)}
+	onclose={close}
 	onclosed={() => opener?.focus()}
 >
 	<div class="[display:grid] [gap:var(--space-3)]">

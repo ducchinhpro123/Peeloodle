@@ -2,8 +2,8 @@ import { defineConfig } from '@playwright/test';
 
 /**
  * The optional-cloud suite. It runs against a production build whose public
- * Supabase configuration points at a synthetic project, and the spec intercepts
- * every auth/REST/Storage request with an in-memory backend. No real Supabase
+ * Supabase configuration points at a synthetic project, and the specs intercept
+ * auth/REST/Storage requests with in-memory backends. No real Supabase
  * project, credentials or emails are involved.
  *
  * Kept out of the default config on purpose: the main suite must keep proving the
@@ -22,7 +22,7 @@ export default defineConfig({
 			VITE_AUTH_ALLOWED_ORIGINS: 'http://localhost:4174,http://127.0.0.1:4174'
 		}
 	},
-	testMatch: ['e2e/cloud.spec.ts'],
+	testMatch: ['e2e/cloud.spec.ts', 'e2e/catalog-races.spec.ts'],
 	use: {
 		baseURL: 'http://localhost:4174',
 		viewport: { width: 1440, height: 900 },

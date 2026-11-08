@@ -16,7 +16,7 @@ export default defineConfig({
 	testMatch: ['**/*.e2e.{ts,js}', 'e2e/**/*.spec.ts'],
 	// The optional-cloud suite needs a build with synthetic public config and its own
 	// backend interceptors; it runs through `playwright.cloud.config.js` instead.
-	testIgnore: ['e2e/cloud.spec.ts'],
+	testIgnore: ['e2e/cloud.spec.ts', 'e2e/catalog-races.spec.ts'],
 	use: {
 		baseURL: 'http://localhost:4173',
 		viewport: { width: 1440, height: 900 },

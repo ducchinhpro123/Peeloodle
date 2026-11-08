@@ -1,5 +1,6 @@
 <script>
 	import { SvelteSet } from 'svelte/reactivity';
+	import { onDestroy } from 'svelte';
 	import Modal from '#lib/components/Modal.svelte';
 	import { button, buttonPrimary } from '#lib/ui/styles.js';
 	import { isCatalogError } from '#lib/catalog/repository.js';
@@ -32,6 +33,17 @@
 	let error = $state(null);
 	/** @type {HTMLButtonElement | null} */
 	let opener = $state(null);
+	let loadSequence = 0;
+
+	onDestroy(() => {
+		loadSequence += 1;
+	});
+
+	function close() {
+		loadSequence += 1;
+		open = false;
+		loading = false;
+	}
 
 	const canInsert = $derived(templateId !== '' && selected.size > 0 && !inserting);
 
@@ -43,6 +55,7 @@
 	}
 
 	async function openDialog() {
+		const sequence = ++loadSequence;
 		open = true;
 		error = null;
 		templateId = '';
@@ -51,34 +64,38 @@
 		loading = true;
 		try {
 			const page = await repository.listTemplates({ limit: 100 });
+			if (sequence !== loadSequence) return;
 			templates = page.items;
 		} catch (cause) {
+			if (sequence !== loadSequence) return;
 			templates = [];
 			error = errorText(cause);
 		} finally {
-			loading = false;
+			if (sequence === loadSequence) loading = false;
 		}
 	}
 
 	/** @param {string} id */
 	async function chooseTemplate(id) {
+		const sequence = ++loadSequence;
 		templateId = id;
 		slides = [];
 		selected.clear();
 		error = null;
+		loading = id !== '';
 		if (!id) return;
-		loading = true;
 		try {
 			const version = await repository.getTemplateVersion(id);
+			if (sequence !== loadSequence) return;
 			const document = parsePresentationDocument(version.document);
 			slides = document.slides.map((slide, ordinal) => ({
 				ordinal,
 				name: slide.name.trim() || `Slide ${ordinal + 1}`
 			}));
 		} catch (cause) {
-			error = errorText(cause);
+			if (sequence === loadSequence) error = errorText(cause);
 		} finally {
-			loading = false;
+			if (sequence === loadSequence) loading = false;
 		}
 	}
 
@@ -98,7 +115,7 @@
 				error = result.message ?? 'The slides could not be inserted.';
 				return;
 			}
-			open = false;
+			close();
 		} finally {
 			inserting = false;
 		}
@@ -109,9 +126,11 @@
 	type="button"
 	class={button}
 	{disabled}
-	bind:this={opener}
 	aria-label="Insert template slides"
-	onclick={() => void openDialog()}>Insert slides</button
+	onclick={(event) => {
+		opener = event.currentTarget;
+		void openDialog();
+	}}>Insert slides</button
 >
 
 <Modal
@@ -120,7 +139,7 @@
 	title="Insert template slides"
 	description="Copies the chosen slides from a published deck template into this presentation, after the active slide. The template is never changed."
 	onclose={() => {
-		if (!inserting) open = false;
+		if (!inserting) close();
 	}}
 	onclosed={() => opener?.focus()}
 >
@@ -162,9 +181,7 @@
 		{/if}
 		{#if error}<p role="alert" class="[margin:0] [font-weight:700]">{error}</p>{/if}
 		<div class="[display:flex] [justify-content:flex-end] [gap:var(--space-2)]">
-			<button type="button" class={button} disabled={inserting} onclick={() => (open = false)}
-				>Cancel</button
-			>
+			<button type="button" class={button} disabled={inserting} onclick={close}>Cancel</button>
 			<button
 				type="button"
 				class={buttonPrimary}
